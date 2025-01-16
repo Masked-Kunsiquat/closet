@@ -1,4 +1,4 @@
-const CACHE_NAME = 'closet-pwa-cache-v2'; // Increment this for each version
+const CACHE_NAME = 'closet-pwa-cache-v3'; // Increment this for each version
 const ASSETS = [
     '/',
     '/index.html',

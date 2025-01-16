@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { createItem } from './utils/schema';
-import { addItem, getItems, deleteItem } from './utils/db';
+import { addItem, getItems, deleteItem, getCategories } from './utils/db';
 import ReactDOM from 'react-dom/client';
 
 function App() {
     const [items, setItems] = useState([]); // Manage list of items
+    const [categories, setCategories] = useState([]); // Manage categories
     const [formData, setFormData] = useState({ name: '', category: '', color: '' }); // Manage form input
 
-    // Fetch items from IndexedDB on initial load
+    // Fetch items and categories from IndexedDB on initial load
     useEffect(() => {
-        const fetchItems = async () => {
+        const fetchData = async () => {
             const storedItems = await getItems();
+            const storedCategories = await getCategories();
             setItems(storedItems);
+            setCategories(storedCategories);
         };
-        fetchItems();
+        fetchData();
     }, []);
 
     // Handle input change in the form
@@ -51,14 +54,19 @@ function App() {
                     placeholder="Item Name"
                     required
                 />
-                <input
-                    type="text"
+                <select
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    placeholder="Category"
                     required
-                />
+                >
+                    <option value="">Select Category</option>
+                    {categories.map((category) => (
+                        <option key={category.id} value={category.name}>
+                            {category.name}
+                        </option>
+                    ))}
+                </select>
                 <input
                     type="text"
                     name="color"
