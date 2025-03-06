@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Tabs } from "flowbite-react";
 import { getClothingItems, getCategories } from "../api/clothing";
+import { Link } from "react-router-dom";
 
 type Category = {
   id: string;
@@ -13,6 +13,7 @@ type ClothingItem = {
   size: string;
   price: number;
   category_id: string;
+  image_url?: string;
 };
 
 export default function Clothes() {
@@ -30,52 +31,59 @@ export default function Clothes() {
 
     setSelectedCategory(categoryId);
     const items = await getClothingItems(categoryId);
-    
+
     console.log(`Updated state with ${items.length} items.`);
     setClothes(items);
   };
 
   return (
-    <div className="max-w-4xl mx-auto mt-6">
-      <h2 className="text-3xl font-bold mb-4">My Clothes</h2>
+    <div className="max-w-5xl mx-auto mt-6">
+      <h2 className="text-3xl font-bold mb-6 text-center">My Clothes</h2>
 
-      {/* Category Filter Tabs */}
-      <Tabs aria-label="Clothing Categories">
-        <Tabs.Item
-          active={selectedCategory === undefined}
-          title="All"
-          onClick={() => {
-            console.log("Clicked: All Categories");
-            fetchClothing(undefined);
-          }}
+      {/* Category Filter Buttons */}
+      <div className="flex items-center justify-center py-4 flex-wrap">
+        <button
+          onClick={() => fetchClothing(undefined)}
+          className={`${
+            selectedCategory === undefined ? "text-blue-700 border-blue-600 bg-white" : "text-gray-900 border-white hover:border-gray-200"
+          } border rounded-full text-base font-medium px-5 py-2.5 text-center me-3 mb-3 focus:ring-4 focus:outline-none focus:ring-blue-300`}
         >
-          <p className="text-gray-500">Showing all clothing items</p>
-        </Tabs.Item>
+          All categories
+        </button>
 
         {categories.map((category) => (
-          <Tabs.Item
+          <button
             key={category.id}
-            title={category.name}
-            active={selectedCategory === category.id} // FIX: Use ID for selection
-            onClick={() => {
-              console.log(`Clicked: ${category.name}`);
-              fetchClothing(category.id); // FIX: Pass category ID instead of name
-            }}
+            onClick={() => fetchClothing(category.id)}
+            className={`${
+              selectedCategory === category.id ? "text-blue-700 border-blue-600 bg-white" : "text-gray-900 border-white hover:border-gray-200"
+            } border rounded-full text-base font-medium px-5 py-2.5 text-center me-3 mb-3 focus:ring-4 focus:outline-none focus:ring-gray-300`}
           >
-            <p className="text-gray-500">Showing {category.name} items</p>
-          </Tabs.Item>
+            {category.name}
+          </button>
         ))}
-      </Tabs>
+      </div>
 
       {/* Clothes Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
         {clothes.length > 0 ? (
           clothes.map((item) => (
-            <div key={item.id} className="border p-4 rounded-lg shadow-sm">
-              <h3 className="font-bold">{item.name}</h3>
-              <p>Size: {item.size}</p>
-              <p>Price: ${item.price.toFixed(2)}</p>
-            </div>
+            <Link
+              to={`/clothes/${item.id}`}
+              key={item.id}
+              className="relative border p-2 rounded-lg shadow-sm block hover:bg-gray-100"
+            >
+              <img
+                src={item.image_url || "https://flowbite.s3.amazonaws.com/docs/gallery/square/image.jpg"}
+                alt={item.name}
+                className="h-auto max-w-full rounded-lg"
+              />
+              <div className="mt-2 text-center">
+                <h3 className="font-bold">{item.name}</h3>
+                <p className="text-sm">Size: {item.size}</p>
+                <p className="text-sm font-semibold">Price: ${item.price.toFixed(2)}</p>
+              </div>
+            </Link>
           ))
         ) : (
           <p className="text-gray-500 text-center col-span-full mt-4">No items found</p>

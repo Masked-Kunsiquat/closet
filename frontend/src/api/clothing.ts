@@ -4,23 +4,13 @@ import { API_URL } from "./config";
 /**
  * Fetch clothing items, optionally filtered by category name.
  */
-export const getClothingItems = async (categoryName?: string) => {
+export const getClothingItems = async (categoryId?: string) => {
   try {
     let url = `${API_URL}/clothing_items`;
 
-    if (categoryName) {
-      console.log(`Looking up category ID for: ${categoryName}`);
-
-      // Fetch category ID from name
-      const categoryRes = await axios.get(`${API_URL}/categories?name=eq.${categoryName}`);
-      const category = categoryRes.data[0];
-
-      if (!category) {
-        console.warn(`Category '${categoryName}' not found! Returning all items.`);
-      } else {
-        console.log(`Found category ID: ${category.id}`);
-        url = `${API_URL}/clothing_items?category_id=eq.${category.id}`;
-      }
+    // Directly filter by `category_id` instead of searching for it
+    if (categoryId) {
+      url = `${API_URL}/clothing_items?category_id=eq.${categoryId}`;
     }
 
     console.log(`Fetching clothing items from: ${url}`);
@@ -33,6 +23,7 @@ export const getClothingItems = async (categoryName?: string) => {
   }
 };
 
+
 /**
  * Fetch all clothing categories.
  */
@@ -43,5 +34,15 @@ export const getCategories = async () => {
   } catch (error) {
     console.error("Error fetching categories:", error);
     return [];
+  }
+};
+
+export const getClothingItemById = async (id: string) => {
+  try {
+    const response = await axios.get(`${API_URL}/clothing_items?id=eq.${id}`);
+    return response.data.length ? response.data[0] : null;
+  } catch (error) {
+    console.error("Error fetching clothing item:", error);
+    return null;
   }
 };
