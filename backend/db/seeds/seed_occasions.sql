@@ -1,0 +1,1 @@
+INSERT INTO occasions (name) VALUES ('Formal'), ('Casual'), ('Business-Casual');
