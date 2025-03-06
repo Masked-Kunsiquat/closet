@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { DarkThemeToggle } from "flowbite-react";
 import Home from "./pages/Home";
 import Clothes from "./pages/Clothes";
+import ClothingDetail from "./pages/ClothingDetail";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/clothes" element={<Clothes />} />
+          <Route path="/clothes/:id" element={<ClothingDetail />} />
         </Routes>
 
         <DarkThemeToggle />
