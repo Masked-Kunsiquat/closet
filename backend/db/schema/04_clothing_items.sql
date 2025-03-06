@@ -5,8 +5,8 @@ CREATE TABLE clothing_items (
     brand_id UUID REFERENCES brands(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     size TEXT,
-    purchase_date TIMESTAMPZ,
+    purchase_date TIMESTAMP,
     price REAL,
     image_url TEXT, -- path to image file
-    created_at TIMESTAMPZ DEFAULT now()
+    created_at TIMESTAMP DEFAULT now()
 );

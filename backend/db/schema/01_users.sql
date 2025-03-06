@@ -3,5 +3,5 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    created_at TIMESTAMPZ DEAFULT now()
+    created_at TIMESTAMP DEFAULT now()
 );

@@ -1,1 +1,1 @@
-INSERT INTO brands (name) VALUES ('Nike'), ('Adidas'), ("Levi\'s"), ('Gucci');
+INSERT INTO brands (name) VALUES ('Nike'), ('Adidas'), ('American Eagle'), ('Gucci');
