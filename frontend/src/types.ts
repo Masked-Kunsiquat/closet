@@ -10,6 +10,8 @@ export type ClothingItem = {
     image_url?: string;
     brand_id?: string;
     category?: { name: string };
+    description?: string;
+    user_id: string;
   };
 
 export type Category = {

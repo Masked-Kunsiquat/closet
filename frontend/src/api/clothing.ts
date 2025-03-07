@@ -93,3 +93,42 @@ export const deleteClothingItem = async (id: string): Promise<boolean> => {
     return false; // ❌ Return `false` if deletion fails
   }
 };
+
+/**
+ * Create a new clothing item.
+ */
+export const createClothingItem = async (newItem: Partial<ClothingItem>): Promise<ClothingItem | null> => {
+  try {
+    const formattedItem: Omit<ClothingItem, "id"> = {
+      user_id: "1325b351-92b4-42ab-a90b-3c4e6fb0cad8", // ✅ Temporary user ID
+      category_id: newItem.category_id || undefined, // ✅ Convert null to undefined
+      brand_id: newItem.brand_id || undefined, // ✅ Convert null to undefined
+      purchase_date: newItem.purchase_date || undefined, // ✅ Convert null to undefined
+      price: newItem.price ? parseFloat(newItem.price.toString()) : 0,
+      name: newItem.name || "",
+      size: newItem.size || "",
+      image_url: newItem.image_url || "",
+//      description: newItem.description || "",
+    };
+
+    const response = await axios.post(`${API_URL}/clothing_items`, formattedItem, {
+      headers: { "Content-Type": "application/json" },
+    });
+
+    console.log("✅ API Response:", response.status, response.data);
+
+    if (response.status === 201 || response.status === 200) {
+      if (!response.data || Object.keys(response.data).length === 0) {
+        console.warn("⚠️ API did not return data, assuming success.");
+        return { ...formattedItem, id: "temp-id" }; // ✅ Assume success and return a temporary ID
+      }
+      return response.data;
+    } else {
+      console.error("❌ Unexpected response status:", response.status, response.data);
+      return null;
+    }
+  } catch (error: any) {
+    console.error("❌ Error creating clothing item:", error.response?.data || error.message);
+    return null;
+  }
+};
