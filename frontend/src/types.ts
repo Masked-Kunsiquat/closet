@@ -18,3 +18,10 @@ export type Category = {
     id: string;
     name: string;
   };
+
+  export type UserAuthResponse = {
+    success: boolean;
+    message: string;
+};
+
+export type UserSessionResponse = string | null; // Returns user ID or null if not authenticated

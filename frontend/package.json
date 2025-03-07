@@ -14,7 +14,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@oslojs/crypto": "^1.0.1",
+    "@oslojs/encoding": "^1.1.0",
     "axios": "^1.8.1",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "flowbite-react": "^0.8.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
