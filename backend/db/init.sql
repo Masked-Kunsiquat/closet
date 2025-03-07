@@ -11,6 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \i schema/07_outfit_items.sql
 \i schema/08_wear_logs.sql
 \i schema/09_indexes.sql
+\i schema/10_user_sessions.sql
 
 -- Seed data
 \i seeds/seed_categories.sql
