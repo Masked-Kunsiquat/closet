@@ -5,22 +5,19 @@ import Clothes from "./pages/Clothes";
 import ClothingDetail from "./pages/ClothingDetail";
 import LoginPage from "./pages/Login";
 import SignupPage from "./pages/Signup";
-import { AuthProvider, useAuth } from "./AuthContext"; // Import the AuthContext
-import ProtectedRoute from "./ProtectedRoute"; // Import ProtectedRoute for protecting routes
+import Outfits from "./pages/Outfits"; // ✅ Import Outfits List Page
+import OutfitDetail from "./pages/OutfitDetail"; // ✅ Import Outfit Detail Page
+import NewOutfit from "./pages/NewOutfit"; // ✅ Import Create Outfit Page
 
 function App() {
   return (
     <Router>
-      <AuthProvider> {/* Wrap AuthProvider inside Router */}
-        <MainContent />
-      </AuthProvider>
+      <MainContent />
     </Router>
   );
 }
 
 const MainContent = () => {
-  const { isAuthenticated, logout } = useAuth(); // Use the AuthContext
-
   return (
     <main className="flex flex-col min-h-screen items-center justify-center gap-4 dark:bg-gray-800">
       <nav className="flex gap-4 p-4 border-b border-gray-200 dark:border-gray-700">
@@ -30,46 +27,23 @@ const MainContent = () => {
         <Link to="/clothes" className="text-lg font-semibold dark:text-white">
           Clothes
         </Link>
-
-        {/* Conditionally render Login/Logout */}
-        {isAuthenticated ? (
-          <button
-            onClick={logout}
-            className="text-lg font-semibold dark:text-white"
-          >
-            Logout
-          </button>
-        ) : (
-          <>
-            <Link to="/login" className="text-lg font-semibold dark:text-white">
-              Login
-            </Link>
-            <Link to="/signup" className="text-lg font-semibold dark:text-white">
-              Sign Up
-            </Link>
-          </>
-        )}
+        <Link to="/outfits" className="text-lg font-semibold dark:text-white">
+          Outfits
+        </Link> {/* ✅ Add Outfits link to navbar */}
       </nav>
 
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes (All Unprotected) */}
         <Route path="/" element={<Home />} />
-
-        {/* Protected Route */}
-        <Route
-          path="/clothes"
-          element={<ProtectedRoute element={<Clothes />} />}
-        />
-
-        {/* Protected Route for detail page */}
-        <Route
-          path="/clothes/:id"
-          element={<ProtectedRoute element={<ClothingDetail />} />}
-        />
-
-        {/* Public Routes */}
+        <Route path="/clothes" element={<Clothes />} />
+        <Route path="/clothes/:id" element={<ClothingDetail />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+
+        {/* ✅ New Outfits Routes */}
+        <Route path="/outfits" element={<Outfits />} />
+        <Route path="/outfits/new" element={<NewOutfit />} />
+        <Route path="/outfits/:id" element={<OutfitDetail />} />
       </Routes>
 
       <DarkThemeToggle />

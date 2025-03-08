@@ -8,6 +8,7 @@ export type ClothingItem = {
     brand_name?: string;
     purchase_date?: string;
     image_url?: string;
+    brand?: { name: string };
     brand_id?: string;
     category?: { name: string };
     description?: string;
@@ -25,3 +26,14 @@ export type Category = {
 };
 
 export type UserSessionResponse = string | null; // Returns user ID or null if not authenticated
+
+export interface Outfit {
+  id: string;
+  name: string;
+  created_at: string;
+  occasion?: string; // Nullable if no occasion
+}
+
+export interface OutfitDetail extends Outfit {
+  clothing: { clothing_item_id: string; clothing: ClothingItem }[];
+}
