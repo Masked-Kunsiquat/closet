@@ -1,1 +1,0 @@
-INSERT INTO categories (name) VALUES ('Tops'), ('Bottoms'), ('Shoes'), ('Outerwear'), ('Accessories');
