@@ -1,14 +1,18 @@
 import express from "express";
-import { PrismaClient } from "@prisma/client";
-import dotenv from "dotenv";
 import cors from "cors";
+import { PrismaClient } from "@prisma/client";
+import clothingRoutes from "./routes/clothes.js";
 
-dotenv.config();
-const prisma = new PrismaClient();
 const app = express();
+const prisma = new PrismaClient();
+
 app.use(cors());
 app.use(express.json());
 
+// ✅ Register the clothing API routes
+app.use("/clothing_items", clothingRoutes);
+
 app.get("/", (req, res) => res.send("🔥 API is running"));
 
-app.listen(3000, () => console.log("Server running on port 3000"));
+// Start the server
+app.listen(3000, () => console.log("🚀 Server running on port 3000"));

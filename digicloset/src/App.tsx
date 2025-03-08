@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { DarkThemeToggle } from "flowbite-react";
 import Home from "./pages/Home.tsx";
 import Outfits from "./pages/Outfits";
+import Clothes from "./pages/Clothes"; // ✅ Import Clothes page
 
 function App() {
   return (
@@ -21,11 +22,15 @@ const MainContent = () => {
         <Link to="/outfits" className="text-lg font-semibold dark:text-white">
           Outfits
         </Link>
+        <Link to="/clothes" className="text-lg font-semibold dark:text-white">
+          Clothes
+        </Link>
       </nav>
 
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/outfits" element={<Outfits />} />
+        <Route path="/clothes" element={<Clothes />} /> {/* ✅ Add this */}
       </Routes>
 
       <DarkThemeToggle />

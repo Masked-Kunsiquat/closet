@@ -29,7 +29,7 @@ model Brand {
 
 model ClothingItem {
   id           String   @id @default(uuid())
-  categoryId   String
+  categoryId   String?
   brandId      String?
   name         String
   size         String?
@@ -38,7 +38,7 @@ model ClothingItem {
   imageUrl     String?
   createdAt    DateTime @default(now())
 
-  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category  Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   brand     Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
   outfitItems OutfitItem[]
 }
