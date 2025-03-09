@@ -38,7 +38,7 @@ model ClothingItem {
   imageUrl     String?
   createdAt    DateTime @default(now())
 
-  category  Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category  Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   brand     Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
   outfitItems OutfitItem[]
 }
@@ -67,7 +67,7 @@ model OutfitItem {
   clothingItemId String
 
   outfit       Outfit       @relation(fields: [outfitId], references: [id], onDelete: Cascade)
-  clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+  clothingItem ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: SetNull)
 }
 
 model WearLog {
@@ -76,5 +76,5 @@ model WearLog {
   wornDate  DateTime
   createdAt DateTime @default(now())
 
-  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  outfit Outfit @relation(fields: [outfitId], references: [id], onDelete: SetNull)
 }

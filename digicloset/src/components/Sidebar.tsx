@@ -13,9 +13,22 @@ interface Category {
 
 const SidebarNav = ({ onCategorySelect }: SidebarProps) => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getCategories().then(setCategories);
+    const fetchCategories = async () => {
+      try {
+        const data = await getCategories();
+        setCategories(data);
+      } catch (err) {
+        setError("Failed to load categories. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
   return (
@@ -31,15 +44,24 @@ const SidebarNav = ({ onCategorySelect }: SidebarProps) => {
           >
             All Clothes
           </Sidebar.Item>
-          {categories.map((category) => (
-            <Sidebar.Item
-              key={category.id}
-              onClick={() => onCategorySelect(category.id)}
-              className="cursor-pointer hover:bg-gray-700 transition"
-            >
-              {category.name}
-            </Sidebar.Item>
-          ))}
+
+          {loading && <p className="text-gray-500">Loading categories...</p>}
+          {error && <p className="text-red-500">{error}</p>}
+          
+          {!loading && !error && categories.length === 0 && (
+            <p className="text-gray-500">No categories available.</p>
+          )}
+
+          {!loading && !error &&
+            categories.map((category) => (
+              <Sidebar.Item
+                key={category.id}
+                onClick={() => onCategorySelect(category.id)}
+                className="cursor-pointer hover:bg-gray-700 transition"
+              >
+                {category.name}
+              </Sidebar.Item>
+            ))}
         </Sidebar.ItemGroup>
       </Sidebar.Items>
     </Sidebar>
