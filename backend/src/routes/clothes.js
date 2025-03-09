@@ -11,14 +11,16 @@ router.get("/", async (req, res) => {
   try {
     const { categoryId, brandId } = req.query;
 
+    console.log(`🔍 Fetching items with filters: categoryId=${categoryId}, brandId=${brandId}`);
+
     const clothes = await prisma.clothingItem.findMany({
       where: {
-        categoryId: categoryId ? categoryId : undefined,
-        brandId: brandId ? brandId : undefined,
+        categoryId: categoryId ? String(categoryId) : undefined,
+        brandId: brandId ? String(brandId) : undefined,
       },
       include: {
-        category: true, // Fetch category details
-        brand: true, // Fetch brand details
+        category: true,
+        brand: true,
       },
     });
 

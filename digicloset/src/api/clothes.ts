@@ -4,9 +4,10 @@ import { API_URL } from "./config";
 /**
  * Fetch all clothing items.
  */
-export const getClothingItems = async () => {
+export const getClothingItems = async (categoryId: string | null = null) => {
   try {
-    const { data } = await axios.get(`${API_URL}/clothing_items`);
+    const url = categoryId ? `${API_URL}/clothing_items?categoryId=${categoryId}` : `${API_URL}/clothing_items`;
+    const { data } = await axios.get(url);
     return data;
   } catch (error) {
     console.error("❌ Error fetching clothing items:", error);
@@ -40,5 +41,18 @@ export const createClothingItem = async (newItem: any) => {
   } catch (error) {
     console.error("❌ Error creating clothing item:", error);
     return null;
+  }
+};
+
+/**
+ * ✅ Fetch all categories
+ */
+export const getCategories = async () => {
+  try {
+    const { data } = await axios.get(`${API_URL}/categories`);
+    return data;
+  } catch (error) {
+    console.error("❌ Error fetching categories:", error);
+    return [];
   }
 };
