@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { DarkThemeToggle } from "flowbite-react";
 import Home from "./pages/Home.tsx";
@@ -6,14 +6,26 @@ import Outfits from "./pages/Outfits";
 import Clothes from "./pages/Clothes";
 import SidebarNav from "./components/Sidebar";
 import ClothingDetail from "./pages/ClothingDetail.tsx";
+import ErrorDisplay from "./components/ErrorDisplay";
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleGlobalError = (event: ErrorEvent) => {
+      console.error("Unhandled error:", event.error);
+      setGlobalError("Something went wrong. Please try again.");
+    };
+
+    window.addEventListener("error", handleGlobalError);
+    return () => window.removeEventListener("error", handleGlobalError);
+  }, []);
 
   return (
     <Router>
       <div className="flex min-h-screen">
-        {/* ✅ Sidebar (Fixes height issue) */}
+        {/* ✅ Sidebar */}
         <SidebarNav onCategorySelect={setSelectedCategory} />
 
         {/* ✅ Main Content */}
@@ -23,6 +35,9 @@ function App() {
             <Link to="/outfits" className="text-lg font-semibold dark:text-white">Outfits</Link>
             <Link to="/clothes" className="text-lg font-semibold dark:text-white">Clothes</Link>
           </nav>
+
+          {/* ✅ Show Global Errors */}
+          {globalError && <ErrorDisplay message={globalError} mode="alert" onDismiss={() => setGlobalError(null)} />}
 
           <Routes>
             <Route path="/" element={<Home />} />

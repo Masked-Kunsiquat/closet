@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { getOutfits, Outfit } from "../api";
+import { getOutfits, Outfit } from "../api/outfits";
+import useErrorHandler from "../hooks/useErrorHandler";
+import ErrorDisplay from "../components/ErrorDisplay";
 
 const Outfits = () => {
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorMode, handleError, clearError } = useErrorHandler();
 
   useEffect(() => {
     const fetchOutfits = async () => {
@@ -12,7 +14,7 @@ const Outfits = () => {
         const data = await getOutfits();
         setOutfits(data);
       } catch (err) {
-        setError("Failed to load outfits. Please try again later.");
+        handleError("Failed to load outfits. Please try again later.", "toast");
       } finally {
         setLoading(false);
       }
@@ -26,7 +28,8 @@ const Outfits = () => {
       <h1 className="text-2xl font-bold">Outfits</h1>
 
       {loading && <p>Loading outfits...</p>}
-      {error && <p className="text-red-500">{error}</p>}
+
+      {error && <ErrorDisplay message={error} mode={errorMode} onDismiss={clearError} />}
 
       {!loading && !error && outfits.length === 0 && (
         <p>No outfits available.</p>

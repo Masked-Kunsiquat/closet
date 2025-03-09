@@ -1,61 +1,39 @@
-import axios from "axios";
-import { API_URL } from "./config";
+import { apiRequest } from "./apiWrapper";
 
 /**
  * Clothing item interface to ensure type safety
  */
 export interface ClothingItem {
-  id: string; // Optional for new items (not yet created)
+  id: string;
   name: string;
   categoryId: string | null;
   brand?: string;
   color?: string;
   size?: string;
   price?: number;
-  purchaseDate?: string; // ISO format string
+  purchaseDate?: string;
 }
 
 /**
  * Fetch all clothing items.
  */
 export const getClothingItems = async (categoryId: string | null = null): Promise<ClothingItem[]> => {
-  try {
-    const url = categoryId ? `${API_URL}/clothing_items?categoryId=${categoryId}` : `${API_URL}/clothing_items`;
-    const { data } = await axios.get<ClothingItem[]>(url);
-    return data;
-  } catch (error) {
-    console.error("❌ Error fetching clothing items:", error);
-    return [];
-  }
+  const endpoint = categoryId ? `/clothing_items?categoryId=${categoryId}` : `/clothing_items`;
+  return apiRequest<ClothingItem[]>(endpoint, "GET");
 };
 
 /**
  * Fetch a single clothing item by ID.
  */
-export const getClothingItemById = async (id: string): Promise<ClothingItem | null> => {
-  try {
-    const { data } = await axios.get<ClothingItem>(`${API_URL}/clothing_items/${id}`);
-    return data;
-  } catch (error) {
-    console.error("❌ Error fetching clothing item:", error);
-    return null;
-  }
+export const getClothingItemById = async (id: string): Promise<ClothingItem> => {
+  return apiRequest<ClothingItem>(`/clothing_items/${id}`, "GET");
 };
 
 /**
  * Create a new clothing item.
  */
-export const createClothingItem = async (newItem: Omit<ClothingItem, "id">): Promise<ClothingItem | null> => {
-  try {
-    const { data } = await axios.post<ClothingItem>(`${API_URL}/clothing_items`, newItem, {
-      headers: { "Content-Type": "application/json" },
-    });
-
-    return data;
-  } catch (error) {
-    console.error("❌ Error creating clothing item:", error);
-    return null;
-  }
+export const createClothingItem = async (newItem: Omit<ClothingItem, "id">): Promise<ClothingItem> => {
+  return apiRequest<ClothingItem>(`/clothing_items`, "POST", newItem);
 };
 
 /**
@@ -67,11 +45,5 @@ export interface Category {
 }
 
 export const getCategories = async (): Promise<Category[]> => {
-  try {
-    const { data } = await axios.get<Category[]>(`${API_URL}/categories`);
-    return data;
-  } catch (error) {
-    console.error("❌ Error fetching categories:", error);
-    return [];
-  }
+  return apiRequest<Category[]>(`/categories`, "GET");
 };

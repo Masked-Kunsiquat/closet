@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getClothingItemById, getCategories } from "../api/clothes";
 import { Card, Button } from "flowbite-react";
+import useErrorHandler from "../hooks/useErrorHandler";
+import ErrorDisplay from "../components/ErrorDisplay";
 
 // Import category-based placeholder images
-import tshirtPlaceholder from "../assets/tshirt.jpg"; // Tops
-import shoesPlaceholder from "../assets/shoes.jpg"; // Shoes
-import pantsPlaceholder from "../assets/pants.jpg"; // Bottoms
-import hatPlaceholder from "../assets/hat.jpg"; // Accessories
+import tshirtPlaceholder from "../assets/tshirt.jpg";
+import shoesPlaceholder from "../assets/shoes.jpg";
+import pantsPlaceholder from "../assets/pants.jpg";
+import hatPlaceholder from "../assets/hat.jpg";
 
 interface ClothingItem {
   id: string;
@@ -15,7 +17,7 @@ interface ClothingItem {
   imageUrl?: string;
   price?: number | null;
   size?: string;
-  categoryId?: string | null;
+  categoryId: string | null;
   purchaseDate?: string;
 }
 
@@ -29,13 +31,14 @@ const ClothingDetail = () => {
   const [clothingItem, setClothingItem] = useState<ClothingItem | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorMode, handleError, clearError } = useErrorHandler();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         if (!id) {
-          throw new Error("Invalid clothing item ID.");
+          handleError("Invalid clothing item ID.", "alert");
+          return;
         }
 
         const [itemData, categoryData] = await Promise.allSettled([
@@ -46,7 +49,8 @@ const ClothingDetail = () => {
         if (itemData.status === "fulfilled" && itemData.value) {
           setClothingItem(itemData.value);
         } else {
-          throw new Error("Clothing item not found.");
+          handleError("Clothing item not found.", "alert");
+          return;
         }
 
         if (categoryData.status === "fulfilled") {
@@ -55,7 +59,7 @@ const ClothingDetail = () => {
           console.warn("⚠️ Warning: Failed to load categories.");
         }
       } catch (err) {
-        setError((err as Error).message || "Failed to load data.");
+        handleError("Failed to load clothing item. Please try again.", "toast");
       } finally {
         setLoading(false);
       }
@@ -72,7 +76,7 @@ const ClothingDetail = () => {
 
   // Function to assign a placeholder based on category name
   const getPlaceholderByCategory = (categoryName: string | null) => {
-    if (!categoryName) return tshirtPlaceholder; // Default fallback
+    if (!categoryName) return tshirtPlaceholder;
 
     switch (categoryName.toLowerCase()) {
       case "tops":
@@ -92,55 +96,45 @@ const ClothingDetail = () => {
     return <p className="text-white text-center">Loading...</p>;
   }
 
-  if (error) {
-    return (
-      <div className="text-center text-red-500 p-4">
-        <p>{error}</p>
-        <Link to="/clothes">
-          <Button color="blue" className="mt-4">Back to Clothes</Button>
-        </Link>
-      </div>
-    );
-  }
-
-  if (!clothingItem) {
-    return (
-      <div className="text-center text-gray-400 p-4">
-        <p>No clothing item found.</p>
-        <Link to="/clothes">
-          <Button color="blue" className="mt-4">Back to Clothes</Button>
-        </Link>
-      </div>
-    );
-  }
-
-  const categoryName = getCategoryName(clothingItem.categoryId || null);
-
   return (
     <div className="p-4 flex justify-center">
-      <Card className="max-w-md w-full dark:bg-gray-800">
-        <img
-          src={clothingItem.imageUrl || getPlaceholderByCategory(categoryName)}
-          alt={clothingItem.name}
-          className="w-full h-64 object-cover rounded-t-lg"
-        />
-        <div className="p-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{clothingItem.name}</h1>
-          {typeof clothingItem.price === "number" && !isNaN(clothingItem.price) && (
-            <p className="text-gray-800 dark:text-gray-300">${clothingItem.price.toFixed(2)}</p>
-          )}
-          {clothingItem.size && <p className="text-gray-700 dark:text-gray-300">Size: {clothingItem.size}</p>}
-          <p className="text-gray-700 dark:text-gray-400">Category: {categoryName}</p>
-          {clothingItem.purchaseDate && (
-            <p className="text-gray-700 dark:text-gray-400">Purchased on: {clothingItem.purchaseDate}</p>
-          )}
-        </div>
-        <div className="p-4">
-          <Link to="/clothes">
-            <Button color="blue">Back to Clothes</Button>
-          </Link>
-        </div>
-      </Card>
+      {/* ✅ Show Error if Exists */}
+      {error && <ErrorDisplay message={error} mode={errorMode} onDismiss={clearError} />}
+
+      {!error && clothingItem ? (
+        <Card className="max-w-md w-full dark:bg-gray-800">
+          <img
+            src={clothingItem.imageUrl || getPlaceholderByCategory(getCategoryName(clothingItem.categoryId))}
+            alt={clothingItem.name}
+            className="w-full h-64 object-cover rounded-t-lg"
+          />
+          <div className="p-4">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{clothingItem.name}</h1>
+            {typeof clothingItem.price === "number" && !isNaN(clothingItem.price) && (
+              <p className="text-gray-800 dark:text-gray-300">${clothingItem.price.toFixed(2)}</p>
+            )}
+            {clothingItem.size && <p className="text-gray-700 dark:text-gray-300">Size: {clothingItem.size}</p>}
+            <p className="text-gray-700 dark:text-gray-400">Category: {getCategoryName(clothingItem.categoryId)}</p>
+            {clothingItem.purchaseDate && (
+              <p className="text-gray-700 dark:text-gray-400">Purchased on: {clothingItem.purchaseDate}</p>
+            )}
+          </div>
+          <div className="p-4">
+            <Link to="/clothes">
+              <Button color="blue">Back to Clothes</Button>
+            </Link>
+          </div>
+        </Card>
+      ) : (
+        !error && (
+          <div className="text-center text-gray-400 p-4">
+            <p>No clothing item found.</p>
+            <Link to="/clothes">
+              <Button color="blue" className="mt-4">Back to Clothes</Button>
+            </Link>
+          </div>
+        )
+      )}
     </div>
   );
 };

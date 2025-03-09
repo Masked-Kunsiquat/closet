@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { getClothingItems, getCategories } from "../api/clothes";
-import { Card, Spinner, Alert } from "flowbite-react";
+import { Card, Spinner } from "flowbite-react";
 import { Link } from "react-router-dom";
+import useErrorHandler from "../hooks/useErrorHandler";
+import ErrorDisplay from "../components/ErrorDisplay";
 
 // Import category-based placeholder images
-import tshirtPlaceholder from "../assets/tshirt.jpg"; // Tops
-import shoesPlaceholder from "../assets/shoes.jpg"; // Shoes
-import pantsPlaceholder from "../assets/pants.jpg"; // Bottoms
-import hatPlaceholder from "../assets/hat.jpg"; // Accessories
+import tshirtPlaceholder from "../assets/tshirt.jpg";
+import shoesPlaceholder from "../assets/shoes.jpg";
+import pantsPlaceholder from "../assets/pants.jpg";
+import hatPlaceholder from "../assets/hat.jpg";
 
 interface ClothingItem {
   id: string;
@@ -31,11 +33,11 @@ const Clothes = ({ categoryId }: ClothesProps) => {
   const [clothes, setClothes] = useState<ClothingItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { error, errorMode, handleError, clearError } = useErrorHandler();
 
   useEffect(() => {
     setLoading(true);
-    setError(null);
+    clearError(); // Reset errors on new load
 
     Promise.all([getClothingItems(categoryId), getCategories()])
       .then(([clothesData, categoriesData]) => {
@@ -44,7 +46,7 @@ const Clothes = ({ categoryId }: ClothesProps) => {
       })
       .catch((err) => {
         console.error("❌ Error fetching data:", err);
-        setError("Failed to load data. Please try again later.");
+        handleError("Failed to load clothing data. Please try again.", "toast");
       })
       .finally(() => setLoading(false));
   }, [categoryId]);
@@ -67,7 +69,7 @@ const Clothes = ({ categoryId }: ClothesProps) => {
       case "accessories":
         return hatPlaceholder;
       default:
-        return tshirtPlaceholder; // Default fallback
+        return tshirtPlaceholder;
     }
   };
 
@@ -75,15 +77,15 @@ const Clothes = ({ categoryId }: ClothesProps) => {
     <div className="p-4 w-full">
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Clothing Items</h1>
 
+      {/* ✅ Show Error if Exists */}
+      {error && <ErrorDisplay message={error} mode={errorMode} onDismiss={clearError} />}
+
       {/* ✅ Loading State */}
       {loading && (
         <div className="flex justify-center items-center">
           <Spinner aria-label="Loading clothes..." size="lg" />
         </div>
       )}
-
-      {/* ✅ Error State */}
-      {error && <Alert color="failure">{error}</Alert>}
 
       {/* ✅ Empty State */}
       {!loading && !error && clothes.length === 0 && (
