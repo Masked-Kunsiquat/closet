@@ -1,6 +1,7 @@
 import axios from "axios";
 
-export const API_URL = "http://localhost:3000"; // Your Express backend
+// ✅ Use environment variable for API URL
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000"; 
 
 // Define TypeScript interface for outfit data
 export interface Outfit {

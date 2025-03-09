@@ -1,16 +1,18 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+
+// ✅ Load environment variables first
+dotenv.config();
+
+import prisma from "./prismaClient.js";
 import clothingRoutes from "./routes/clothes.js";
 import categoryRoutes from "./routes/categories.js";
-import prisma from "./prismaClient.js";
 
+// ✅ Connect to database only after environment variables are loaded
 prisma.$connect()
   .then(() => console.log("✅ Database connected successfully"))
   .catch((error) => console.error("❌ Database connection failed:", error));
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;

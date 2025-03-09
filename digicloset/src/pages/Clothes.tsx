@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getClothingItems, getCategories } from "../api/clothes";
-import { Card } from "flowbite-react";
+import { Card, Spinner, Alert } from "flowbite-react";
 import { Link } from "react-router-dom";
 
 // Import category-based placeholder images
@@ -30,10 +30,23 @@ interface ClothesProps {
 const Clothes = ({ categoryId }: ClothesProps) => {
   const [clothes, setClothes] = useState<ClothingItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getClothingItems(categoryId).then(setClothes);
-    getCategories().then(setCategories);
+    setLoading(true);
+    setError(null);
+
+    Promise.all([getClothingItems(categoryId), getCategories()])
+      .then(([clothesData, categoriesData]) => {
+        setClothes(clothesData);
+        setCategories(categoriesData);
+      })
+      .catch((err) => {
+        console.error("❌ Error fetching data:", err);
+        setError("Failed to load data. Please try again later.");
+      })
+      .finally(() => setLoading(false));
   }, [categoryId]);
 
   // Function to get category name by ID
@@ -61,9 +74,24 @@ const Clothes = ({ categoryId }: ClothesProps) => {
   return (
     <div className="p-4 w-full">
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Clothing Items</h1>
-      {clothes.length === 0 ? (
+
+      {/* ✅ Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center">
+          <Spinner aria-label="Loading clothes..." size="lg" />
+        </div>
+      )}
+
+      {/* ✅ Error State */}
+      {error && <Alert color="failure">{error}</Alert>}
+
+      {/* ✅ Empty State */}
+      {!loading && !error && clothes.length === 0 && (
         <p className="text-gray-700 dark:text-gray-400">No clothes found for this category.</p>
-      ) : (
+      )}
+
+      {/* ✅ Render Clothing Items */}
+      {!loading && !error && clothes.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {clothes.map((item) => {
             const categoryName = getCategoryName(item.categoryId || null);
@@ -78,7 +106,9 @@ const Clothes = ({ categoryId }: ClothesProps) => {
                 </Link>
                 <div className="p-4">
                   <h5 className="text-lg font-bold text-gray-900 dark:text-white">{item.name}</h5>
-                  {item.price && <p className="text-gray-800 dark:text-gray-300">💲 {item.price.toFixed(2)}</p>}
+                  {typeof item.price === "number" && !isNaN(item.price) ? (
+                    <p className="text-gray-800 dark:text-gray-300">💲 {item.price.toFixed(2)}</p>
+                  ) : null}
                   {item.size && <p className="text-gray-700 dark:text-gray-400">Size: {item.size}</p>}
                 </div>
               </Card>
