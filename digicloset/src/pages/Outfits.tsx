@@ -6,7 +6,7 @@ import ErrorDisplay from "../components/ErrorDisplay";
 const Outfits = () => {
   const [outfits, setOutfits] = useState<Outfit[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const { error, errorMode, handleError, clearError } = useErrorHandler();
+  const { errors, handleError, removeError } = useErrorHandler();
 
   useEffect(() => {
     const fetchOutfits = async () => {
@@ -14,7 +14,11 @@ const Outfits = () => {
         const data = await getOutfits();
         setOutfits(data);
       } catch (err) {
-        handleError("Failed to load outfits. Please try again later.", "toast");
+        if (err instanceof Error) {
+          handleError(err.message, "toast"); // ✅ Type-safe error handling
+        } else {
+          handleError("An unknown error occurred.", "toast"); // ✅ Fallback for unexpected errors
+        }
       } finally {
         setLoading(false);
       }
@@ -27,11 +31,12 @@ const Outfits = () => {
     <div className="p-4">
       <h1 className="text-2xl font-bold">Outfits</h1>
 
+      {/* ✅ Display multiple errors correctly */}
+      <ErrorDisplay errors={errors} onDismiss={removeError} />
+
       {loading && <p>Loading outfits...</p>}
 
-      {error && <ErrorDisplay message={error} mode={errorMode} onDismiss={clearError} />}
-
-      {!loading && !error && outfits.length === 0 && (
+      {!loading && outfits.length === 0 && (
         <p>No outfits available.</p>
       )}
 
