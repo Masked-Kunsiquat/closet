@@ -15,9 +15,10 @@ export const apiRequest = async <T>(
   } catch (error) {
     console.error(`❌ API Error: ${url}`, error);
 
-    // Check if the error is from Axios
     if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || "An API error occurred.");
+      // ✅ Extracts structured backend error message
+      const backendError = error.response?.data?.error || "An unknown error occurred.";
+      throw new Error(backendError);
     } else {
       throw new Error("An unexpected error occurred.");
     }

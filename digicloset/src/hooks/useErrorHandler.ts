@@ -1,25 +1,27 @@
 import { useState } from "react";
-
-type ErrorMode = "alert" | "toast";
+import { ErrorItem, ErrorMode } from "../types";
 
 const useErrorHandler = () => {
-  const [error, setError] = useState<string | null>(null);
-  const [errorMode, setErrorMode] = useState<ErrorMode>("toast");
+  const [errors, setErrors] = useState<ErrorItem[]>([]);
 
   const handleError = (message: string, mode: ErrorMode = "toast") => {
-    setError(message);
-    setErrorMode(mode);
+    const id = Date.now();
+    setErrors((prev) => [...prev, { id, message, mode }]);
 
     if (mode === "toast") {
-      setTimeout(() => setError(null), 5000); // Auto-dismiss toast after 5s
+      setTimeout(() => removeError(id), 5000);
     }
   };
 
-  const clearError = () => {
-    setError(null);
+  const removeError = (id: number) => {
+    setErrors((prev) => prev.filter((error) => error.id !== id));
   };
 
-  return { error, errorMode, handleError, clearError };
+  const clearAllErrors = () => {
+    setErrors([]);
+  };
+
+  return { errors, handleError, removeError, clearAllErrors };
 };
 
 export default useErrorHandler;

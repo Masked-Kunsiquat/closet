@@ -1,6 +1,7 @@
 import express from "express";
 import prisma from "../prismaClient.js"; // ✅ Use shared Prisma instance
 import { z } from "zod";
+import { AppError } from "../middleware/errorHandler.js"; // ✅ Import error handler
 
 const router = express.Router();
 
@@ -10,17 +11,17 @@ const router = express.Router();
 const clothingItemSchema = z.object({
   name: z.string().min(1, "Name is required"),
   size: z.string().min(1, "Size is required"),
-  categoryId: z.string().optional(), // Allow null but ensure it's a string if provided
+  categoryId: z.string().optional(),
   brandId: z.string().optional(),
   price: z.number().positive("Price must be a positive number"),
-  purchaseDate: z.string().optional().nullable(), // Allow null values
+  purchaseDate: z.string().optional().nullable(),
   imageUrl: z.string().url("Invalid URL format").optional().nullable(),
 });
 
 /**
  * ✅ Get all clothing items (optionally filter by category or brand)
  */
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const { categoryId, brandId } = req.query;
 
@@ -39,15 +40,14 @@ router.get("/", async (req, res) => {
 
     res.json(clothes);
   } catch (error) {
-    console.error("❌ Error fetching clothing items:", error);
-    res.status(500).json({ error: "Failed to fetch clothing items" });
+    next(new AppError("Failed to fetch clothing items", 500)); // ✅ Pass to error handler
   }
 });
 
 /**
  * ✅ Get a single clothing item by ID
  */
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -59,29 +59,27 @@ router.get("/:id", async (req, res) => {
       },
     });
 
-    if (!item) return res.status(404).json({ error: "Item not found" });
+    if (!item) {
+      return next(new AppError("Clothing item not found", 404)); // ✅ Return structured error
+    }
 
     res.json(item);
   } catch (error) {
-    console.error("❌ Error fetching clothing item:", error);
-    res.status(500).json({ error: "Failed to fetch clothing item" });
+    next(new AppError("Failed to fetch clothing item", 500)); // ✅ Centralized error handling
   }
 });
 
 /**
  * ✅ Create a new clothing item with validation
  */
-router.post("/", async (req, res) => {
+router.post("/", async (req, res, next) => {
   try {
     console.log("📥 Received data:", req.body);
 
     // Validate request body
     const validatedData = clothingItemSchema.safeParse(req.body);
     if (!validatedData.success) {
-      return res.status(400).json({
-        error: "Invalid request data",
-        details: validatedData.error.errors,
-      });
+      return next(new AppError("Invalid request data", 400)); // ✅ Standardized validation error
     }
 
     const { name, size, categoryId, brandId, price, purchaseDate, imageUrl } = validatedData.data;
@@ -102,8 +100,7 @@ router.post("/", async (req, res) => {
     console.log("✅ Created item:", newItem);
     res.status(201).json(newItem);
   } catch (error) {
-    console.error("❌ Error creating clothing item:", error);
-    res.status(500).json({ error: "Failed to create clothing item" });
+    next(new AppError("Failed to create clothing item", 500)); // ✅ Consistent error handling
   }
 });
 

@@ -1,15 +1,14 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-
-// ✅ Load environment variables first
-dotenv.config();
-
 import prisma from "./prismaClient.js";
 import clothingRoutes from "./routes/clothes.js";
 import categoryRoutes from "./routes/categories.js";
+import { errorHandler } from "./middleware/errorHandler.js"; // ✅ Import global error handler
 
-// ✅ Connect to database only after environment variables are loaded
+dotenv.config();
+
+// ✅ Connect to database
 prisma.$connect()
   .then(() => console.log("✅ Database connected successfully"))
   .catch((error) => console.error("❌ Database connection failed:", error));
@@ -26,5 +25,7 @@ app.use("/categories", categoryRoutes);
 
 app.get("/", (req, res) => res.send("🔥 API is running"));
 
-// Start the server
+// ✅ Attach global error handler (must be last middleware)
+app.use(errorHandler);
+
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
