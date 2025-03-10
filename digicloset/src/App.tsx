@@ -7,20 +7,53 @@ import Clothes from "./pages/Clothes";
 import SidebarNav from "./components/Sidebar";
 import ClothingDetail from "./pages/ClothingDetail.tsx";
 import ErrorDisplay from "./components/ErrorDisplay";
+import { ErrorItem } from "./types";
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [globalErrors, setGlobalErrors] = useState<ErrorItem[]>([]);
 
   useEffect(() => {
     const handleGlobalError = (event: ErrorEvent) => {
-      console.error("Unhandled error:", event.error);
-      setGlobalError("Something went wrong. Please try again.");
+      console.error("❌ Unhandled error:", event.error);
+
+      const errorMessage =
+        import.meta.env.MODE === "development"
+          ? event.error?.message || "Something went wrong."
+          : "Something went wrong. Please try again.";
+
+      setGlobalErrors((prev) => [
+        ...prev,
+        { id: Date.now(), message: errorMessage, mode: "alert" },
+      ]);
+    };
+
+    const handlePromiseRejection = (event: PromiseRejectionEvent) => {
+      console.error("❌ Unhandled promise rejection:", event.reason);
+
+      const errorMessage =
+        import.meta.env.MODE === "development"
+          ? event.reason?.message || "Something went wrong."
+          : "Something went wrong. Please try again.";
+
+      setGlobalErrors((prev) => [
+        ...prev,
+        { id: Date.now(), message: errorMessage, mode: "alert" },
+      ]);
     };
 
     window.addEventListener("error", handleGlobalError);
-    return () => window.removeEventListener("error", handleGlobalError);
+    window.addEventListener("unhandledrejection", handlePromiseRejection);
+
+    return () => {
+      window.removeEventListener("error", handleGlobalError);
+      window.removeEventListener("unhandledrejection", handlePromiseRejection);
+    };
   }, []);
+
+  const removeGlobalError = (id: number) => {
+    setGlobalErrors((prev) => prev.filter((error) => error.id !== id));
+  };
 
   return (
     <Router>
@@ -37,7 +70,7 @@ function App() {
           </nav>
 
           {/* ✅ Show Global Errors */}
-          {globalError && <ErrorDisplay message={globalError} mode="alert" onDismiss={() => setGlobalError(null)} />}
+          <ErrorDisplay errors={globalErrors} onDismiss={removeGlobalError} />
 
           <Routes>
             <Route path="/" element={<Home />} />
