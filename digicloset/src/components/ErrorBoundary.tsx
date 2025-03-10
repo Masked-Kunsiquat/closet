@@ -1,13 +1,9 @@
 import { Component, ReactNode } from "react";
 import ErrorDisplay from "./ErrorDisplay";
+import { ErrorBoundaryState } from "../types";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  errorMessage: string;
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -26,7 +22,18 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   render() {
     if (this.state.hasError) {
-      return <ErrorDisplay message={this.state.errorMessage} mode="alert" onDismiss={() => this.setState({ hasError: false })} />;
+      return (
+        <ErrorDisplay
+          errors={[
+            {
+              id: 1,
+              message: this.state.errorMessage,
+              mode: "alert",
+            },
+          ]}
+          onDismiss={() => this.setState({ hasError: false, errorMessage: "" })}
+        />
+      );
     }
     return this.props.children;
   }
