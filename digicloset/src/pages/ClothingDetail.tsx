@@ -4,6 +4,7 @@ import { getClothingItemById, getCategories } from "../api/clothes";
 import { Card, Button } from "flowbite-react";
 import useErrorHandler from "../hooks/useErrorHandler";
 import ErrorDisplay from "../components/ErrorDisplay";
+import { ClothingItem, Category } from "../types";
 
 // Import category-based placeholder images
 import tshirtPlaceholder from "../assets/tshirt.jpg";
@@ -11,27 +12,15 @@ import shoesPlaceholder from "../assets/shoes.jpg";
 import pantsPlaceholder from "../assets/pants.jpg";
 import hatPlaceholder from "../assets/hat.jpg";
 
-interface ClothingItem {
-  id: string;
-  name: string;
-  imageUrl?: string;
-  price?: number | null;
-  size?: string;
-  categoryId: string | null;
-  purchaseDate?: string;
-}
-
-interface Category {
-  id: string;
-  name: string;
-}
 
 const ClothingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const [clothingItem, setClothingItem] = useState<ClothingItem | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const { error, errorMode, handleError, clearError } = useErrorHandler();
+
+  // ✅ Updated Error Handler to match new structure
+  const { errors, handleError, removeError } = useErrorHandler();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,7 +48,13 @@ const ClothingDetail = () => {
           console.warn("⚠️ Warning: Failed to load categories.");
         }
       } catch (err) {
-        handleError("Failed to load clothing item. Please try again.", "toast");
+        console.error("❌ Error fetching clothing item:", err);
+
+        if (err instanceof Error) {
+          handleError(err.message, "toast"); // ✅ Displays actual backend error
+        } else {
+          handleError("An unknown error occurred.", "toast"); // ✅ Fallback for unexpected errors
+        }
       } finally {
         setLoading(false);
       }
@@ -92,16 +87,15 @@ const ClothingDetail = () => {
     }
   };
 
-  if (loading) {
-    return <p className="text-white text-center">Loading...</p>;
-  }
-
   return (
     <div className="p-4 flex justify-center">
-      {/* ✅ Show Error if Exists */}
-      {error && <ErrorDisplay message={error} mode={errorMode} onDismiss={clearError} />}
+      {/* ✅ Show Errors using the updated error system */}
+      <ErrorDisplay errors={errors} onDismiss={removeError} />
 
-      {!error && clothingItem ? (
+      {/* ✅ Loading State */}
+      {loading && <p className="text-white text-center">Loading...</p>}
+
+      {!loading && clothingItem ? (
         <Card className="max-w-md w-full dark:bg-gray-800">
           <img
             src={clothingItem.imageUrl || getPlaceholderByCategory(getCategoryName(clothingItem.categoryId))}
@@ -126,7 +120,7 @@ const ClothingDetail = () => {
           </div>
         </Card>
       ) : (
-        !error && (
+        !loading && (
           <div className="text-center text-gray-400 p-4">
             <p>No clothing item found.</p>
             <Link to="/clothes">
