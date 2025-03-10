@@ -1,41 +1,28 @@
 import { useEffect, useState } from "react";
 import { getClothingItems, getCategories } from "../api/clothes";
-import { Card, Spinner, Alert } from "flowbite-react";
+import { Card, Spinner } from "flowbite-react";
 import { Link } from "react-router-dom";
+import useErrorHandler from "../hooks/useErrorHandler";
+import ErrorDisplay from "../components/ErrorDisplay";
+import { Category, ClothingItem, ClothesProps } from "../types";
 
 // Import category-based placeholder images
-import tshirtPlaceholder from "../assets/tshirt.jpg"; // Tops
-import shoesPlaceholder from "../assets/shoes.jpg"; // Shoes
-import pantsPlaceholder from "../assets/pants.jpg"; // Bottoms
-import hatPlaceholder from "../assets/hat.jpg"; // Accessories
+import tshirtPlaceholder from "../assets/tshirt.jpg";
+import shoesPlaceholder from "../assets/shoes.jpg";
+import pantsPlaceholder from "../assets/pants.jpg";
+import hatPlaceholder from "../assets/hat.jpg";
 
-interface ClothingItem {
-  id: string;
-  name: string;
-  imageUrl?: string;
-  price?: number;
-  size?: string;
-  categoryId?: string | null;
-}
-
-interface Category {
-  id: string;
-  name: string;
-}
-
-interface ClothesProps {
-  categoryId: string | null;
-}
 
 const Clothes = ({ categoryId }: ClothesProps) => {
   const [clothes, setClothes] = useState<ClothingItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // ✅ Updated Error Handler to match new structure
+  const { errors, handleError, removeError } = useErrorHandler();
 
   useEffect(() => {
     setLoading(true);
-    setError(null);
 
     Promise.all([getClothingItems(categoryId), getCategories()])
       .then(([clothesData, categoriesData]) => {
@@ -44,7 +31,12 @@ const Clothes = ({ categoryId }: ClothesProps) => {
       })
       .catch((err) => {
         console.error("❌ Error fetching data:", err);
-        setError("Failed to load data. Please try again later.");
+
+        if (err instanceof Error) {
+          handleError(err.message, "toast"); // ✅ Displays actual backend error
+        } else {
+          handleError("An unknown error occurred.", "toast"); // ✅ Fallback for unexpected errors
+        }
       })
       .finally(() => setLoading(false));
   }, [categoryId]);
@@ -67,13 +59,16 @@ const Clothes = ({ categoryId }: ClothesProps) => {
       case "accessories":
         return hatPlaceholder;
       default:
-        return tshirtPlaceholder; // Default fallback
+        return tshirtPlaceholder;
     }
   };
 
   return (
     <div className="p-4 w-full">
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Clothing Items</h1>
+
+      {/* ✅ Show Errors using the updated error system */}
+      <ErrorDisplay errors={errors} onDismiss={removeError} />
 
       {/* ✅ Loading State */}
       {loading && (
@@ -82,16 +77,13 @@ const Clothes = ({ categoryId }: ClothesProps) => {
         </div>
       )}
 
-      {/* ✅ Error State */}
-      {error && <Alert color="failure">{error}</Alert>}
-
       {/* ✅ Empty State */}
-      {!loading && !error && clothes.length === 0 && (
+      {!loading && clothes.length === 0 && (
         <p className="text-gray-700 dark:text-gray-400">No clothes found for this category.</p>
       )}
 
       {/* ✅ Render Clothing Items */}
-      {!loading && !error && clothes.length > 0 && (
+      {!loading && clothes.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {clothes.map((item) => {
             const categoryName = getCategoryName(item.categoryId || null);

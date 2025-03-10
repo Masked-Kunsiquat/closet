@@ -1,20 +1,16 @@
 import { Sidebar } from "flowbite-react";
 import { useEffect, useState } from "react";
 import { getCategories } from "../api/clothes";
-
-interface SidebarProps {
-  onCategorySelect: (categoryId: string | null) => void;
-}
-
-interface Category {
-  id: string;
-  name: string;
-}
+import useErrorHandler from "../hooks/useErrorHandler";
+import ErrorDisplay from "../components/ErrorDisplay";
+import { Category, SidebarProps } from "../types";
 
 const SidebarNav = ({ onCategorySelect }: SidebarProps) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // ✅ Updated error handler to use multiple errors
+  const { errors, handleError, removeError } = useErrorHandler();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -22,7 +18,13 @@ const SidebarNav = ({ onCategorySelect }: SidebarProps) => {
         const data = await getCategories();
         setCategories(data);
       } catch (err) {
-        setError("Failed to load categories. Please try again later.");
+        console.error("❌ Error fetching categories:", err);
+
+        if (err instanceof Error) {
+          handleError(err.message, "toast"); // ✅ Displays actual backend error
+        } else {
+          handleError("An unknown error occurred.", "toast"); // ✅ Fallback for unexpected errors
+        }
       } finally {
         setLoading(false);
       }
@@ -46,13 +48,15 @@ const SidebarNav = ({ onCategorySelect }: SidebarProps) => {
           </Sidebar.Item>
 
           {loading && <p className="text-gray-500">Loading categories...</p>}
-          {error && <p className="text-red-500">{error}</p>}
-          
-          {!loading && !error && categories.length === 0 && (
+
+          {/* ✅ Show Error if Exists */}
+          <ErrorDisplay errors={errors} onDismiss={removeError} />
+
+          {!loading && categories.length === 0 && (
             <p className="text-gray-500">No categories available.</p>
           )}
 
-          {!loading && !error &&
+          {!loading &&
             categories.map((category) => (
               <Sidebar.Item
                 key={category.id}
