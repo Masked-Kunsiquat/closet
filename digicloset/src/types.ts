@@ -36,3 +36,8 @@ export interface ClothingItem {
 export interface ClothesProps {
     categoryId: string | null;
 }
+
+export interface ErrorBoundaryState {
+  hasError: boolean;
+  errorMessage: string;
+}

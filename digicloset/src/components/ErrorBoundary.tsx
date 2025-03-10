@@ -7,6 +7,8 @@ interface ErrorBoundaryProps {
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  private timeoutId: NodeJS.Timeout | null = null; // Store timeout ID
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, errorMessage: "" };
@@ -20,6 +22,20 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     console.error("❌ Uncaught error:", error, errorInfo);
   }
 
+  componentWillUnmount() {
+    // ✅ Prevent memory leak by clearing timeout when component unmounts
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
+  }
+
+  handleDismiss = () => {
+    this.setState({ hasError: false, errorMessage: "" });
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -31,7 +47,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
               mode: "alert",
             },
           ]}
-          onDismiss={() => this.setState({ hasError: false, errorMessage: "" })}
+          onDismiss={this.handleDismiss}
         />
       );
     }
