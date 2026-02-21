@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -128,7 +129,11 @@ export default function ClosetScreen() {
       </View>
 
       {/* Content */}
-      {!loading && items.length === 0 ? (
+      {loading && items.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={accent.primary} />
+        </View>
+      ) : !loading && items.length === 0 ? (
         <EmptyCloset />
       ) : !loading && visibleItems.length === 0 ? (
         <EmptyFilter onClear={clearFilters} />
@@ -669,6 +674,11 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   errorContainer: {
     flex: 1,

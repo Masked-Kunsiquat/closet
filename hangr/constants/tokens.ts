@@ -86,6 +86,12 @@ export const Palette = {
   error: '#EF4444',
   warning: '#F59E0B',
   success: '#22C55E',
+
+  // Overlays / decorative
+  /** Semi-transparent dark backdrop for modals and bottom sheets. */
+  overlay: 'rgba(0,0,0,0.55)',
+  /** Subtle white border for color swatches rendered on dark backgrounds. */
+  dotBorder: 'rgba(255,255,255,0.2)',
 } as const;
 
 // ---------------------------------------------------------------------------

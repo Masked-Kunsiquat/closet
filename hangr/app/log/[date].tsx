@@ -40,6 +40,10 @@ function formatDate(iso: string): string {
   });
 }
 
+function LogSeparator() {
+  return <View style={styles.separator} />;
+}
+
 /**
  * Renders the Day Detail screen showing outfit logs for a specific date, including header, empty state, and a list of logs with OOTD and delete actions.
  *
@@ -53,8 +57,9 @@ export default function DayDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const safeDate = date ?? '';
-  const { logs, loading, error, refresh } = useLogsForDate(safeDate);
+  const { logs, loading, error, refresh } = useLogsForDate(date ?? '');
+
+  if (!date) return null;
 
   const handleToggleOotd = async (log: OutfitLogWithMeta) => {
     try {
@@ -74,7 +79,7 @@ export default function DayDetailScreen() {
                 text: 'Replace', style: 'destructive',
                 onPress: async () => {
                   try {
-                    await setOotd(db, log.id, safeDate);
+                    await setOotd(db, log.id, date);
                     refresh();
                   } catch (e) {
                     console.error('[setOotd replace]', e);
@@ -86,7 +91,7 @@ export default function DayDetailScreen() {
           );
           return;
         }
-        await setOotd(db, log.id, safeDate);
+        await setOotd(db, log.id, date);
       }
       refresh();
     } catch (e) {
@@ -118,7 +123,12 @@ export default function DayDetailScreen() {
     return (
       <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
         <Text style={styles.errorText}>Something went wrong loading this day.</Text>
-        <TouchableOpacity style={styles.errorButton} onPress={refresh}>
+        <TouchableOpacity
+          style={styles.errorButton}
+          onPress={refresh}
+          accessibilityRole="button"
+          accessibilityLabel="Retry"
+        >
           <Text style={styles.errorButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -129,11 +139,16 @@ export default function DayDetailScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerDate}>{safeDate ? formatDate(safeDate) : ''}</Text>
+          <Text style={styles.headerDate}>{formatDate(date)}</Text>
           <Text style={styles.headerCount}>
             {logs.length} log{logs.length !== 1 ? 's' : ''}
           </Text>
@@ -158,7 +173,7 @@ export default function DayDetailScreen() {
           contentContainerStyle={styles.list}
           onRefresh={refresh}
           refreshing={loading}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={LogSeparator}
           renderItem={({ item }) => (
             <LogRow
               log={item}
@@ -211,7 +226,14 @@ function LogRow({
   return (
     <View style={styles.logRow}>
       {/* Cover thumbnail */}
-      <Pressable style={styles.logThumb} onPress={onPressOutfit}>
+      <Pressable
+        style={styles.logThumb}
+        onPress={onPressOutfit}
+        disabled={!log.outfit_id}
+        accessibilityRole="button"
+        accessibilityLabel={log.outfit_id ? 'Open outfit' : 'No outfit available'}
+        accessibilityState={{ disabled: !log.outfit_id }}
+      >
         {log.cover_image ? (
           <Image source={{ uri: log.cover_image }} style={styles.logThumbImage} contentFit="cover" />
         ) : (

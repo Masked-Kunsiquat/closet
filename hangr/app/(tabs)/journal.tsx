@@ -94,12 +94,12 @@ export default function JournalScreen() {
 
   // Build the grid: array of date strings (or null for padding)
   const gridCells = useMemo<(string | null)[]>(() => {
-    const ym = toYearMonth(year, month);
+    const yearMonthStr = toYearMonth(year, month);
     const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const cells: (string | null)[] = Array(firstDay).fill(null);
     for (let d = 1; d <= daysInMonth; d++) {
-      cells.push(`${ym}-${String(d).padStart(2, '0')}`);
+      cells.push(`${yearMonthStr}-${String(d).padStart(2, '0')}`);
     }
     return cells;
   }, [year, month]);
@@ -124,7 +124,7 @@ export default function JournalScreen() {
   if (error) {
     return (
       <View style={[styles.container, styles.errorContainer, { paddingTop: insets.top }]}>
-        <Text style={styles.errorText}>Failed to load journal.{'\n'}{error}</Text>
+        <Text style={styles.errorText}>Something went wrong loading the journal.</Text>
         <TouchableOpacity style={styles.errorButton} onPress={handleRefresh}>
           <Text style={styles.errorButtonText}>Retry</Text>
         </TouchableOpacity>

@@ -1,12 +1,19 @@
 /**
  * Shared form used by both Add Item and Edit Item screens.
  * All fields from the clothing_items schema are represented.
- * Multi-selects (colors, materials, seasons, occasions, patterns) are handled inline.
+ *
+ * Layout:
+ *   - Always visible: Photo, Name, Brand
+ *   - Collapsible: Details, Attributes, Context, Purchase Info
+ *   - Always visible at bottom: Notes, Status, Wash Status, Favorite, Submit
+ *
+ * Chip-heavy fields (Colors, Materials, Pattern, Seasons, Occasions) open
+ * a PickerSheet bottom sheet instead of rendering inline.
  */
 
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -45,6 +52,7 @@ import {
   SizeValue,
   Subcategory,
 } from '@/db/types';
+import { PickerSheet } from './PickerSheet';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -106,26 +114,112 @@ type Props = {
 };
 
 // ---------------------------------------------------------------------------
+// Section summary helpers
+// ---------------------------------------------------------------------------
+
+function detailsSummary(
+  values: ItemFormValues,
+  categories: Category[],
+  subcategories: Subcategory[],
+  sizeValues: SizeValue[],
+): string {
+  const parts: string[] = [];
+  const cat = categories.find((c) => c.id === values.category_id);
+  if (cat) parts.push(cat.name);
+  const sub = subcategories.find((s) => s.id === values.subcategory_id);
+  if (sub) parts.push(sub.name);
+  const sv = sizeValues.find((s) => s.id === values.size_value_id);
+  if (sv) parts.push(sv.value);
+  if (values.waist) parts.push(`W${values.waist}`);
+  if (values.inseam) parts.push(`L${values.inseam}`);
+  return parts.join(' · ');
+}
+
+function attributesSummary(
+  values: ItemFormValues,
+  materials: Material[],
+  patterns: Pattern[],
+): string {
+  const parts: string[] = [];
+  if (values.colorIds.length > 0) {
+    parts.push(values.colorIds.length === 1 ? '1 color' : `${values.colorIds.length} colors`);
+  }
+  if (values.materialIds.length === 1) {
+    const m = materials.find((x) => x.id === values.materialIds[0]);
+    if (m) parts.push(m.name);
+  } else if (values.materialIds.length > 1) {
+    parts.push(`${values.materialIds.length} materials`);
+  }
+  if (values.patternIds.length > 0) {
+    const p = patterns.find((x) => x.id === values.patternIds[0]);
+    if (p) parts.push(p.name);
+  }
+  return parts.join(' · ');
+}
+
+function contextSummary(
+  values: ItemFormValues,
+  seasons: Season[],
+  occasions: Occasion[],
+): string {
+  const parts: string[] = [];
+  if (values.seasonIds.length === 1) {
+    const s = seasons.find((x) => x.id === values.seasonIds[0]);
+    if (s) parts.push(s.name);
+  } else if (values.seasonIds.length > 1) {
+    parts.push(`${values.seasonIds.length} seasons`);
+  }
+  if (values.occasionIds.length === 1) {
+    const o = occasions.find((x) => x.id === values.occasionIds[0]);
+    if (o) parts.push(o.name);
+  } else if (values.occasionIds.length > 1) {
+    parts.push(`${values.occasionIds.length} occasions`);
+  }
+  return parts.join(' · ');
+}
+
+function purchaseSummary(values: ItemFormValues): string {
+  const parts: string[] = [];
+  if (values.purchase_price) parts.push(`$${values.purchase_price}`);
+  if (values.purchase_date) parts.push(values.purchase_date);
+  if (values.purchase_location) parts.push(values.purchase_location);
+  return parts.join(' · ');
+}
+
+// ---------------------------------------------------------------------------
+// Sheet open state
+// ---------------------------------------------------------------------------
+
+type OpenSheet = 'colors' | 'materials' | 'patterns' | 'seasons' | 'occasions' | null;
+
+// ---------------------------------------------------------------------------
 // Component
 /**
  * Render a reusable form for creating or editing a clothing item.
  *
- * The form manages all ItemFormValues fields (identity, category/subcategory, size system/value,
- * measurements, purchase info, image, notes, status, wash status, favorite state and multi-select IDs),
- * performs simple validation (name required), supports image picking, and invokes `onSubmit` with the
- * current values when the user submits a valid form.
+ * Fields are grouped into four collapsible sections (Details, Attributes,
+ * Context, Purchase Info). Chip-heavy multi-selects open a PickerSheet
+ * bottom sheet. Photo, Name, Brand, Notes, Status, Wash Status, Favorite,
+ * and Submit are always visible.
  *
  * @param initialValues - Optional initial field values; defaults to `EMPTY_FORM`
  * @param onSubmit - Callback invoked with the current ItemFormValues when the form is submitted and valid
  * @param submitLabel - Text displayed on the submit button
  * @param submitting - When true, disables the submit button and shows a loading indicator
- * @returns The rendered ItemForm component as a JSX element
  */
+// ---------------------------------------------------------------------------
 
 export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, submitting }: Props) {
   const { accent } = useAccent();
   const [values, setValues] = useState<ItemFormValues>(initialValues);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [openSheet, setOpenSheet] = useState<OpenSheet>(null);
+
+  // Section open/close state
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [attributesOpen, setAttributesOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
 
   // Lookup data
   const [categories, setCategories] = useState<Category[]>([]);
@@ -221,14 +315,20 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
     await onSubmit(values);
   };
 
+  // Computed summaries
+  const detailsSummaryText = detailsSummary(values, categories, subcategories, sizeValues);
+  const attributesSummaryText = attributesSummary(values, materials, patterns);
+  const contextSummaryText = contextSummary(values, seasons, occasions);
+  const purchaseSummaryText = purchaseSummary(values);
+
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Photo */}
-      <FormSection label="Photo">
+    <>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ── Photo ── */}
         <TouchableOpacity style={styles.photoButton} onPress={pickImage} activeOpacity={0.8}>
           {values.image_path ? (
             <Image
@@ -248,297 +348,400 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
             <Text style={styles.removePhotoText}>Remove photo</Text>
           </TouchableOpacity>
         )}
-      </FormSection>
 
-      {/* Name */}
-      <FormSection label="Name *">
-        <TextInput
-          style={[styles.input, nameError ? styles.inputError : null]}
-          value={values.name}
-          onChangeText={(v) => { set('name', v); if (v.trim()) setNameError(null); }}
-          placeholder="e.g. Navy Oxford Shirt"
-          placeholderTextColor={Palette.textDisabled}
-        />
-        {nameError && <Text style={styles.errorText}>{nameError}</Text>}
-      </FormSection>
+        <View style={styles.divider} />
 
-      {/* Brand */}
-      <FormSection label="Brand">
-        <TextInput
-          style={styles.input}
-          value={values.brand}
-          onChangeText={(v) => set('brand', v)}
-          placeholder="e.g. Uniqlo"
-          placeholderTextColor={Palette.textDisabled}
-        />
-      </FormSection>
-
-      {/* Category */}
-      <FormSection label="Category">
-        <ChipSelector
-          items={categories}
-          selectedId={values.category_id}
-          onSelect={(id) => {
-            set('category_id', Number(id));
-            set('subcategory_id', null);
-          }}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Subcategory */}
-      {subcategories.length > 0 && (
-        <FormSection label="Subcategory">
-          <ChipSelector
-            items={subcategories}
-            selectedId={values.subcategory_id}
-            onSelect={(id) => set('subcategory_id', Number(id))}
-            accent={accent.primary}
+        {/* ── Name ── */}
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Name *</Text>
+          <TextInput
+            style={[styles.input, nameError ? styles.inputError : null]}
+            value={values.name}
+            onChangeText={(v) => { set('name', v); if (v.trim()) setNameError(null); }}
+            placeholder="e.g. Navy Oxford Shirt"
+            placeholderTextColor={Palette.textDisabled}
           />
-        </FormSection>
-      )}
+          {nameError && <Text style={styles.errorText}>{nameError}</Text>}
+        </View>
 
-      {/* Size system */}
-      <FormSection label="Size System">
-        <ChipSelector
-          items={sizeSystems}
-          selectedId={values.size_system_id}
-          onSelect={(id) => {
-            set('size_system_id', Number(id));
-            set('size_value_id', null);
-          }}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Size value */}
-      {sizeValues.length > 0 && (
-        <FormSection label="Size">
-          <ChipSelector
-            items={sizeValues.map((sv) => ({ id: sv.id, name: sv.value }))}
-            selectedId={values.size_value_id}
-            onSelect={(id) => set('size_value_id', Number(id))}
-            accent={accent.primary}
+        {/* ── Brand ── */}
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Brand</Text>
+          <TextInput
+            style={styles.input}
+            value={values.brand}
+            onChangeText={(v) => set('brand', v)}
+            placeholder="e.g. Uniqlo"
+            placeholderTextColor={Palette.textDisabled}
           />
-        </FormSection>
-      )}
-
-      {/* Waist / Inseam */}
-      <View style={styles.row}>
-        <View style={styles.halfField}>
-          <FormSection label="Waist (in)">
-            <TextInput
-              style={styles.input}
-              value={values.waist}
-              onChangeText={(v) => set('waist', v)}
-              placeholder="32.5"
-              placeholderTextColor={Palette.textDisabled}
-              keyboardType="decimal-pad"
-            />
-          </FormSection>
         </View>
-        <View style={styles.halfField}>
-          <FormSection label="Inseam (in)">
-            <TextInput
-              style={styles.input}
-              value={values.inseam}
-              onChangeText={(v) => set('inseam', v)}
-              placeholder="30"
-              placeholderTextColor={Palette.textDisabled}
-              keyboardType="decimal-pad"
-            />
-          </FormSection>
-        </View>
-      </View>
 
-      {/* Colors */}
-      <FormSection label="Colors">
-        <MultiChipSelector
-          items={colors}
-          selectedIds={values.colorIds}
-          onToggle={(id) => toggleMulti('colorIds', id)}
-          accent={accent.primary}
-          renderDot={(color) => color.hex ? (
-            <View style={[styles.colorDot, { backgroundColor: color.hex }]} />
-          ) : null}
-        />
-      </FormSection>
-
-      {/* Materials */}
-      <FormSection label="Materials">
-        <MultiChipSelector
-          items={materials}
-          selectedIds={values.materialIds}
-          onToggle={(id) => toggleMulti('materialIds', id)}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Patterns */}
-      <FormSection label="Pattern">
-        <MultiChipSelector
-          items={patterns}
-          selectedIds={values.patternIds}
-          onToggle={(id) => toggleMulti('patternIds', id)}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Seasons */}
-      <FormSection label="Seasons">
-        <MultiChipSelector
-          items={seasons}
-          selectedIds={values.seasonIds}
-          onToggle={(id) => toggleMulti('seasonIds', id)}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Occasions */}
-      <FormSection label="Occasions">
-        <MultiChipSelector
-          items={occasions}
-          selectedIds={values.occasionIds}
-          onToggle={(id) => toggleMulti('occasionIds', id)}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Purchase info */}
-      <FormSection label="Purchase Price">
-        <TextInput
-          style={styles.input}
-          value={values.purchase_price}
-          onChangeText={(v) => set('purchase_price', v)}
-          placeholder="0.00"
-          placeholderTextColor={Palette.textDisabled}
-          keyboardType="decimal-pad"
-        />
-      </FormSection>
-
-      <FormSection label="Purchase Date">
-        <TextInput
-          style={styles.input}
-          value={values.purchase_date}
-          onChangeText={(v) => set('purchase_date', v)}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={Palette.textDisabled}
-        />
-      </FormSection>
-
-      <FormSection label="Purchase Location">
-        <TextInput
-          style={styles.input}
-          value={values.purchase_location}
-          onChangeText={(v) => set('purchase_location', v)}
-          placeholder="e.g. Uniqlo online"
-          placeholderTextColor={Palette.textDisabled}
-        />
-      </FormSection>
-
-      {/* Status */}
-      <FormSection label="Status">
-        <ChipSelector
-          items={[
-            { id: 'Active', name: 'Active' },
-            { id: 'Sold', name: 'Sold' },
-            { id: 'Donated', name: 'Donated' },
-            { id: 'Lost', name: 'Lost' },
-          ]}
-          selectedId={values.status}
-          onSelect={(id) => set('status', id as ItemFormValues['status'])}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Wash status */}
-      <FormSection label="Wash Status">
-        <ChipSelector
-          items={[
-            { id: 'Clean', name: 'Clean' },
-            { id: 'Dirty', name: 'Dirty' },
-          ]}
-          selectedId={values.wash_status}
-          onSelect={(id) => set('wash_status', id as ItemFormValues['wash_status'])}
-          accent={accent.primary}
-        />
-      </FormSection>
-
-      {/* Favorite toggle */}
-      <FormSection label="Favorite">
-        <TouchableOpacity
-          style={[styles.toggleButton, values.is_favorite && { borderColor: accent.primary }]}
-          onPress={() => set('is_favorite', !values.is_favorite)}
-          activeOpacity={0.8}
+        {/* ── Details (collapsible) ── */}
+        <FormCollapsible
+          title="Details"
+          summary={detailsSummaryText}
+          open={detailsOpen}
+          onToggle={() => setDetailsOpen((x) => !x)}
         >
-          <Text style={[styles.toggleText, values.is_favorite && { color: accent.primary }]}>
-            {values.is_favorite ? '♥  Favorited' : '♡  Add to favorites'}
-          </Text>
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Category</Text>
+            <ChipSelector
+              items={categories}
+              selectedId={values.category_id}
+              onSelect={(id) => {
+                set('category_id', id === null ? null : Number(id));
+                set('subcategory_id', null);
+              }}
+              accent={accent.primary}
+            />
+          </View>
+
+          {subcategories.length > 0 && (
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Subcategory</Text>
+              <ChipSelector
+                items={subcategories}
+                selectedId={values.subcategory_id}
+                onSelect={(id) => set('subcategory_id', id === null ? null : Number(id))}
+                accent={accent.primary}
+              />
+            </View>
+          )}
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Size System</Text>
+            <ChipSelector
+              items={sizeSystems}
+              selectedId={values.size_system_id}
+              onSelect={(id) => {
+                set('size_system_id', id === null ? null : Number(id));
+                set('size_value_id', null);
+              }}
+              accent={accent.primary}
+            />
+          </View>
+
+          {sizeValues.length > 0 && (
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Size</Text>
+              <ChipSelector
+                items={sizeValues.map((sv) => ({ id: sv.id, name: sv.value }))}
+                selectedId={values.size_value_id}
+                onSelect={(id) => set('size_value_id', id === null ? null : Number(id))}
+                accent={accent.primary}
+              />
+            </View>
+          )}
+
+          <View style={[styles.row, styles.field]}>
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>Waist (in)</Text>
+              <TextInput
+                style={styles.input}
+                value={values.waist}
+                onChangeText={(v) => set('waist', v)}
+                placeholder="32.5"
+                placeholderTextColor={Palette.textDisabled}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.halfField}>
+              <Text style={styles.fieldLabel}>Inseam (in)</Text>
+              <TextInput
+                style={styles.input}
+                value={values.inseam}
+                onChangeText={(v) => set('inseam', v)}
+                placeholder="30"
+                placeholderTextColor={Palette.textDisabled}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+        </FormCollapsible>
+
+        {/* ── Attributes (collapsible) ── */}
+        <FormCollapsible
+          title="Attributes"
+          summary={attributesSummaryText}
+          open={attributesOpen}
+          onToggle={() => setAttributesOpen((x) => !x)}
+        >
+          <PickerTrigger
+            label="Colors"
+            count={values.colorIds.length}
+            onPress={() => setOpenSheet('colors')}
+          />
+          <PickerTrigger
+            label="Materials"
+            count={values.materialIds.length}
+            onPress={() => setOpenSheet('materials')}
+          />
+          <PickerTrigger
+            label="Pattern"
+            count={values.patternIds.length}
+            onPress={() => setOpenSheet('patterns')}
+          />
+        </FormCollapsible>
+
+        {/* ── Context (collapsible) ── */}
+        <FormCollapsible
+          title="Context"
+          summary={contextSummaryText}
+          open={contextOpen}
+          onToggle={() => setContextOpen((x) => !x)}
+        >
+          <PickerTrigger
+            label="Seasons"
+            count={values.seasonIds.length}
+            onPress={() => setOpenSheet('seasons')}
+          />
+          <PickerTrigger
+            label="Occasions"
+            count={values.occasionIds.length}
+            onPress={() => setOpenSheet('occasions')}
+          />
+        </FormCollapsible>
+
+        {/* ── Purchase Info (collapsible) ── */}
+        <FormCollapsible
+          title="Purchase Info"
+          summary={purchaseSummaryText}
+          open={purchaseOpen}
+          onToggle={() => setPurchaseOpen((x) => !x)}
+        >
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Price</Text>
+            <TextInput
+              style={styles.input}
+              value={values.purchase_price}
+              onChangeText={(v) => set('purchase_price', v)}
+              placeholder="0.00"
+              placeholderTextColor={Palette.textDisabled}
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Date</Text>
+            <TextInput
+              style={styles.input}
+              value={values.purchase_date}
+              onChangeText={(v) => set('purchase_date', v)}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={Palette.textDisabled}
+            />
+          </View>
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={values.purchase_location}
+              onChangeText={(v) => set('purchase_location', v)}
+              placeholder="e.g. Uniqlo online"
+              placeholderTextColor={Palette.textDisabled}
+            />
+          </View>
+        </FormCollapsible>
+
+        <View style={styles.divider} />
+
+        {/* ── Notes ── */}
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Notes</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={values.notes}
+            onChangeText={(v) => set('notes', v)}
+            placeholder="Any notes about this item..."
+            placeholderTextColor={Palette.textDisabled}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* ── Status ── */}
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Status</Text>
+          <ChipSelector
+            items={[
+              { id: 'Active', name: 'Active' },
+              { id: 'Sold', name: 'Sold' },
+              { id: 'Donated', name: 'Donated' },
+              { id: 'Lost', name: 'Lost' },
+            ]}
+            selectedId={values.status}
+            onSelect={(id) => { if (id !== null && id !== values.status) set('status', id as ItemFormValues['status']); }}
+            accent={accent.primary}
+          />
+        </View>
+
+        {/* ── Wash Status ── */}
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Wash Status</Text>
+          <ChipSelector
+            items={[
+              { id: 'Clean', name: 'Clean' },
+              { id: 'Dirty', name: 'Dirty' },
+            ]}
+            selectedId={values.wash_status}
+            onSelect={(id) => { if (id !== null && id !== values.wash_status) set('wash_status', id as ItemFormValues['wash_status']); }}
+            accent={accent.primary}
+          />
+        </View>
+
+        {/* ── Favorite ── */}
+        <View style={styles.field}>
+          <TouchableOpacity
+            style={[styles.toggleButton, values.is_favorite && { borderColor: accent.primary }]}
+            onPress={() => set('is_favorite', !values.is_favorite)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.toggleText, values.is_favorite && { color: accent.primary }]}>
+              {values.is_favorite ? '♥  Favorited' : '♡  Add to favorites'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Submit ── */}
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: accent.primary }]}
+          onPress={handleSubmit}
+          disabled={submitting}
+          activeOpacity={0.85}
+        >
+          {submitting ? (
+            <ActivityIndicator color={contrastingTextColor(accent.primary)} />
+          ) : (
+            <Text style={[styles.submitText, { color: contrastingTextColor(accent.primary) }]}>{submitLabel}</Text>
+          )}
         </TouchableOpacity>
-      </FormSection>
 
-      {/* Notes */}
-      <FormSection label="Notes">
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={values.notes}
-          onChangeText={(v) => set('notes', v)}
-          placeholder="Any notes about this item..."
-          placeholderTextColor={Palette.textDisabled}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-      </FormSection>
+        <View style={{ height: Spacing[8] }} />
+      </ScrollView>
 
-      {/* Submit */}
-      <TouchableOpacity
-        style={[styles.submitButton, { backgroundColor: accent.primary }]}
-        onPress={handleSubmit}
-        disabled={submitting}
-        activeOpacity={0.85}
-      >
-        {submitting ? (
-          <ActivityIndicator color={contrastingTextColor(accent.primary)} />
-        ) : (
-          <Text style={[styles.submitText, { color: contrastingTextColor(accent.primary) }]}>{submitLabel}</Text>
-        )}
-      </TouchableOpacity>
-
-      <View style={{ height: Spacing[8] }} />
-    </ScrollView>
+      {/* ── Picker sheets ── */}
+      <PickerSheet
+        visible={openSheet === 'colors'}
+        onClose={() => setOpenSheet(null)}
+        title="Colors"
+        items={colors}
+        selectedIds={values.colorIds}
+        onToggle={(id) => toggleMulti('colorIds', id)}
+        renderDot={(color) => color.hex ? (
+          <View style={[styles.colorDot, { backgroundColor: color.hex }]} />
+        ) : null}
+      />
+      <PickerSheet
+        visible={openSheet === 'materials'}
+        onClose={() => setOpenSheet(null)}
+        title="Materials"
+        items={materials}
+        selectedIds={values.materialIds}
+        onToggle={(id) => toggleMulti('materialIds', id)}
+      />
+      <PickerSheet
+        visible={openSheet === 'patterns'}
+        onClose={() => setOpenSheet(null)}
+        title="Pattern"
+        items={patterns}
+        selectedIds={values.patternIds}
+        onToggle={(id) => toggleMulti('patternIds', id)}
+      />
+      <PickerSheet
+        visible={openSheet === 'seasons'}
+        onClose={() => setOpenSheet(null)}
+        title="Seasons"
+        items={seasons}
+        selectedIds={values.seasonIds}
+        onToggle={(id) => toggleMulti('seasonIds', id)}
+      />
+      <PickerSheet
+        visible={openSheet === 'occasions'}
+        onClose={() => setOpenSheet(null)}
+        title="Occasions"
+        items={occasions}
+        selectedIds={values.occasionIds}
+        onToggle={(id) => toggleMulti('occasionIds', id)}
+      />
+    </>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Sub-components
-/**
- * Renders a labeled form section wrapper for grouping related inputs.
- *
- * @param label - Section title displayed above the children
- * @param children - Content rendered inside the section container
- * @returns A view containing the section label and its children
- */
+// ---------------------------------------------------------------------------
 
-function FormSection({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * Collapsible section header with a summary line when collapsed.
+ */
+function FormCollapsible({
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  summary: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.label}>{label}</Text>
-      {children}
+    <View style={styles.collapsibleSection}>
+      <Pressable
+        style={styles.collapsibleHeader}
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={title}
+      >
+        <Text style={styles.collapsibleTitle}>{title}</Text>
+        <View style={styles.collapsibleRight}>
+          {!open && summary ? (
+            <Text style={styles.collapsibleSummary} numberOfLines={1}>
+              {summary}
+            </Text>
+          ) : null}
+          <Text style={styles.collapsibleChevron}>{open ? '▾' : '▸'}</Text>
+        </View>
+      </Pressable>
+      {open && <View style={styles.collapsibleContent}>{children}</View>}
     </View>
+  );
+}
+
+/**
+ * A row button that opens a PickerSheet for a multi-select field.
+ */
+function PickerTrigger({
+  label,
+  count,
+  onPress,
+}: {
+  label: string;
+  count: number;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.pickerTrigger} onPress={onPress} accessibilityRole="button">
+      <Text style={styles.pickerTriggerLabel}>{label}</Text>
+      <View style={styles.pickerTriggerRight}>
+        <Text style={styles.pickerTriggerValue}>
+          {count > 0 ? (count === 1 ? '1 selected' : `${count} selected`) : 'None'}
+        </Text>
+        <Text style={styles.pickerTriggerChevron}>›</Text>
+      </View>
+    </Pressable>
   );
 }
 
 type ChipItem = { id: string | number; name: string };
 
 /**
- * Renders a horizontal group of selectable chips for choosing a single item.
- *
- * @param items - Array of chip items; each item should have an `id` and `name`.
- * @param selectedId - The currently selected item's `id`, or `null` when none is selected.
- * @param onSelect - Callback invoked when a chip is pressed; receives the selected item's `id`, or `null` to clear the selection.
- * @param accent - Color used to style the selected chip (background and border).
- * @returns The rendered chip group element.
+ * Horizontal single-select chip row.
  */
 function ChipSelector({
   items,
@@ -571,50 +774,6 @@ function ChipSelector({
   );
 }
 
-/**
- * Renders a horizontal group of selectable chips for multi-selection.
- *
- * @param items - Array of items to display; each item must have `id` and `name`.
- * @param selectedIds - IDs of items currently selected.
- * @param onToggle - Called with an item's `id` when its chip is pressed to toggle selection.
- * @param accent - Color used to indicate selected chips.
- * @param renderDot - Optional renderer that returns a visual node (for example, a color dot) for a given item.
- * @returns A React element containing chips for each item; chips corresponding to `selectedIds` are visually highlighted using `accent`.
- */
-function MultiChipSelector<T extends { id: number; name: string }>({
-  items,
-  selectedIds,
-  onToggle,
-  accent,
-  renderDot,
-}: {
-  items: T[];
-  selectedIds: number[];
-  onToggle: (id: number) => void;
-  accent: string;
-  renderDot?: (item: T) => React.ReactNode;
-}) {
-  return (
-    <View style={styles.chips}>
-      {items.map((item) => {
-        const selected = selectedIds.includes(item.id);
-        return (
-          <Pressable
-            key={item.id}
-            style={[styles.chip, selected && { backgroundColor: accent, borderColor: accent }]}
-            onPress={() => onToggle(item.id)}
-          >
-            {renderDot?.(item)}
-            <Text style={[styles.chipText, selected && styles.chipTextSelected, selected && { color: contrastingTextColor(accent) }]}>
-              {item.name}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
@@ -627,10 +786,15 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing[4],
   },
-  section: {
-    marginBottom: Spacing[5],
+  divider: {
+    height: 1,
+    backgroundColor: Palette.border,
+    marginVertical: Spacing[4],
   },
-  label: {
+  field: {
+    marginBottom: Spacing[4],
+  },
+  fieldLabel: {
     color: Palette.textSecondary,
     fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
@@ -694,8 +858,10 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: Palette.dotBorder,
   },
+
+  // Photo
   photoButton: {
     width: '100%',
     aspectRatio: 3 / 4,
@@ -704,7 +870,8 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surface2,
     borderWidth: 1,
     borderColor: Palette.border,
-    maxHeight: 300,
+    maxHeight: 260,
+    marginBottom: Spacing[2],
   },
   photoPreview: {
     width: '100%',
@@ -717,20 +884,91 @@ const styles = StyleSheet.create({
     gap: Spacing[2],
   },
   photoPlaceholderIcon: {
-    fontSize: 36,
+    fontSize: FontSize['4xl'],
   },
   photoPlaceholderText: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
   },
   removePhoto: {
-    marginTop: Spacing[2],
+    marginBottom: Spacing[2],
     alignSelf: 'center',
   },
   removePhotoText: {
     color: Palette.error,
     fontSize: FontSize.sm,
   },
+
+  // Collapsible section
+  collapsibleSection: {
+    borderTopWidth: 1,
+    borderTopColor: Palette.border,
+    paddingTop: Spacing[1],
+    marginBottom: Spacing[1],
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing[3],
+  },
+  collapsibleTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    color: Palette.textPrimary,
+  },
+  collapsibleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  collapsibleSummary: {
+    fontSize: FontSize.sm,
+    color: Palette.textSecondary,
+    flexShrink: 1,
+  },
+  collapsibleChevron: {
+    fontSize: FontSize.sm,
+    color: Palette.textSecondary,
+  },
+  collapsibleContent: {
+    paddingBottom: Spacing[3],
+  },
+
+  // Picker trigger row
+  pickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Palette.surface2,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[3],
+    marginBottom: Spacing[2],
+  },
+  pickerTriggerLabel: {
+    fontSize: FontSize.md,
+    color: Palette.textPrimary,
+  },
+  pickerTriggerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+  },
+  pickerTriggerValue: {
+    fontSize: FontSize.sm,
+    color: Palette.textSecondary,
+  },
+  pickerTriggerChevron: {
+    fontSize: FontSize.lg,
+    color: Palette.textDisabled,
+  },
+
+  // Favorite toggle
   toggleButton: {
     paddingHorizontal: Spacing[4],
     paddingVertical: Spacing[3],
@@ -744,6 +982,8 @@ const styles = StyleSheet.create({
     color: Palette.textSecondary,
     fontSize: FontSize.md,
   },
+
+  // Submit
   submitButton: {
     paddingVertical: Spacing[4],
     borderRadius: Radius.md,

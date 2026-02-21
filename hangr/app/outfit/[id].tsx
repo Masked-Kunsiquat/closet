@@ -13,7 +13,6 @@ import {
   FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -67,6 +66,7 @@ export default function OutfitDetailScreen() {
   const [logModalVisible, setLogModalVisible] = useState(false);
 
   const load = useCallback(async () => {
+    if (!Number.isFinite(outfitId) || outfitId <= 0) return;
     setLoadError(null);
     try {
       const db = await getDatabase();
@@ -152,38 +152,37 @@ export default function OutfitDetailScreen() {
       </View>
 
       {/* Item strip */}
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>
-          {outfit.items.length} item{outfit.items.length !== 1 ? 's' : ''}
-        </Text>
-        <FlatList
-          data={outfit.items}
-          keyExtractor={(i) => String(i.id)}
-          numColumns={3}
-          scrollEnabled={false}
-          columnWrapperStyle={styles.gridRow}
-          contentContainerStyle={styles.grid}
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.gridCell}
-              onPress={() => router.push(`/item/${item.id}`)}
-            >
-              {item.image_path ? (
-                <Image
-                  source={{ uri: item.image_path }}
-                  style={styles.gridImage}
-                  contentFit="cover"
-                />
-              ) : (
-                <View style={styles.gridPlaceholder}>
-                  <Text style={styles.gridEmoji}>{categoryEmoji(item.category_name)}</Text>
-                </View>
-              )}
-              <Text style={styles.gridLabel} numberOfLines={1}>{item.name}</Text>
-            </Pressable>
-          )}
-        />
-      </ScrollView>
+      <FlatList
+        data={outfit.items}
+        keyExtractor={(i) => String(i.id)}
+        numColumns={3}
+        columnWrapperStyle={styles.gridRow}
+        contentContainerStyle={[styles.scrollContent, styles.grid]}
+        ListHeaderComponent={
+          <Text style={styles.sectionTitle}>
+            {outfit.items.length} item{outfit.items.length !== 1 ? 's' : ''}
+          </Text>
+        }
+        renderItem={({ item }) => (
+          <Pressable
+            style={styles.gridCell}
+            onPress={() => router.push(`/item/${item.id}`)}
+          >
+            {item.image_path ? (
+              <Image
+                source={{ uri: item.image_path }}
+                style={styles.gridImage}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={styles.gridPlaceholder}>
+                <Text style={styles.gridEmoji}>{categoryEmoji(item.category_name)}</Text>
+              </View>
+            )}
+            <Text style={styles.gridLabel} numberOfLines={1}>{item.name}</Text>
+          </Pressable>
+        )}
+      />
 
       {/* Log FAB */}
       <TouchableOpacity
@@ -263,9 +262,15 @@ function LogModal({
   }, [date, visible]);
 
   const handleSave = async () => {
-    // Validate YYYY-MM-DD format
+    // Validate YYYY-MM-DD format and semantic correctness (e.g., reject Feb 30)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       Alert.alert('Invalid date', 'Enter a date in YYYY-MM-DD format.');
+      return;
+    }
+    const [dy, dm, dd] = date.split('-').map(Number);
+    const dateObj = new Date(dy, dm - 1, dd);
+    if (dateObj.getFullYear() !== dy || dateObj.getMonth() + 1 !== dm || dateObj.getDate() !== dd) {
+      Alert.alert('Invalid date', 'Enter a valid calendar date.');
       return;
     }
     setSaving(true);

@@ -40,6 +40,7 @@ import {
   SortKey,
 } from '@/hooks/useClosetView';
 import type { Category, Color, Occasion, Season, Subcategory } from '@/db/types';
+import { contrastingTextColor } from '@/utils/color';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -88,19 +89,23 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
 
   useEffect(() => {
     (async () => {
-      const db = await getDatabase();
-      const [cats, seas, occs, cols, brnds] = await Promise.all([
-        getCategories(db),
-        getSeasons(db),
-        getOccasions(db),
-        getColors(db),
-        getDistinctBrands(db),
-      ]);
-      setCategories(cats);
-      setSeasons(seas);
-      setOccasions(occs);
-      setColors(cols);
-      setBrands(brnds);
+      try {
+        const db = await getDatabase();
+        const [cats, seas, occs, cols, brnds] = await Promise.all([
+          getCategories(db),
+          getSeasons(db),
+          getOccasions(db),
+          getColors(db),
+          getDistinctBrands(db),
+        ]);
+        setCategories(cats);
+        setSeasons(seas);
+        setOccasions(occs);
+        setColors(cols);
+        setBrands(brnds);
+      } catch (e) {
+        console.error('[FilterPanel] load lookup data', e);
+      }
     })();
   }, []);
 
@@ -395,7 +400,7 @@ function ChipRow<T extends ChipItem>({
             onPress={() => onSelect(item.id)}
           >
             {renderPrefix?.(item)}
-            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+            <Text style={[styles.chipText, selected && styles.chipTextSelected, selected && { color: contrastingTextColor(accent) }]}>
               {item.name}
             </Text>
           </Pressable>
@@ -497,7 +502,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
   },
   chipTextSelected: {
-    color: '#000',
     fontWeight: FontWeight.semibold,
   },
   colorDot: {

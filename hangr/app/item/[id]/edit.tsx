@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EMPTY_FORM, ItemForm, ItemFormValues } from '@/components/clothing/ItemForm';
@@ -35,6 +35,7 @@ export default function EditItemScreen() {
   const [initialValues, setInitialValues] = useState<ItemFormValues | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Load existing item data and resolve size_system_id from size_value_id
   useEffect(() => {
@@ -51,9 +52,7 @@ export default function EditItemScreen() {
         ]);
 
         if (!item) {
-          Alert.alert('Not Found', 'This item no longer exists.', [
-            { text: 'OK', onPress: () => router.back() },
-          ]);
+          setLoadError('Item not found.');
           return;
         }
 
@@ -123,17 +122,16 @@ export default function EditItemScreen() {
         is_favorite: values.is_favorite ? 1 : 0,
       });
 
-      await Promise.all([
-        setClothingItemColors(db, itemId, values.colorIds),
-        setClothingItemMaterials(db, itemId, values.materialIds),
-        setClothingItemSeasons(db, itemId, values.seasonIds),
-        setClothingItemOccasions(db, itemId, values.occasionIds),
-        setClothingItemPatterns(db, itemId, values.patternIds),
-      ]);
+      await setClothingItemColors(db, itemId, values.colorIds);
+      await setClothingItemMaterials(db, itemId, values.materialIds);
+      await setClothingItemSeasons(db, itemId, values.seasonIds);
+      await setClothingItemOccasions(db, itemId, values.occasionIds);
+      await setClothingItemPatterns(db, itemId, values.patternIds);
 
       router.back();
     } catch (e) {
-      Alert.alert('Error', 'Failed to save changes. Please try again.');
+      console.error('[edit item]', e);
+      setSaveError('Failed to save changes. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -168,6 +166,13 @@ export default function EditItemScreen() {
         <Text style={styles.title}>Edit Item</Text>
         <View style={{ width: 56 }} />
       </View>
+
+      {saveError && (
+        <Pressable style={styles.errorBanner} onPress={() => setSaveError(null)}>
+          <Text style={styles.errorText}>{saveError}</Text>
+          <Text style={styles.errorDismiss}>✕</Text>
+        </Pressable>
+      )}
 
       <ItemForm
         initialValues={initialValues}
@@ -209,5 +214,23 @@ const styles = StyleSheet.create({
   cancel: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Palette.error,
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[3],
+  },
+  errorText: {
+    color: Palette.white,
+    fontSize: FontSize.sm,
+    flex: 1,
+  },
+  errorDismiss: {
+    color: Palette.white,
+    fontSize: FontSize.sm,
+    marginLeft: Spacing[3],
   },
 });
