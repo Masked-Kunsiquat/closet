@@ -8,11 +8,10 @@ import {
   getClothingItemOccasionIds,
   getClothingItemPatternIds,
   getClothingItemSeasonIds,
-  getWearCount,
 } from '@/db/queries';
-import { ClothingItem } from '@/db/types';
+import { ClothingItemWithMeta } from '@/db/types';
 
-export type ClothingItemDetail = ClothingItem & {
+export type ClothingItemDetail = ClothingItemWithMeta & {
   wearCount: number;
   costPerWear: number | null;
   colorIds: number[];
@@ -35,10 +34,9 @@ export function useClothingItem(id: number) {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const db = await getDatabase();
-      const [item, wearCount, colorIds, materialIds, seasonIds, occasionIds, patternIds] =
+      const [item, colorIds, materialIds, seasonIds, occasionIds, patternIds] =
         await Promise.all([
           getClothingItemById(db, id),
-          getWearCount(db, id),
           getClothingItemColorIds(db, id),
           getClothingItemMaterialIds(db, id),
           getClothingItemSeasonIds(db, id),
@@ -51,6 +49,7 @@ export function useClothingItem(id: number) {
         return;
       }
 
+      const wearCount = item.wear_count;
       // Cost per wear: null if no price or 0 wears (never divide by zero).
       const costPerWear =
         item.purchase_price != null && wearCount > 0

@@ -48,11 +48,23 @@ export async function getAllClothingItems(
 export async function getClothingItemById(
   db: SQLiteDatabase,
   id: number
-): Promise<ClothingItem | null> {
-  return db.getFirstAsync<ClothingItem>(
-    `SELECT * FROM clothing_items WHERE id = ?`,
-    [id]
-  );
+): Promise<ClothingItemWithMeta | null> {
+  return db.getFirstAsync<ClothingItemWithMeta>(`
+    SELECT
+      ci.*,
+      c.name  AS category_name,
+      sc.name AS subcategory_name,
+      (
+        SELECT COUNT(DISTINCT ol.id)
+        FROM outfit_logs ol
+        JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
+        WHERE oi.clothing_item_id = ci.id
+      ) AS wear_count
+    FROM clothing_items ci
+    LEFT JOIN categories    c  ON ci.category_id    = c.id
+    LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
+    WHERE ci.id = ?
+  `, [id]);
 }
 
 /** Wear count = number of outfit_logs that include this item via outfit_items. */

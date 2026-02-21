@@ -28,62 +28,72 @@ export default function EditItemScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [initialValues, setInitialValues] = useState<ItemFormValues | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Load existing item data and resolve size_system_id from size_value_id
   useEffect(() => {
     (async () => {
-      const db = await getDatabase();
-      const [item, colorIds, materialIds, seasonIds, occasionIds, patternIds] = await Promise.all([
-        getClothingItemById(db, itemId),
-        getClothingItemColorIds(db, itemId),
-        getClothingItemMaterialIds(db, itemId),
-        getClothingItemSeasonIds(db, itemId),
-        getClothingItemOccasionIds(db, itemId),
-        getClothingItemPatternIds(db, itemId),
-      ]);
+      try {
+        const db = await getDatabase();
+        const [item, colorIds, materialIds, seasonIds, occasionIds, patternIds] = await Promise.all([
+          getClothingItemById(db, itemId),
+          getClothingItemColorIds(db, itemId),
+          getClothingItemMaterialIds(db, itemId),
+          getClothingItemSeasonIds(db, itemId),
+          getClothingItemOccasionIds(db, itemId),
+          getClothingItemPatternIds(db, itemId),
+        ]);
 
-      if (!item) return;
+        if (!item) {
+          Alert.alert('Not Found', 'This item no longer exists.', [
+            { text: 'OK', onPress: () => router.back() },
+          ]);
+          return;
+        }
 
-      // Resolve which size system this value belongs to
-      let size_system_id: number | null = null;
-      if (item.size_value_id) {
-        const allSystems = await db.getAllAsync<{ id: number }>(`SELECT id FROM size_systems`);
-        for (const sys of allSystems) {
-          const vals = await getSizeValues(db, sys.id);
-          if (vals.some((v) => v.id === item.size_value_id)) {
-            size_system_id = sys.id;
-            break;
+        // Resolve which size system this value belongs to
+        let size_system_id: number | null = null;
+        if (item.size_value_id) {
+          const allSystems = await db.getAllAsync<{ id: number }>(`SELECT id FROM size_systems`);
+          for (const sys of allSystems) {
+            const vals = await getSizeValues(db, sys.id);
+            if (vals.some((v) => v.id === item.size_value_id)) {
+              size_system_id = sys.id;
+              break;
+            }
           }
         }
-      }
 
-      setInitialValues({
-        ...EMPTY_FORM,
-        name: item.name,
-        brand: item.brand ?? '',
-        category_id: item.category_id,
-        subcategory_id: item.subcategory_id,
-        size_system_id,
-        size_value_id: item.size_value_id,
-        waist: item.waist != null ? String(item.waist) : '',
-        inseam: item.inseam != null ? String(item.inseam) : '',
-        purchase_price: item.purchase_price != null ? String(item.purchase_price) : '',
-        purchase_date: item.purchase_date ?? '',
-        purchase_location: item.purchase_location ?? '',
-        image_path: item.image_path,
-        notes: item.notes ?? '',
-        status: item.status,
-        wash_status: item.wash_status,
-        is_favorite: item.is_favorite === 1,
-        colorIds,
-        materialIds,
-        seasonIds,
-        occasionIds,
-        patternIds,
-      });
+        setInitialValues({
+          ...EMPTY_FORM,
+          name: item.name,
+          brand: item.brand ?? '',
+          category_id: item.category_id,
+          subcategory_id: item.subcategory_id,
+          size_system_id,
+          size_value_id: item.size_value_id,
+          waist: item.waist != null ? String(item.waist) : '',
+          inseam: item.inseam != null ? String(item.inseam) : '',
+          purchase_price: item.purchase_price != null ? String(item.purchase_price) : '',
+          purchase_date: item.purchase_date ?? '',
+          purchase_location: item.purchase_location ?? '',
+          image_path: item.image_path,
+          notes: item.notes ?? '',
+          status: item.status,
+          wash_status: item.wash_status,
+          is_favorite: item.is_favorite === 1,
+          colorIds,
+          materialIds,
+          seasonIds,
+          occasionIds,
+          patternIds,
+        });
+      } catch (e) {
+        setLoadError(String(e));
+      }
     })();
-  }, [itemId]);
+  }, [itemId, router]);
 
   const handleSubmit = async (values: ItemFormValues) => {
     setSubmitting(true);
@@ -123,6 +133,17 @@ export default function EditItemScreen() {
       setSubmitting(false);
     }
   };
+
+  if (loadError) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.muted}>Failed to load item.</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={{ marginTop: Spacing[4] }}>
+          <Text style={[styles.cancel, { color: Palette.textPrimary }]}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (!initialValues) {
     return (

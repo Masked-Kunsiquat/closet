@@ -122,7 +122,7 @@ export default function ItemDetailScreen() {
 
         {/* Details */}
         <Section title="Details">
-          <DetailRow label="Category" value={item.category_id ? undefined : '—'} />
+          <DetailRow label="Category" value={item.category_name ?? '—'} />
           <DetailRow label="Wash Status" value={item.wash_status} />
           {item.purchase_date && <DetailRow label="Purchased" value={item.purchase_date} />}
           {item.purchase_location && (
