@@ -3,8 +3,8 @@
  * Handles filter selection (category, subcategory, color, season, occasion, brand, status)
  * and sort order. Resolves junction table item IDs before committing.
  *
- * Sort, Status, Category, Subcategory, Brand use PickerTrigger rows (tap → inner sheet).
- * Color, Season, Occasion use chip rows (multi-select compatible).
+ * Sort, Status, Category, Subcategory, Season, Occasion, Brand use PickerTrigger rows (tap → inner sheet).
+ * Color uses a collapsible chip row (inline multi-select).
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -211,6 +211,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
   const selectedSubcategoryName = subcategories.find((s) => s.id === draft.subcategoryId)?.name ?? null;
 
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -334,9 +335,10 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
           )}
         </ScrollView>
       </Animated.View>
+    </Modal>
 
-      {/* Inner picker sheets */}
-      <FilterPickerSheet
+    {/* Inner picker sheets — rendered outside the outer Modal to avoid iOS nested-modal issues */}
+    <FilterPickerSheet
         visible={innerSheet === 'sort'}
         title="Sort By"
         options={Object.entries(SORT_LABELS).map(([k, v]) => ({ value: k, label: v }))}
@@ -428,7 +430,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         accentPrimary={accent.primary}
         allowDeselect
       />
-    </Modal>
+    </>
   );
 }
 
@@ -690,7 +692,7 @@ const styles = StyleSheet.create({
   colorDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: Palette.dotBorder,
   },

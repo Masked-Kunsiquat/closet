@@ -34,10 +34,11 @@ export default function ItemDetailScreen() {
     try {
       const db = await getDatabase();
       await updateWashStatus(db, itemId, next);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       refresh();
     } catch (e) {
       console.error('[washToggle]', e);
+      Alert.alert('Error', 'Could not update wash status. Please try again.');
     }
   };
 

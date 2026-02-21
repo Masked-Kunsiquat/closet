@@ -85,7 +85,7 @@ export default function ClosetScreen() {
             ? ''
             : activeFilterCount === 0
             ? `${filteredAndSorted.length} item${filteredAndSorted.length !== 1 ? 's' : ''}`
-            : `${filteredAndSorted.length} of ${items.length}`}
+            : `${filteredAndSorted.length} of ${showArchivedItems ? items.length : items.filter((i) => i.status === 'Active').length}`}
         </Text>
       </View>
 
@@ -370,6 +370,7 @@ function EmptyFilter({ onClear }: { onClear: () => void }) {
 }
 
 function EmptyArchived() {
+  const router = useRouter();
   return (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyEmoji}>📦</Text>
@@ -377,6 +378,9 @@ function EmptyArchived() {
       <Text style={styles.emptySubtitle}>
         Turn on &ldquo;Show archived items&rdquo; in Settings to see Sold, Donated, and Lost items.
       </Text>
+      <TouchableOpacity style={styles.clearFiltersButton} onPress={() => router.push('/settings')} activeOpacity={0.8}>
+        <Text style={styles.clearFiltersText}>Go to Settings</Text>
+      </TouchableOpacity>
     </View>
   );
 }

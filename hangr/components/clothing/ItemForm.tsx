@@ -13,7 +13,7 @@
 
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -309,14 +309,14 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
   // Derived: show waist/inseam only for Bottoms
   const showWaistInseam = selectedCategoryName === 'Bottoms';
 
-  // Derived: brand autocomplete suggestions
-  const brandSuggestions = values.brand.trim().length > 0
-    ? allBrands.filter(
-        (b) =>
-          b.toLowerCase().includes(values.brand.toLowerCase()) &&
-          b.toLowerCase() !== values.brand.toLowerCase()
-      )
-    : [];
+  // Derived: brand autocomplete suggestions (memoized, capped at 10)
+  const brandSuggestions = useMemo(() => {
+    if (values.brand.trim().length === 0) return [];
+    const lower = values.brand.toLowerCase();
+    return allBrands
+      .filter((b) => b.toLowerCase().includes(lower) && b.toLowerCase() !== lower)
+      .slice(0, 10);
+  }, [values.brand, allBrands]);
 
   // Reload size values when size system changes
   useEffect(() => {
@@ -908,29 +908,31 @@ function CategorySheet({
       <View style={styles.sheet}>
         <View style={styles.sheetHandle} />
         <Text style={styles.sheetTitle}>Category</Text>
-        {categories.map((cat, i) => {
-          const active = cat.id === selectedId;
-          return (
-            <Pressable
-              key={cat.id}
-              style={[styles.sheetOption, i < categories.length - 1 && styles.sheetOptionBorder]}
-              onPress={() => onSelect(active ? null : cat.id)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
-            >
-              <View style={styles.sheetOptionLeft}>
-                {cat.icon ? (
-                  <PhosphorIcon name={cat.icon} size={20} color={active ? accentPrimary : Palette.textSecondary} />
-                ) : null}
-                <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
-                  {cat.name}
-                </Text>
-              </View>
-              {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
-            </Pressable>
-          );
-        })}
-        <View style={{ height: Spacing[4] }} />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {categories.map((cat, i) => {
+            const active = cat.id === selectedId;
+            return (
+              <Pressable
+                key={cat.id}
+                style={[styles.sheetOption, i < categories.length - 1 && styles.sheetOptionBorder]}
+                onPress={() => onSelect(active ? null : cat.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <View style={styles.sheetOptionLeft}>
+                  {cat.icon ? (
+                    <PhosphorIcon name={cat.icon} size={20} color={active ? accentPrimary : Palette.textSecondary} />
+                  ) : null}
+                  <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                    {cat.name}
+                  </Text>
+                </View>
+                {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Spacing[4] }} />
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -961,24 +963,26 @@ function SubcategorySheet({
       <View style={styles.sheet}>
         <View style={styles.sheetHandle} />
         <Text style={styles.sheetTitle}>Subcategory</Text>
-        {subcategories.map((sub, i) => {
-          const active = sub.id === selectedId;
-          return (
-            <Pressable
-              key={sub.id}
-              style={[styles.sheetOption, i < subcategories.length - 1 && styles.sheetOptionBorder]}
-              onPress={() => onSelect(active ? null : sub.id)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
-            >
-              <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
-                {sub.name}
-              </Text>
-              {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
-            </Pressable>
-          );
-        })}
-        <View style={{ height: Spacing[4] }} />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {subcategories.map((sub, i) => {
+            const active = sub.id === selectedId;
+            return (
+              <Pressable
+                key={sub.id}
+                style={[styles.sheetOption, i < subcategories.length - 1 && styles.sheetOptionBorder]}
+                onPress={() => onSelect(active ? null : sub.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                  {sub.name}
+                </Text>
+                {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Spacing[4] }} />
+        </ScrollView>
       </View>
     </Modal>
   );
