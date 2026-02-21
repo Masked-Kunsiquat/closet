@@ -66,7 +66,7 @@ type Props = {
  * Presents a modal bottom sheet that lets the user select filters and a sort order for the closet view, then apply or clear them.
  *
  * Sort, Status, Category, Subcategory, Season, Occasion, and Brand each open an inner picker sheet.
- * Color uses a collapsible inline chip row (multi-select).
+ * Color uses a collapsible inline chip row (single-select).
  *
  * @param visible - Whether the panel is visible
  * @param onClose - Callback invoked to close the panel
