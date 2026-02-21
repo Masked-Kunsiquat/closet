@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +23,8 @@ import { useClosetView } from '@/hooks/useClosetView';
 import { contrastingTextColor } from '@/utils/color';
 
 const CARD_GAP = Spacing[2];
+const GRID_COLUMNS = 3;
+const GRID_PADDING = Spacing[3];
 
 /**
  * Renders the Closet screen including header, filter/sort controls, grid/list views of items, empty states, a floating add button, and the filter panel.
@@ -42,6 +45,8 @@ export default function ClosetScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = (screenWidth - GRID_PADDING * 2 - CARD_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
   const {
     viewMode,
@@ -153,13 +158,13 @@ export default function ClosetScreen() {
           key="grid"
           data={visibleItems}
           keyExtractor={(item) => String(item.id)}
-          numColumns={2}
+          numColumns={GRID_COLUMNS}
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.gridRow}
           onRefresh={handleRefresh}
           refreshing={isRefreshing}
           renderItem={({ item }) => (
-            <GridCard item={item} onPress={() => router.push(`/item/${item.id}`)} />
+            <GridCard item={item} cardWidth={cardWidth} onPress={() => router.push(`/item/${item.id}`)} />
           )}
         />
       ) : (
@@ -217,9 +222,9 @@ export default function ClosetScreen() {
  * @returns The card element to render in a grid
  */
 
-function GridCard({ item, onPress }: { item: ClothingItemWithMeta; onPress: () => void }) {
+function GridCard({ item, cardWidth, onPress }: { item: ClothingItemWithMeta; cardWidth: number; onPress: () => void }) {
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable style={[styles.card, { width: cardWidth }]} onPress={onPress}>
       <View style={styles.cardImageContainer}>
         {item.image_path ? (
           <Image
@@ -483,7 +488,7 @@ const styles = StyleSheet.create({
 
   // Grid
   grid: {
-    paddingHorizontal: Spacing[3],
+    paddingHorizontal: GRID_PADDING,
     paddingBottom: Spacing[16],
   },
   gridRow: {
@@ -491,7 +496,6 @@ const styles = StyleSheet.create({
     marginBottom: CARD_GAP,
   },
   card: {
-    flex: 1,
     backgroundColor: Palette.surface1,
     borderRadius: Radius.md,
     overflow: 'hidden',
