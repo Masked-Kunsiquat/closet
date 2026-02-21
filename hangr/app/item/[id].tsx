@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -11,7 +12,7 @@ import { useClothingItem } from '@/hooks/useClothingItem';
 
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const itemId = Number(id);
+  const itemId = parseInt(id ?? '', 10);
   const { item, loading, error } = useClothingItem(itemId);
   const { accent } = useAccent();
   const router = useRouter();
@@ -27,14 +28,27 @@ export default function ItemDetailScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const db = await getDatabase();
-            await deleteClothingItem(db, itemId);
-            router.replace('/');
+            try {
+              const db = await getDatabase();
+              await deleteClothingItem(db, itemId);
+              router.replace('/');
+            } catch (e) {
+              console.error('[deleteClothingItem]', e);
+              Alert.alert('Error', 'Could not delete the item. Please try again.');
+            }
           },
         },
       ]
     );
   };
+
+  if (!Number.isFinite(itemId) || itemId <= 0) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <Text style={styles.muted}>Item not found.</Text>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -47,7 +61,9 @@ export default function ItemDetailScreen() {
   if (error || !item) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.muted}>Item not found.</Text>
+        <Text style={styles.muted}>
+          {error ? `Failed to load item: ${error}` : 'Item not found.'}
+        </Text>
       </View>
     );
   }
@@ -96,7 +112,7 @@ export default function ItemDetailScreen() {
         <View style={styles.titleBlock}>
           <Text style={styles.name}>{item.name}</Text>
           {item.brand && <Text style={styles.brand}>{item.brand}</Text>}
-          {item.status !== 'Active' && (
+          {item.status && item.status !== 'Active' && (
             <View style={[styles.statusPill, { borderColor: Palette.border }]}>
               <Text style={styles.statusText}>{item.status}</Text>
             </View>
@@ -168,7 +184,7 @@ function StatBlock({ label, value, accent }: { label: string; value: string; acc
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
