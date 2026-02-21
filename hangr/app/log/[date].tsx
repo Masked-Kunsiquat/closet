@@ -82,6 +82,7 @@ export default function DayDetailScreen() {
                 onPress: async () => {
                   try {
                     await setOotd(db, log.id, date);
+                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     refresh();
                   } catch (e) {
                     console.error('[setOotd replace]', e);
@@ -95,7 +96,7 @@ export default function DayDetailScreen() {
         }
         await setOotd(db, log.id, date);
       }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       refresh();
     } catch (e) {
       console.error('[handleToggleOotd]', e);

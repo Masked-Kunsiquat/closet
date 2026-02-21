@@ -59,7 +59,7 @@ export default function AddItemScreen() {
       await setClothingItemOccasions(db, itemId, values.occasionIds);
       await setClothingItemPatterns(db, itemId, values.patternIds);
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.replace(`/item/${itemId}`);
     } catch (e) {
       console.error('[add item]', e);

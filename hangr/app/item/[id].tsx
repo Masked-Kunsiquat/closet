@@ -36,7 +36,7 @@ export default function ItemDetailScreen() {
       const db = await getDatabase();
       await updateWashStatus(db, itemId, next);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      refresh();
+      void refresh();
     } catch (e) {
       console.error('[washToggle]', e);
       Alert.alert('Error', 'Could not update wash status. Please try again.');

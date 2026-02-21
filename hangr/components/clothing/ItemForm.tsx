@@ -311,8 +311,9 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
 
   // Derived: brand autocomplete suggestions (memoized, capped at 10)
   const brandSuggestions = useMemo(() => {
-    if (values.brand.trim().length === 0) return [];
-    const lower = values.brand.toLowerCase();
+    const trimmed = values.brand.trim();
+    if (trimmed.length === 0) return [];
+    const lower = trimmed.toLowerCase();
     return allBrands
       .filter((b) => b.toLowerCase().includes(lower) && b.toLowerCase() !== lower)
       .slice(0, 10);

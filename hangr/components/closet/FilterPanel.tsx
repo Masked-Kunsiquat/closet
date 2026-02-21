@@ -65,8 +65,8 @@ type Props = {
 /**
  * Presents a modal bottom sheet that lets the user select filters and a sort order for the closet view, then apply or clear them.
  *
- * Sort, Status, Category, Subcategory, Brand each open an inner picker sheet.
- * Color, Season, and Occasion remain as inline chip rows.
+ * Sort, Status, Category, Subcategory, Season, Occasion, and Brand each open an inner picker sheet.
+ * Color uses a collapsible inline chip row (multi-select).
  *
  * @param visible - Whether the panel is visible
  * @param onClose - Callback invoked to close the panel
@@ -343,7 +343,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         title="Sort By"
         options={Object.entries(SORT_LABELS).map(([k, v]) => ({ value: k, label: v }))}
         selected={draftSort}
-        onSelect={(v) => { setDraftSort(v as SortKey); setInnerSheet(null); }}
+        onSelect={(v) => { if (v !== null) setDraftSort(v as SortKey); setInnerSheet(null); }}
         onClose={() => setInnerSheet(null)}
         accentPrimary={accent.primary}
         allowDeselect={false}
@@ -358,7 +358,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
           { value: 'Lost',    label: 'Lost'    },
         ]}
         selected={draft.status ?? null}
-        onSelect={(v) => { setDraftFilter('status', (v === draft.status ? null : v) as ActiveFilters['status']); setInnerSheet(null); }}
+        onSelect={(v) => { setDraftFilter('status', v as ActiveFilters['status']); setInnerSheet(null); }}
         onClose={() => setInnerSheet(null)}
         accentPrimary={accent.primary}
         allowDeselect
@@ -369,9 +369,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         options={categories.map((c) => ({ value: String(c.id), label: c.name, icon: c.icon ?? undefined }))}
         selected={draft.categoryId !== null ? String(draft.categoryId) : null}
         onSelect={(v) => {
-          const id = Number(v);
-          const next = draft.categoryId === id ? null : id;
-          setDraft((d) => ({ ...d, categoryId: next, subcategoryId: null }));
+          setDraft((d) => ({ ...d, categoryId: v !== null ? Number(v) : null, subcategoryId: null }));
           setInnerSheet(null);
         }}
         onClose={() => setInnerSheet(null)}
@@ -384,8 +382,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         options={subcategories.map((s) => ({ value: String(s.id), label: s.name }))}
         selected={draft.subcategoryId !== null ? String(draft.subcategoryId) : null}
         onSelect={(v) => {
-          const id = Number(v);
-          setDraftFilter('subcategoryId', draft.subcategoryId === id ? null : id);
+          setDraftFilter('subcategoryId', v !== null ? Number(v) : null);
           setInnerSheet(null);
         }}
         onClose={() => setInnerSheet(null)}
@@ -397,7 +394,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         title="Brand"
         options={brands.map((b) => ({ value: b, label: b }))}
         selected={draft.brand}
-        onSelect={(v) => { setDraftFilter('brand', draft.brand === v ? null : v); setInnerSheet(null); }}
+        onSelect={(v) => { setDraftFilter('brand', v); setInnerSheet(null); }}
         onClose={() => setInnerSheet(null)}
         accentPrimary={accent.primary}
         allowDeselect
@@ -408,8 +405,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         options={seasons.map((s) => ({ value: String(s.id), label: s.name, icon: s.icon ?? undefined }))}
         selected={draft.seasonId !== null ? String(draft.seasonId) : null}
         onSelect={(v) => {
-          const id = Number(v);
-          setDraftFilter('seasonId', draft.seasonId === id ? null : id);
+          setDraftFilter('seasonId', v !== null ? Number(v) : null);
           setInnerSheet(null);
         }}
         onClose={() => setInnerSheet(null)}
@@ -422,8 +418,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         options={occasions.map((o) => ({ value: String(o.id), label: o.name, icon: o.icon ?? undefined }))}
         selected={draft.occasionId !== null ? String(draft.occasionId) : null}
         onSelect={(v) => {
-          const id = Number(v);
-          setDraftFilter('occasionId', draft.occasionId === id ? null : id);
+          setDraftFilter('occasionId', v !== null ? Number(v) : null);
           setInnerSheet(null);
         }}
         onClose={() => setInnerSheet(null)}
@@ -478,7 +473,7 @@ function FilterPickerSheet({
   title: string;
   options: PickerOption[];
   selected: string | null;
-  onSelect: (value: string) => void;
+  onSelect: (value: string | null) => void;
   onClose: () => void;
   accentPrimary: string;
   allowDeselect: boolean;
@@ -496,7 +491,7 @@ function FilterPickerSheet({
               <Pressable
                 key={opt.value}
                 style={[styles.innerOption, i < options.length - 1 && styles.innerOptionBorder]}
-                onPress={() => onSelect(opt.value)}
+                onPress={() => onSelect(allowDeselect && active ? null : opt.value)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
               >

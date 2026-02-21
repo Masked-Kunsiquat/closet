@@ -56,7 +56,7 @@ const CURRENCY_OPTIONS = [
   { value: '₩', label: '₩ — Won'      },
 ];
 
-const TEMP_OPTIONS = [
+const TEMP_OPTIONS: { value: 'F' | 'C'; label: string }[] = [
   { value: 'F', label: '°F — Fahrenheit' },
   { value: 'C', label: '°C — Celsius'    },
 ];
@@ -88,6 +88,7 @@ function SelectModal<T extends string | number>({
   dotColor?: (value: T) => string;
 }) {
   const { accent } = useAccent();
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable
@@ -121,7 +122,7 @@ function SelectModal<T extends string | number>({
             </Pressable>
           );
         })}
-        <View style={{ height: Spacing[4] }} />
+        <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
       </View>
     </Modal>
   );
@@ -262,7 +263,7 @@ export default function SettingsScreen() {
             label="Temperature"
             options={TEMP_OPTIONS}
             selected={settings.temperatureUnit}
-            onSelect={(v) => setSetting('temperatureUnit', v as 'F' | 'C')}
+            onSelect={(v) => setSetting('temperatureUnit', v)}
             last
           />
         </View>
