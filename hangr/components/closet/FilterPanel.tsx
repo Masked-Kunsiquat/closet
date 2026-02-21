@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Modal,
   Pressable,
@@ -127,29 +128,35 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
       draft.colorId !== null || draft.seasonId !== null || draft.occasionId !== null;
 
     if (junctionFiltersActive) {
-      const db = await getDatabase();
-      const sets: Set<number>[] = [];
+      try {
+        const db = await getDatabase();
+        const sets: Set<number>[] = [];
 
-      if (draft.colorId !== null) {
-        const ids = await getItemIdsByColor(db, draft.colorId);
-        sets.push(new Set(ids));
-      }
-      if (draft.seasonId !== null) {
-        const ids = await getItemIdsBySeason(db, draft.seasonId);
-        sets.push(new Set(ids));
-      }
-      if (draft.occasionId !== null) {
-        const ids = await getItemIdsByOccasion(db, draft.occasionId);
-        sets.push(new Set(ids));
-      }
+        if (draft.colorId !== null) {
+          const ids = await getItemIdsByColor(db, draft.colorId);
+          sets.push(new Set(ids));
+        }
+        if (draft.seasonId !== null) {
+          const ids = await getItemIdsBySeason(db, draft.seasonId);
+          sets.push(new Set(ids));
+        }
+        if (draft.occasionId !== null) {
+          const ids = await getItemIdsByOccasion(db, draft.occasionId);
+          sets.push(new Set(ids));
+        }
 
-      // Intersection: item must match ALL active junction filters
-      if (sets.length === 1) {
-        junctionItemIds = sets[0];
-      } else {
-        junctionItemIds = new Set(
-          [...sets[0]].filter((id) => sets.slice(1).every((s) => s.has(id)))
-        );
+        // Intersection: item must match ALL active junction filters
+        if (sets.length === 1) {
+          junctionItemIds = sets[0];
+        } else {
+          junctionItemIds = new Set(
+            [...sets[0]].filter((id) => sets.slice(1).every((s) => s.has(id)))
+          );
+        }
+      } catch (e) {
+        console.error('[handleApply]', e);
+        Alert.alert('Error', 'Could not apply filters. Please try again.');
+        return;
       }
     }
 

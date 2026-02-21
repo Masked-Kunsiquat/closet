@@ -334,7 +334,11 @@ function LogModal({
             )}
           </View>
           <View style={[styles.toggle, isOotd && { backgroundColor: accent }]}>
-            <View style={[styles.toggleKnob, isOotd && styles.toggleKnobOn]} />
+            <View style={[
+              styles.toggleKnob,
+              isOotd && styles.toggleKnobOn,
+              isOotd && { backgroundColor: contrastingTextColor(accent) },
+            ]} />
           </View>
         </TouchableOpacity>
 
@@ -579,7 +583,6 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.textDisabled,
   },
   toggleKnobOn: {
-    backgroundColor: '#000',
     alignSelf: 'flex-end',
   },
   saveButton: {

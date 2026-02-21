@@ -78,14 +78,15 @@ export default function JournalScreen() {
 
   // Build the grid: array of date strings (or null for padding)
   const gridCells = useMemo<(string | null)[]>(() => {
+    const ym = toYearMonth(year, month);
     const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const cells: (string | null)[] = Array(firstDay).fill(null);
     for (let d = 1; d <= daysInMonth; d++) {
-      cells.push(`${yearMonth}-${String(d).padStart(2, '0')}`);
+      cells.push(`${ym}-${String(d).padStart(2, '0')}`);
     }
     return cells;
-  }, [year, month, yearMonth]);
+  }, [year, month]);
 
   const goToPrevMonth = useCallback(() => {
     setYm(({ year: y, month: m }) =>

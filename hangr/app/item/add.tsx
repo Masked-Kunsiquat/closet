@@ -43,16 +43,15 @@ export default function AddItemScreen() {
         is_favorite: values.is_favorite ? 1 : 0,
       });
 
-      await Promise.all([
-        setClothingItemColors(db, itemId, values.colorIds),
-        setClothingItemMaterials(db, itemId, values.materialIds),
-        setClothingItemSeasons(db, itemId, values.seasonIds),
-        setClothingItemOccasions(db, itemId, values.occasionIds),
-        setClothingItemPatterns(db, itemId, values.patternIds),
-      ]);
+      await setClothingItemColors(db, itemId, values.colorIds);
+      await setClothingItemMaterials(db, itemId, values.materialIds);
+      await setClothingItemSeasons(db, itemId, values.seasonIds);
+      await setClothingItemOccasions(db, itemId, values.occasionIds);
+      await setClothingItemPatterns(db, itemId, values.patternIds);
 
       router.replace(`/item/${itemId}`);
     } catch (e) {
+      console.error('[add item]', e);
       Alert.alert('Error', 'Failed to save item. Please try again.');
     } finally {
       setSubmitting(false);

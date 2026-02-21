@@ -24,6 +24,7 @@ import { getDatabase } from '@/db';
 import { clearOotd, deleteOutfitLog, setOotd } from '@/db/queries';
 import { OutfitLogWithMeta } from '@/db/types';
 import { useLogsForDate } from '@/hooks/useOutfitLog';
+import { contrastingTextColor } from '@/utils/color';
 
 /** Formats YYYY-MM-DD → human-readable "March 21, 2025" */
 function formatDate(iso: string): string {
@@ -42,32 +43,42 @@ export default function DayDetailScreen() {
   const { logs, loading, refresh } = useLogsForDate(date);
 
   const handleToggleOotd = async (log: OutfitLogWithMeta) => {
-    const db = await getDatabase();
-    if (log.is_ootd === 1) {
-      await clearOotd(db, log.id);
-    } else {
-      // Check if another log on this date is already OOTD
-      const currentOotd = logs.find((l) => l.is_ootd === 1);
-      if (currentOotd) {
-        Alert.alert(
-          'Replace OOTD?',
-          'Another outfit is already marked OOTD for this day. Replace it?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Replace', style: 'destructive',
-              onPress: async () => {
-                await setOotd(db, log.id, date);
-                refresh();
+    try {
+      const db = await getDatabase();
+      if (log.is_ootd === 1) {
+        await clearOotd(db, log.id);
+      } else {
+        // Check if another log on this date is already OOTD
+        const currentOotd = logs.find((l) => l.is_ootd === 1);
+        if (currentOotd) {
+          Alert.alert(
+            'Replace OOTD?',
+            'Another outfit is already marked OOTD for this day. Replace it?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Replace', style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await setOotd(db, log.id, date);
+                    refresh();
+                  } catch (e) {
+                    console.error('[setOotd replace]', e);
+                    Alert.alert('Error', 'Could not update OOTD. Please try again.');
+                  }
+                },
               },
-            },
-          ]
-        );
-        return;
+            ]
+          );
+          return;
+        }
+        await setOotd(db, log.id, date);
       }
-      await setOotd(db, log.id, date);
+      refresh();
+    } catch (e) {
+      console.error('[handleToggleOotd]', e);
+      Alert.alert('Error', 'Could not update OOTD. Please try again.');
     }
-    refresh();
   };
 
   const handleDeleteLog = (log: OutfitLogWithMeta) => {
@@ -76,9 +87,14 @@ export default function DayDetailScreen() {
       {
         text: 'Remove', style: 'destructive',
         onPress: async () => {
-          const db = await getDatabase();
-          await deleteOutfitLog(db, log.id);
-          refresh();
+          try {
+            const db = await getDatabase();
+            await deleteOutfitLog(db, log.id);
+            refresh();
+          } catch (e) {
+            console.error('[handleDeleteLog]', e);
+            Alert.alert('Error', 'Could not remove the log. Please try again.');
+          }
         },
       },
     ]);
@@ -181,7 +197,7 @@ function LogRow({
           ]}>
             <Text style={[
               styles.ootdBadgeText,
-              log.is_ootd === 1 && { color: '#000' },
+              log.is_ootd === 1 && { color: contrastingTextColor(accent) },
             ]}>
               OOTD
             </Text>

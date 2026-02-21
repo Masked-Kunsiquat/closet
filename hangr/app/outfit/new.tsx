@@ -7,7 +7,7 @@
 
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,7 @@ import { getDatabase } from '@/db';
 import { insertOutfit } from '@/db/queries';
 import { ClothingItemWithMeta } from '@/db/types';
 import { useClothingItems } from '@/hooks/useClothingItems';
+import { contrastingTextColor } from '@/utils/color';
 
 type Step = 'pick' | 'name';
 
@@ -44,7 +45,7 @@ export default function NewOutfitScreen() {
   const [saving, setSaving] = useState(false);
 
   // Only show Active items in the picker
-  const activeItems = items.filter((i) => i.status === 'Active');
+  const activeItems = useMemo(() => items.filter((i) => i.status === 'Active'), [items]);
 
   const toggleItem = (id: number) => {
     setSelected((prev) => {
@@ -125,7 +126,6 @@ export default function NewOutfitScreen() {
           name={outfitName}
           onChangeName={setOutfitName}
           selectedItems={activeItems.filter((i) => selected.has(i.id))}
-          accent={accent.primary}
         />
       )}
     </View>
@@ -192,7 +192,7 @@ function ItemPicker({
             )}
             {isSelected && (
               <View style={[styles.checkmark, { backgroundColor: accent }]}>
-                <Text style={styles.checkmarkText}>✓</Text>
+                <Text style={[styles.checkmarkText, { color: contrastingTextColor(accent) }]}>✓</Text>
               </View>
             )}
             <Text style={styles.pickerLabel} numberOfLines={1}>{item.name}</Text>
@@ -211,12 +211,10 @@ function NameStep({
   name,
   onChangeName,
   selectedItems,
-  accent,
 }: {
   name: string;
   onChangeName: (v: string) => void;
   selectedItems: ClothingItemWithMeta[];
-  accent: string;
 }) {
   return (
     <ScrollView contentContainerStyle={styles.nameContent} keyboardShouldPersistTaps="handled">
@@ -364,7 +362,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkmarkText: {
-    color: '#000',
     fontSize: 11,
     fontWeight: FontWeight.bold,
   },

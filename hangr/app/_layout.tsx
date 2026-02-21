@@ -15,12 +15,14 @@ export const unstable_settings = {
 export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const initDb = useCallback(() => {
     setDbError(null);
+    setIsInitializing(true);
     getDatabase()
-      .then(() => setDbReady(true))
-      .catch((e) => setDbError(String(e)));
+      .then(() => { setDbReady(true); setIsInitializing(false); })
+      .catch((e) => { setDbError(String(e)); setIsInitializing(false); });
   }, []);
 
   useEffect(() => { initDb(); }, [initDb]);
@@ -38,7 +40,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!dbReady) return null;
+  if (isInitializing || !dbReady) return null;
 
   return (
     <AccentProvider>

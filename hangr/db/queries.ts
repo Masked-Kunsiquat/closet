@@ -67,20 +67,6 @@ export async function getClothingItemById(
   `, [id]);
 }
 
-/** Wear count = number of outfit_logs that include this item via outfit_items. */
-export async function getWearCount(
-  db: SQLiteDatabase,
-  clothingItemId: number
-): Promise<number> {
-  const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(DISTINCT ol.id) AS count
-     FROM outfit_logs ol
-     JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-     WHERE oi.clothing_item_id = ?`,
-    [clothingItemId]
-  );
-  return row?.count ?? 0;
-}
 
 export type NewClothingItem = Omit<ClothingItem, 'id' | 'created_at' | 'updated_at'>;
 

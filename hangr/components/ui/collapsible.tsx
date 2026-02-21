@@ -12,6 +12,8 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
         style={styles.heading}
         onPress={() => setIsOpen((v) => !v)}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
       >
         <Text style={styles.chevron}>{isOpen ? '▾' : '▸'}</Text>
         <Text style={styles.title}>{title}</Text>

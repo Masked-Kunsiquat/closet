@@ -21,6 +21,7 @@ import {
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
+import { contrastingTextColor } from '@/utils/color';
 import { getDatabase } from '@/db';
 import {
   getCategories,
@@ -127,23 +128,27 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
   // Load all lookup data once
   useEffect(() => {
     (async () => {
-      const db = await getDatabase();
-      const [cats, szs, seas, occs, cols, mats, pats] = await Promise.all([
-        getCategories(db),
-        getSizeSystems(db),
-        getSeasons(db),
-        getOccasions(db),
-        getColors(db),
-        getMaterials(db),
-        getPatterns(db),
-      ]);
-      setCategories(cats);
-      setSizeSystems(szs);
-      setSeasons(seas);
-      setOccasions(occs);
-      setColors(cols);
-      setMaterials(mats);
-      setPatterns(pats);
+      try {
+        const db = await getDatabase();
+        const [cats, szs, seas, occs, cols, mats, pats] = await Promise.all([
+          getCategories(db),
+          getSizeSystems(db),
+          getSeasons(db),
+          getOccasions(db),
+          getColors(db),
+          getMaterials(db),
+          getPatterns(db),
+        ]);
+        setCategories(cats);
+        setSizeSystems(szs);
+        setSeasons(seas);
+        setOccasions(occs);
+        setColors(cols);
+        setMaterials(mats);
+        setPatterns(pats);
+      } catch (e) {
+        console.error('[ItemForm] failed to load lookup data', e);
+      }
     })();
   }, []);
 
@@ -481,9 +486,9 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
         activeOpacity={0.85}
       >
         {submitting ? (
-          <ActivityIndicator color="#000" />
+          <ActivityIndicator color={contrastingTextColor(accent.primary)} />
         ) : (
-          <Text style={styles.submitText}>{submitLabel}</Text>
+          <Text style={[styles.submitText, { color: contrastingTextColor(accent.primary) }]}>{submitLabel}</Text>
         )}
       </TouchableOpacity>
 
@@ -528,7 +533,7 @@ function ChipSelector({
             style={[styles.chip, selected && { backgroundColor: accent, borderColor: accent }]}
             onPress={() => onSelect(selected ? null as any : item.id)}
           >
-            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+            <Text style={[styles.chipText, selected && styles.chipTextSelected, selected && { color: contrastingTextColor(accent) }]}>
               {item.name}
             </Text>
           </Pressable>
@@ -562,7 +567,7 @@ function MultiChipSelector<T extends { id: number; name: string }>({
             onPress={() => onToggle(item.id)}
           >
             {renderDot?.(item)}
-            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+            <Text style={[styles.chipText, selected && styles.chipTextSelected, selected && { color: contrastingTextColor(accent) }]}>
               {item.name}
             </Text>
           </Pressable>
@@ -644,7 +649,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
   },
   chipTextSelected: {
-    color: '#000',
     fontWeight: FontWeight.semibold,
   },
   colorDot: {
@@ -709,7 +713,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing[4],
   },
   submitText: {
-    color: '#000',
     fontSize: FontSize.lg,
     fontWeight: FontWeight.semibold,
   },

@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
@@ -16,11 +17,18 @@ import { useAccent } from '@/context/AccentContext';
 import { ClothingItemWithMeta } from '@/db/types';
 import { useClothingItems } from '@/hooks/useClothingItems';
 import { useClosetView } from '@/hooks/useClosetView';
+import { contrastingTextColor } from '@/utils/color';
 
 const CARD_GAP = Spacing[2];
 
 export default function ClosetScreen() {
-  const { items, loading, refresh } = useClothingItems();
+  const { items, loading, error, refresh } = useClothingItems();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try { await refresh(); } finally { setIsRefreshing(false); }
+  }, [refresh]);
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -40,6 +48,17 @@ export default function ClosetScreen() {
   } = useClosetView(items);
 
   const visibleItems = filteredAndSorted;
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.errorContainer, { paddingTop: insets.top }]}>
+        <Text style={styles.errorText}>Failed to load closet.{'\n'}{error}</Text>
+        <TouchableOpacity style={styles.errorButton} onPress={handleRefresh}>
+          <Text style={styles.errorButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -114,8 +133,8 @@ export default function ClosetScreen() {
           numColumns={2}
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.gridRow}
-          onRefresh={refresh}
-          refreshing={loading}
+          onRefresh={handleRefresh}
+          refreshing={isRefreshing}
           renderItem={({ item }) => (
             <GridCard item={item} onPress={() => router.push(`/item/${item.id}`)} />
           )}
@@ -126,8 +145,8 @@ export default function ClosetScreen() {
           data={visibleItems}
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={styles.list}
-          onRefresh={refresh}
-          refreshing={loading}
+          onRefresh={handleRefresh}
+          refreshing={isRefreshing}
           renderItem={({ item }) => (
             <ListRow item={item} onPress={() => router.push(`/item/${item.id}`)} />
           )}
@@ -144,7 +163,7 @@ export default function ClosetScreen() {
         onPress={() => router.push('/item/add')}
         activeOpacity={0.85}
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <Text style={[styles.fabIcon, { color: contrastingTextColor(accent.primary) }]}>+</Text>
       </TouchableOpacity>
 
       {/* Filter panel */}
@@ -274,7 +293,7 @@ function EmptyCloset() {
         onPress={() => router.push('/item/add')}
         activeOpacity={0.85}
       >
-        <Text style={styles.emptyButtonText}>Add Item</Text>
+        <Text style={[styles.emptyButtonText, { color: contrastingTextColor(accent.primary) }]}>Add Item</Text>
       </TouchableOpacity>
     </View>
   );
@@ -562,7 +581,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   fabIcon: {
-    color: '#000',
     fontSize: 28,
     lineHeight: 30,
   },
@@ -597,7 +615,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   emptyButtonText: {
-    color: '#000',
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
   },
@@ -611,5 +628,28 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[4],
+    padding: Spacing[6],
+  },
+  errorText: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+  },
+  errorButton: {
+    paddingHorizontal: Spacing[5],
+    paddingVertical: Spacing[2],
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  errorButtonText: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.sm,
   },
 });

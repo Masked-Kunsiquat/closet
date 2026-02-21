@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getDatabase } from '@/db';
 import {
@@ -29,6 +29,7 @@ type State = {
 
 export function useClothingItem(id: number) {
   const [state, setState] = useState<State>({ item: null, loading: true, error: null });
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
@@ -76,8 +77,42 @@ export function useClothingItem(id: number) {
   }, [id]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    const reqId = ++requestIdRef.current;
+    const guardedLoad = async () => {
+      setState((s) => ({ ...s, loading: true, error: null }));
+      try {
+        const db = await getDatabase();
+        const [item, colorIds, materialIds, seasonIds, occasionIds, patternIds] =
+          await Promise.all([
+            getClothingItemById(db, id),
+            getClothingItemColorIds(db, id),
+            getClothingItemMaterialIds(db, id),
+            getClothingItemSeasonIds(db, id),
+            getClothingItemOccasionIds(db, id),
+            getClothingItemPatternIds(db, id),
+          ]);
+        if (requestIdRef.current !== reqId) return;
+        if (!item) {
+          setState({ item: null, loading: false, error: 'Item not found' });
+          return;
+        }
+        const wearCount = item.wear_count;
+        const costPerWear =
+          item.purchase_price != null && wearCount > 0
+            ? item.purchase_price / wearCount
+            : null;
+        setState({
+          item: { ...item, wearCount, costPerWear, colorIds, materialIds, seasonIds, occasionIds, patternIds },
+          loading: false,
+          error: null,
+        });
+      } catch (e) {
+        if (requestIdRef.current !== reqId) return;
+        setState({ item: null, loading: false, error: String(e) });
+      }
+    };
+    guardedLoad();
+  }, [id]);
 
   return { ...state, refresh: load };
 }

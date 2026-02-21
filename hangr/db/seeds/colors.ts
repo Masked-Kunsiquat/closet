@@ -1,7 +1,7 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
 // hex values are display hints only — not enforced, nullable in schema.
-const COLORS: { name: string; hex: string }[] = [
+const COLORS: { name: string; hex: string | null }[] = [
   { name: 'Black',       hex: '#0A0A0A' },
   { name: 'White',       hex: '#F5F5F5' },
   { name: 'Grey',        hex: '#808080' },
@@ -27,7 +27,7 @@ const COLORS: { name: string; hex: string }[] = [
   { name: 'Cream',       hex: '#FEF9EF' },
   { name: 'Charcoal',    hex: '#374151' },
   { name: 'Camel',       hex: '#C19A6B' },
-  { name: 'Multicolor',  hex: ''        },
+  { name: 'Multicolor',  hex: null      },
 ];
 
 export async function seedColors(db: SQLiteDatabase): Promise<void> {
@@ -35,7 +35,7 @@ export async function seedColors(db: SQLiteDatabase): Promise<void> {
     for (const color of COLORS) {
       await db.runAsync(
         `INSERT OR IGNORE INTO colors (name, hex) VALUES (?, ?)`,
-        [color.name, color.hex || null]
+        [color.name, color.hex]
       );
     }
   });

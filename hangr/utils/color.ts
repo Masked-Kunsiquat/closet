@@ -6,8 +6,10 @@
  * Alpha is stripped before calculation. Falls back to '#000000' on invalid input.
  */
 export function contrastingTextColor(hex: string): '#000000' | '#FFFFFF' {
+  // Coerce to string to guard against null/undefined callers
+  const input = String(hex ?? '');
   // Strip leading '#'
-  let c = hex.startsWith('#') ? hex.slice(1) : hex;
+  let c = input.startsWith('#') ? input.slice(1) : input;
 
   // Strip alpha channel from 8-char form
   if (c.length === 8) c = c.slice(0, 6);

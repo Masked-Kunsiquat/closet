@@ -8,10 +8,11 @@ import { seedPatterns } from './patterns';
 import { seedSeasons } from './seasons';
 import { seedSizes } from './sizes';
 
-// Seeds run after all migrations. Order matters where there are foreign keys.
-// Categories must exist before subcategories (handled inside seedCategories).
-// All others are independent.
-
+/**
+ * Executes all database seeders in dependency order.
+ * Seeds run after all migrations. Categories must be seeded before subcategories
+ * (handled inside seedCategories); all other seeds are independent.
+ */
 export async function runSeeds(db: SQLiteDatabase): Promise<void> {
   await seedCategories(db);
   await seedSeasons(db);

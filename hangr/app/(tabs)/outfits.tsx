@@ -2,6 +2,7 @@
  * Outfits tab — saved outfits list + FAB to builder.
  */
 
+import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
@@ -18,13 +19,31 @@ import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/toke
 import { useAccent } from '@/context/AccentContext';
 import { OutfitWithMeta } from '@/db/types';
 import { useOutfits } from '@/hooks/useOutfits';
+import { contrastingTextColor } from '@/utils/color';
 
 export default function OutfitsScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const { outfits, loading, refresh } = useOutfits();
+  const { outfits, loading, error, refresh } = useOutfits();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try { await refresh(); } finally { setIsRefreshing(false); }
+  }, [refresh]);
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.errorContainer, { paddingTop: insets.top }]}>
+        <Text style={styles.errorText}>Failed to load outfits.{'\n'}{error}</Text>
+        <TouchableOpacity style={styles.errorButton} onPress={handleRefresh}>
+          <Text style={styles.errorButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -45,8 +64,8 @@ export default function OutfitsScreen() {
           data={outfits}
           keyExtractor={(o) => String(o.id)}
           contentContainerStyle={styles.list}
-          onRefresh={refresh}
-          refreshing={loading}
+          onRefresh={handleRefresh}
+          refreshing={isRefreshing}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => (
             <OutfitRow
@@ -63,7 +82,7 @@ export default function OutfitsScreen() {
         onPress={() => router.push('/outfit/new')}
         activeOpacity={0.85}
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <Text style={[styles.fabIcon, { color: contrastingTextColor(accent.primary) }]}>+</Text>
       </TouchableOpacity>
     </View>
   );
@@ -122,7 +141,7 @@ function EmptyOutfits({ accent }: { accent: string }) {
         onPress={() => router.push('/outfit/new')}
         activeOpacity={0.85}
       >
-        <Text style={styles.emptyButtonText}>Build Outfit</Text>
+        <Text style={[styles.emptyButtonText, { color: contrastingTextColor(accent) }]}>Build Outfit</Text>
       </TouchableOpacity>
     </View>
   );
@@ -226,7 +245,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   fabIcon: {
-    color: '#000',
     fontSize: 28,
     lineHeight: 30,
   },
@@ -261,8 +279,30 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   emptyButtonText: {
-    color: '#000',
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[4],
+    padding: Spacing[6],
+  },
+  errorText: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+  },
+  errorButton: {
+    paddingHorizontal: Spacing[5],
+    paddingVertical: Spacing[2],
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  errorButtonText: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.sm,
   },
 });
