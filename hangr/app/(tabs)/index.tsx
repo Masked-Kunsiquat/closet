@@ -59,7 +59,7 @@ export default function ClosetScreen() {
   if (error) {
     return (
       <View style={[styles.container, styles.errorContainer, { paddingTop: insets.top }]}>
-        <Text style={styles.errorText}>Failed to load closet.{'\n'}{error}</Text>
+        <Text style={styles.errorText}>Something went wrong loading your closet.</Text>
         <TouchableOpacity style={styles.errorButton} onPress={handleRefresh}>
           <Text style={styles.errorButtonText}>Retry</Text>
         </TouchableOpacity>

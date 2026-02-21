@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -62,7 +63,11 @@ export default function OutfitsScreen() {
         )}
       </View>
 
-      {!loading && outfits.length === 0 ? (
+      {loading && outfits.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={accent.primary} />
+        </View>
+      ) : !loading && outfits.length === 0 ? (
         <EmptyOutfits accent={accent.primary} />
       ) : (
         <FlatList
@@ -75,7 +80,7 @@ export default function OutfitsScreen() {
           renderItem={({ item }) => (
             <OutfitRow
               outfit={item}
-              onPress={() => router.push(`/outfit/${item.id}` as any)}
+              onPress={() => router.push({ pathname: '/outfit/[id]', params: { id: item.id } })}
             />
           )}
         />
@@ -105,7 +110,12 @@ export default function OutfitsScreen() {
 
 function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () => void }) {
   return (
-    <Pressable style={styles.row} onPress={onPress}>
+    <Pressable
+      style={styles.row}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={outfit.name}
+    >
       {/* Cover thumbnail */}
       <View style={styles.thumb}>
         {outfit.cover_image ? (
@@ -191,6 +201,12 @@ const styles = StyleSheet.create({
   count: {
     color: Palette.textSecondary,
     fontSize: FontSize.sm,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // List

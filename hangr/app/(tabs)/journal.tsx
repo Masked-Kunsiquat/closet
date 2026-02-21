@@ -69,8 +69,7 @@ export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const today = new Date();
-  const [ym, setYm] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const [ym, setYm] = useState(() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; });
   const { year, month } = ym;
 
   const yearMonth = toYearMonth(year, month);
@@ -189,7 +188,7 @@ export default function JournalScreen() {
           dayMap={dayMap}
           today={todayStr}
           accent={accent.primary}
-          onPressDay={(date) => router.push(`/log/${date}` as any)}
+          onPressDay={(date) => router.push({ pathname: '/log/[date]', params: { date } })}
         />
       </ScrollView>
     </View>

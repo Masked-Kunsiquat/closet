@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,6 +71,7 @@ type Props = {
 export function FilterPanel({ visible, onClose, currentFilters, currentSort, onApply }: Props) {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Local draft state — committed only on Apply
@@ -105,9 +107,9 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
   // Reload subcategories when draft category changes
   useEffect(() => {
     if (!draft.categoryId) { setSubcategories([]); return; }
-    getDatabase().then((db) =>
-      getSubcategories(db, draft.categoryId!).then(setSubcategories)
-    );
+    getDatabase()
+      .then((db) => getSubcategories(db, draft.categoryId!).then(setSubcategories))
+      .catch((e) => { console.error('[FilterPanel] subcategories', e); setSubcategories([]); });
   }, [draft.categoryId]);
 
   // Sync draft when panel opens with current values
@@ -182,7 +184,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [600, 0],
+    outputRange: [screenHeight, 0],
   });
 
   return (

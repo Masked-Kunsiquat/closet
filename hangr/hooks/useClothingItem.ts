@@ -44,6 +44,7 @@ export function useClothingItem(id: number) {
   const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
+    const reqId = ++requestIdRef.current;
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const db = await getDatabase();
@@ -56,6 +57,8 @@ export function useClothingItem(id: number) {
           getClothingItemOccasionIds(db, id),
           getClothingItemPatternIds(db, id),
         ]);
+
+      if (requestIdRef.current !== reqId) return;
 
       if (!item) {
         setState({ item: null, loading: false, error: 'Item not found' });
@@ -84,47 +87,15 @@ export function useClothingItem(id: number) {
         error: null,
       });
     } catch (e) {
+      if (requestIdRef.current !== reqId) return;
       setState({ item: null, loading: false, error: String(e) });
     }
   }, [id]);
 
   useEffect(() => {
-    const reqId = ++requestIdRef.current;
-    const guardedLoad = async () => {
-      setState((s) => ({ ...s, loading: true, error: null }));
-      try {
-        const db = await getDatabase();
-        const [item, colorIds, materialIds, seasonIds, occasionIds, patternIds] =
-          await Promise.all([
-            getClothingItemById(db, id),
-            getClothingItemColorIds(db, id),
-            getClothingItemMaterialIds(db, id),
-            getClothingItemSeasonIds(db, id),
-            getClothingItemOccasionIds(db, id),
-            getClothingItemPatternIds(db, id),
-          ]);
-        if (requestIdRef.current !== reqId) return;
-        if (!item) {
-          setState({ item: null, loading: false, error: 'Item not found' });
-          return;
-        }
-        const wearCount = item.wear_count;
-        const costPerWear =
-          item.purchase_price != null && wearCount > 0
-            ? item.purchase_price / wearCount
-            : null;
-        setState({
-          item: { ...item, wearCount, costPerWear, colorIds, materialIds, seasonIds, occasionIds, patternIds },
-          loading: false,
-          error: null,
-        });
-      } catch (e) {
-        if (requestIdRef.current !== reqId) return;
-        setState({ item: null, loading: false, error: String(e) });
-      }
-    };
-    guardedLoad();
-  }, [id]);
+    load();
+    return () => { requestIdRef.current++; }; // invalidate in-flight request on unmount/id change
+  }, [load]);
 
   return { ...state, refresh: load };
 }

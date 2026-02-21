@@ -282,6 +282,7 @@ function LogModal({
             {
               text: 'Replace', style: 'destructive',
               onPress: async () => {
+                let navigateTo: string | null = null;
                 try {
                   const logId = await insertOutfitLog(db, {
                     outfit_id: outfitId,
@@ -290,13 +291,14 @@ function LogModal({
                     notes: notes.trim() || null,
                   });
                   await setOotd(db, logId, date);
-                  router.push(`/log/${date}` as any);
+                  navigateTo = date;
                 } catch (e) {
                   Alert.alert('Error', String(e));
                 } finally {
                   setSaving(false);
                   onClose();
                 }
+                if (navigateTo) router.push({ pathname: '/log/[date]', params: { date: navigateTo } });
               },
             },
           ]
@@ -318,7 +320,7 @@ function LogModal({
 
       setSaving(false);
       onClose();
-      router.push(`/log/${date}` as any);
+      router.push({ pathname: '/log/[date]', params: { date } });
     } catch (e) {
       Alert.alert('Error', String(e));
       setSaving(false);

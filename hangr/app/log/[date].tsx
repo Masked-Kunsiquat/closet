@@ -8,6 +8,7 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -52,7 +53,8 @@ export default function DayDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const { logs, loading, refresh } = useLogsForDate(date);
+  const safeDate = date ?? '';
+  const { logs, loading, error, refresh } = useLogsForDate(safeDate);
 
   const handleToggleOotd = async (log: OutfitLogWithMeta) => {
     try {
@@ -72,7 +74,7 @@ export default function DayDetailScreen() {
                 text: 'Replace', style: 'destructive',
                 onPress: async () => {
                   try {
-                    await setOotd(db, log.id, date);
+                    await setOotd(db, log.id, safeDate);
                     refresh();
                   } catch (e) {
                     console.error('[setOotd replace]', e);
@@ -84,7 +86,7 @@ export default function DayDetailScreen() {
           );
           return;
         }
-        await setOotd(db, log.id, date);
+        await setOotd(db, log.id, safeDate);
       }
       refresh();
     } catch (e) {
@@ -112,6 +114,17 @@ export default function DayDetailScreen() {
     ]);
   };
 
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
+        <Text style={styles.errorText}>Something went wrong loading this day.</Text>
+        <TouchableOpacity style={styles.errorButton} onPress={refresh}>
+          <Text style={styles.errorButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -120,7 +133,7 @@ export default function DayDetailScreen() {
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerDate}>{formatDate(date)}</Text>
+          <Text style={styles.headerDate}>{safeDate ? formatDate(safeDate) : ''}</Text>
           <Text style={styles.headerCount}>
             {logs.length} log{logs.length !== 1 ? 's' : ''}
           </Text>
@@ -128,7 +141,11 @@ export default function DayDetailScreen() {
         <View style={{ minWidth: 60 }} />
       </View>
 
-      {!loading && logs.length === 0 ? (
+      {loading && logs.length === 0 ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={accent.primary} />
+        </View>
+      ) : !loading && logs.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>📅</Text>
           <Text style={styles.emptyTitle}>No logs for this day</Text>
@@ -149,7 +166,9 @@ export default function DayDetailScreen() {
               onToggleOotd={() => handleToggleOotd(item)}
               onDelete={() => handleDeleteLog(item)}
               onPressOutfit={() => {
-                if (item.outfit_id) router.push(`/outfit/${item.outfit_id}` as any);
+                if (item.outfit_id) {
+                  router.push({ pathname: '/outfit/[id]', params: { id: item.outfit_id } });
+                }
               }}
             />
           )}
@@ -215,7 +234,13 @@ function LogRow({
 
       {/* Actions */}
       <View style={styles.logActions}>
-        <TouchableOpacity onPress={onToggleOotd} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onToggleOotd}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={log.is_ootd === 1 ? 'Unmark as OOTD' : 'Mark as OOTD'}
+          accessibilityState={{ selected: log.is_ootd === 1 }}
+        >
           <View style={[
             styles.ootdBadge,
             log.is_ootd === 1 && { backgroundColor: accent },
@@ -229,7 +254,14 @@ function LogRow({
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onDelete} hitSlop={8} style={styles.deleteBtn}>
+        <TouchableOpacity
+          onPress={onDelete}
+          hitSlop={8}
+          style={styles.deleteBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Delete log"
+          accessibilityHint="Removes this wear entry for this day"
+        >
           <Text style={styles.deleteBtnText}>✕</Text>
         </TouchableOpacity>
       </View>
@@ -245,6 +277,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Palette.surface0,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[4],
+    padding: Spacing[6],
+  },
+  errorText: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+  },
+  errorButton: {
+    paddingHorizontal: Spacing[5],
+    paddingVertical: Spacing[2],
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  errorButtonText: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.sm,
   },
   header: {
     flexDirection: 'row',

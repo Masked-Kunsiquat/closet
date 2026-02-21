@@ -168,17 +168,17 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
   // Reload subcategories when category changes
   useEffect(() => {
     if (!values.category_id) { setSubcategories([]); return; }
-    getDatabase().then((db) =>
-      getSubcategories(db, values.category_id!).then(setSubcategories)
-    );
+    getDatabase()
+      .then((db) => getSubcategories(db, values.category_id!).then(setSubcategories))
+      .catch((e) => { console.error('[ItemForm] subcategories', e); setSubcategories([]); });
   }, [values.category_id]);
 
   // Reload size values when size system changes
   useEffect(() => {
     if (!values.size_system_id) { setSizeValues([]); return; }
-    getDatabase().then((db) =>
-      getSizeValues(db, values.size_system_id!).then(setSizeValues)
-    );
+    getDatabase()
+      .then((db) => getSizeValues(db, values.size_system_id!).then(setSizeValues))
+      .catch((e) => { console.error('[ItemForm] size values', e); setSizeValues([]); });
   }, [values.size_system_id]);
 
   const set = <K extends keyof ItemFormValues>(key: K, value: ItemFormValues[K]) => {
@@ -548,7 +548,7 @@ function ChipSelector({
 }: {
   items: ChipItem[];
   selectedId: string | number | null;
-  onSelect: (id: string | number) => void;
+  onSelect: (id: string | number | null) => void;
   accent: string;
 }) {
   return (
@@ -559,7 +559,7 @@ function ChipSelector({
           <Pressable
             key={String(item.id)}
             style={[styles.chip, selected && { backgroundColor: accent, borderColor: accent }]}
-            onPress={() => onSelect(selected ? null as any : item.id)}
+            onPress={() => onSelect(selected ? null : item.id)}
           >
             <Text style={[styles.chipText, selected && styles.chipTextSelected, selected && { color: contrastingTextColor(accent) }]}>
               {item.name}
