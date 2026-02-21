@@ -483,20 +483,22 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
             />
           )}
 
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Size System</Text>
-            <ChipSelector
-              items={filteredSizeSystems}
-              selectedId={values.size_system_id}
-              onSelect={(id) => {
-                set('size_system_id', id === null ? null : Number(id));
-                set('size_value_id', null);
-              }}
-              accent={accent.primary}
-            />
-          </View>
+          {values.category_id !== null && (
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Size System</Text>
+              <ChipSelector
+                items={filteredSizeSystems}
+                selectedId={values.size_system_id}
+                onSelect={(id) => {
+                  set('size_system_id', id === null ? null : Number(id));
+                  set('size_value_id', null);
+                }}
+                accent={accent.primary}
+              />
+            </View>
+          )}
 
-          {sizeValues.length > 0 && (
+          {values.category_id !== null && sizeValues.length > 0 && (
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Size</Text>
               <ChipSelector
