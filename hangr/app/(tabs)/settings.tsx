@@ -243,6 +243,9 @@ export default function SettingsScreen() {
               onValueChange={(v) => setSetting('showArchivedItems', v)}
               trackColor={{ false: Palette.surface3, true: accent.primary }}
               thumbColor={Palette.white}
+              accessibilityLabel="Show archived items"
+              accessibilityRole="switch"
+              accessible
             />
           </View>
           <Text style={styles.hint}>
@@ -283,7 +286,7 @@ export default function SettingsScreen() {
         {/* ── About ──────────────────────────────────────────────── */}
         <SectionHeader title="About" />
         <View style={styles.card}>
-          <View style={styles.row}>
+          <View style={[styles.row, styles.rowBorder]}>
             <Text style={styles.rowLabel}>App</Text>
             <Text style={styles.rowValue}>hangr</Text>
           </View>
@@ -291,7 +294,7 @@ export default function SettingsScreen() {
             <Text style={styles.rowLabel}>Storage</Text>
             <Text style={styles.rowValue}>Local · no cloud</Text>
           </View>
-          <View style={[styles.row, styles.rowBorder]}>
+          <View style={styles.row}>
             <Text style={styles.rowLabel}>Telemetry</Text>
             <Text style={styles.rowValue}>None</Text>
           </View>
@@ -357,8 +360,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[4],
   },
   rowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: Palette.borderMuted,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.borderMuted,
   },
   rowLabel: {
     color: Palette.textPrimary,

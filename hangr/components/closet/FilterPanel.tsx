@@ -4,7 +4,7 @@
  * and sort order. Resolves junction table item IDs before committing.
  *
  * Sort, Status, Category, Subcategory, Season, Occasion, Brand use PickerTrigger rows (tap → inner sheet).
- * Color uses a collapsible chip row (inline multi-select).
+ * Color uses a collapsible chip row (inline single-select).
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -136,6 +136,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
       setDraft(currentFilters);
       setDraftSort(currentSort);
       setInnerSheet(null);
+      setColorExpanded(false);
     }
   }, [visible, currentFilters, currentSort]);
 
@@ -296,6 +297,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
             style={styles.colorToggle}
             onPress={() => setColorExpanded((v) => !v)}
             accessibilityRole="button"
+            accessibilityState={{ expanded: colorExpanded }}
           >
             <Text style={styles.pickerTriggerLabel}>Color</Text>
             <View style={styles.pickerTriggerRight}>
@@ -478,6 +480,7 @@ function FilterPickerSheet({
   accentPrimary: string;
   allowDeselect: boolean;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.innerBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
@@ -507,7 +510,7 @@ function FilterPickerSheet({
               </Pressable>
             );
           })}
-          <View style={{ height: Spacing[4] }} />
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
         </ScrollView>
       </View>
     </Modal>

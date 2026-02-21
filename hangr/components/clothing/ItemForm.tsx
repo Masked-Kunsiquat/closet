@@ -27,6 +27,8 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
@@ -905,6 +907,7 @@ function CategorySheet({
   onClose: () => void;
   accentPrimary: string;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
@@ -934,7 +937,7 @@ function CategorySheet({
               </Pressable>
             );
           })}
-          <View style={{ height: Spacing[4] }} />
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
         </ScrollView>
       </View>
     </Modal>
@@ -960,6 +963,7 @@ function SubcategorySheet({
   onClose: () => void;
   accentPrimary: string;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
@@ -984,7 +988,7 @@ function SubcategorySheet({
               </Pressable>
             );
           })}
-          <View style={{ height: Spacing[4] }} />
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
         </ScrollView>
       </View>
     </Modal>
