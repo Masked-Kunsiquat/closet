@@ -6,7 +6,7 @@
  * immediately (no draft state — the parent owns all selection state).
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Modal,
@@ -71,13 +71,24 @@ export function PickerSheet<T extends { id: number; name: string }>({
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const slideAnim = useRef(new Animated.Value(0)).current;
+  // Keep Modal mounted during the exit animation.
+  const [modalVisible, setModalVisible] = useState(visible);
 
   useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: visible ? 1 : 0,
-      duration: 280,
-      useNativeDriver: true,
-    }).start();
+    if (visible) {
+      setModalVisible(true);
+      Animated.timing(slideAnim, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 280,
+        useNativeDriver: true,
+      }).start(() => setModalVisible(false));
+    }
   }, [visible, slideAnim]);
 
   const translateY = slideAnim.interpolate({
@@ -87,7 +98,7 @@ export function PickerSheet<T extends { id: number; name: string }>({
 
   return (
     <Modal
-      visible={visible}
+      visible={modalVisible}
       transparent
       animationType="none"
       onRequestClose={onClose}
@@ -154,7 +165,7 @@ export function PickerSheet<T extends { id: number; name: string }>({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: Palette.overlay,
   },
   sheet: {
     position: 'absolute',

@@ -572,7 +572,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
               { id: 'Lost', name: 'Lost' },
             ]}
             selectedId={values.status}
-            onSelect={(id) => set('status', id as ItemFormValues['status'])}
+            onSelect={(id) => { if (id !== null && id !== values.status) set('status', id as ItemFormValues['status']); }}
             accent={accent.primary}
           />
         </View>
@@ -586,7 +586,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
               { id: 'Dirty', name: 'Dirty' },
             ]}
             selectedId={values.wash_status}
-            onSelect={(id) => set('wash_status', id as ItemFormValues['wash_status'])}
+            onSelect={(id) => { if (id !== null && id !== values.wash_status) set('wash_status', id as ItemFormValues['wash_status']); }}
             accent={accent.primary}
           />
         </View>
@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: Palette.dotBorder,
   },
 
   // Photo

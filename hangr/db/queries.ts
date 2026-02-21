@@ -1007,7 +1007,7 @@ export async function getBreakdownByColor(db: SQLiteDatabase): Promise<ColorBrea
  */
 export async function getBreakdownByBrand(db: SQLiteDatabase): Promise<BreakdownRow[]> {
   return db.getAllAsync<BreakdownRow>(`
-    SELECT COALESCE(NULLIF(ci.brand, ''), 'No Brand') AS label, COUNT(*) AS count
+    SELECT COALESCE(NULLIF(ci.brand, ''), 'No Brand') AS label, COUNT(DISTINCT ci.id) AS count
     FROM clothing_items ci
     WHERE ci.status = 'Active'
     GROUP BY COALESCE(NULLIF(ci.brand, ''), 'No Brand')

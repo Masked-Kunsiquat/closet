@@ -42,11 +42,21 @@ const RANGES: { label: string; value: TimeRange }[] = [
 
 function toFromDate(range: TimeRange): string | null {
   if (range === 'all') return null;
-  const d = new Date();
-  if (range === 'month') d.setMonth(d.getMonth() - 1);
-  else if (range === '3months') d.setMonth(d.getMonth() - 3);
-  else if (range === 'year') d.setFullYear(d.getFullYear() - 1);
-  return d.toISOString().slice(0, 10);
+  const now = new Date();
+  const originalDay = now.getDate();
+
+  if (range === 'year') {
+    return new Date(now.getFullYear() - 1, now.getMonth(), originalDay).toISOString().slice(0, 10);
+  }
+
+  const monthsBack = range === 'month' ? 1 : 3;
+  const targetYear = now.getMonth() < monthsBack
+    ? now.getFullYear() - 1
+    : now.getFullYear();
+  const targetMonth = ((now.getMonth() - monthsBack) % 12 + 12) % 12;
+  const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const clampedDay = Math.min(originalDay, lastDay);
+  return new Date(targetYear, targetMonth, clampedDay).toISOString().slice(0, 10);
 }
 
 
@@ -117,12 +127,17 @@ function TimeRangeFilter({
 
 function WornItemRow({ item, showCount }: { item: StatItem; showCount: boolean }) {
   const { accent } = useAccent();
+  const imageUri = item.image_path
+    ? item.image_path.startsWith('file://') || item.image_path.startsWith('http')
+      ? item.image_path
+      : `file://${item.image_path}`
+    : null;
   return (
     <View style={styles.wornRow}>
       <View style={styles.wornThumb}>
-        {item.image_path ? (
+        {imageUri ? (
           <Image
-            source={{ uri: item.image_path }}
+            source={{ uri: imageUri }}
             style={styles.wornThumbImage}
             contentFit="cover"
           />
