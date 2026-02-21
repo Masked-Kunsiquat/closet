@@ -27,6 +27,7 @@ import {
 } from 'react-native';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { contrastingTextColor } from '@/utils/color';
 import { getDatabase } from '@/db';
@@ -731,7 +732,7 @@ function PickerTrigger({
         <Text style={styles.pickerTriggerValue}>
           {count > 0 ? (count === 1 ? '1 selected' : `${count} selected`) : 'None'}
         </Text>
-        <Text style={styles.pickerTriggerChevron}>›</Text>
+        <PhosphorIcon name="caret-right" size={18} color={Palette.textDisabled} />
       </View>
     </Pressable>
   );
@@ -961,10 +962,6 @@ const styles = StyleSheet.create({
   pickerTriggerValue: {
     fontSize: FontSize.sm,
     color: Palette.textSecondary,
-  },
-  pickerTriggerChevron: {
-    fontSize: FontSize.lg,
-    color: Palette.textDisabled,
   },
 
   // Favorite toggle

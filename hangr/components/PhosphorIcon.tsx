@@ -7,6 +7,8 @@ import { StyleProp } from 'react-native';
 // ---------------------------------------------------------------------------
 
 const ICON_MAP: Record<string, ReturnType<typeof require>> = {
+  'caret-left':          require('@/assets/icons/caret-left.svg'),
+  'caret-right':         require('@/assets/icons/caret-right.svg'),
   'barbell':             require('@/assets/icons/barbell.svg'),
   'belt':                require('@/assets/icons/belt.svg'),
   'bookmark-simple':     require('@/assets/icons/bookmark-simple.svg'),

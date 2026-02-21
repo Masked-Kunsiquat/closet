@@ -31,6 +31,7 @@ import {
   Radius,
   Spacing,
 } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { useSettings } from '@/context/SettingsContext';
 
@@ -153,7 +154,7 @@ function SettingSelectRow<T extends string | number>({
         <Text style={styles.rowLabel}>{label}</Text>
         <View style={styles.rowRight}>
           <Text style={styles.rowValue} numberOfLines={1}>{currentLabel}</Text>
-          <Text style={styles.rowChevron}>›</Text>
+          <PhosphorIcon name="caret-right" size={18} color={Palette.textDisabled} />
         </View>
       </TouchableOpacity>
       <SelectModal
@@ -189,7 +190,7 @@ function AccentSelectRow() {
         <View style={styles.rowRight}>
           <View style={[styles.dot, { backgroundColor: currentColor }]} />
           <Text style={styles.rowValue}>{currentLabel}</Text>
-          <Text style={styles.rowChevron}>›</Text>
+          <PhosphorIcon name="caret-right" size={18} color={Palette.textDisabled} />
         </View>
       </TouchableOpacity>
       <SelectModal
@@ -371,10 +372,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     textAlign: 'right',
     flexShrink: 1,
-  },
-  rowChevron: {
-    color: Palette.textDisabled,
-    fontSize: FontSize.lg,
   },
 
   hint: {

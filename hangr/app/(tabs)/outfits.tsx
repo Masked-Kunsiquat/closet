@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { OutfitRowSkeleton } from '@/components/ui/SkeletonLoader';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
@@ -146,7 +147,7 @@ function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () =>
         </Text>
       </View>
 
-      <Text style={styles.chevron}>›</Text>
+      <PhosphorIcon name="caret-right" size={20} color={Palette.textDisabled} />
     </Pressable>
   );
 }
@@ -257,11 +258,6 @@ const styles = StyleSheet.create({
   outfitSub: {
     color: Palette.textSecondary,
     fontSize: FontSize.sm,
-  },
-  chevron: {
-    color: Palette.textDisabled,
-    fontSize: FontSize.xl,
-    flexShrink: 0,
   },
 
   // FAB
