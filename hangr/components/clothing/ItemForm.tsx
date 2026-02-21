@@ -286,16 +286,16 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
     })();
   }, []);
 
-  // Reload subcategories when category changes (alphabetized)
+  // Reload subcategories when category changes (alphabetized, stale-request guarded)
   useEffect(() => {
-    if (!values.category_id) { setSubcategories([]); return; }
+    setSubcategories([]);
+    if (!values.category_id) return;
+    let cancelled = false;
     getDatabase()
-      .then((db) =>
-        getSubcategories(db, values.category_id!).then((subs) =>
-          setSubcategories([...subs].sort((a, b) => a.name.localeCompare(b.name)))
-        )
-      )
-      .catch((e) => { console.error('[ItemForm] subcategories', e); setSubcategories([]); });
+      .then((db) => getSubcategories(db, values.category_id!))
+      .then((subs) => { if (!cancelled) setSubcategories([...subs].sort((a, b) => a.name.localeCompare(b.name))); })
+      .catch((e) => { if (!cancelled) { console.error('[ItemForm] subcategories', e); setSubcategories([]); } });
+    return () => { cancelled = true; };
   }, [values.category_id]);
 
   // Derived: selected category
