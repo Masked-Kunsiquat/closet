@@ -102,7 +102,7 @@ export function useStats(fromDate: string | null) {
       });
     } catch (e) {
       if (reqRef.current !== reqId) return;
-      setState({ data: null, loading: false, error: String(e) });
+      setState((prev) => ({ ...prev, loading: false, error: String(e) }));
     }
   }, [fromDate]);
 

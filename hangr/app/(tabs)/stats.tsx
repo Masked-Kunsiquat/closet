@@ -44,16 +44,11 @@ function toFromDate(range: TimeRange): string | null {
   if (range === 'all') return null;
   const d = new Date();
   if (range === 'month') d.setMonth(d.getMonth() - 1);
-  if (range === '3months') d.setMonth(d.getMonth() - 3);
-  if (range === 'year') d.setFullYear(d.getFullYear() - 1);
+  else if (range === '3months') d.setMonth(d.getMonth() - 3);
+  else if (range === 'year') d.setFullYear(d.getFullYear() - 1);
   return d.toISOString().slice(0, 10);
 }
 
-// ---------------------------------------------------------------------------
-// Bar track width (fixed, px)
-// ---------------------------------------------------------------------------
-
-const BAR_TRACK_WIDTH = 200;
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -195,7 +190,7 @@ function BarRow({
         <View
           style={[
             styles.barFill,
-            { width: BAR_TRACK_WIDTH * ratio, backgroundColor: barColor },
+            { width: `${ratio * 100}%` as `${number}%`, backgroundColor: barColor },
           ]}
         />
       </View>
@@ -213,16 +208,16 @@ function BreakdownSection({
   data: BreakdownRow[];
   barColor: string;
 }) {
-  const maxCount = data.length > 0 ? data[0].count : 0;
+  const maxCount = data.reduce((m, row) => Math.max(m, row.count), 0);
   return (
     <View style={styles.section}>
       <SectionHeader title={title} />
       {data.length === 0 ? (
         <Text style={styles.emptyText}>No data.</Text>
       ) : (
-        data.map((row) => (
+        data.map((row, index) => (
           <BarRow
-            key={row.label}
+            key={`${row.label}-${index}`}
             label={row.label}
             count={row.count}
             maxCount={maxCount}
@@ -236,16 +231,16 @@ function BreakdownSection({
 
 function ColorBreakdownSection({ data }: { data: ColorBreakdownRow[] }) {
   const { accent } = useAccent();
-  const maxCount = data.length > 0 ? data[0].count : 0;
+  const maxCount = data.reduce((m, row) => Math.max(m, row.count), 0);
   return (
     <View style={styles.section}>
       <SectionHeader title="By Color" />
       {data.length === 0 ? (
         <Text style={styles.emptyText}>No data.</Text>
       ) : (
-        data.map((row) => (
+        data.map((row, index) => (
           <BarRow
-            key={row.label}
+            key={`${row.label}-${row.hex ?? ''}-${index}`}
             label={row.label}
             count={row.count}
             maxCount={maxCount}
@@ -284,7 +279,7 @@ export default function StatsScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl
-            refreshing={loading}
+            refreshing={loading && !!data}
             onRefresh={refresh}
             tintColor={accent.primary}
           />
@@ -408,7 +403,7 @@ const styles = StyleSheet.create({
   },
   rangeChip: {
     paddingHorizontal: Spacing[3],
-    paddingVertical: Spacing[1] + 2,
+    paddingVertical: Spacing[2],
     borderRadius: Radius.full,
     backgroundColor: Palette.surface3,
   },
@@ -487,7 +482,7 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: FontSize.sm,
     color: Palette.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing[1],
   },
   emptyText: {
     fontSize: FontSize.sm,
@@ -524,7 +519,7 @@ const styles = StyleSheet.create({
   },
   wornBadge: {
     paddingHorizontal: Spacing[2],
-    paddingVertical: 3,
+    paddingVertical: Spacing[1],
     borderRadius: Radius.full,
   },
   wornBadgeText: {
@@ -536,16 +531,17 @@ const styles = StyleSheet.create({
   barRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing[1] + 2,
+    paddingVertical: Spacing[2],
     gap: Spacing[2],
   },
   barLabel: {
-    width: 100,
+    flexBasis: 90,
+    flexShrink: 1,
     fontSize: FontSize.sm,
     color: Palette.textPrimary,
   },
   barTrack: {
-    width: BAR_TRACK_WIDTH,
+    flex: 1,
     height: 12,
     backgroundColor: Palette.surface3,
     borderRadius: Radius.full,
@@ -556,7 +552,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   barCount: {
-    width: 32,
+    flexBasis: 32,
+    flexShrink: 0,
     fontSize: FontSize.sm,
     color: Palette.textSecondary,
     textAlign: 'right',
