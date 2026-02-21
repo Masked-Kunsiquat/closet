@@ -43,18 +43,25 @@ function todayIso(): string {
 
 export default function OutfitDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const outfitId = Number(id);
+  const outfitId = parseInt(id ?? '', 10);
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const [outfit, setOutfit] = useState<OutfitWithItems | null>(null);
+  // undefined = not yet loaded; null = loaded but not found
+  const [outfit, setOutfit] = useState<OutfitWithItems | null | undefined>(undefined);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [logModalVisible, setLogModalVisible] = useState(false);
 
   const load = useCallback(async () => {
-    const db = await getDatabase();
-    const result = await getOutfitWithItems(db, outfitId);
-    setOutfit(result);
+    setLoadError(null);
+    try {
+      const db = await getDatabase();
+      const result = await getOutfitWithItems(db, outfitId);
+      setOutfit(result); // null when the DB returns no row
+    } catch (e) {
+      setLoadError(String(e));
+    }
   }, [outfitId]);
 
   useEffect(() => { load(); }, [load]);
@@ -73,11 +80,34 @@ export default function OutfitDetailScreen() {
     ]);
   };
 
-  if (!outfit) {
+  if (!Number.isFinite(outfitId) || outfitId <= 0) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.center}>
-          <Text style={styles.placeholderText}>Loading…</Text>
+          <Text style={styles.placeholderText}>Outfit not found.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.center}>
+          <Text style={styles.placeholderText}>Failed to load outfit.</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // undefined = not yet loaded; null = loaded but not found
+  if (outfit == null) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.center}>
+          <Text style={styles.placeholderText}>
+            {outfit === undefined ? 'Loading…' : 'Outfit not found.'}
+          </Text>
         </View>
       </View>
     );
@@ -173,14 +203,29 @@ function LogModal({
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Reset form state each time the modal opens
+  useEffect(() => {
+    if (!visible) return;
+    setDate(todayIso());
+    setIsOotd(false);
+    setNotes('');
+  }, [visible]);
+
   // When date changes check if OOTD is already taken
   const [ootdTaken, setOotdTaken] = useState(false);
   useEffect(() => {
     if (!visible) return;
-    getDatabase().then(async (db) => {
-      const logs = await getLogsByDate(db, date);
-      setOotdTaken(logs.some((l) => l.is_ootd === 1));
-    });
+    let cancelled = false;
+    (async () => {
+      try {
+        const db = await getDatabase();
+        const logs = await getLogsByDate(db, date);
+        if (!cancelled) setOotdTaken(logs.some((l) => l.is_ootd === 1));
+      } catch {
+        // Non-critical — leave ootdTaken as-is; save path re-validates server-side.
+      }
+    })();
+    return () => { cancelled = true; };
   }, [date, visible]);
 
   const handleSave = async () => {
@@ -203,16 +248,21 @@ function LogModal({
             {
               text: 'Replace', style: 'destructive',
               onPress: async () => {
-                const logId = await insertOutfitLog(db, {
-                  outfit_id: outfitId,
-                  date,
-                  is_ootd: 0,   // insert neutral first to avoid index conflict
-                  notes: notes.trim() || null,
-                });
-                await setOotd(db, logId, date);
-                setSaving(false);
-                onClose();
-                router.push(`/log/${date}` as any);
+                try {
+                  const logId = await insertOutfitLog(db, {
+                    outfit_id: outfitId,
+                    date,
+                    is_ootd: 0,   // insert neutral first to avoid index conflict
+                    notes: notes.trim() || null,
+                  });
+                  await setOotd(db, logId, date);
+                  router.push(`/log/${date}` as any);
+                } catch (e) {
+                  Alert.alert('Error', String(e));
+                } finally {
+                  setSaving(false);
+                  onClose();
+                }
               },
             },
           ]
