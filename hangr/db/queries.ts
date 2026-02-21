@@ -153,7 +153,7 @@ export async function updateClothingItem(
        purchase_price    = ?,
        purchase_date     = ?,
        purchase_location = ?,
-       image_path        = COALESCE(?, image_path),
+       image_path        = ?,
        notes             = ?,
        status            = COALESCE(?, status),
        wash_status       = COALESCE(?, wash_status),

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EMPTY_FORM, ItemForm, ItemFormValues } from '@/components/clothing/ItemForm';
@@ -26,6 +26,7 @@ export default function AddItemScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [submitting, setSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleSubmit = async (values: ItemFormValues) => {
     setSubmitting(true);
@@ -59,7 +60,7 @@ export default function AddItemScreen() {
       router.replace(`/item/${itemId}`);
     } catch (e) {
       console.error('[add item]', e);
-      Alert.alert('Error', 'Failed to save item. Please try again.');
+      setSaveError('Failed to save item. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -75,6 +76,13 @@ export default function AddItemScreen() {
         <Text style={styles.title}>Add Item</Text>
         <View style={{ width: 56 }} />
       </View>
+
+      {saveError && (
+        <Pressable style={styles.errorBanner} onPress={() => setSaveError(null)}>
+          <Text style={styles.errorText}>{saveError}</Text>
+          <Text style={styles.errorDismiss}>✕</Text>
+        </Pressable>
+      )}
 
       <ItemForm
         initialValues={EMPTY_FORM}
@@ -108,5 +116,23 @@ const styles = StyleSheet.create({
   cancel: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Palette.error,
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[3],
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: FontSize.sm,
+    flex: 1,
+  },
+  errorDismiss: {
+    color: '#fff',
+    fontSize: FontSize.sm,
+    marginLeft: Spacing[3],
   },
 });
