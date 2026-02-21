@@ -2,6 +2,7 @@ import { PropsWithChildren, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { FontSize, FontWeight, Palette, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 
 /**
  * Collapsible container that toggles visibility of its children when the header is pressed.
@@ -22,7 +23,7 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
         accessibilityRole="button"
         accessibilityState={{ expanded: isOpen }}
       >
-        <Text style={styles.chevron}>{isOpen ? '▾' : '▸'}</Text>
+        <PhosphorIcon name="caret-up-down" size={14} color={Palette.textSecondary} />
         <Text style={styles.title}>{title}</Text>
       </TouchableOpacity>
       {isOpen && <View style={styles.content}>{children}</View>}
@@ -35,10 +36,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing[2],
-  },
-  chevron: {
-    color: Palette.textSecondary,
-    fontSize: FontSize.sm,
   },
   title: {
     color: Palette.textPrimary,

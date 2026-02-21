@@ -7,6 +7,7 @@
 
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -22,6 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
 import {
@@ -140,8 +142,9 @@ export default function OutfitDetailScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.back}>← Back</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <PhosphorIcon name="caret-left" size={18} color={Palette.textSecondary} />
+          <Text style={styles.back}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {outfit.name ?? 'Untitled Outfit'}
@@ -297,6 +300,7 @@ function LogModal({
                   });
                   await setOotd(db, logId, date);
                   navigateTo = date;
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 } catch (e) {
                   Alert.alert('Error', String(e));
                 } finally {
@@ -323,6 +327,7 @@ function LogModal({
         await setOotd(db, logId, date);
       }
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSaving(false);
       onClose();
       router.push({ pathname: '/log/[date]', params: { date } });
@@ -449,10 +454,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Palette.border,
   },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[1],
+    minWidth: 60,
+  },
   back: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
-    minWidth: 60,
   },
   headerTitle: {
     color: Palette.textPrimary,

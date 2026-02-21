@@ -7,6 +7,13 @@ import { StyleProp } from 'react-native';
 // ---------------------------------------------------------------------------
 
 const ICON_MAP: Record<string, ReturnType<typeof require>> = {
+  'caret-left':          require('@/assets/icons/caret-left.svg'),
+  'caret-right':         require('@/assets/icons/caret-right.svg'),
+  'caret-up-down':       require('@/assets/icons/caret-up-down.svg'),
+  'check':               require('@/assets/icons/check.svg'),
+  'x':                   require('@/assets/icons/x.svg'),
+  'washing-machine':     require('@/assets/icons/washing-machine.svg'),
+  'dresser':             require('@/assets/icons/dresser.svg'),
   'barbell':             require('@/assets/icons/barbell.svg'),
   'belt':                require('@/assets/icons/belt.svg'),
   'bookmark-simple':     require('@/assets/icons/bookmark-simple.svg'),
@@ -39,6 +46,7 @@ const ICON_MAP: Record<string, ReturnType<typeof require>> = {
   'thermometer':         require('@/assets/icons/thermometer.svg'),
   't-shirt':             require('@/assets/icons/t-shirt.svg'),
   'watch':               require('@/assets/icons/watch.svg'),
+  'gear-six':            require('@/assets/icons/gear-six.svg'),
 };
 
 // ---------------------------------------------------------------------------

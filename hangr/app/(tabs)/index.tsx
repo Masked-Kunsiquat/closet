@@ -2,25 +2,30 @@ import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FilterPanel } from '@/components/closet/FilterPanel';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
+import { ClosetGridSkeleton, ListRowSkeleton } from '@/components/ui/SkeletonLoader';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
+import { useSettings } from '@/context/SettingsContext';
 import { ClothingItemWithMeta } from '@/db/types';
 import { useClothingItems } from '@/hooks/useClothingItems';
 import { useClosetView } from '@/hooks/useClosetView';
 import { contrastingTextColor } from '@/utils/color';
 
 const CARD_GAP = Spacing[2];
+const GRID_COLUMNS = 3;
+const GRID_PADDING = Spacing[3];
 
 /**
  * Renders the Closet screen including header, filter/sort controls, grid/list views of items, empty states, a floating add button, and the filter panel.
@@ -31,6 +36,7 @@ const CARD_GAP = Spacing[2];
  */
 export default function ClosetScreen() {
   const { items, loading, error, refresh } = useClothingItems();
+  const { settings: { showArchivedItems } } = useSettings();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -40,6 +46,8 @@ export default function ClosetScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
+  const cardWidth = (screenWidth - GRID_PADDING * 2 - CARD_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
   const {
     viewMode,
@@ -53,7 +61,7 @@ export default function ClosetScreen() {
     setFilterPanelOpen,
     activeFilterCount,
     filteredAndSorted,
-  } = useClosetView(items);
+  } = useClosetView(items, showArchivedItems);
 
   const visibleItems = filteredAndSorted;
 
@@ -76,9 +84,9 @@ export default function ClosetScreen() {
         <Text style={styles.count}>
           {loading
             ? ''
-            : visibleItems.length === items.length
-            ? `${items.length} item${items.length !== 1 ? 's' : ''}`
-            : `${visibleItems.length} of ${items.length}`}
+            : activeFilterCount === 0
+            ? `${filteredAndSorted.length} item${filteredAndSorted.length !== 1 ? 's' : ''}`
+            : `${filteredAndSorted.length} of ${showArchivedItems ? items.length : items.filter((i) => i.status === 'Active').length}`}
         </Text>
       </View>
 
@@ -104,7 +112,7 @@ export default function ClosetScreen() {
 
         {activeFilterCount > 0 && (
           <TouchableOpacity onPress={clearFilters} hitSlop={8} style={styles.clearButton}>
-            <Text style={styles.clearButtonText}>✕</Text>
+            <PhosphorIcon name="x" size={16} color={Palette.textSecondary} />
           </TouchableOpacity>
         )}
 
@@ -130,11 +138,20 @@ export default function ClosetScreen() {
 
       {/* Content */}
       {loading && items.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={accent.primary} />
-        </View>
+        viewMode === 'grid' ? <ClosetGridSkeleton /> : (
+          <View style={styles.list}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <View key={i}>
+                <ListRowSkeleton />
+                {i < 7 && <View style={styles.listSeparator} />}
+              </View>
+            ))}
+          </View>
+        )
       ) : !loading && items.length === 0 ? (
         <EmptyCloset />
+      ) : !loading && filteredAndSorted.length === 0 && !showArchivedItems && activeFilterCount === 0 ? (
+        <EmptyArchived />
       ) : !loading && visibleItems.length === 0 ? (
         <EmptyFilter onClear={clearFilters} />
       ) : viewMode === 'grid' ? (
@@ -142,13 +159,13 @@ export default function ClosetScreen() {
           key="grid"
           data={visibleItems}
           keyExtractor={(item) => String(item.id)}
-          numColumns={2}
+          numColumns={GRID_COLUMNS}
           contentContainerStyle={styles.grid}
           columnWrapperStyle={styles.gridRow}
           onRefresh={handleRefresh}
           refreshing={isRefreshing}
           renderItem={({ item }) => (
-            <GridCard item={item} onPress={() => router.push(`/item/${item.id}`)} />
+            <GridCard item={item} cardWidth={cardWidth} onPress={() => router.push(`/item/${item.id}`)} />
           )}
         />
       ) : (
@@ -206,9 +223,9 @@ export default function ClosetScreen() {
  * @returns The card element to render in a grid
  */
 
-function GridCard({ item, onPress }: { item: ClothingItemWithMeta; onPress: () => void }) {
+function GridCard({ item, cardWidth, onPress }: { item: ClothingItemWithMeta; cardWidth: number; onPress: () => void }) {
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable style={[styles.card, { width: cardWidth }]} onPress={onPress}>
       <View style={styles.cardImageContainer}>
         {item.image_path ? (
           <Image
@@ -353,6 +370,22 @@ function EmptyFilter({ onClear }: { onClear: () => void }) {
   );
 }
 
+function EmptyArchived() {
+  const router = useRouter();
+  return (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyEmoji}>📦</Text>
+      <Text style={styles.emptyTitle}>All items are archived</Text>
+      <Text style={styles.emptySubtitle}>
+        Turn on &ldquo;Show archived items&rdquo; in Settings to see Sold, Donated, and Lost items.
+      </Text>
+      <TouchableOpacity style={styles.clearFiltersButton} onPress={() => router.push('/settings')} activeOpacity={0.8}>
+        <Text style={styles.clearFiltersText}>Go to Settings</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 /**
@@ -431,10 +464,6 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: Spacing[1],
   },
-  clearButtonText: {
-    color: Palette.textSecondary,
-    fontSize: FontSize.sm,
-  },
   spacer: {
     flex: 1,
   },
@@ -460,7 +489,7 @@ const styles = StyleSheet.create({
 
   // Grid
   grid: {
-    paddingHorizontal: Spacing[3],
+    paddingHorizontal: GRID_PADDING,
     paddingBottom: Spacing[16],
   },
   gridRow: {
@@ -468,7 +497,6 @@ const styles = StyleSheet.create({
     marginBottom: CARD_GAP,
   },
   card: {
-    flex: 1,
     backgroundColor: Palette.surface1,
     borderRadius: Radius.md,
     overflow: 'hidden',
@@ -674,11 +702,6 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   errorContainer: {
     flex: 1,

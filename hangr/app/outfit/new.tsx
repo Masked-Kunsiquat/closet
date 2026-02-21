@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
 import { insertOutfit } from '@/db/queries';
@@ -87,8 +88,15 @@ export default function NewOutfitScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (step === 'name' ? setStep('pick') : router.back())} hitSlop={10}>
-          <Text style={styles.headerBack}>{step === 'name' ? '← Back' : 'Cancel'}</Text>
+        <TouchableOpacity onPress={() => (step === 'name' ? setStep('pick') : router.back())} hitSlop={10} style={styles.headerBackBtn}>
+          {step === 'name' ? (
+            <>
+              <PhosphorIcon name="caret-left" size={18} color={Palette.textSecondary} />
+              <Text style={styles.headerBack}>Back</Text>
+            </>
+          ) : (
+            <Text style={styles.headerBack}>Cancel</Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>
@@ -209,7 +217,7 @@ function ItemPicker({
             )}
             {isSelected && (
               <View style={[styles.checkmark, { backgroundColor: accent }]}>
-                <Text style={[styles.checkmarkText, { color: contrastingTextColor(accent) }]}>✓</Text>
+                <PhosphorIcon name="check" size={12} color={contrastingTextColor(accent)} />
               </View>
             )}
             <Text style={styles.pickerLabel} numberOfLines={1}>{item.name}</Text>
@@ -322,10 +330,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Palette.border,
   },
+  headerBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[1],
+    minWidth: 72,
+  },
   headerBack: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
-    minWidth: 72,
   },
   headerTitle: {
     color: Palette.textPrimary,
@@ -390,10 +403,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  checkmarkText: {
-    fontSize: 11,
-    fontWeight: FontWeight.bold,
   },
   pickerLabel: {
     color: Palette.textPrimary,

@@ -26,6 +26,7 @@ import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/toke
 import { useAccent } from '@/context/AccentContext';
 import { BreakdownRow, ColorBreakdownRow, StatItem } from '@/db/types';
 import { useStats } from '@/hooks/useStats';
+import { contrastingTextColor } from '@/utils/color';
 
 // ---------------------------------------------------------------------------
 // Time range
@@ -116,7 +117,7 @@ function TimeRangeFilter({
             <Text
               style={[
                 styles.rangeChipText,
-                active && styles.rangeChipTextActive,
+                active && { color: contrastingTextColor(accent.primary) },
               ]}
             >
               {r.label}
@@ -430,10 +431,6 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
     color: Palette.textSecondary,
   },
-  rangeChipTextActive: {
-    color: Palette.black,
-  },
-
   // Loading / error
   loadingContainer: {
     flex: 1,

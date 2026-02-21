@@ -6,7 +6,6 @@ import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -16,6 +15,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PhosphorIcon } from '@/components/PhosphorIcon';
+import { OutfitRowSkeleton } from '@/components/ui/SkeletonLoader';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
 import { OutfitWithMeta } from '@/db/types';
@@ -64,8 +65,13 @@ export default function OutfitsScreen() {
       </View>
 
       {loading && outfits.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={accent.primary} />
+        <View style={[styles.list, { paddingTop: Spacing[2] }]}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i}>
+              <OutfitRowSkeleton />
+              {i < 5 && <View style={styles.separator} />}
+            </View>
+          ))}
         </View>
       ) : !loading && outfits.length === 0 ? (
         <EmptyOutfits accent={accent.primary} />
@@ -114,7 +120,7 @@ function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () =>
       style={styles.row}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={outfit.name}
+      accessibilityLabel={outfit.name ?? undefined}
     >
       {/* Cover thumbnail */}
       <View style={styles.thumb}>
@@ -141,7 +147,7 @@ function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () =>
         </Text>
       </View>
 
-      <Text style={styles.chevron}>›</Text>
+      <PhosphorIcon name="caret-right" size={20} color={Palette.textDisabled} />
     </Pressable>
   );
 }
@@ -203,11 +209,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
   },
 
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   // List
   list: {
@@ -257,11 +258,6 @@ const styles = StyleSheet.create({
   outfitSub: {
     color: Palette.textSecondary,
     fontSize: FontSize.sm,
-  },
-  chevron: {
-    color: Palette.textDisabled,
-    fontSize: FontSize.xl,
-    flexShrink: 0,
   },
 
   // FAB

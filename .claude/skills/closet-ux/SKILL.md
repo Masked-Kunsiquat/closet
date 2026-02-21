@@ -66,6 +66,12 @@ Core screens:
 - Haptics on meaningful actions (save, log outfit, mark OOTD)
 - Transitions should feel intentional — not instant, not sluggish
 
+## Settings Screen
+- Use `SettingSelectRow` + `SelectModal` bottom sheet for all single-value picker settings (currency, temperature, week start, accent color) — no chip groups or inline toggles for selection
+- `Switch` is acceptable only for true boolean toggles (e.g. show/hide archived items)
+- Accent color row: show a color dot next to the current value in the row; show dots next to each option in the modal
+- Settings are grouped into cards by section: Appearance, Closet, Display, Calendar, About
+
 ## Things to Avoid
 - Overloading any single screen with too many actions
 - Hiding primary actions in menus when they're used frequently
@@ -73,3 +79,4 @@ Core screens:
 - Showing raw database IDs or technical strings to the user
 - Alert dialogs for non-destructive actions
 - Placeholder-only form fields
+- Chip groups for single-value selection in Settings — use `SettingSelectRow` instead

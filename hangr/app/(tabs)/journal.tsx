@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { CalendarDay } from '@/db/types';
 import { useCalendarMonth } from '@/hooks/useOutfitLog';
 import { contrastingTextColor } from '@/utils/color';
@@ -155,7 +156,7 @@ export default function JournalScreen() {
             accessibilityRole="button"
             accessibilityLabel="Previous month"
           >
-            <Text style={styles.navArrow}>‹</Text>
+            <PhosphorIcon name="caret-left" size={20} color={Palette.textSecondary} />
           </TouchableOpacity>
 
           <Text style={styles.monthLabel}>
@@ -169,7 +170,7 @@ export default function JournalScreen() {
             accessibilityRole="button"
             accessibilityLabel="Next month"
           >
-            <Text style={styles.navArrow}>›</Text>
+            <PhosphorIcon name="caret-right" size={20} color={Palette.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -361,11 +362,6 @@ const styles = StyleSheet.create({
   },
   navBtn: {
     padding: Spacing[2],
-  },
-  navArrow: {
-    color: Palette.textPrimary,
-    fontSize: FontSize['2xl'],
-    lineHeight: FontSize['2xl'],
   },
   monthLabel: {
     color: Palette.textPrimary,

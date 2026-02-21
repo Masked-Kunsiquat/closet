@@ -65,6 +65,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => (
+            <PhosphorIcon name="gear-six" size={26} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

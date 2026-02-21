@@ -2,6 +2,9 @@
  * FilterPanel — slides up from bottom as a modal sheet.
  * Handles filter selection (category, subcategory, color, season, occasion, brand, status)
  * and sort order. Resolves junction table item IDs before committing.
+ *
+ * Sort, Status, Category, Subcategory, Season, Occasion, Brand use PickerTrigger rows (tap → inner sheet).
+ * Color uses a collapsible chip row (inline single-select).
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -20,6 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
 import {
@@ -46,6 +50,8 @@ import { contrastingTextColor } from '@/utils/color';
 // Props
 // ---------------------------------------------------------------------------
 
+type InnerSheet = 'sort' | 'status' | 'category' | 'subcategory' | 'season' | 'occasion' | 'brand' | null;
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -59,7 +65,8 @@ type Props = {
 /**
  * Presents a modal bottom sheet that lets the user select filters and a sort order for the closet view, then apply or clear them.
  *
- * The panel maintains a local draft of filters and sort state while open, loads lookup data (categories, subcategories, seasons, occasions, colors, brands), resolves junction-based item ID sets for color/season/occasion before committing, and animates in/out from the bottom.
+ * Sort, Status, Category, Subcategory, Season, Occasion, and Brand each open an inner picker sheet.
+ * Color uses a collapsible inline chip row (single-select).
  *
  * @param visible - Whether the panel is visible
  * @param onClose - Callback invoked to close the panel
@@ -78,6 +85,12 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
   // Local draft state — committed only on Apply
   const [draft, setDraft] = useState<ActiveFilters>(currentFilters);
   const [draftSort, setDraftSort] = useState<SortKey>(currentSort);
+
+  // Which inner picker sheet is open
+  const [innerSheet, setInnerSheet] = useState<InnerSheet>(null);
+
+  // Color section collapsed state
+  const [colorExpanded, setColorExpanded] = useState(false);
 
   // Lookup data
   const [categories, setCategories] = useState<Category[]>([]);
@@ -99,8 +112,8 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
           getDistinctBrands(db),
         ]);
         setCategories(cats);
-        setSeasons(seas);
-        setOccasions(occs);
+        setSeasons([...seas].sort((a, b) => a.name.localeCompare(b.name)));
+        setOccasions([...occs].sort((a, b) => a.name.localeCompare(b.name)));
         setColors(cols);
         setBrands(brnds);
       } catch (e) {
@@ -122,6 +135,8 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
     if (visible) {
       setDraft(currentFilters);
       setDraftSort(currentSort);
+      setInnerSheet(null);
+      setColorExpanded(false);
     }
   }, [visible, currentFilters, currentSort]);
 
@@ -192,7 +207,12 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
     outputRange: [screenHeight, 0],
   });
 
+  // Derived display labels
+  const selectedCategoryName = categories.find((c) => c.id === draft.categoryId)?.name ?? null;
+  const selectedSubcategoryName = subcategories.find((s) => s.id === draft.subcategoryId)?.name ?? null;
+
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -229,152 +249,281 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
           showsVerticalScrollIndicator={false}
         >
           {/* Sort */}
-          <PanelSection title="Sort By">
-            <ChipRow
-              items={Object.entries(SORT_LABELS).map(([k, v]) => ({ id: k, name: v }))}
-              selectedId={draftSort}
-              onSelect={(id) => setDraftSort(id as SortKey)}
-              accent={accent.primary}
-            />
-          </PanelSection>
+          <FilterPickerTrigger
+            label="Sort By"
+            value={SORT_LABELS[draftSort]}
+            onPress={() => setInnerSheet('sort')}
+          />
 
           {/* Status */}
-          <PanelSection title="Status">
-            <ChipRow
-              items={[
-                { id: 'Active',  name: 'Active'  },
-                { id: 'Sold',    name: 'Sold'    },
-                { id: 'Donated', name: 'Donated' },
-                { id: 'Lost',    name: 'Lost'    },
-              ]}
-              selectedId={draft.status}
-              onSelect={(id) =>
-                setDraftFilter('status', draft.status === id ? null : id as ActiveFilters['status'])
-              }
-              accent={accent.primary}
-            />
-          </PanelSection>
+          <FilterPickerTrigger
+            label="Status"
+            value={draft.status ?? 'Any'}
+            onPress={() => setInnerSheet('status')}
+          />
 
           {/* Category */}
-          <PanelSection title="Category">
-            <ChipRow
-              items={categories}
-              selectedId={draft.categoryId}
-              onSelect={(id) => {
-                const next = draft.categoryId === id ? null : (id as number);
-                setDraft((d) => ({ ...d, categoryId: next, subcategoryId: null }));
-              }}
-              accent={accent.primary}
-            />
-          </PanelSection>
+          <FilterPickerTrigger
+            label="Category"
+            value={selectedCategoryName ?? 'Any'}
+            onPress={() => setInnerSheet('category')}
+          />
 
-          {/* Subcategory */}
-          {subcategories.length > 0 && (
-            <PanelSection title="Subcategory">
-              <ChipRow
-                items={subcategories}
-                selectedId={draft.subcategoryId}
-                onSelect={(id) =>
-                  setDraftFilter(
-                    'subcategoryId',
-                    draft.subcategoryId === id ? null : (id as number)
-                  )
-                }
-                accent={accent.primary}
-              />
-            </PanelSection>
+          {/* Subcategory — only when a category is selected and subcategories exist */}
+          {draft.categoryId !== null && subcategories.length > 0 && (
+            <FilterPickerTrigger
+              label="Subcategory"
+              value={selectedSubcategoryName ?? 'Any'}
+              onPress={() => setInnerSheet('subcategory')}
+            />
           )}
 
-          {/* Color */}
-          <PanelSection title="Color">
-            <ChipRow
-              items={colors}
-              selectedId={draft.colorId}
-              onSelect={(id) =>
-                setDraftFilter('colorId', draft.colorId === id ? null : (id as number))
-              }
-              accent={accent.primary}
-              renderPrefix={(item: Color) =>
-                item.hex ? (
-                  <View style={[styles.colorDot, { backgroundColor: item.hex }]} />
-                ) : null
-              }
-            />
-          </PanelSection>
-
           {/* Season */}
-          <PanelSection title="Season">
-            <ChipRow
-              items={seasons}
-              selectedId={draft.seasonId}
-              onSelect={(id) =>
-                setDraftFilter('seasonId', draft.seasonId === id ? null : (id as number))
-              }
-              accent={accent.primary}
-            />
-          </PanelSection>
+          <FilterPickerTrigger
+            label="Season"
+            value={seasons.find((s) => s.id === draft.seasonId)?.name ?? 'Any'}
+            onPress={() => setInnerSheet('season')}
+          />
 
           {/* Occasion */}
-          <PanelSection title="Occasion">
-            <ChipRow
-              items={occasions}
-              selectedId={draft.occasionId}
-              onSelect={(id) =>
-                setDraftFilter('occasionId', draft.occasionId === id ? null : (id as number))
-              }
-              accent={accent.primary}
-            />
-          </PanelSection>
+          <FilterPickerTrigger
+            label="Occasion"
+            value={occasions.find((o) => o.id === draft.occasionId)?.name ?? 'Any'}
+            onPress={() => setInnerSheet('occasion')}
+          />
+
+          {/* Color — collapsible */}
+          <Pressable
+            style={styles.colorToggle}
+            onPress={() => setColorExpanded((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: colorExpanded }}
+          >
+            <Text style={styles.pickerTriggerLabel}>Color</Text>
+            <View style={styles.pickerTriggerRight}>
+              {draft.colorId !== null && (
+                <Text style={styles.pickerTriggerValue} numberOfLines={1}>
+                  {colors.find((c) => c.id === draft.colorId)?.name ?? ''}
+                </Text>
+              )}
+              <PhosphorIcon name="caret-up-down" size={14} color={Palette.textSecondary} />
+            </View>
+          </Pressable>
+          {colorExpanded && (
+            <View style={styles.colorChipsContainer}>
+              <ChipRow
+                items={colors}
+                selectedId={draft.colorId}
+                onSelect={(id) =>
+                  setDraftFilter('colorId', draft.colorId === id ? null : (id as number))
+                }
+                accent={accent.primary}
+                renderPrefix={(item: Color) =>
+                  item.hex ? (
+                    <View style={[styles.colorDot, { backgroundColor: item.hex }]} />
+                  ) : null
+                }
+              />
+            </View>
+          )}
 
           {/* Brand */}
           {brands.length > 0 && (
-            <PanelSection title="Brand">
-              <ChipRow
-                items={brands.map((b) => ({ id: b, name: b }))}
-                selectedId={draft.brand}
-                onSelect={(id) =>
-                  setDraftFilter('brand', draft.brand === id ? null : (id as string))
-                }
-                accent={accent.primary}
-              />
-            </PanelSection>
+            <FilterPickerTrigger
+              label="Brand"
+              value={draft.brand ?? 'Any'}
+              onPress={() => setInnerSheet('brand')}
+            />
           )}
         </ScrollView>
       </Animated.View>
+    </Modal>
+
+    {/* Inner picker sheets — rendered outside the outer Modal to avoid iOS nested-modal issues */}
+    <FilterPickerSheet
+        visible={innerSheet === 'sort'}
+        title="Sort By"
+        options={Object.entries(SORT_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+        selected={draftSort}
+        onSelect={(v) => { if (v !== null) setDraftSort(v as SortKey); setInnerSheet(null); }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect={false}
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'status'}
+        title="Status"
+        options={[
+          { value: 'Active',  label: 'Active'  },
+          { value: 'Sold',    label: 'Sold'    },
+          { value: 'Donated', label: 'Donated' },
+          { value: 'Lost',    label: 'Lost'    },
+        ]}
+        selected={draft.status ?? null}
+        onSelect={(v) => { setDraftFilter('status', v as ActiveFilters['status']); setInnerSheet(null); }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'category'}
+        title="Category"
+        options={categories.map((c) => ({ value: String(c.id), label: c.name, icon: c.icon ?? undefined }))}
+        selected={draft.categoryId !== null ? String(draft.categoryId) : null}
+        onSelect={(v) => {
+          setDraft((d) => ({ ...d, categoryId: v !== null ? Number(v) : null, subcategoryId: null }));
+          setInnerSheet(null);
+        }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'subcategory'}
+        title="Subcategory"
+        options={subcategories.map((s) => ({ value: String(s.id), label: s.name }))}
+        selected={draft.subcategoryId !== null ? String(draft.subcategoryId) : null}
+        onSelect={(v) => {
+          setDraftFilter('subcategoryId', v !== null ? Number(v) : null);
+          setInnerSheet(null);
+        }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'brand'}
+        title="Brand"
+        options={brands.map((b) => ({ value: b, label: b }))}
+        selected={draft.brand}
+        onSelect={(v) => { setDraftFilter('brand', v); setInnerSheet(null); }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'season'}
+        title="Season"
+        options={seasons.map((s) => ({ value: String(s.id), label: s.name, icon: s.icon ?? undefined }))}
+        selected={draft.seasonId !== null ? String(draft.seasonId) : null}
+        onSelect={(v) => {
+          setDraftFilter('seasonId', v !== null ? Number(v) : null);
+          setInnerSheet(null);
+        }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'occasion'}
+        title="Occasion"
+        options={occasions.map((o) => ({ value: String(o.id), label: o.name, icon: o.icon ?? undefined }))}
+        selected={draft.occasionId !== null ? String(draft.occasionId) : null}
+        onSelect={(v) => {
+          setDraftFilter('occasionId', v !== null ? Number(v) : null);
+          setInnerSheet(null);
+        }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FilterPickerTrigger — row that opens an inner sheet
+// ---------------------------------------------------------------------------
+
+function FilterPickerTrigger({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.pickerTrigger} onPress={onPress} accessibilityRole="button">
+      <Text style={styles.pickerTriggerLabel}>{label}</Text>
+      <View style={styles.pickerTriggerRight}>
+        <Text style={styles.pickerTriggerValue} numberOfLines={1}>{value}</Text>
+        <PhosphorIcon name="caret-right" size={18} color={Palette.textDisabled} />
+      </View>
+    </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FilterPickerSheet — inner bottom-sheet for single-value selection
+// ---------------------------------------------------------------------------
+
+type PickerOption = { value: string; label: string; icon?: string };
+
+function FilterPickerSheet({
+  visible,
+  title,
+  options,
+  selected,
+  onSelect,
+  onClose,
+  accentPrimary,
+  allowDeselect,
+}: {
+  visible: boolean;
+  title: string;
+  options: PickerOption[];
+  selected: string | null;
+  onSelect: (value: string | null) => void;
+  onClose: () => void;
+  accentPrimary: string;
+  allowDeselect: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.innerBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.innerSheet}>
+        <View style={styles.innerHandle} />
+        <Text style={styles.innerTitle}>{title}</Text>
+        <ScrollView style={styles.innerScroll} showsVerticalScrollIndicator={false}>
+          {options.map((opt, i) => {
+            const active = opt.value === selected;
+            return (
+              <Pressable
+                key={opt.value}
+                style={[styles.innerOption, i < options.length - 1 && styles.innerOptionBorder]}
+                onPress={() => onSelect(allowDeselect && active ? null : opt.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <View style={styles.innerOptionLeft}>
+                  {opt.icon ? (
+                    <PhosphorIcon name={opt.icon} size={20} color={active ? accentPrimary : Palette.textSecondary} />
+                  ) : null}
+                  <Text style={[styles.innerOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                    {opt.label}
+                  </Text>
+                </View>
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
+        </ScrollView>
+      </View>
     </Modal>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Sub-components
-/**
- * Renders a titled section container used within the filter panel.
- *
- * @param title - Text displayed as the section header
- * @param children - Content rendered beneath the header
- * @returns The section view element containing the header and its children
- */
-
-function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
 
 type ChipItem = { id: string | number; name: string };
 
 /**
  * Renders a horizontal row of selectable chips for the given items.
- *
- * @param items - Array of items to render; each item must have `id` and `name`.
- * @param selectedId - The currently selected item's `id`, or `null` if none.
- * @param onSelect - Callback invoked with an item's `id` when a chip is pressed.
- * @param accent - Color used for the selected chip's background and border.
- * @param renderPrefix - Optional function that returns a React node rendered before an item's name (for example, a color swatch).
- * @returns A React element containing the rendered chip row.
  */
 function ChipRow<T extends ChipItem>({
   items,
@@ -417,7 +566,7 @@ function ChipRow<T extends ChipItem>({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: Palette.overlay,
   },
   sheet: {
     position: 'absolute',
@@ -470,16 +619,46 @@ const styles = StyleSheet.create({
     padding: Spacing[4],
     gap: Spacing[1],
   },
-  section: {
-    marginBottom: Spacing[5],
+
+  // PickerTrigger row (Sort, Status, Category, Subcategory, Brand)
+  pickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.borderMuted,
   },
-  sectionTitle: {
+  pickerTriggerLabel: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.md,
+  },
+  pickerTriggerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    flexShrink: 0,
+    maxWidth: '55%',
+  },
+  pickerTriggerValue: {
     color: Palette.textSecondary,
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing[2],
+    fontSize: FontSize.md,
+    textAlign: 'right',
+    flexShrink: 1,
+  },
+
+  // Color collapsible
+  colorToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.borderMuted,
+  },
+  colorChipsContainer: {
+    paddingTop: Spacing[3],
+    paddingBottom: Spacing[2],
   },
   chips: {
     flexDirection: 'row',
@@ -507,8 +686,63 @@ const styles = StyleSheet.create({
   colorDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: Palette.dotBorder,
+  },
+
+  // Inner picker sheet (Sort/Status/Category/Subcategory/Brand)
+  innerBackdrop: {
+    flex: 1,
+    backgroundColor: Palette.overlay,
+  },
+  innerSheet: {
+    backgroundColor: Palette.surface1,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    paddingTop: Spacing[2],
+    maxHeight: '70%',
+  },
+  innerHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Palette.border,
+    alignSelf: 'center',
+    marginBottom: Spacing[3],
+  },
+  innerTitle: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: Spacing[4],
+    paddingBottom: Spacing[3],
+  },
+  innerScroll: {
+    flexShrink: 1,
+  },
+  innerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[4],
+  },
+  innerOptionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.borderMuted,
+  },
+  innerOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+  },
+  innerOptionText: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.md,
   },
 });

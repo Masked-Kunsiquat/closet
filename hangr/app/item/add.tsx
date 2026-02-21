@@ -1,9 +1,11 @@
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EMPTY_FORM, ItemForm, ItemFormValues } from '@/components/clothing/ItemForm';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { FontSize, FontWeight, Palette, Spacing } from '@/constants/tokens';
 import { getDatabase } from '@/db';
 import {
@@ -57,6 +59,7 @@ export default function AddItemScreen() {
       await setClothingItemOccasions(db, itemId, values.occasionIds);
       await setClothingItemPatterns(db, itemId, values.patternIds);
 
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.replace(`/item/${itemId}`);
     } catch (e) {
       console.error('[add item]', e);
@@ -80,7 +83,7 @@ export default function AddItemScreen() {
       {saveError && (
         <Pressable style={styles.errorBanner} onPress={() => setSaveError(null)}>
           <Text style={styles.errorText}>{saveError}</Text>
-          <Text style={styles.errorDismiss}>✕</Text>
+          <PhosphorIcon name="x" size={16} color={Palette.white} />
         </Pressable>
       )}
 
@@ -129,10 +132,5 @@ const styles = StyleSheet.create({
     color: Palette.white,
     fontSize: FontSize.sm,
     flex: 1,
-  },
-  errorDismiss: {
-    color: Palette.white,
-    fontSize: FontSize.sm,
-    marginLeft: Spacing[3],
   },
 });

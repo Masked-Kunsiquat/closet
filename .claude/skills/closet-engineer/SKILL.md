@@ -18,16 +18,37 @@ A personal, local-first digital wardrobe and outfit tracking app. React Native /
 - Phosphor Icons (SVG, stored as local assets; icon name stored as string in DB)
 
 ## Folder Conventions
-```
-db/
-  migrations/   # 001_initial.ts, 002_add_icon.ts ...
-  seeds/        # categories.ts, seasons.ts ...
-src/
-  components/   # colocated by feature
-  screens/
-  theme/        # design tokens
-assets/
-  icons/        # Phosphor SVG files
+All source lives directly under `hangr/` — there is no `src/` wrapper.
+```plaintext
+hangr/
+  app/                    # expo-router file-based routing
+    (tabs)/               # index (Closet), outfits, journal, stats, settings
+    item/                 # add.tsx, [id].tsx, [id]/edit.tsx
+    log/                  # [date].tsx
+    outfit/               # new.tsx, [id].tsx
+    _layout.tsx
+  components/
+    clothing/             # ItemForm.tsx, PickerSheet.tsx
+    closet/               # FilterPanel.tsx
+    ui/                   # SkeletonLoader.tsx, collapsible.tsx, icon-symbol.tsx
+    PhosphorIcon.tsx
+    haptic-tab.tsx
+  context/                # AccentContext.tsx, SettingsContext.tsx
+  db/
+    migrations/           # 001_initial_schema.ts, 002_app_settings.ts ...
+    seeds/                # categories.ts, colors.ts, seasons.ts ...
+    index.ts              # getDatabase() singleton
+    queries.ts            # all SQL queries
+    types.ts              # TypeScript types mirroring schema
+  hooks/                  # useClothingItems, useClothingItem, useClosetView, useOutfits, useStats ...
+  constants/
+    tokens.ts             # all design tokens (Palette, Spacing, Radius, FontSize, etc.)
+    theme.ts              # legacy shim — new code imports from tokens.ts directly
+  utils/
+    color.ts
+  assets/
+    icons/                # Phosphor SVG files (32px, fill=#000000)
+    images/
 ```
 
 ## Database Rules
@@ -48,6 +69,18 @@ assets/
 - Icon name stored as TEXT column in `categories`, `seasons`, `occasions`
 - Column is nullable — UI falls back to text label gracefully
 - Never store base64 or absolute paths for icons
+- **SVG format**: all bundled icons must use `width="32" height="32" fill="#000000"` on the `<svg>` element — `tintColor` in expo-image only works with `fill="#000000"`, not `fill="currentColor"`
+
+## Image Picker
+- Always use `allowsEditing: true` so the user gets a crop UI
+- Never set `aspect` — do not enforce any fixed crop ratio; let the user crop freely
+- Use `quality: 0.85`
+
+## Settings Persistence
+- User preferences stored in `app_settings` key/value table (SQLite, migration 002)
+- `getAllSettings(db)` returns `Record<string, string>`; `setSetting(db, key, value)` upserts
+- `SettingsContext` (`context/SettingsContext.tsx`) exposes typed `AppSettings` and `setSetting`
+- Accent key is persisted via `SettingsContext` and passed as `initialKey` to `AccentProvider` — always read accent from `AccentContext`, not directly from settings
 
 ## Clothing Item Status
 `Active` | `Sold` | `Donated` | `Lost` — default `Active`. No separate selling feature in MVP.

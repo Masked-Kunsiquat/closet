@@ -6,54 +6,35 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AccentProvider } from '@/context/AccentContext';
+import { SettingsProvider, useSettings } from '@/context/SettingsContext';
+import { AccentKey, FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { getDatabase } from '@/db';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-/**
- * App root layout that initializes the database and, when ready, provides global theming and navigation.
- *
- * When database initialization fails, renders a full-screen error view with the error detail and a Retry button.
- * While the database is being initialized (and no error has occurred) nothing is rendered.
- * Once the database is ready, the component wraps the app in AccentProvider and ThemeProvider (DarkTheme),
- * renders the Stack navigator containing the app screens, and sets a light StatusBar.
- *
- * @returns A React element representing the root layout: an error view if initialization failed, `null` while initializing, or the themed app providers and navigation stack when ready.
- */
-export default function RootLayout() {
-  const [dbReady, setDbReady] = useState(false);
-  const [dbError, setDbError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
+// ---------------------------------------------------------------------------
+// Inner layout — reads settings to seed AccentProvider
+// ---------------------------------------------------------------------------
 
-  const initDb = useCallback(() => {
-    setDbError(null);
-    setIsInitializing(true);
-    getDatabase()
-      .then(() => { setDbReady(true); setIsInitializing(false); })
-      .catch((e) => { setDbError(String(e)); setIsInitializing(false); });
-  }, []);
+function AppLayout() {
+  const { settings, setSetting, loaded } = useSettings();
 
-  useEffect(() => { initDb(); }, [initDb]);
+  const handleAccentChange = useCallback(
+    (key: AccentKey) => setSetting('accentKey', key),
+    [setSetting]
+  );
 
-  // Don't render any screens until the DB is initialized and seeded.
-  if (dbError) {
-    return (
-      <View style={errStyles.container}>
-        <Text style={errStyles.title}>Failed to open database</Text>
-        <Text style={errStyles.detail}>{dbError}</Text>
-        <TouchableOpacity style={errStyles.button} onPress={initDb}>
-          <Text style={errStyles.buttonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (isInitializing || !dbReady) return null;
+  // Don't render the nav tree until settings are hydrated from DB,
+  // so AccentProvider gets the right initialKey on first render.
+  if (!loaded) return null;
 
   return (
-    <AccentProvider>
+    <AccentProvider
+      initialKey={settings.accentKey}
+      onAccentChange={handleAccentChange}
+    >
       <ThemeProvider value={DarkTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
@@ -70,36 +51,76 @@ export default function RootLayout() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Root layout — initialises DB then mounts providers
+// ---------------------------------------------------------------------------
+
+export default function RootLayout() {
+  const [dbReady, setDbReady] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  const initDb = useCallback(() => {
+    setDbError(null);
+    setIsInitializing(true);
+    getDatabase()
+      .then(() => { setDbReady(true); setIsInitializing(false); })
+      .catch((e) => { setDbError(String(e)); setIsInitializing(false); });
+  }, []);
+
+  useEffect(() => { initDb(); }, [initDb]);
+
+  if (dbError) {
+    return (
+      <View style={errStyles.container}>
+        <Text style={errStyles.title}>Failed to open database</Text>
+        <Text style={errStyles.detail}>{dbError}</Text>
+        <TouchableOpacity style={errStyles.button} onPress={initDb}>
+          <Text style={errStyles.buttonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (isInitializing || !dbReady) return null;
+
+  return (
+    <SettingsProvider>
+      <AppLayout />
+    </SettingsProvider>
+  );
+}
+
 const errStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Palette.surface0,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    gap: 16,
+    padding: Spacing[8],
+    gap: Spacing[4],
   },
   title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    color: Palette.textPrimary,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.semibold,
     textAlign: 'center',
   },
   detail: {
-    color: '#999',
-    fontSize: 13,
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
     textAlign: 'center',
   },
   button: {
-    marginTop: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#F59E0B',
+    marginTop: Spacing[2],
+    paddingHorizontal: Spacing[6],
+    paddingVertical: Spacing[3],
+    borderRadius: Radius.md,
+    backgroundColor: Palette.warning,
   },
   buttonText: {
-    color: '#000',
-    fontSize: 15,
-    fontWeight: '600',
+    color: Palette.surface0,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
   },
 });

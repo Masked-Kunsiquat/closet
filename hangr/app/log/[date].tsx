@@ -7,6 +7,7 @@
 
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +21,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
 import { clearOotd, deleteOutfitLog, setOotd } from '@/db/queries';
@@ -80,6 +82,7 @@ export default function DayDetailScreen() {
                 onPress: async () => {
                   try {
                     await setOotd(db, log.id, date);
+                    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     refresh();
                   } catch (e) {
                     console.error('[setOotd replace]', e);
@@ -93,6 +96,7 @@ export default function DayDetailScreen() {
         }
         await setOotd(db, log.id, date);
       }
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       refresh();
     } catch (e) {
       console.error('[handleToggleOotd]', e);
@@ -144,8 +148,10 @@ export default function DayDetailScreen() {
           hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Go back"
+          style={styles.backBtn}
         >
-          <Text style={styles.back}>← Back</Text>
+          <PhosphorIcon name="caret-left" size={18} color={Palette.textSecondary} />
+          <Text style={styles.back}>Back</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerDate}>{formatDate(date)}</Text>
@@ -284,7 +290,7 @@ function LogRow({
           accessibilityLabel="Delete log"
           accessibilityHint="Removes this wear entry for this day"
         >
-          <Text style={styles.deleteBtnText}>✕</Text>
+          <PhosphorIcon name="x" size={16} color={Palette.textSecondary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -332,10 +338,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Palette.border,
   },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[1],
+    minWidth: 60,
+  },
   back: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
-    minWidth: 60,
   },
   headerCenter: {
     alignItems: 'center',
@@ -422,10 +433,6 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: Spacing[1],
-  },
-  deleteBtnText: {
-    color: Palette.textDisabled,
-    fontSize: FontSize.sm,
   },
 
   // Empty
