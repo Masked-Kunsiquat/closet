@@ -120,7 +120,7 @@ function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () =>
       style={styles.row}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={outfit.name}
+      accessibilityLabel={outfit.name ?? undefined}
     >
       {/* Cover thumbnail */}
       <View style={styles.thumb}>
