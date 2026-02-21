@@ -27,6 +27,8 @@ export type ClothingItem = {
 export type ClothingItemWithMeta = ClothingItem & {
   category_name: string | null;
   subcategory_name: string | null;
+  /** Computed at query time — COUNT of outfit_logs containing this item. */
+  wear_count: number;
 };
 
 export type Category = {

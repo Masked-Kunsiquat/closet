@@ -25,7 +25,13 @@ export async function getAllClothingItems(
     SELECT
       ci.*,
       c.name  AS category_name,
-      sc.name AS subcategory_name
+      sc.name AS subcategory_name,
+      (
+        SELECT COUNT(DISTINCT ol.id)
+        FROM outfit_logs ol
+        JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
+        WHERE oi.clothing_item_id = ci.id
+      ) AS wear_count
     FROM clothing_items ci
     LEFT JOIN categories    c  ON ci.category_id    = c.id
     LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
@@ -323,4 +329,49 @@ export async function getSizeValues(
     `SELECT * FROM size_values WHERE size_system_id = ? ORDER BY sort_order`,
     [systemId]
   );
+}
+
+// ---------------------------------------------------------------------------
+// Junction filter helpers — return item IDs matching a given lookup value
+// Used by FilterPanel to resolve color/season/occasion filters in JS
+// ---------------------------------------------------------------------------
+
+export async function getItemIdsByColor(
+  db: SQLiteDatabase,
+  colorId: number
+): Promise<number[]> {
+  const rows = await db.getAllAsync<{ clothing_item_id: number }>(
+    `SELECT clothing_item_id FROM clothing_item_colors WHERE color_id = ?`,
+    [colorId]
+  );
+  return rows.map((r) => r.clothing_item_id);
+}
+
+export async function getItemIdsBySeason(
+  db: SQLiteDatabase,
+  seasonId: number
+): Promise<number[]> {
+  const rows = await db.getAllAsync<{ clothing_item_id: number }>(
+    `SELECT clothing_item_id FROM clothing_item_seasons WHERE season_id = ?`,
+    [seasonId]
+  );
+  return rows.map((r) => r.clothing_item_id);
+}
+
+export async function getItemIdsByOccasion(
+  db: SQLiteDatabase,
+  occasionId: number
+): Promise<number[]> {
+  const rows = await db.getAllAsync<{ clothing_item_id: number }>(
+    `SELECT clothing_item_id FROM clothing_item_occasions WHERE occasion_id = ?`,
+    [occasionId]
+  );
+  return rows.map((r) => r.clothing_item_id);
+}
+
+export async function getDistinctBrands(db: SQLiteDatabase): Promise<string[]> {
+  const rows = await db.getAllAsync<{ brand: string }>(
+    `SELECT DISTINCT brand FROM clothing_items WHERE brand IS NOT NULL AND brand != '' ORDER BY brand`
+  );
+  return rows.map((r) => r.brand);
 }
