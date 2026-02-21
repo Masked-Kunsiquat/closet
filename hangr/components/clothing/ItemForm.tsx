@@ -298,7 +298,6 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [3, 4],
       quality: 0.85,
     });
     if (!result.canceled && result.assets[0]) {
