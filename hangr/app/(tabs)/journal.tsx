@@ -57,6 +57,16 @@ export default function JournalScreen() {
 
   const yearMonth = toYearMonth(year, month);
   const { days, loading, refresh } = useCalendarMonth(yearMonth);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refresh]);
 
   // Build a lookup map: date string → CalendarDay
   const dayMap = useMemo<CalendarDayMap>(() => {
@@ -97,7 +107,7 @@ export default function JournalScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing[8] }]}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
       >
         {/* Page header */}
         <View style={styles.pageHeader}>
@@ -205,6 +215,17 @@ function CalendarGrid({
 // Individual day cell
 // ---------------------------------------------------------------------------
 
+/** Returns '#000' or '#fff' so text is readable on any hex background. */
+function chipTextColor(hex: string): '#000000' | '#FFFFFF' {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  // Perceived luminance (ITU-R BT.709)
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.4 ? '#000000' : '#FFFFFF';
+}
+
 function DayCell({
   date,
   data,
@@ -252,7 +273,7 @@ function DayCell({
       {/* Log count chip */}
       {hasLogs && (
         <View style={[styles.logChip, { backgroundColor: accent }]}>
-          <Text style={styles.logChipText}>{data!.log_count}</Text>
+          <Text style={[styles.logChipText, { color: chipTextColor(accent) }]}>{data!.log_count}</Text>
         </View>
       )}
 
@@ -369,7 +390,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   logChipText: {
-    color: '#000',
     fontSize: 10,
     fontWeight: FontWeight.bold,
     lineHeight: 12,

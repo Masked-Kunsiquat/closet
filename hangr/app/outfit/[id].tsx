@@ -66,15 +66,25 @@ export default function OutfitDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  const [deleting, setDeleting] = useState(false);
+
   const handleDelete = () => {
     Alert.alert('Delete outfit?', 'This will remove the outfit. Logged history is kept.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
-          const db = await getDatabase();
-          await deleteOutfit(db, outfitId);
-          router.replace('/(tabs)/outfits');
+          if (deleting) return;
+          setDeleting(true);
+          try {
+            const db = await getDatabase();
+            await deleteOutfit(db, outfitId);
+            router.replace('/(tabs)/outfits');
+          } catch (e) {
+            console.error('[handleDelete]', e);
+            Alert.alert('Error', 'Could not delete the outfit. Please try again.');
+            setDeleting(false);
+          }
         },
       },
     ]);
