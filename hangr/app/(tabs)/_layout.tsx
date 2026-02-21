@@ -41,7 +41,7 @@ export default function TabLayout() {
         options={{
           title: 'Journal',
           tabBarIcon: ({ color }) => (
-            <PhosphorIcon name="dot" size={26} color={color} />
+            <PhosphorIcon name="calendar-dots" size={26} color={color} />
           ),
         }}
       />

@@ -67,7 +67,7 @@ export default function NewOutfitScreen() {
         { name: outfitName.trim() || null, notes: null },
         [...selected]
       );
-      router.replace(`/outfit/${outfitId}`);
+      router.replace(`/outfit/${outfitId}` as any);
     } catch (e) {
       Alert.alert('Error', String(e));
       setSaving(false);

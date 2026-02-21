@@ -121,7 +121,7 @@ export default function DayDetailScreen() {
               onToggleOotd={() => handleToggleOotd(item)}
               onDelete={() => handleDeleteLog(item)}
               onPressOutfit={() => {
-                if (item.outfit_id) router.push(`/outfit/${item.outfit_id}`);
+                if (item.outfit_id) router.push(`/outfit/${item.outfit_id}` as any);
               }}
             />
           )}

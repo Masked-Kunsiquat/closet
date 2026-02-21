@@ -212,7 +212,7 @@ function LogModal({
                 await setOotd(db, logId, date);
                 setSaving(false);
                 onClose();
-                router.push(`/log/${date}`);
+                router.push(`/log/${date}` as any);
               },
             },
           ]
@@ -234,7 +234,7 @@ function LogModal({
 
       setSaving(false);
       onClose();
-      router.push(`/log/${date}`);
+      router.push(`/log/${date}` as any);
     } catch (e) {
       Alert.alert('Error', String(e));
       setSaving(false);
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing[4],
-    paddingBottom: Spacing[24],
+    paddingBottom: Spacing[16],
   },
   sectionTitle: {
     color: Palette.textSecondary,

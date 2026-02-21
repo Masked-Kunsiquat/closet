@@ -138,7 +138,7 @@ export default function JournalScreen() {
           dayMap={dayMap}
           today={todayStr}
           accent={accent.primary}
-          onPressDay={(date) => router.push(`/log/${date}`)}
+          onPressDay={(date) => router.push(`/log/${date}` as any)}
         />
       </ScrollView>
     </View>
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   dayNumber: {
     color: Palette.textPrimary,
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.normal,
+    fontWeight: FontWeight.regular,
   },
   logChip: {
     borderRadius: Radius.full,

@@ -261,7 +261,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
           items={categories}
           selectedId={values.category_id}
           onSelect={(id) => {
-            set('category_id', id);
+            set('category_id', Number(id));
             set('subcategory_id', null);
           }}
           accent={accent.primary}
@@ -274,7 +274,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
           <ChipSelector
             items={subcategories}
             selectedId={values.subcategory_id}
-            onSelect={(id) => set('subcategory_id', id)}
+            onSelect={(id) => set('subcategory_id', Number(id))}
             accent={accent.primary}
           />
         </FormSection>
@@ -286,7 +286,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
           items={sizeSystems}
           selectedId={values.size_system_id}
           onSelect={(id) => {
-            set('size_system_id', id);
+            set('size_system_id', Number(id));
             set('size_value_id', null);
           }}
           accent={accent.primary}
@@ -299,7 +299,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
           <ChipSelector
             items={sizeValues.map((sv) => ({ id: sv.id, name: sv.value }))}
             selectedId={values.size_value_id}
-            onSelect={(id) => set('size_value_id', id)}
+            onSelect={(id) => set('size_value_id', Number(id))}
             accent={accent.primary}
           />
         </FormSection>

@@ -1,5 +1,5 @@
-import { Image } from 'expo-image';
-import { StyleProp, ViewStyle } from 'react-native';
+import { Image, ImageStyle } from 'expo-image';
+import { StyleProp } from 'react-native';
 
 // ---------------------------------------------------------------------------
 // Static map of every Phosphor SVG bundled in assets/icons/.
@@ -12,6 +12,7 @@ const ICON_MAP: Record<string, ReturnType<typeof require>> = {
   'bookmark-simple':     require('@/assets/icons/bookmark-simple.svg'),
   'briefcase':           require('@/assets/icons/briefcase.svg'),
   'cheers':              require('@/assets/icons/cheers.svg'),
+  'calendar-dots':       require('@/assets/icons/calendar-dots.svg'),
   'coat-hanger':         require('@/assets/icons/coat-hanger.svg'),
   'coffee':              require('@/assets/icons/coffee.svg'),
   'couch':               require('@/assets/icons/couch.svg'),
@@ -48,7 +49,7 @@ type Props = {
   size?: number;
   /** Tint color applied over the SVG. Defaults to white. */
   color?: string;
-  style?: StyleProp<ViewStyle>;
+  style?: StyleProp<ImageStyle>;
 };
 
 // ---------------------------------------------------------------------------

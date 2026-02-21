@@ -51,7 +51,7 @@ export default function OutfitsScreen() {
           renderItem={({ item }) => (
             <OutfitRow
               outfit={item}
-              onPress={() => router.push(`/outfit/${item.id}`)}
+              onPress={() => router.push(`/outfit/${item.id}` as any)}
             />
           )}
         />
