@@ -61,7 +61,7 @@ export function GridCardSkeleton() {
       <Shimmer width="100%" height={0} style={styles.cardImageSkeleton} radius={0} />
       <View style={styles.cardLabel}>
         <Shimmer width="75%" height={12} />
-        <Shimmer width="50%" height={10} style={{ marginTop: 6 }} />
+        <Shimmer width="50%" height={10} style={{ marginTop: Spacing[1] }} />
       </View>
     </View>
   );
@@ -77,7 +77,7 @@ export function ListRowSkeleton() {
       <Shimmer width={56} height={72} radius={Radius.sm} />
       <View style={styles.listMeta}>
         <Shimmer width="60%" height={14} />
-        <Shimmer width="40%" height={11} style={{ marginTop: 6 }} />
+        <Shimmer width="40%" height={11} style={{ marginTop: Spacing[1] }} />
       </View>
     </View>
   );
@@ -93,7 +93,7 @@ export function OutfitRowSkeleton() {
       <Shimmer width={64} height={80} radius={Radius.sm} />
       <View style={styles.outfitMeta}>
         <Shimmer width="55%" height={14} />
-        <Shimmer width="30%" height={11} style={{ marginTop: 6 }} />
+        <Shimmer width="30%" height={11} style={{ marginTop: Spacing[1] }} />
       </View>
     </View>
   );
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     padding: Spacing[2],
-    gap: 4,
+    gap: Spacing[1],
   },
   listRow: {
     flexDirection: 'row',
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   },
   listMeta: {
     flex: 1,
-    gap: 4,
+    gap: Spacing[1],
   },
   outfitRow: {
     flexDirection: 'row',
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   outfitMeta: {
     flex: 1,
-    gap: 4,
+    gap: Spacing[1],
   },
   grid: {
     flexDirection: 'row',

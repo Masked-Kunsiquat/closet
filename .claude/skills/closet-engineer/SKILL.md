@@ -47,7 +47,7 @@ hangr/
   utils/
     color.ts
   assets/
-    icons/                # Phosphor SVG files (28px, fill=#000000)
+    icons/                # Phosphor SVG files (32px, fill=#000000)
     images/
 ```
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
@@ -21,8 +21,6 @@ import { useClothingItems } from '@/hooks/useClothingItems';
 import { useClosetView } from '@/hooks/useClosetView';
 import { contrastingTextColor } from '@/utils/color';
 
-const ARCHIVED_STATUSES = new Set(['Sold', 'Donated', 'Lost']);
-
 const CARD_GAP = Spacing[2];
 
 /**
@@ -34,7 +32,7 @@ const CARD_GAP = Spacing[2];
  */
 export default function ClosetScreen() {
   const { items, loading, error, refresh } = useClothingItems();
-  const { settings } = useSettings();
+  const { settings: { showArchivedItems } } = useSettings();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -44,15 +42,6 @@ export default function ClosetScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-
-  // When showArchivedItems is off, hide Sold/Donated/Lost from the base list.
-  // The user can still filter for them explicitly via FilterPanel.
-  const visiblePool = useMemo(
-    () => settings.showArchivedItems
-      ? items
-      : items.filter((i) => !ARCHIVED_STATUSES.has(i.status)),
-    [items, settings.showArchivedItems]
-  );
 
   const {
     viewMode,
@@ -66,7 +55,7 @@ export default function ClosetScreen() {
     setFilterPanelOpen,
     activeFilterCount,
     filteredAndSorted,
-  } = useClosetView(visiblePool);
+  } = useClosetView(items, showArchivedItems);
 
   const visibleItems = filteredAndSorted;
 
@@ -89,9 +78,9 @@ export default function ClosetScreen() {
         <Text style={styles.count}>
           {loading
             ? ''
-            : filteredAndSorted.length === visiblePool.length
-            ? `${visiblePool.length} item${visiblePool.length !== 1 ? 's' : ''}`
-            : `${filteredAndSorted.length} of ${visiblePool.length}`}
+            : activeFilterCount === 0
+            ? `${filteredAndSorted.length} item${filteredAndSorted.length !== 1 ? 's' : ''}`
+            : `${filteredAndSorted.length} of ${items.length}`}
         </Text>
       </View>
 
@@ -155,7 +144,7 @@ export default function ClosetScreen() {
         )
       ) : !loading && items.length === 0 ? (
         <EmptyCloset />
-      ) : !loading && visiblePool.length === 0 ? (
+      ) : !loading && filteredAndSorted.length === 0 && !showArchivedItems && filters.status === null ? (
         <EmptyArchived />
       ) : !loading && visibleItems.length === 0 ? (
         <EmptyFilter onClear={clearFilters} />

@@ -1083,6 +1083,20 @@ export async function getAllSettings(db: SQLiteDatabase): Promise<Record<string,
 }
 
 /**
+ * Updates only the wash_status of a clothing item. Avoids touching other columns.
+ */
+export async function updateWashStatus(
+  db: SQLiteDatabase,
+  id: number,
+  washStatus: 'Clean' | 'Dirty'
+): Promise<void> {
+  await db.runAsync(
+    `UPDATE clothing_items SET wash_status = ?, updated_at = datetime('now') WHERE id = ?`,
+    [washStatus, id]
+  );
+}
+
+/**
  * Upserts a single app setting.
  */
 export async function setSetting(

@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
-import { deleteClothingItem, updateClothingItem } from '@/db/queries';
+import { deleteClothingItem, updateWashStatus } from '@/db/queries';
 import { useClothingItem } from '@/hooks/useClothingItem';
 
 /**
@@ -33,7 +33,7 @@ export default function ItemDetailScreen() {
     const next = item.wash_status === 'Clean' ? 'Dirty' : 'Clean';
     try {
       const db = await getDatabase();
-      await updateClothingItem(db, itemId, { wash_status: next });
+      await updateWashStatus(db, itemId, next);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       refresh();
     } catch (e) {
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing[3],
-    paddingVertical: 3,
+    paddingVertical: Spacing[1],
   },
   washToggleText: {
     fontSize: FontSize.sm,

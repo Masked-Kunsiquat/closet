@@ -90,7 +90,12 @@ function SelectModal<T extends string | number>({
   const { accent } = useAccent();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable
+        style={styles.backdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      />
       <View style={styles.sheet}>
         <View style={styles.sheetHandle} />
         <Text style={styles.sheetTitle}>{title}</Text>
@@ -198,7 +203,7 @@ function AccentSelectRow() {
         title="Accent Color"
         options={ACCENT_OPTIONS}
         selected={accentKey}
-        onSelect={(v) => setAccent(v)}
+        onSelect={setAccent}
         onClose={() => setOpen(false)}
         dotColor={(v) => AccentPalettes[v].primary}
       />
@@ -213,6 +218,7 @@ function AccentSelectRow() {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { settings, setSetting } = useSettings();
+  const { accent } = useAccent();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -236,7 +242,7 @@ export default function SettingsScreen() {
             <Switch
               value={settings.showArchivedItems}
               onValueChange={(v) => setSetting('showArchivedItems', v)}
-              trackColor={{ false: Palette.surface3, true: AccentPalettes[settings.accentKey].primary }}
+              trackColor={{ false: Palette.surface3, true: accent.primary }}
               thumbColor={Palette.white}
             />
           </View>

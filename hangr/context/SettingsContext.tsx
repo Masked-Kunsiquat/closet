@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 
@@ -50,12 +51,35 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 // Helpers: row ↔ typed
 // ---------------------------------------------------------------------------
 
+const VALID_ACCENT_KEYS: AccentKey[] = ['amber', 'coral', 'sage', 'sky', 'lavender', 'rose'];
+const VALID_TEMP_UNITS: TemperatureUnit[] = ['F', 'C'];
+
 function rowsToSettings(rows: Record<string, string>): AppSettings {
+  const rawAccent = rows['accent_key'];
+  const accentKey: AccentKey = VALID_ACCENT_KEYS.includes(rawAccent as AccentKey)
+    ? (rawAccent as AccentKey)
+    : DEFAULTS.accentKey;
+
+  const rawCurrency = rows['currency_symbol'];
+  const currencySymbol = rawCurrency && rawCurrency.length > 0
+    ? rawCurrency
+    : DEFAULTS.currencySymbol;
+
+  const rawWeek = Number(rows['week_start_day']);
+  const weekStartDay: WeekStartDay = (rawWeek === 0 || rawWeek === 1)
+    ? rawWeek
+    : DEFAULTS.weekStartDay;
+
+  const rawTemp = rows['temperature_unit'];
+  const temperatureUnit: TemperatureUnit = VALID_TEMP_UNITS.includes(rawTemp as TemperatureUnit)
+    ? (rawTemp as TemperatureUnit)
+    : DEFAULTS.temperatureUnit;
+
   return {
-    accentKey: (rows['accent_key'] as AccentKey) ?? DEFAULTS.accentKey,
-    currencySymbol: rows['currency_symbol'] ?? DEFAULTS.currencySymbol,
-    weekStartDay: (Number(rows['week_start_day'] ?? DEFAULTS.weekStartDay) as WeekStartDay),
-    temperatureUnit: (rows['temperature_unit'] as TemperatureUnit) ?? DEFAULTS.temperatureUnit,
+    accentKey,
+    currencySymbol,
+    weekStartDay,
+    temperatureUnit,
     showArchivedItems: rows['show_archived_items'] === '1',
   };
 }
@@ -80,6 +104,7 @@ const DB_KEY: Record<keyof AppSettings, string> = {
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
+  const previousSettingsRef = useRef<AppSettings>(DEFAULTS);
 
   // Load on mount
   useEffect(() => {
@@ -100,13 +125,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     key: K,
     value: AppSettings[K]
   ) => {
-    // Optimistic local update
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    // Capture previous for rollback, then optimistically update
+    setSettings((prev) => {
+      previousSettingsRef.current = prev;
+      return { ...prev, [key]: value };
+    });
     try {
       const db = await getDatabase();
       await setSetting(db, DB_KEY[key], settingToRow(key, value));
     } catch {
-      // Swallow — in-memory value is still updated for the session
+      // Rollback to previous state on DB failure
+      setSettings(previousSettingsRef.current);
     }
   }, []);
 

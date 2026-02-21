@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 
 import { AccentProvider } from '@/context/AccentContext';
 import { SettingsProvider, useSettings } from '@/context/SettingsContext';
+import { AccentKey, FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { getDatabase } from '@/db';
 
 export const unstable_settings = {
@@ -20,6 +21,11 @@ export const unstable_settings = {
 function AppLayout() {
   const { settings, setSetting, loaded } = useSettings();
 
+  const handleAccentChange = useCallback(
+    (key: AccentKey) => setSetting('accentKey', key),
+    [setSetting]
+  );
+
   // Don't render the nav tree until settings are hydrated from DB,
   // so AccentProvider gets the right initialKey on first render.
   if (!loaded) return null;
@@ -27,7 +33,7 @@ function AppLayout() {
   return (
     <AccentProvider
       initialKey={settings.accentKey}
-      onAccentChange={(key) => setSetting('accentKey', key)}
+      onAccentChange={handleAccentChange}
     >
       <ThemeProvider value={DarkTheme}>
         <Stack screenOptions={{ headerShown: false }}>
@@ -88,33 +94,33 @@ export default function RootLayout() {
 const errStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Palette.surface0,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    gap: 16,
+    padding: Spacing[8],
+    gap: Spacing[4],
   },
   title: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    color: Palette.textPrimary,
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.semibold,
     textAlign: 'center',
   },
   detail: {
-    color: '#999',
-    fontSize: 13,
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
     textAlign: 'center',
   },
   button: {
-    marginTop: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#F59E0B',
+    marginTop: Spacing[2],
+    paddingHorizontal: Spacing[6],
+    paddingVertical: Spacing[3],
+    borderRadius: Radius.md,
+    backgroundColor: Palette.warning,
   },
   buttonText: {
-    color: '#000',
-    fontSize: 15,
-    fontWeight: '600',
+    color: Palette.surface0,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
   },
 });

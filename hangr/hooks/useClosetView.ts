@@ -71,7 +71,9 @@ export const SORT_LABELS: Record<SortKey, string> = {
  * @returns An object containing view and filter state, mutators, `activeFilterCount`, and `filteredAndSorted`
  */
 
-export function useClosetView(items: ClothingItemWithMeta[]) {
+const ARCHIVED_STATUSES = new Set(['Sold', 'Donated', 'Lost']);
+
+export function useClosetView(items: ClothingItemWithMeta[], showArchivedItems = true) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortKey, setSortKey] = useState<SortKey>('recently_added');
   const [filters, setFilters] = useState<ActiveFilters>(EMPTY_FILTERS);
@@ -84,6 +86,11 @@ export function useClosetView(items: ClothingItemWithMeta[]) {
 
   const filteredAndSorted = useMemo(() => {
     let result = [...items];
+
+    // Archive exclusion — only when no explicit status filter is active
+    if (!showArchivedItems && filters.status === null) {
+      result = result.filter((i) => !ARCHIVED_STATUSES.has(i.status));
+    }
 
     // Scalar filters — direct column comparisons
     if (filters.categoryId !== null) {
@@ -127,7 +134,7 @@ export function useClosetView(items: ClothingItemWithMeta[]) {
     });
 
     return result;
-  }, [items, filters, sortKey]);
+  }, [items, filters, sortKey, showArchivedItems]);
 
   const setFilter = <K extends keyof ActiveFilters>(key: K, value: ActiveFilters[K]) => {
     setFilters((f) => ({ ...f, [key]: value }));
