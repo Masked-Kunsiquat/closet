@@ -16,7 +16,13 @@ let _ready: Promise<Db> | null = null;
 // Call this anywhere you need the DB. The first call opens the connection,
 // runs migrations, and seeds. Subsequent calls return the same instance.
 // Always await — the DB is not usable until migrations complete.
-// ---------------------------------------------------------------------------
+/**
+ * Gets the singleton database instance, ensuring foreign keys are enabled and migrations and seeds have run.
+ *
+ * On first call this opens and prepares the database; subsequent calls return the same in-progress or initialized instance. If initialization fails, internal state is reset so callers can retry.
+ *
+ * @returns The initialized database instance.
+ */
 
 export function getDatabase(): Promise<Db> {
   if (_ready) return _ready;

@@ -30,6 +30,12 @@ const COLORS: { name: string; hex: string }[] = [
   { name: 'Multicolor',  hex: ''        },
 ];
 
+/**
+ * Inserts a predefined set of colors into the `colors` table, ignoring entries that already exist.
+ *
+ * Empty or falsy hex values are stored as NULL. All inserts are executed inside a single transaction;
+ * if any insert fails the transaction will be rolled back.
+ */
 export async function seedColors(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const color of COLORS) {

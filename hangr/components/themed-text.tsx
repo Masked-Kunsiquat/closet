@@ -6,6 +6,12 @@ export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'semibold' | 'subtitle' | 'caption';
 };
 
+/**
+ * Renders a React Native Text element with a themed style variant merged with any provided style.
+ *
+ * @param type - The predefined text variant to apply: 'default', 'title', 'semibold', 'subtitle', or 'caption'
+ * @returns A Text element styled according to the selected variant with any incoming props and styles applied
+ */
 export function ThemedText({ style, type = 'default', ...rest }: ThemedTextProps) {
   return <Text style={[TYPE_STYLES[type], style]} {...rest} />;
 }

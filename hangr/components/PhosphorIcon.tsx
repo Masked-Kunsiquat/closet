@@ -58,7 +58,18 @@ type Props = {
 // Uses expo-image for SVG rendering — it handles SVG natively on iOS/Android
 // and via an img tag on web. No react-native-svg transformer needed.
 // Falls back silently if the icon name isn't in the map.
-// ---------------------------------------------------------------------------
+/**
+ * Render a Phosphor SVG icon from the internal icon map.
+ *
+ * Renders an Image configured to display the named icon; returns `null` when the provided
+ * `name` is not found in the icon map.
+ *
+ * @param name - Key of the icon to render (must exist in the internal ICON_MAP)
+ * @param size - Width and height in pixels for the icon (defaults to 24)
+ * @param color - Tint color applied to the SVG (defaults to `#FFFFFF`)
+ * @param style - Additional Image styles to merge with the default size and tint
+ * @returns A React element that displays the requested icon, or `null` if the icon name is unknown
+ */
 
 export function PhosphorIcon({ name, size = 24, color = '#FFFFFF', style }: Props) {
   const source = ICON_MAP[name];

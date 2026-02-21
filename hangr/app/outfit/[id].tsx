@@ -35,12 +35,25 @@ import {
 import { contrastingTextColor } from '@/utils/color';
 import { OutfitWithItems } from '@/db/types';
 
-/** Returns today's date as YYYY-MM-DD in local time. */
+/**
+ * Get today's date in local time formatted as YYYY-MM-DD.
+ *
+ * @returns The local date string formatted as `YYYY-MM-DD`.
+ */
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * Renders the Outfit Detail screen that displays an outfit's items in a 3-column grid,
+ * provides a delete action, and exposes a modal for logging the outfit (date, OOTD, notes).
+ *
+ * Shows image thumbnails or category emoji placeholders for items, a floating "Log Outfit"
+ * action button, and navigates to item or date-specific log views as appropriate.
+ *
+ * @returns The React element for the outfit detail screen.
+ */
 export default function OutfitDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const outfitId = parseInt(id ?? '', 10);
@@ -194,7 +207,17 @@ export default function OutfitDetailScreen() {
 
 // ---------------------------------------------------------------------------
 // Log Modal — choose date, OOTD toggle, optional note, save
-// ---------------------------------------------------------------------------
+/**
+ * Modal for creating a log entry for a specific outfit.
+ *
+ * Presents a date input, an optional "Mark as OOTD" toggle, notes field, and a save action that inserts a log and optionally sets the OOTD for the selected date.
+ *
+ * @param visible - Whether the modal is visible.
+ * @param outfitId - Database ID of the outfit being logged.
+ * @param onClose - Callback invoked to close the modal.
+ * @param accent - Accent color used to style interactive controls.
+ * @returns The modal UI that handles validation, displays OOTD warnings, prompts to replace an existing OOTD when necessary, inserts the log into the database, and navigates to the saved date's log view on success.
+ */
 
 function LogModal({
   visible,
@@ -365,7 +388,12 @@ function LogModal({
 
 // ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
+/**
+ * Maps an outfit category name to a representative emoji.
+ *
+ * @param name - The category name (e.g., "Tops", "Footwear"); may be `null`.
+ * @returns An emoji string representing the category, or `🧺` if the category is unknown or `null`.
+ */
 
 function categoryEmoji(name: string | null): string {
   switch (name) {

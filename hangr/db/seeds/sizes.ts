@@ -53,6 +53,11 @@ const SIZE_SYSTEMS: { name: string; values: string[] }[] = [
   },
 ];
 
+/**
+ * Seeds the database with predefined size systems and their ordered values.
+ *
+ * Runs all insertions inside a single transaction. For each system, it ensures a size_system row exists (duplicates are ignored) and inserts each associated value with a 1-based sort order; duplicate values are ignored. If a system's row cannot be located after insertion, its values are skipped.
+ */
 export async function seedSizes(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const system of SIZE_SYSTEMS) {

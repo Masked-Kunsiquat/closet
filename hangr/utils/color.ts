@@ -1,9 +1,10 @@
 /**
- * Returns '#000000' or '#FFFFFF' — whichever has higher contrast against the
- * given background hex colour, using WCAG 2.1 relative luminance.
+ * Selects the text color (black or white) that provides higher contrast against the given background hex color.
  *
- * Accepts 3-char (#RGB), 6-char (#RRGGBB), and 8-char (#RRGGBBAA) hex strings.
- * Alpha is stripped before calculation. Falls back to '#000000' on invalid input.
+ * Accepts 3-char (#RGB), 6-char (#RRGGBB), and 8-char (#RRGGBBAA) forms; a leading `#` is permitted and any alpha channel is ignored.
+ *
+ * @param hex - Background color in hex notation
+ * @returns `#000000` if black yields higher contrast, `#FFFFFF` otherwise. Invalid or unparsable input yields `#000000`.
  */
 export function contrastingTextColor(hex: string): '#000000' | '#FFFFFF' {
   // Strip leading '#'

@@ -106,7 +106,20 @@ type Props = {
 
 // ---------------------------------------------------------------------------
 // Component
-// ---------------------------------------------------------------------------
+/**
+ * Render a reusable form for creating or editing a clothing item.
+ *
+ * The form manages all ItemFormValues fields (identity, category/subcategory, size system/value,
+ * measurements, purchase info, image, notes, status, wash status, favorite state and multi-select IDs),
+ * performs simple validation (name required), supports image picking, and invokes `onSubmit` with the
+ * current values when the user submits a valid form.
+ *
+ * @param initialValues - Optional initial field values; defaults to `EMPTY_FORM`
+ * @param onSubmit - Callback invoked with the current ItemFormValues when the form is submitted and valid
+ * @param submitLabel - Text displayed on the submit button
+ * @param submitting - When true, disables the submit button and shows a loading indicator
+ * @returns The rendered ItemForm component as a JSX element
+ */
 
 export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, submitting }: Props) {
   const { accent } = useAccent();
@@ -494,7 +507,13 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
 
 // ---------------------------------------------------------------------------
 // Sub-components
-// ---------------------------------------------------------------------------
+/**
+ * Renders a labeled form section wrapper for grouping related inputs.
+ *
+ * @param label - Section title displayed above the children
+ * @param children - Content rendered inside the section container
+ * @returns A view containing the section label and its children
+ */
 
 function FormSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -507,6 +526,15 @@ function FormSection({ label, children }: { label: string; children: React.React
 
 type ChipItem = { id: string | number; name: string };
 
+/**
+ * Renders a horizontal group of selectable chips for choosing a single item.
+ *
+ * @param items - Array of chip items; each item should have an `id` and `name`.
+ * @param selectedId - The currently selected item's `id`, or `null` when none is selected.
+ * @param onSelect - Callback invoked when a chip is pressed; receives the selected item's `id`, or `null` to clear the selection.
+ * @param accent - Color used to style the selected chip (background and border).
+ * @returns The rendered chip group element.
+ */
 function ChipSelector({
   items,
   selectedId,
@@ -538,6 +566,16 @@ function ChipSelector({
   );
 }
 
+/**
+ * Renders a horizontal group of selectable chips for multi-selection.
+ *
+ * @param items - Array of items to display; each item must have `id` and `name`.
+ * @param selectedIds - IDs of items currently selected.
+ * @param onToggle - Called with an item's `id` when its chip is pressed to toggle selection.
+ * @param accent - Color used to indicate selected chips.
+ * @param renderDot - Optional renderer that returns a visual node (for example, a color dot) for a given item.
+ * @returns A React element containing chips for each item; chips corresponding to `selectedIds` are visually highlighted using `accent`.
+ */
 function MultiChipSelector<T extends { id: number; name: string }>({
   items,
   selectedIds,

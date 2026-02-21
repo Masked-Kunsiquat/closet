@@ -22,6 +22,11 @@ import {
   updateClothingItem,
 } from '@/db/queries';
 
+/**
+ * Screen for editing an existing clothing item, including loading its data, resolving related attributes, and saving updates.
+ *
+ * @returns A React element that renders the Edit Item screen with loading and error states, a pre-filled ItemForm, and handlers to persist changes.
+ */
 export default function EditItemScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const itemId = Number(id);

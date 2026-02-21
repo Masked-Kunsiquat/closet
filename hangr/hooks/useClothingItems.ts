@@ -10,6 +10,11 @@ type State = {
   error: string | null;
 };
 
+/**
+ * React hook that loads clothing items from the app database and exposes UI-friendly state.
+ *
+ * @returns An object with `items` (array of `ClothingItemWithMeta`), `loading` (boolean), `error` (string | null), and `refresh` (function to re-run the load operation)
+ */
 export function useClothingItems() {
   const [state, setState] = useState<State>({ items: [], loading: true, error: null });
 

@@ -20,6 +20,12 @@ const PATTERNS = [
   'Other',
 ] as const;
 
+/**
+ * Populate the patterns table with a predefined set of pattern names.
+ *
+ * Inserts each name from `PATTERNS` into the `patterns` table using `INSERT OR IGNORE`
+ * and runs all inserts inside a single transaction so the operation is atomic.
+ */
 export async function seedPatterns(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const name of PATTERNS) {
