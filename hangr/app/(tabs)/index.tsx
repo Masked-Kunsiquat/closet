@@ -1,8 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -13,12 +12,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FilterPanel } from '@/components/closet/FilterPanel';
+import { ClosetGridSkeleton, ListRowSkeleton } from '@/components/ui/SkeletonLoader';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
+import { useSettings } from '@/context/SettingsContext';
 import { ClothingItemWithMeta } from '@/db/types';
 import { useClothingItems } from '@/hooks/useClothingItems';
 import { useClosetView } from '@/hooks/useClosetView';
 import { contrastingTextColor } from '@/utils/color';
+
+const ARCHIVED_STATUSES = new Set(['Sold', 'Donated', 'Lost']);
 
 const CARD_GAP = Spacing[2];
 
@@ -31,6 +34,7 @@ const CARD_GAP = Spacing[2];
  */
 export default function ClosetScreen() {
   const { items, loading, error, refresh } = useClothingItems();
+  const { settings } = useSettings();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -40,6 +44,15 @@ export default function ClosetScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  // When showArchivedItems is off, hide Sold/Donated/Lost from the base list.
+  // The user can still filter for them explicitly via FilterPanel.
+  const visiblePool = useMemo(
+    () => settings.showArchivedItems
+      ? items
+      : items.filter((i) => !ARCHIVED_STATUSES.has(i.status)),
+    [items, settings.showArchivedItems]
+  );
 
   const {
     viewMode,
@@ -53,7 +66,7 @@ export default function ClosetScreen() {
     setFilterPanelOpen,
     activeFilterCount,
     filteredAndSorted,
-  } = useClosetView(items);
+  } = useClosetView(visiblePool);
 
   const visibleItems = filteredAndSorted;
 
@@ -76,9 +89,9 @@ export default function ClosetScreen() {
         <Text style={styles.count}>
           {loading
             ? ''
-            : visibleItems.length === items.length
-            ? `${items.length} item${items.length !== 1 ? 's' : ''}`
-            : `${visibleItems.length} of ${items.length}`}
+            : filteredAndSorted.length === visiblePool.length
+            ? `${visiblePool.length} item${visiblePool.length !== 1 ? 's' : ''}`
+            : `${filteredAndSorted.length} of ${visiblePool.length}`}
         </Text>
       </View>
 
@@ -130,11 +143,20 @@ export default function ClosetScreen() {
 
       {/* Content */}
       {loading && items.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={accent.primary} />
-        </View>
+        viewMode === 'grid' ? <ClosetGridSkeleton /> : (
+          <View style={styles.list}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <View key={i}>
+                <ListRowSkeleton />
+                {i < 7 && <View style={styles.listSeparator} />}
+              </View>
+            ))}
+          </View>
+        )
       ) : !loading && items.length === 0 ? (
         <EmptyCloset />
+      ) : !loading && visiblePool.length === 0 ? (
+        <EmptyArchived />
       ) : !loading && visibleItems.length === 0 ? (
         <EmptyFilter onClear={clearFilters} />
       ) : viewMode === 'grid' ? (
@@ -349,6 +371,18 @@ function EmptyFilter({ onClear }: { onClear: () => void }) {
       <TouchableOpacity style={styles.clearFiltersButton} onPress={onClear} activeOpacity={0.8}>
         <Text style={styles.clearFiltersText}>Clear Filters</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function EmptyArchived() {
+  return (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyEmoji}>📦</Text>
+      <Text style={styles.emptyTitle}>All items are archived</Text>
+      <Text style={styles.emptySubtitle}>
+        Turn on &ldquo;Show archived items&rdquo; in Settings to see Sold, Donated, and Lost items.
+      </Text>
     </View>
   );
 }
@@ -674,11 +708,6 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   errorContainer: {
     flex: 1,

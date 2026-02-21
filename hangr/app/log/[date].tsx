@@ -7,6 +7,7 @@
 
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import {
   ActivityIndicator,
   Alert,
@@ -93,6 +94,7 @@ export default function DayDetailScreen() {
         }
         await setOotd(db, log.id, date);
       }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       refresh();
     } catch (e) {
       console.error('[handleToggleOotd]', e);

@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
-import { deleteClothingItem } from '@/db/queries';
+import { deleteClothingItem, updateClothingItem } from '@/db/queries';
 import { useClothingItem } from '@/hooks/useClothingItem';
 
 /**
@@ -22,10 +23,23 @@ import { useClothingItem } from '@/hooks/useClothingItem';
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const itemId = parseInt(id ?? '', 10);
-  const { item, loading, error } = useClothingItem(itemId);
+  const { item, loading, error, refresh } = useClothingItem(itemId);
   const { accent } = useAccent();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const handleWashToggle = async () => {
+    if (!item) return;
+    const next = item.wash_status === 'Clean' ? 'Dirty' : 'Clean';
+    try {
+      const db = await getDatabase();
+      await updateClothingItem(db, itemId, { wash_status: next });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      refresh();
+    } catch (e) {
+      console.error('[washToggle]', e);
+    }
+  };
 
   const handleDelete = () => {
     Alert.alert(
@@ -148,7 +162,11 @@ export default function ItemDetailScreen() {
         {/* Details */}
         <Section title="Details">
           <DetailRow label="Category" value={item.category_name ?? '—'} />
-          <DetailRow label="Wash Status" value={item.wash_status} />
+          <WashToggleRow
+            status={item.wash_status}
+            onToggle={handleWashToggle}
+            accentPrimary={accent.primary}
+          />
           {item.purchase_date && <DetailRow label="Purchased" value={item.purchase_date} />}
           {item.purchase_location && (
             <DetailRow label="From" value={item.purchase_location} />
@@ -229,6 +247,35 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
+function WashToggleRow({
+  status,
+  onToggle,
+  accentPrimary,
+}: {
+  status: 'Clean' | 'Dirty';
+  onToggle: () => void;
+  accentPrimary: string;
+}) {
+  const isClean = status === 'Clean';
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>Wash Status</Text>
+      <TouchableOpacity
+        onPress={onToggle}
+        activeOpacity={0.75}
+        style={[
+          styles.washToggle,
+          { borderColor: isClean ? accentPrimary : Palette.border },
+        ]}
+      >
+        <Text style={[styles.washToggleText, { color: isClean ? accentPrimary : Palette.textSecondary }]}>
+          {isClean ? '✓ Clean' : '⚠ Dirty'}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -379,6 +426,16 @@ const styles = StyleSheet.create({
   detailValue: {
     color: Palette.textPrimary,
     fontSize: FontSize.md,
+    fontWeight: FontWeight.medium,
+  },
+  washToggle: {
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 3,
+  },
+  washToggleText: {
+    fontSize: FontSize.sm,
     fontWeight: FontWeight.medium,
   },
   notes: {

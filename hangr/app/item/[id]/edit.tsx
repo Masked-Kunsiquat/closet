@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -128,6 +129,7 @@ export default function EditItemScreen() {
       await setClothingItemOccasions(db, itemId, values.occasionIds);
       await setClothingItemPatterns(db, itemId, values.patternIds);
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (e) {
       console.error('[edit item]', e);

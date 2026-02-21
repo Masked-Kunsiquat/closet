@@ -1065,3 +1065,33 @@ export async function getBreakdownBySeason(db: SQLiteDatabase): Promise<Breakdow
     ORDER BY count DESC
   `);
 }
+
+// ---------------------------------------------------------------------------
+// App settings
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns all app settings as a key/value record.
+ */
+export async function getAllSettings(db: SQLiteDatabase): Promise<Record<string, string>> {
+  const rows = await db.getAllAsync<{ key: string; value: string }>(
+    'SELECT key, value FROM app_settings'
+  );
+  const result: Record<string, string> = {};
+  for (const row of rows) result[row.key] = row.value;
+  return result;
+}
+
+/**
+ * Upserts a single app setting.
+ */
+export async function setSetting(
+  db: SQLiteDatabase,
+  key: string,
+  value: string
+): Promise<void> {
+  await db.runAsync(
+    'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    [key, value]
+  );
+}

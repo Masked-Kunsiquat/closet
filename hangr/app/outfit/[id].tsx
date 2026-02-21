@@ -7,6 +7,7 @@
 
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -297,6 +298,7 @@ function LogModal({
                   });
                   await setOotd(db, logId, date);
                   navigateTo = date;
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 } catch (e) {
                   Alert.alert('Error', String(e));
                 } finally {
@@ -323,6 +325,7 @@ function LogModal({
         await setOotd(db, logId, date);
       }
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSaving(false);
       onClose();
       router.push({ pathname: '/log/[date]', params: { date } });

@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,6 +58,7 @@ export default function AddItemScreen() {
       await setClothingItemOccasions(db, itemId, values.occasionIds);
       await setClothingItemPatterns(db, itemId, values.patternIds);
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace(`/item/${itemId}`);
     } catch (e) {
       console.error('[add item]', e);
