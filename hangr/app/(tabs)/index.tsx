@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FilterPanel } from '@/components/closet/FilterPanel';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { ClosetGridSkeleton, ListRowSkeleton } from '@/components/ui/SkeletonLoader';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
@@ -111,7 +112,7 @@ export default function ClosetScreen() {
 
         {activeFilterCount > 0 && (
           <TouchableOpacity onPress={clearFilters} hitSlop={8} style={styles.clearButton}>
-            <Text style={styles.clearButtonText}>✕</Text>
+            <PhosphorIcon name="x" size={16} color={Palette.textSecondary} />
           </TouchableOpacity>
         )}
 
@@ -462,10 +463,6 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: Spacing[1],
-  },
-  clearButtonText: {
-    color: Palette.textSecondary,
-    fontSize: FontSize.sm,
   },
   spacer: {
     flex: 1,

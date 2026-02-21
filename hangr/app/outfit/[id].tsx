@@ -23,6 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
 import {
@@ -141,8 +142,9 @@ export default function OutfitDetailScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.back}>← Back</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+          <PhosphorIcon name="caret-left" size={18} color={Palette.textSecondary} />
+          <Text style={styles.back}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {outfit.name ?? 'Untitled Outfit'}
@@ -452,10 +454,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Palette.border,
   },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[1],
+    minWidth: 60,
+  },
   back: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
-    minWidth: 60,
   },
   headerTitle: {
     color: Palette.textPrimary,

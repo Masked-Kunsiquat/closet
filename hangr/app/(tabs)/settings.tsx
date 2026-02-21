@@ -117,9 +117,7 @@ function SelectModal<T extends string | number>({
                   {opt.label}
                 </Text>
               </View>
-              {active && (
-                <Text style={[styles.sheetOptionCheck, { color: accent.primary }]}>✓</Text>
-              )}
+              {active && <PhosphorIcon name="check" size={16} color={accent.primary} />}
             </Pressable>
           );
         })}
@@ -445,9 +443,5 @@ const styles = StyleSheet.create({
   sheetOptionText: {
     color: Palette.textPrimary,
     fontSize: FontSize.md,
-  },
-  sheetOptionCheck: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
   },
 });

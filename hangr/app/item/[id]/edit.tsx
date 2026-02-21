@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EMPTY_FORM, ItemForm, ItemFormValues } from '@/components/clothing/ItemForm';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { FontSize, FontWeight, Palette, Spacing } from '@/constants/tokens';
 import { getDatabase } from '@/db';
 import {
@@ -172,7 +173,7 @@ export default function EditItemScreen() {
       {saveError && (
         <Pressable style={styles.errorBanner} onPress={() => setSaveError(null)}>
           <Text style={styles.errorText}>{saveError}</Text>
-          <Text style={styles.errorDismiss}>✕</Text>
+          <PhosphorIcon name="x" size={16} color={Palette.white} />
         </Pressable>
       )}
 
@@ -229,10 +230,5 @@ const styles = StyleSheet.create({
     color: Palette.white,
     fontSize: FontSize.sm,
     flex: 1,
-  },
-  errorDismiss: {
-    color: Palette.white,
-    fontSize: FontSize.sm,
-    marginLeft: Spacing[3],
   },
 });

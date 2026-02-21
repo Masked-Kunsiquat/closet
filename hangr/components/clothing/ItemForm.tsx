@@ -802,7 +802,7 @@ function FormCollapsible({
               {summary}
             </Text>
           ) : null}
-          <Text style={styles.collapsibleChevron}>{open ? '▾' : '▸'}</Text>
+          <PhosphorIcon name="caret-up-down" size={14} color={Palette.textSecondary} />
         </View>
       </Pressable>
       {open && <View style={styles.collapsibleContent}>{children}</View>}
@@ -927,7 +927,7 @@ function CategorySheet({
                     {cat.name}
                   </Text>
                 </View>
-                {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
               </Pressable>
             );
           })}
@@ -977,7 +977,7 @@ function SubcategorySheet({
                 <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
                   {sub.name}
                 </Text>
-                {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
               </Pressable>
             );
           })}
@@ -1143,10 +1143,6 @@ const styles = StyleSheet.create({
     color: Palette.textSecondary,
     flexShrink: 1,
   },
-  collapsibleChevron: {
-    fontSize: FontSize.sm,
-    color: Palette.textSecondary,
-  },
   collapsibleContent: {
     paddingBottom: Spacing[3],
   },
@@ -1248,10 +1244,6 @@ const styles = StyleSheet.create({
   sheetOptionText: {
     color: Palette.textPrimary,
     fontSize: FontSize.md,
-  },
-  sheetOptionCheck: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
   },
 
   // Favorite toggle

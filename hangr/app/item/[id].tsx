@@ -6,6 +6,7 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
 import { deleteClothingItem, updateWashStatus } from '@/db/queries';
@@ -99,8 +100,9 @@ export default function ItemDetailScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
-          <Text style={styles.back}>‹ Back</Text>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <PhosphorIcon name="caret-left" size={18} color={Palette.textSecondary} />
+          <Text style={styles.back}>Back</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push(`/item/${itemId}/edit`)}
@@ -277,8 +279,9 @@ function WashToggleRow({
           { borderColor: isClean ? accentPrimary : Palette.border },
         ]}
       >
+        <PhosphorIcon name="washing-machine" size={14} color={isClean ? accentPrimary : Palette.textSecondary} />
         <Text style={[styles.washToggleText, { color: isClean ? accentPrimary : Palette.textSecondary }]}>
-          {isClean ? '✓ Clean' : '⚠ Dirty'}
+          {isClean ? 'Clean' : 'Dirty'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -308,6 +311,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing[4],
     paddingVertical: Spacing[3],
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[1],
   },
   back: {
     color: Palette.textSecondary,
@@ -434,6 +442,9 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
   washToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[1],
     borderWidth: 1,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing[3],

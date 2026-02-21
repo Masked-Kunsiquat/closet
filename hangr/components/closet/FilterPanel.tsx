@@ -304,7 +304,7 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
                   {colors.find((c) => c.id === draft.colorId)?.name ?? ''}
                 </Text>
               )}
-              <Text style={styles.colorToggleChevron}>{colorExpanded ? '▾' : '▸'}</Text>
+              <PhosphorIcon name="caret-up-down" size={14} color={Palette.textSecondary} />
             </View>
           </Pressable>
           {colorExpanded && (
@@ -508,7 +508,7 @@ function FilterPickerSheet({
                     {opt.label}
                   </Text>
                 </View>
-                {active && <Text style={[styles.innerOptionCheck, { color: accentPrimary }]}>✓</Text>}
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
               </Pressable>
             );
           })}
@@ -658,10 +658,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Palette.borderMuted,
   },
-  colorToggleChevron: {
-    fontSize: FontSize.sm,
-    color: Palette.textDisabled,
-  },
   colorChipsContainer: {
     paddingTop: Spacing[3],
     paddingBottom: Spacing[2],
@@ -750,9 +746,5 @@ const styles = StyleSheet.create({
   innerOptionText: {
     color: Palette.textPrimary,
     fontSize: FontSize.md,
-  },
-  innerOptionCheck: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.bold,
   },
 });
