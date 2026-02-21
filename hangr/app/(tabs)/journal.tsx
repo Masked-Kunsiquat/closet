@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -51,8 +52,8 @@ export default function JournalScreen() {
   const router = useRouter();
 
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+  const [ym, setYm] = useState({ year: today.getFullYear(), month: today.getMonth() });
+  const { year, month } = ym;
 
   const yearMonth = toYearMonth(year, month);
   const { days, loading, refresh } = useCalendarMonth(yearMonth);
@@ -76,17 +77,15 @@ export default function JournalScreen() {
   }, [year, month, yearMonth]);
 
   const goToPrevMonth = useCallback(() => {
-    setMonth((m) => {
-      if (m === 0) { setYear((y) => y - 1); return 11; }
-      return m - 1;
-    });
+    setYm(({ year: y, month: m }) =>
+      m === 0 ? { year: y - 1, month: 11 } : { year: y, month: m - 1 }
+    );
   }, []);
 
   const goToNextMonth = useCallback(() => {
-    setMonth((m) => {
-      if (m === 11) { setYear((y) => y + 1); return 0; }
-      return m + 1;
-    });
+    setYm(({ year: y, month: m }) =>
+      m === 11 ? { year: y + 1, month: 0 } : { year: y, month: m + 1 }
+    );
   }, []);
 
   // Total logs in this month
@@ -98,7 +97,7 @@ export default function JournalScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + Spacing[8] }]}
-        onScrollEndDrag={refresh}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
       >
         {/* Page header */}
         <View style={styles.pageHeader}>
