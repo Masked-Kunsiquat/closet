@@ -10,6 +10,15 @@ import { getDatabase } from '@/db';
 import { deleteClothingItem } from '@/db/queries';
 import { useClothingItem } from '@/hooks/useClothingItem';
 
+/**
+ * Render the item detail screen for a clothing item identified by the route `id`.
+ *
+ * Displays the hero image (or placeholder), favorite badge, title and status, stats
+ * (times worn, cost per wear, optional paid amount), details (category, wash status,
+ * purchase info, measurements), optional notes, and a delete flow with confirmation.
+ *
+ * @returns A React element that displays the full item detail view and associated actions.
+ */
 export default function ItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const itemId = parseInt(id ?? '', 10);
@@ -173,7 +182,14 @@ export default function ItemDetailScreen() {
 
 // ---------------------------------------------------------------------------
 // Sub-components
-// ---------------------------------------------------------------------------
+/**
+ * Render a compact vertical statistic block showing a prominent value with a label.
+ *
+ * @param label - The label displayed below the value (e.g., "Times Worn")
+ * @param value - The primary value text displayed above the label (e.g., "12")
+ * @param accent - Color used for the value text (any valid CSS color string)
+ * @returns The rendered stat block element
+ */
 
 function StatBlock({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
@@ -184,6 +200,13 @@ function StatBlock({ label, value, accent }: { label: string; value: string; acc
   );
 }
 
+/**
+ * Renders a section container with a title and its children.
+ *
+ * @param title - Section title text
+ * @param children - Content rendered inside the section
+ * @returns A View containing the section title and the supplied children
+ */
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <View style={styles.section}>
@@ -193,6 +216,13 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/**
+ * Renders a horizontal label/value row for item details when a value is present.
+ *
+ * @param label - The left-side label for the detail row.
+ * @param value - The right-side value to display; if falsy, the row is not rendered.
+ * @returns The detail row element, or `null` when `value` is falsy.
+ */
 function DetailRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (

@@ -15,6 +15,13 @@ import {
   setClothingItemSeasons,
 } from '@/db/queries';
 
+/**
+ * Renders the "Add Item" screen with a form for creating a clothing item.
+ *
+ * Submitting the form persists the item and its associated attributes to the local database; on success it navigates to the newly created item's detail screen, and on failure it displays an error alert.
+ *
+ * @returns The React element for the Add Item screen.
+ */
 export default function AddItemScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();

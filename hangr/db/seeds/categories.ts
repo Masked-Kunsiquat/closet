@@ -91,6 +91,12 @@ const CATEGORIES = [
   },
 ] as const;
 
+/**
+ * Seed the database with the predefined categories and their subcategories from CATEGORIES.
+ *
+ * Runs all operations inside a transaction and ensures category and subcategory records exist;
+ * subcategories are inserted with a 1-based sort order corresponding to their position in each category's list.
+ */
 export async function seedCategories(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const cat of CATEGORIES) {

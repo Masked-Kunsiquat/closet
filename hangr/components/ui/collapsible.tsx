@@ -3,6 +3,13 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { FontSize, FontWeight, Palette, Spacing } from '@/constants/tokens';
 
+/**
+ * Collapsible container that toggles visibility of its children when the header is pressed.
+ *
+ * @param title - Text displayed in the header row.
+ * @param children - Content rendered below the header when expanded.
+ * @returns The rendered JSX element for the collapsible component.
+ */
 export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
