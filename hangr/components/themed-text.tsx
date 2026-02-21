@@ -1,60 +1,19 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { Text, type TextProps } from 'react-native';
 
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { FontSize, FontWeight, Palette } from '@/constants/tokens';
 
 export type ThemedTextProps = TextProps & {
-  lightColor?: string;
-  darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  type?: 'default' | 'title' | 'semibold' | 'subtitle' | 'caption';
 };
 
-export function ThemedText({
-  style,
-  lightColor,
-  darkColor,
-  type = 'default',
-  ...rest
-}: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-
-  return (
-    <Text
-      style={[
-        { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
-        style,
-      ]}
-      {...rest}
-    />
-  );
+export function ThemedText({ style, type = 'default', ...rest }: ThemedTextProps) {
+  return <Text style={[TYPE_STYLES[type], style]} {...rest} />;
 }
 
-const styles = StyleSheet.create({
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 16,
-    color: '#0a7ea4',
-  },
-});
+const TYPE_STYLES = {
+  default:  { color: Palette.textPrimary,   fontSize: FontSize.md },
+  semibold: { color: Palette.textPrimary,   fontSize: FontSize.md,    fontWeight: FontWeight.semibold },
+  title:    { color: Palette.textPrimary,   fontSize: FontSize['2xl'], fontWeight: FontWeight.bold },
+  subtitle: { color: Palette.textPrimary,   fontSize: FontSize.lg,    fontWeight: FontWeight.semibold },
+  caption:  { color: Palette.textSecondary, fontSize: FontSize.sm },
+};

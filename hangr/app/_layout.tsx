@@ -24,8 +24,11 @@ export default function RootLayout() {
   return (
     <AccentProvider>
       <ThemeProvider value={DarkTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="item/add" />
+          <Stack.Screen name="item/[id]" />
+          <Stack.Screen name="item/[id]/edit" />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>

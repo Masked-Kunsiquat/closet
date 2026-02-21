@@ -36,7 +36,14 @@
           "backgroundColor": "#000000"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow hangr to access your photos to add clothing images.",
+          "cameraPermission": "Allow hangr to take photos of your clothing."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
