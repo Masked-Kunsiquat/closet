@@ -85,8 +85,11 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
   const [draftSort, setDraftSort] = useState<SortKey>(currentSort);
 
   // Which inner picker sheet is open
-  type InnerSheet = 'sort' | 'status' | 'category' | 'subcategory' | 'brand' | null;
+  type InnerSheet = 'sort' | 'status' | 'category' | 'subcategory' | 'season' | 'occasion' | 'brand' | null;
   const [innerSheet, setInnerSheet] = useState<InnerSheet>(null);
+
+  // Color section collapsed state
+  const [colorExpanded, setColorExpanded] = useState(false);
 
   // Lookup data
   const [categories, setCategories] = useState<Category[]>([]);
@@ -108,8 +111,8 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
           getDistinctBrands(db),
         ]);
         setCategories(cats);
-        setSeasons(seas);
-        setOccasions(occs);
+        setSeasons([...seas].sort((a, b) => a.name.localeCompare(b.name)));
+        setOccasions([...occs].sort((a, b) => a.name.localeCompare(b.name)));
         setColors(cols);
         setBrands(brnds);
       } catch (e) {
@@ -272,46 +275,53 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
             />
           )}
 
-          {/* Color */}
-          <PanelSection title="Color">
-            <ChipRow
-              items={colors}
-              selectedId={draft.colorId}
-              onSelect={(id) =>
-                setDraftFilter('colorId', draft.colorId === id ? null : (id as number))
-              }
-              accent={accent.primary}
-              renderPrefix={(item: Color) =>
-                item.hex ? (
-                  <View style={[styles.colorDot, { backgroundColor: item.hex }]} />
-                ) : null
-              }
-            />
-          </PanelSection>
-
           {/* Season */}
-          <PanelSection title="Season">
-            <ChipRow
-              items={seasons}
-              selectedId={draft.seasonId}
-              onSelect={(id) =>
-                setDraftFilter('seasonId', draft.seasonId === id ? null : (id as number))
-              }
-              accent={accent.primary}
-            />
-          </PanelSection>
+          <FilterPickerTrigger
+            label="Season"
+            value={seasons.find((s) => s.id === draft.seasonId)?.name ?? 'Any'}
+            onPress={() => setInnerSheet('season')}
+          />
 
           {/* Occasion */}
-          <PanelSection title="Occasion">
-            <ChipRow
-              items={occasions}
-              selectedId={draft.occasionId}
-              onSelect={(id) =>
-                setDraftFilter('occasionId', draft.occasionId === id ? null : (id as number))
-              }
-              accent={accent.primary}
-            />
-          </PanelSection>
+          <FilterPickerTrigger
+            label="Occasion"
+            value={occasions.find((o) => o.id === draft.occasionId)?.name ?? 'Any'}
+            onPress={() => setInnerSheet('occasion')}
+          />
+
+          {/* Color — collapsible */}
+          <Pressable
+            style={styles.colorToggle}
+            onPress={() => setColorExpanded((v) => !v)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.pickerTriggerLabel}>Color</Text>
+            <View style={styles.pickerTriggerRight}>
+              {draft.colorId !== null && (
+                <Text style={styles.pickerTriggerValue} numberOfLines={1}>
+                  {colors.find((c) => c.id === draft.colorId)?.name ?? ''}
+                </Text>
+              )}
+              <Text style={styles.colorToggleChevron}>{colorExpanded ? '▾' : '▸'}</Text>
+            </View>
+          </Pressable>
+          {colorExpanded && (
+            <View style={styles.colorChipsContainer}>
+              <ChipRow
+                items={colors}
+                selectedId={draft.colorId}
+                onSelect={(id) =>
+                  setDraftFilter('colorId', draft.colorId === id ? null : (id as number))
+                }
+                accent={accent.primary}
+                renderPrefix={(item: Color) =>
+                  item.hex ? (
+                    <View style={[styles.colorDot, { backgroundColor: item.hex }]} />
+                  ) : null
+                }
+              />
+            </View>
+          )}
 
           {/* Brand */}
           {brands.length > 0 && (
@@ -385,6 +395,34 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
         options={brands.map((b) => ({ value: b, label: b }))}
         selected={draft.brand}
         onSelect={(v) => { setDraftFilter('brand', draft.brand === v ? null : v); setInnerSheet(null); }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'season'}
+        title="Season"
+        options={seasons.map((s) => ({ value: String(s.id), label: s.name, icon: s.icon ?? undefined }))}
+        selected={draft.seasonId !== null ? String(draft.seasonId) : null}
+        onSelect={(v) => {
+          const id = Number(v);
+          setDraftFilter('seasonId', draft.seasonId === id ? null : id);
+          setInnerSheet(null);
+        }}
+        onClose={() => setInnerSheet(null)}
+        accentPrimary={accent.primary}
+        allowDeselect
+      />
+      <FilterPickerSheet
+        visible={innerSheet === 'occasion'}
+        title="Occasion"
+        options={occasions.map((o) => ({ value: String(o.id), label: o.name, icon: o.icon ?? undefined }))}
+        selected={draft.occasionId !== null ? String(draft.occasionId) : null}
+        onSelect={(v) => {
+          const id = Number(v);
+          setDraftFilter('occasionId', draft.occasionId === id ? null : id);
+          setInnerSheet(null);
+        }}
         onClose={() => setInnerSheet(null)}
         accentPrimary={accent.primary}
         allowDeselect
@@ -486,18 +524,6 @@ function FilterPickerSheet({
 
 // ---------------------------------------------------------------------------
 // Sub-components
-/**
- * Renders a titled section container used within the filter panel.
- */
-
-function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
 
 type ChipItem = { id: string | number; name: string };
 
@@ -626,18 +652,22 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  // Chip section (Color, Season, Occasion)
-  section: {
-    paddingTop: Spacing[4],
-    paddingBottom: Spacing[2],
+  // Color collapsible
+  colorToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing[4],
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.borderMuted,
   },
-  sectionTitle: {
-    color: Palette.textSecondary,
+  colorToggleChevron: {
     fontSize: FontSize.sm,
-    fontWeight: FontWeight.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing[2],
+    color: Palette.textDisabled,
+  },
+  colorChipsContainer: {
+    paddingTop: Spacing[3],
+    paddingBottom: Spacing[2],
   },
   chips: {
     flexDirection: 'row',
