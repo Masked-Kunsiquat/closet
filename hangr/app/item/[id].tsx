@@ -267,6 +267,10 @@ function WashToggleRow({
       <TouchableOpacity
         onPress={onToggle}
         activeOpacity={0.75}
+        accessibilityRole="switch"
+        accessibilityLabel="Wash status"
+        accessibilityHint="Toggles wash status between Clean and Dirty"
+        accessibilityState={{ checked: isClean }}
         style={[
           styles.washToggle,
           { borderColor: isClean ? accentPrimary : Palette.border },

@@ -56,6 +56,9 @@ export const SORT_LABELS: Record<SortKey, string> = {
 
 // ---------------------------------------------------------------------------
 // Hook
+
+const ARCHIVED_STATUSES = new Set(['Sold', 'Donated', 'Lost']);
+
 /**
  * Manages view mode, sorting, and active filters for a closet item list.
  *
@@ -70,8 +73,6 @@ export const SORT_LABELS: Record<SortKey, string> = {
  * @param items - The list of clothing items with metadata to be filtered and sorted
  * @returns An object containing view and filter state, mutators, `activeFilterCount`, and `filteredAndSorted`
  */
-
-const ARCHIVED_STATUSES = new Set(['Sold', 'Donated', 'Lost']);
 
 export function useClosetView(items: ClothingItemWithMeta[], showArchivedItems = true) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');

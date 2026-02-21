@@ -19,7 +19,7 @@ A personal, local-first digital wardrobe and outfit tracking app. React Native /
 
 ## Folder Conventions
 All source lives directly under `hangr/` — there is no `src/` wrapper.
-```
+```plaintext
 hangr/
   app/                    # expo-router file-based routing
     (tabs)/               # index (Closet), outfits, journal, stats, settings

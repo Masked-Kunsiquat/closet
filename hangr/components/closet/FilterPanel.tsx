@@ -50,6 +50,8 @@ import { contrastingTextColor } from '@/utils/color';
 // Props
 // ---------------------------------------------------------------------------
 
+type InnerSheet = 'sort' | 'status' | 'category' | 'subcategory' | 'season' | 'occasion' | 'brand' | null;
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -85,7 +87,6 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
   const [draftSort, setDraftSort] = useState<SortKey>(currentSort);
 
   // Which inner picker sheet is open
-  type InnerSheet = 'sort' | 'status' | 'category' | 'subcategory' | 'season' | 'occasion' | 'brand' | null;
   const [innerSheet, setInnerSheet] = useState<InnerSheet>(null);
 
   // Color section collapsed state
@@ -493,13 +494,7 @@ function FilterPickerSheet({
               <Pressable
                 key={opt.value}
                 style={[styles.innerOption, i < options.length - 1 && styles.innerOptionBorder]}
-                onPress={() => {
-                  if (allowDeselect && active) {
-                    onSelect(opt.value); // parent toggles to null
-                  } else {
-                    onSelect(opt.value);
-                  }
-                }}
+                onPress={() => onSelect(opt.value)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
               >
@@ -571,7 +566,7 @@ function ChipRow<T extends ChipItem>({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: Palette.overlay,
   },
   sheet: {
     position: 'absolute',
@@ -697,7 +692,7 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: Palette.dotBorder,
   },
 
   // Inner picker sheet (Sort/Status/Category/Subcategory/Brand)

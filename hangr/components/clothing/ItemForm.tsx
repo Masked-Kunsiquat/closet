@@ -30,6 +30,7 @@ import {
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
+import { useSettings } from '@/context/SettingsContext';
 import { contrastingTextColor } from '@/utils/color';
 import { getDatabase } from '@/db';
 import {
@@ -181,9 +182,9 @@ function contextSummary(
   return parts.join(' · ');
 }
 
-function purchaseSummary(values: ItemFormValues): string {
+function purchaseSummary(values: ItemFormValues, currencySymbol: string): string {
   const parts: string[] = [];
-  if (values.purchase_price) parts.push(`$${values.purchase_price}`);
+  if (values.purchase_price) parts.push(`${currencySymbol}${values.purchase_price}`);
   if (values.purchase_date) parts.push(values.purchase_date);
   if (values.purchase_location) parts.push(values.purchase_location);
   return parts.join(' · ');
@@ -231,6 +232,7 @@ type OpenSheet = 'colors' | 'materials' | 'patterns' | 'seasons' | 'occasions' |
 
 export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, submitting }: Props) {
   const { accent } = useAccent();
+  const { settings } = useSettings();
   const [values, setValues] = useState<ItemFormValues>(initialValues);
   const [nameError, setNameError] = useState<string | null>(null);
   const [openSheet, setOpenSheet] = useState<OpenSheet>(null);
@@ -384,7 +386,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
   const detailsSummaryText = detailsSummary(values, categories, subcategories, sizeValues);
   const attributesSummaryText = attributesSummary(values, materials, patterns);
   const contextSummaryText = contextSummary(values, seasons, occasions);
-  const purchaseSummaryText = purchaseSummary(values);
+  const purchaseSummaryText = purchaseSummary(values, settings.currencySymbol);
 
   return (
     <>

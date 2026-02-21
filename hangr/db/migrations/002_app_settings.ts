@@ -17,8 +17,8 @@ export default {
         value TEXT NOT NULL
       );
 
-      -- Defaults inserted at migration time.
-      -- New installs also get these via seeds, but migration handles upgrades.
+      -- Defaults inserted at migration time for both new installs and upgrades.
+      -- This migration is the sole source of these defaults.
       INSERT OR IGNORE INTO app_settings (key, value) VALUES
         ('accent_key',          'amber'),
         ('currency_symbol',     '$'),

@@ -125,17 +125,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     key: K,
     value: AppSettings[K]
   ) => {
-    // Capture previous for rollback, then optimistically update
-    setSettings((prev) => {
-      previousSettingsRef.current = prev;
-      return { ...prev, [key]: value };
+    // Capture previous locally for rollback, then optimistically update
+    let prev: AppSettings = previousSettingsRef.current;
+    setSettings((current) => {
+      prev = current;
+      return { ...current, [key]: value };
     });
     try {
       const db = await getDatabase();
       await setSetting(db, DB_KEY[key], settingToRow(key, value));
     } catch {
-      // Rollback to previous state on DB failure
-      setSettings(previousSettingsRef.current);
+      // Rollback to the state captured before this specific call
+      setSettings(prev);
     }
   }, []);
 

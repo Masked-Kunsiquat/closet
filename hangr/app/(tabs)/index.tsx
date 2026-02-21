@@ -149,7 +149,7 @@ export default function ClosetScreen() {
         )
       ) : !loading && items.length === 0 ? (
         <EmptyCloset />
-      ) : !loading && filteredAndSorted.length === 0 && !showArchivedItems && filters.status === null ? (
+      ) : !loading && filteredAndSorted.length === 0 && !showArchivedItems && activeFilterCount === 0 ? (
         <EmptyArchived />
       ) : !loading && visibleItems.length === 0 ? (
         <EmptyFilter onClear={clearFilters} />
