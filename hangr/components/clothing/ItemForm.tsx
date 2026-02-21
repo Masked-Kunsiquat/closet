@@ -17,6 +17,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,6 +35,7 @@ import { getDatabase } from '@/db';
 import {
   getCategories,
   getColors,
+  getDistinctBrands,
   getMaterials,
   getOccasions,
   getPatterns,
@@ -188,10 +190,27 @@ function purchaseSummary(values: ItemFormValues): string {
 }
 
 // ---------------------------------------------------------------------------
+// Category → relevant size systems mapping
+// ---------------------------------------------------------------------------
+
+const CATEGORY_SIZE_SYSTEMS: Record<string, string[]> = {
+  'Tops':                   ['Letter', "Women's Numeric", 'One Size'],
+  'Bottoms':                ['Letter', "Women's Numeric", 'One Size'],
+  'Outerwear':              ['Letter', "Women's Numeric", 'One Size'],
+  'Dresses & Jumpsuits':    ['Letter', "Women's Numeric", 'One Size'],
+  'Footwear':               ["Shoes (US Men's)", "Shoes (US Women's)", 'Shoes (EU)', 'Shoes (UK)'],
+  'Accessories':            ['One Size', 'Letter'],
+  'Bags':                   ['One Size'],
+  'Activewear':             ['Letter', "Women's Numeric", 'One Size'],
+  'Underwear & Intimates':  ['Bra', 'Letter', 'One Size'],
+  'Swimwear':               ['Letter', "Women's Numeric", 'One Size'],
+};
+
+// ---------------------------------------------------------------------------
 // Sheet open state
 // ---------------------------------------------------------------------------
 
-type OpenSheet = 'colors' | 'materials' | 'patterns' | 'seasons' | 'occasions' | null;
+type OpenSheet = 'colors' | 'materials' | 'patterns' | 'seasons' | 'occasions' | 'category' | 'subcategory' | null;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -232,13 +251,14 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
   const [colors, setColors] = useState<Color[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [allBrands, setAllBrands] = useState<string[]>([]);
 
   // Load all lookup data once
   useEffect(() => {
     (async () => {
       try {
         const db = await getDatabase();
-        const [cats, szs, seas, occs, cols, mats, pats] = await Promise.all([
+        const [cats, szs, seas, occs, cols, mats, pats, brands] = await Promise.all([
           getCategories(db),
           getSizeSystems(db),
           getSeasons(db),
@@ -246,6 +266,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
           getColors(db),
           getMaterials(db),
           getPatterns(db),
+          getDistinctBrands(db),
         ]);
         setCategories(cats);
         setSizeSystems(szs);
@@ -254,19 +275,46 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
         setColors(cols);
         setMaterials(mats);
         setPatterns(pats);
+        setAllBrands(brands);
       } catch (e) {
         console.error('[ItemForm] failed to load lookup data', e);
       }
     })();
   }, []);
 
-  // Reload subcategories when category changes
+  // Reload subcategories when category changes (alphabetized)
   useEffect(() => {
     if (!values.category_id) { setSubcategories([]); return; }
     getDatabase()
-      .then((db) => getSubcategories(db, values.category_id!).then(setSubcategories))
+      .then((db) =>
+        getSubcategories(db, values.category_id!).then((subs) =>
+          setSubcategories([...subs].sort((a, b) => a.name.localeCompare(b.name)))
+        )
+      )
       .catch((e) => { console.error('[ItemForm] subcategories', e); setSubcategories([]); });
   }, [values.category_id]);
+
+  // Derived: selected category
+  const selectedCategory = categories.find((c) => c.id === values.category_id) ?? null;
+  const selectedCategoryName = selectedCategory?.name ?? null;
+  const selectedCategoryIcon = selectedCategory?.icon ?? null;
+
+  // Derived: filtered size systems based on selected category
+  const filteredSizeSystems = selectedCategoryName && CATEGORY_SIZE_SYSTEMS[selectedCategoryName]
+    ? sizeSystems.filter((s) => CATEGORY_SIZE_SYSTEMS[selectedCategoryName].includes(s.name))
+    : sizeSystems;
+
+  // Derived: show waist/inseam only for Bottoms
+  const showWaistInseam = selectedCategoryName === 'Bottoms';
+
+  // Derived: brand autocomplete suggestions
+  const brandSuggestions = values.brand.trim().length > 0
+    ? allBrands.filter(
+        (b) =>
+          b.toLowerCase().includes(values.brand.toLowerCase()) &&
+          b.toLowerCase() !== values.brand.toLowerCase()
+      )
+    : [];
 
   // Reload size values when size system changes
   useEffect(() => {
@@ -313,6 +361,23 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
     }
     setNameError(null);
     await onSubmit(values);
+  };
+
+  // Called when user picks a category; clears stale sizing data
+  const handleCategoryChange = (id: number | null) => {
+    const newCatName = id !== null ? categories.find((c) => c.id === id)?.name ?? null : null;
+    const allowedSystems = newCatName ? (CATEGORY_SIZE_SYSTEMS[newCatName] ?? []) : null;
+    const currentSystemName = sizeSystems.find((s) => s.id === values.size_system_id)?.name ?? null;
+    const systemStillValid = allowedSystems === null || (currentSystemName !== null && allowedSystems.includes(currentSystemName));
+    setValues((v) => ({
+      ...v,
+      category_id: id,
+      subcategory_id: null,
+      size_system_id: systemStillValid ? v.size_system_id : null,
+      size_value_id: systemStillValid ? v.size_value_id : null,
+      waist: newCatName === 'Bottoms' ? v.waist : '',
+      inseam: newCatName === 'Bottoms' ? v.inseam : '',
+    }));
   };
 
   // Computed summaries
@@ -374,6 +439,24 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
             placeholder="e.g. Uniqlo"
             placeholderTextColor={Palette.textDisabled}
           />
+          {brandSuggestions.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.suggestionsRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {brandSuggestions.map((b) => (
+                <Pressable
+                  key={b}
+                  style={styles.suggestionChip}
+                  onPress={() => set('brand', b)}
+                >
+                  <Text style={styles.suggestionChipText}>{b}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         {/* ── Details (collapsible) ── */}
@@ -383,35 +466,25 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
           open={detailsOpen}
           onToggle={() => setDetailsOpen((x) => !x)}
         >
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Category</Text>
-            <ChipSelector
-              items={categories}
-              selectedId={values.category_id}
-              onSelect={(id) => {
-                set('category_id', id === null ? null : Number(id));
-                set('subcategory_id', null);
-              }}
-              accent={accent.primary}
-            />
-          </View>
+          <PickerTrigger
+            label="Category"
+            value={selectedCategoryName ?? 'None'}
+            icon={selectedCategoryIcon}
+            onPress={() => setOpenSheet('category')}
+          />
 
           {subcategories.length > 0 && (
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Subcategory</Text>
-              <ChipSelector
-                items={subcategories}
-                selectedId={values.subcategory_id}
-                onSelect={(id) => set('subcategory_id', id === null ? null : Number(id))}
-                accent={accent.primary}
-              />
-            </View>
+            <PickerTrigger
+              label="Subcategory"
+              value={subcategories.find((s) => s.id === values.subcategory_id)?.name ?? 'None'}
+              onPress={() => setOpenSheet('subcategory')}
+            />
           )}
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Size System</Text>
             <ChipSelector
-              items={sizeSystems}
+              items={filteredSizeSystems}
               selectedId={values.size_system_id}
               onSelect={(id) => {
                 set('size_system_id', id === null ? null : Number(id));
@@ -433,30 +506,32 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
             </View>
           )}
 
-          <View style={[styles.row, styles.field]}>
-            <View style={styles.halfField}>
-              <Text style={styles.fieldLabel}>Waist (in)</Text>
-              <TextInput
-                style={styles.input}
-                value={values.waist}
-                onChangeText={(v) => set('waist', v)}
-                placeholder="32.5"
-                placeholderTextColor={Palette.textDisabled}
-                keyboardType="decimal-pad"
-              />
+          {showWaistInseam && (
+            <View style={[styles.row, styles.field]}>
+              <View style={styles.halfField}>
+                <Text style={styles.fieldLabel}>Waist (in)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={values.waist}
+                  onChangeText={(v) => set('waist', v)}
+                  placeholder="32.5"
+                  placeholderTextColor={Palette.textDisabled}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={styles.halfField}>
+                <Text style={styles.fieldLabel}>Inseam (in)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={values.inseam}
+                  onChangeText={(v) => set('inseam', v)}
+                  placeholder="30"
+                  placeholderTextColor={Palette.textDisabled}
+                  keyboardType="decimal-pad"
+                />
+              </View>
             </View>
-            <View style={styles.halfField}>
-              <Text style={styles.fieldLabel}>Inseam (in)</Text>
-              <TextInput
-                style={styles.input}
-                value={values.inseam}
-                onChangeText={(v) => set('inseam', v)}
-                placeholder="30"
-                placeholderTextColor={Palette.textDisabled}
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
+          )}
         </FormCollapsible>
 
         {/* ── Attributes (collapsible) ── */}
@@ -621,6 +696,26 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
         <View style={{ height: Spacing[8] }} />
       </ScrollView>
 
+      {/* ── Category sheet ── */}
+      <CategorySheet
+        visible={openSheet === 'category'}
+        categories={categories}
+        selectedId={values.category_id}
+        onSelect={(id) => { handleCategoryChange(id); setOpenSheet(null); }}
+        onClose={() => setOpenSheet(null)}
+        accentPrimary={accent.primary}
+      />
+
+      {/* ── Subcategory sheet ── */}
+      <SubcategorySheet
+        visible={openSheet === 'subcategory'}
+        subcategories={subcategories}
+        selectedId={values.subcategory_id}
+        onSelect={(id) => { set('subcategory_id', id); setOpenSheet(null); }}
+        onClose={() => setOpenSheet(null)}
+        accentPrimary={accent.primary}
+      />
+
       {/* ── Picker sheets ── */}
       <PickerSheet
         visible={openSheet === 'colors'}
@@ -714,24 +809,36 @@ function FormCollapsible({
 }
 
 /**
- * A row button that opens a PickerSheet for a multi-select field.
+ * A row button that opens a picker sheet.
+ * Pass `value` for single-select display, or `count` for multi-select display.
+ * Pass `icon` to show a Phosphor icon alongside the value on the right.
  */
 function PickerTrigger({
   label,
   count,
+  value,
+  icon,
   onPress,
 }: {
   label: string;
-  count: number;
+  count?: number;
+  value?: string;
+  icon?: string | null;
   onPress: () => void;
 }) {
+  const displayValue = value !== undefined
+    ? value
+    : count !== undefined
+    ? (count > 0 ? (count === 1 ? '1 selected' : `${count} selected`) : 'None')
+    : 'None';
   return (
     <Pressable style={styles.pickerTrigger} onPress={onPress} accessibilityRole="button">
       <Text style={styles.pickerTriggerLabel}>{label}</Text>
       <View style={styles.pickerTriggerRight}>
-        <Text style={styles.pickerTriggerValue}>
-          {count > 0 ? (count === 1 ? '1 selected' : `${count} selected`) : 'None'}
-        </Text>
+        {icon ? (
+          <PhosphorIcon name={icon} size={18} color={Palette.textSecondary} />
+        ) : null}
+        <Text style={styles.pickerTriggerValue} numberOfLines={1}>{displayValue}</Text>
         <PhosphorIcon name="caret-right" size={18} color={Palette.textDisabled} />
       </View>
     </Pressable>
@@ -771,6 +878,107 @@ function ChipSelector({
         );
       })}
     </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CategorySheet
+// ---------------------------------------------------------------------------
+
+function CategorySheet({
+  visible,
+  categories,
+  selectedId,
+  onSelect,
+  onClose,
+  accentPrimary,
+}: {
+  visible: boolean;
+  categories: Category[];
+  selectedId: number | null;
+  onSelect: (id: number | null) => void;
+  onClose: () => void;
+  accentPrimary: string;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Category</Text>
+        {categories.map((cat, i) => {
+          const active = cat.id === selectedId;
+          return (
+            <Pressable
+              key={cat.id}
+              style={[styles.sheetOption, i < categories.length - 1 && styles.sheetOptionBorder]}
+              onPress={() => onSelect(active ? null : cat.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+            >
+              <View style={styles.sheetOptionLeft}>
+                {cat.icon ? (
+                  <PhosphorIcon name={cat.icon} size={20} color={active ? accentPrimary : Palette.textSecondary} />
+                ) : null}
+                <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                  {cat.name}
+                </Text>
+              </View>
+              {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
+            </Pressable>
+          );
+        })}
+        <View style={{ height: Spacing[4] }} />
+      </View>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SubcategorySheet
+// ---------------------------------------------------------------------------
+
+function SubcategorySheet({
+  visible,
+  subcategories,
+  selectedId,
+  onSelect,
+  onClose,
+  accentPrimary,
+}: {
+  visible: boolean;
+  subcategories: Subcategory[];
+  selectedId: number | null;
+  onSelect: (id: number | null) => void;
+  onClose: () => void;
+  accentPrimary: string;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Subcategory</Text>
+        {subcategories.map((sub, i) => {
+          const active = sub.id === selectedId;
+          return (
+            <Pressable
+              key={sub.id}
+              style={[styles.sheetOption, i < subcategories.length - 1 && styles.sheetOptionBorder]}
+              onPress={() => onSelect(active ? null : sub.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+            >
+              <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                {sub.name}
+              </Text>
+              {active && <Text style={[styles.sheetOptionCheck, { color: accentPrimary }]}>✓</Text>}
+            </Pressable>
+          );
+        })}
+        <View style={{ height: Spacing[4] }} />
+      </View>
+    </Modal>
   );
 }
 
@@ -962,6 +1170,82 @@ const styles = StyleSheet.create({
   pickerTriggerValue: {
     fontSize: FontSize.sm,
     color: Palette.textSecondary,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+
+  // Brand suggestions
+  suggestionsRow: {
+    marginTop: Spacing[2],
+  },
+  suggestionChip: {
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[1],
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.surface2,
+    marginRight: Spacing[2],
+  },
+  suggestionChipText: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.xs,
+  },
+
+  // Category / subcategory sheet
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: Palette.overlay,
+  },
+  sheet: {
+    backgroundColor: Palette.surface1,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    paddingTop: Spacing[2],
+    maxHeight: '70%',
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Palette.border,
+    alignSelf: 'center',
+    marginBottom: Spacing[3],
+  },
+  sheetTitle: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: Spacing[4],
+    paddingBottom: Spacing[3],
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[4],
+  },
+  sheetOptionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.borderMuted,
+  },
+  sheetOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+  },
+  sheetOptionText: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.md,
+  },
+  sheetOptionCheck: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
   },
 
   // Favorite toggle
