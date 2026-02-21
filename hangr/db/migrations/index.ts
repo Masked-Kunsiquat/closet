@@ -1,41 +1,48 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
+import migration001 from './001_initial_schema';
+
 // ---------------------------------------------------------------------------
 // Migration registry
 //
-// Add new migrations here, in order. Never remove or reorder entries.
-// Each migration runs exactly once; the version is tracked in `user_version`.
+// Add new migrations here in order. Never remove or reorder entries.
+// Each migration runs exactly once, tracked in the schema_migrations table.
 // ---------------------------------------------------------------------------
 
 type Migration = {
   version: number;
-  up: (db: SQLiteDatabase) => void;
+  up: (db: SQLiteDatabase) => Promise<void>;
 };
 
-const migrations: Migration[] = [
-  // 001 will be added when the schema is ready (Phase 1)
-  // { version: 1, up: (db) => { db.execSync(`...`); } },
-];
+const migrations: Migration[] = [migration001];
 
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
 
-export function runMigrations(db: SQLiteDatabase): void {
-  const currentVersion: number = (
-    db.getFirstSync<{ user_version: number }>('PRAGMA user_version') ?? {
-      user_version: 0,
-    }
-  ).user_version;
+export async function runMigrations(db: SQLiteDatabase): Promise<void> {
+  // Ensure the tracking table exists before anything else.
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version    INTEGER PRIMARY KEY,
+      applied_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
 
-  const pending = migrations.filter((m) => m.version > currentVersion);
+  for (const migration of migrations) {
+    const already = await db.getFirstAsync<{ version: number }>(
+      'SELECT version FROM schema_migrations WHERE version = ?',
+      [migration.version]
+    );
 
-  if (pending.length === 0) return;
+    if (already) continue;
 
-  for (const migration of pending) {
-    db.withTransactionSync(() => {
-      migration.up(db);
-      db.execSync(`PRAGMA user_version = ${migration.version}`);
+    await db.withTransactionAsync(async () => {
+      await migration.up(db);
+      await db.runAsync(
+        'INSERT INTO schema_migrations (version) VALUES (?)',
+        [migration.version]
+      );
     });
   }
 }
