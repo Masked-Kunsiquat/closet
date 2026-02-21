@@ -26,6 +26,7 @@ import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/toke
 import { useAccent } from '@/context/AccentContext';
 import { CalendarDay } from '@/db/types';
 import { useCalendarMonth } from '@/hooks/useOutfitLog';
+import { contrastingTextColor } from '@/utils/color';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -56,7 +57,7 @@ export default function JournalScreen() {
   const { year, month } = ym;
 
   const yearMonth = toYearMonth(year, month);
-  const { days, loading, refresh } = useCalendarMonth(yearMonth);
+  const { days, loading, error, refresh } = useCalendarMonth(yearMonth);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
@@ -102,6 +103,17 @@ export default function JournalScreen() {
   const totalLogs = useMemo(() => days.reduce((s, d) => s + d.log_count, 0), [days]);
 
   const todayStr = todayIso();
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.errorContainer, { paddingTop: insets.top }]}>
+        <Text style={styles.errorText}>Failed to load journal.{'\n'}{error}</Text>
+        <TouchableOpacity style={styles.errorButton} onPress={handleRefresh}>
+          <Text style={styles.errorButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -215,16 +227,6 @@ function CalendarGrid({
 // Individual day cell
 // ---------------------------------------------------------------------------
 
-/** Returns '#000' or '#fff' so text is readable on any hex background. */
-function chipTextColor(hex: string): '#000000' | '#FFFFFF' {
-  const c = hex.replace('#', '');
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  // Perceived luminance (ITU-R BT.709)
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return luminance > 0.4 ? '#000000' : '#FFFFFF';
-}
 
 function DayCell({
   date,
@@ -273,7 +275,7 @@ function DayCell({
       {/* Log count chip */}
       {hasLogs && (
         <View style={[styles.logChip, { backgroundColor: accent }]}>
-          <Text style={[styles.logChipText, { color: chipTextColor(accent) }]}>{data!.log_count}</Text>
+          <Text style={[styles.logChipText, { color: contrastingTextColor(accent) }]}>{data!.log_count}</Text>
         </View>
       )}
 
@@ -398,5 +400,28 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#F59E0B',
     lineHeight: 11,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[4],
+    padding: Spacing[6],
+  },
+  errorText: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+  },
+  errorButton: {
+    paddingHorizontal: Spacing[5],
+    paddingVertical: Spacing[2],
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  errorButtonText: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.sm,
   },
 });

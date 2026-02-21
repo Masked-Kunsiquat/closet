@@ -27,6 +27,6 @@ These files live in the project and define the canonical data — always consult
 - Never store derived fields. Wear Count and Cost Per Wear are always computed.
 - Never use absolute image paths. Relative paths only, always.
 - Never build deferred features (collage builder, outfit planning, packing lists, weather API, goals, cloud backup, color dropper).
-- Always run `PRAGMA foreign_keys = ON` at DB open time.
-- Always use versioned migrations — never raw ad-hoc schema changes.
-- Always use `INSERT OR IGNORE` for seed data.
+- Enable `PRAGMA foreign_keys = ON` at DB open time.
+- Use versioned migrations — never raw ad-hoc schema changes.
+- Prefer `INSERT OR IGNORE` for seed data.

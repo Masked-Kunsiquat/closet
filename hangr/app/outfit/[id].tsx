@@ -26,13 +26,13 @@ import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/toke
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
 import {
-  clearOotd,
   deleteOutfit,
   getLogsByDate,
   getOutfitWithItems,
   insertOutfitLog,
   setOotd,
 } from '@/db/queries';
+import { contrastingTextColor } from '@/utils/color';
 import { OutfitWithItems } from '@/db/types';
 
 /** Returns today's date as YYYY-MM-DD in local time. */
@@ -178,7 +178,7 @@ export default function OutfitDetailScreen() {
         onPress={() => setLogModalVisible(true)}
         activeOpacity={0.85}
       >
-        <Text style={styles.fabText}>Log Outfit</Text>
+        <Text style={[styles.fabText, { color: contrastingTextColor(accent.primary) }]}>Log Outfit</Text>
       </TouchableOpacity>
 
       {/* Log modal */}
@@ -219,6 +219,7 @@ function LogModal({
     setDate(todayIso());
     setIsOotd(false);
     setNotes('');
+    setSaving(false);
   }, [visible]);
 
   // When date changes check if OOTD is already taken
@@ -355,7 +356,7 @@ function LogModal({
           disabled={saving}
           activeOpacity={0.85}
         >
-          <Text style={styles.saveButtonText}>{saving ? 'Saving…' : 'Save Log'}</Text>
+          <Text style={[styles.saveButtonText, { color: contrastingTextColor(accent) }]}>{saving ? 'Saving…' : 'Save Log'}</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -491,7 +492,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   fabText: {
-    color: '#000',
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
   },
@@ -589,7 +589,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing[2],
   },
   saveButtonText: {
-    color: '#000',
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
   },
