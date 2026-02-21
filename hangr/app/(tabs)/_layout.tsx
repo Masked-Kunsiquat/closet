@@ -6,15 +6,15 @@ import { Palette } from '@/constants/tokens';
 import { useAccent } from '@/context/AccentContext';
 
 /**
- * Renders the app's bottom tab navigator with Closet, Outfits, and Journal tabs.
+ * Renders the app's bottom tab navigator with Closet, Outfits, Journal, and Stats tabs.
  *
  * The navigator uses the current accent color for the active tab tint, applies
  * app surface and border colors for the tab bar, hides screen headers, and
  * substitutes tab buttons with the HapticTab component. Each tab displays a
- * PhosphorIcon: "t-shirt" for Closet, "coat-hanger" for Outfits, and
- * "calendar-dots" for Journal.
+ * PhosphorIcon: "t-shirt" for Closet, "coat-hanger" for Outfits,
+ * "calendar-dots" for Journal, and "chart-bar" for Stats.
  *
- * @returns A configured Tabs navigator containing the three tab screens.
+ * @returns A configured Tabs navigator containing the four tab screens.
  */
 export default function TabLayout() {
   const { accent } = useAccent();
@@ -53,6 +53,15 @@ export default function TabLayout() {
           title: 'Journal',
           tabBarIcon: ({ color }) => (
             <PhosphorIcon name="calendar-dots" size={26} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="stats"
+        options={{
+          title: 'Stats',
+          tabBarIcon: ({ color }) => (
+            <PhosphorIcon name="chart-bar" size={26} color={color} />
           ),
         }}
       />

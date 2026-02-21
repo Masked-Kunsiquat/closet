@@ -1,11 +1,13 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
 import {
+  BreakdownRow,
   CalendarDay,
   Category,
   ClothingItem,
   ClothingItemWithMeta,
   Color,
+  ColorBreakdownRow,
   Material,
   Occasion,
   Outfit,
@@ -17,6 +19,8 @@ import {
   Season,
   SizeSystem,
   SizeValue,
+  StatItem,
+  StatsOverview,
   Subcategory,
 } from './types';
 
@@ -829,4 +833,235 @@ export async function getCalendarDaysForMonth(
     GROUP BY date
     ORDER BY date
   `, [`${yearMonth}-%`]);
+}
+
+// ---------------------------------------------------------------------------
+// Stats
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns headline statistics for the active closet.
+ *
+ * Counts total active items, how many have been worn at least once within the
+ * optional date range, how many have never been worn in that range, and the
+ * sum of purchase prices. Pass `fromDate = null` for All Time.
+ *
+ * @param fromDate - Earliest `YYYY-MM-DD` date to include in wear counts, or `null` for all time
+ */
+export async function getStatsOverview(
+  db: SQLiteDatabase,
+  fromDate: string | null
+): Promise<StatsOverview> {
+  const row = await db.getFirstAsync<StatsOverview>(`
+    SELECT
+      COUNT(*) AS total_items,
+      COUNT(CASE WHEN EXISTS (
+        SELECT 1 FROM outfit_logs ol
+        JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+        WHERE oi.clothing_item_id = ci.id
+          AND (? IS NULL OR ol.date >= ?)
+      ) THEN 1 END) AS worn_items,
+      COUNT(CASE WHEN NOT EXISTS (
+        SELECT 1 FROM outfit_logs ol
+        JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+        WHERE oi.clothing_item_id = ci.id
+          AND (? IS NULL OR ol.date >= ?)
+      ) THEN 1 END) AS never_worn_items,
+      SUM(purchase_price) AS total_value
+    FROM clothing_items ci
+    WHERE ci.status = 'Active'
+  `, [fromDate, fromDate, fromDate, fromDate]);
+
+  return row ?? { total_items: 0, worn_items: 0, never_worn_items: 0, total_value: null };
+}
+
+/**
+ * Returns the top worn active clothing items sorted by wear count descending.
+ *
+ * Only items with at least one wear in the given date range are returned.
+ * Pass `fromDate = null` for All Time.
+ *
+ * @param fromDate - Earliest `YYYY-MM-DD` date to include, or `null` for all time
+ * @param limit - Maximum number of rows to return (default 15)
+ */
+export async function getMostWornItems(
+  db: SQLiteDatabase,
+  fromDate: string | null,
+  limit = 15
+): Promise<StatItem[]> {
+  return db.getAllAsync<StatItem>(`
+    SELECT
+      ci.id,
+      ci.name,
+      ci.image_path,
+      COUNT(DISTINCT ol.id) AS wear_count
+    FROM clothing_items ci
+    JOIN outfit_items oi ON oi.clothing_item_id = ci.id
+    JOIN outfit_logs ol  ON ol.outfit_id = oi.outfit_id
+    WHERE ci.status = 'Active'
+      AND (? IS NULL OR ol.date >= ?)
+    GROUP BY ci.id
+    ORDER BY wear_count DESC
+    LIMIT ?
+  `, [fromDate, fromDate, limit]);
+}
+
+/**
+ * Returns the least worn active clothing items (worn at least once) sorted by wear count ascending.
+ *
+ * Only items with at least one wear in the given date range are returned.
+ * Pass `fromDate = null` for All Time.
+ *
+ * @param fromDate - Earliest `YYYY-MM-DD` date to include, or `null` for all time
+ * @param limit - Maximum number of rows to return (default 15)
+ */
+export async function getLeastWornItems(
+  db: SQLiteDatabase,
+  fromDate: string | null,
+  limit = 15
+): Promise<StatItem[]> {
+  return db.getAllAsync<StatItem>(`
+    SELECT
+      ci.id,
+      ci.name,
+      ci.image_path,
+      COUNT(DISTINCT ol.id) AS wear_count
+    FROM clothing_items ci
+    JOIN outfit_items oi ON oi.clothing_item_id = ci.id
+    JOIN outfit_logs ol  ON ol.outfit_id = oi.outfit_id
+    WHERE ci.status = 'Active'
+      AND (? IS NULL OR ol.date >= ?)
+    GROUP BY ci.id
+    HAVING wear_count > 0
+    ORDER BY wear_count ASC
+    LIMIT ?
+  `, [fromDate, fromDate, limit]);
+}
+
+/**
+ * Returns active clothing items that have never been worn in the given date range.
+ *
+ * Pass `fromDate = null` for All Time.
+ *
+ * @param fromDate - Earliest `YYYY-MM-DD` date to include, or `null` for all time
+ * @param limit - Maximum number of rows to return (default 15)
+ */
+export async function getNeverWornItems(
+  db: SQLiteDatabase,
+  fromDate: string | null,
+  limit = 15
+): Promise<StatItem[]> {
+  return db.getAllAsync<StatItem>(`
+    SELECT ci.id, ci.name, ci.image_path, 0 AS wear_count
+    FROM clothing_items ci
+    WHERE ci.status = 'Active'
+      AND NOT EXISTS (
+        SELECT 1 FROM outfit_items oi
+        JOIN outfit_logs ol ON ol.outfit_id = oi.outfit_id
+        WHERE oi.clothing_item_id = ci.id
+          AND (? IS NULL OR ol.date >= ?)
+      )
+    ORDER BY ci.name ASC
+    LIMIT ?
+  `, [fromDate, fromDate, limit]);
+}
+
+/**
+ * Returns the count of active items per category, ordered by count descending.
+ *
+ * This reflects current inventory — it is not filtered by date range.
+ */
+export async function getBreakdownByCategory(db: SQLiteDatabase): Promise<BreakdownRow[]> {
+  return db.getAllAsync<BreakdownRow>(`
+    SELECT c.name AS label, COUNT(DISTINCT ci.id) AS count
+    FROM clothing_items ci
+    JOIN categories c ON c.id = ci.category_id
+    WHERE ci.status = 'Active'
+    GROUP BY c.id
+    ORDER BY count DESC
+  `);
+}
+
+/**
+ * Returns the count of active items per color, ordered by count descending.
+ *
+ * This reflects current inventory — it is not filtered by date range.
+ */
+export async function getBreakdownByColor(db: SQLiteDatabase): Promise<ColorBreakdownRow[]> {
+  return db.getAllAsync<ColorBreakdownRow>(`
+    SELECT col.name AS label, col.hex, COUNT(DISTINCT ci.id) AS count
+    FROM clothing_items ci
+    JOIN clothing_item_colors cic ON cic.clothing_item_id = ci.id
+    JOIN colors col ON col.id = cic.color_id
+    WHERE ci.status = 'Active'
+    GROUP BY col.id
+    ORDER BY count DESC
+  `);
+}
+
+/**
+ * Returns the count of active items per brand, ordered by count descending.
+ *
+ * Items with no brand are grouped under "No Brand".
+ * This reflects current inventory — it is not filtered by date range.
+ */
+export async function getBreakdownByBrand(db: SQLiteDatabase): Promise<BreakdownRow[]> {
+  return db.getAllAsync<BreakdownRow>(`
+    SELECT COALESCE(ci.brand, 'No Brand') AS label, COUNT(*) AS count
+    FROM clothing_items ci
+    WHERE ci.status = 'Active'
+    GROUP BY ci.brand
+    ORDER BY count DESC
+  `);
+}
+
+/**
+ * Returns the count of active items per material, ordered by count descending.
+ *
+ * This reflects current inventory — it is not filtered by date range.
+ */
+export async function getBreakdownByMaterial(db: SQLiteDatabase): Promise<BreakdownRow[]> {
+  return db.getAllAsync<BreakdownRow>(`
+    SELECT m.name AS label, COUNT(DISTINCT ci.id) AS count
+    FROM clothing_items ci
+    JOIN clothing_item_materials cim ON cim.clothing_item_id = ci.id
+    JOIN materials m ON m.id = cim.material_id
+    WHERE ci.status = 'Active'
+    GROUP BY m.id
+    ORDER BY count DESC
+  `);
+}
+
+/**
+ * Returns the count of active items per occasion, ordered by count descending.
+ *
+ * This reflects current inventory — it is not filtered by date range.
+ */
+export async function getBreakdownByOccasion(db: SQLiteDatabase): Promise<BreakdownRow[]> {
+  return db.getAllAsync<BreakdownRow>(`
+    SELECT o.name AS label, COUNT(DISTINCT ci.id) AS count
+    FROM clothing_items ci
+    JOIN clothing_item_occasions cio ON cio.clothing_item_id = ci.id
+    JOIN occasions o ON o.id = cio.occasion_id
+    WHERE ci.status = 'Active'
+    GROUP BY o.id
+    ORDER BY count DESC
+  `);
+}
+
+/**
+ * Returns the count of active items per season, ordered by count descending.
+ *
+ * This reflects current inventory — it is not filtered by date range.
+ */
+export async function getBreakdownBySeason(db: SQLiteDatabase): Promise<BreakdownRow[]> {
+  return db.getAllAsync<BreakdownRow>(`
+    SELECT s.name AS label, COUNT(DISTINCT ci.id) AS count
+    FROM clothing_items ci
+    JOIN clothing_item_seasons cis ON cis.clothing_item_id = ci.id
+    JOIN seasons s ON s.id = cis.season_id
+    WHERE ci.status = 'Active'
+    GROUP BY s.id
+    ORDER BY count DESC
+  `);
 }

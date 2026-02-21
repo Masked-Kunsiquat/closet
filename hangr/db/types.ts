@@ -135,3 +135,36 @@ export type CalendarDay = {
   log_count: number;
   has_ootd: 0 | 1;
 };
+
+// ---------------------------------------------------------------------------
+// Stats
+// ---------------------------------------------------------------------------
+
+export type StatsOverview = {
+  total_items: number;
+  worn_items: number;
+  never_worn_items: number;
+  /** Sum of purchase_price for active items; null when no prices have been entered. */
+  total_value: number | null;
+};
+
+/** A clothing item with its computed wear count, used in most/least/never-worn lists. */
+export type StatItem = {
+  id: number;
+  name: string;
+  image_path: string | null;
+  wear_count: number;
+};
+
+/** A single row in a breakdown chart (category, brand, material, occasion, season). */
+export type BreakdownRow = {
+  label: string;
+  count: number;
+};
+
+/** A single row in the color breakdown chart — includes the hex value for the bar color. */
+export type ColorBreakdownRow = {
+  label: string;
+  hex: string | null;
+  count: number;
+};
