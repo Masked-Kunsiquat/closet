@@ -12,6 +12,16 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+/**
+ * App root layout that initializes the database and, when ready, provides global theming and navigation.
+ *
+ * When database initialization fails, renders a full-screen error view with the error detail and a Retry button.
+ * While the database is being initialized (and no error has occurred) nothing is rendered.
+ * Once the database is ready, the component wraps the app in AccentProvider and ThemeProvider (DarkTheme),
+ * renders the Stack navigator containing the app screens, and sets a light StatusBar.
+ *
+ * @returns A React element representing the root layout: an error view if initialization failed, `null` while initializing, or the themed app providers and navigation stack when ready.
+ */
 export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);

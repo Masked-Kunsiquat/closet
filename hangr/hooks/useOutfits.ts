@@ -10,6 +10,15 @@ type State = {
   error: string | null;
 };
 
+/**
+ * Manage and expose outfits state by fetching all outfits from the app database.
+ *
+ * @returns An object containing:
+ * - `outfits`: the fetched list of `OutfitWithMeta`
+ * - `loading`: `true` while a fetch is in progress, `false` otherwise
+ * - `error`: an error message string when the last fetch failed, or `null`
+ * - `refresh`: a function that re-fetches outfits and updates the state
+ */
 export function useOutfits() {
   const [state, setState] = useState<State>({ outfits: [], loading: true, error: null });
 

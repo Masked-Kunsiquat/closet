@@ -54,7 +54,18 @@ type Props = {
 
 // ---------------------------------------------------------------------------
 // Component
-// ---------------------------------------------------------------------------
+/**
+ * Presents a modal bottom sheet that lets the user select filters and a sort order for the closet view, then apply or clear them.
+ *
+ * The panel maintains a local draft of filters and sort state while open, loads lookup data (categories, subcategories, seasons, occasions, colors, brands), resolves junction-based item ID sets for color/season/occasion before committing, and animates in/out from the bottom.
+ *
+ * @param visible - Whether the panel is visible
+ * @param onClose - Callback invoked to close the panel
+ * @param currentFilters - Currently applied filter values used to initialize the draft when the panel opens
+ * @param currentSort - Currently applied sort key used to initialize the draft sort when the panel opens
+ * @param onApply - Callback invoked with the finalized filters (including resolved `junctionItemIds` when applicable) and selected sort when the user applies changes
+ * @returns The rendered FilterPanel component
+ */
 
 export function FilterPanel({ visible, onClose, currentFilters, currentSort, onApply }: Props) {
   const { accent } = useAccent();
@@ -329,7 +340,13 @@ export function FilterPanel({ visible, onClose, currentFilters, currentSort, onA
 
 // ---------------------------------------------------------------------------
 // Sub-components
-// ---------------------------------------------------------------------------
+/**
+ * Renders a titled section container used within the filter panel.
+ *
+ * @param title - Text displayed as the section header
+ * @param children - Content rendered beneath the header
+ * @returns The section view element containing the header and its children
+ */
 
 function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -342,6 +359,16 @@ function PanelSection({ title, children }: { title: string; children: React.Reac
 
 type ChipItem = { id: string | number; name: string };
 
+/**
+ * Renders a horizontal row of selectable chips for the given items.
+ *
+ * @param items - Array of items to render; each item must have `id` and `name`.
+ * @param selectedId - The currently selected item's `id`, or `null` if none.
+ * @param onSelect - Callback invoked with an item's `id` when a chip is pressed.
+ * @param accent - Color used for the selected chip's background and border.
+ * @param renderPrefix - Optional function that returns a React node rendered before an item's name (for example, a color swatch).
+ * @returns A React element containing the rendered chip row.
+ */
 function ChipRow<T extends ChipItem>({
   items,
   selectedId,

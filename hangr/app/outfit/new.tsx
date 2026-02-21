@@ -32,6 +32,14 @@ import { contrastingTextColor } from '@/utils/color';
 
 type Step = 'pick' | 'name';
 
+/**
+ * Multi-step screen to create a new outfit by selecting items, optionally naming it, and saving it.
+ *
+ * Presents a "pick" step for choosing active closet items and a "name" step for entering an optional outfit name
+ * with a preview of selected items. On save, the outfit is persisted and the UI navigates to the newly created outfit.
+ *
+ * @returns The JSX element rendering the new-outfit creation screen.
+ */
 export default function NewOutfitScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
@@ -134,7 +142,16 @@ export default function NewOutfitScreen() {
 
 // ---------------------------------------------------------------------------
 // Step 1 — Item picker grid
-// ---------------------------------------------------------------------------
+/**
+ * Render a 3-column grid UI that lets the user pick clothing items, with built-in loading and empty states.
+ *
+ * @param items - Array of clothing items (with metadata) to display as selectable tiles.
+ * @param loading - When true, show a centered activity indicator instead of the grid.
+ * @param selected - Set of item IDs currently selected; selected tiles show a highlighted border and checkmark.
+ * @param onToggle - Callback invoked with an item ID when a tile is pressed to toggle its selection.
+ * @param accent - Color used for selection highlights and activity indicator.
+ * @returns A React element containing either a loading indicator, an empty message, or the selectable item grid.
+ */
 
 function ItemPicker({
   items,
@@ -205,7 +222,15 @@ function ItemPicker({
 
 // ---------------------------------------------------------------------------
 // Step 2 — Name + preview
-// ---------------------------------------------------------------------------
+/**
+ * Renders the "name" step of the outfit creation flow: an optional outfit name input and a thumbnail preview of selected items.
+ *
+ * @param name - The current text value of the outfit name input.
+ * @param onChangeName - Callback invoked with the new name when the input changes.
+ * @param selectedItems - Array of clothing items to display as thumbnails in the preview strip.
+ * @param accent - Accent color used for theming the step (passed through from parent).
+ * @returns The UI for the name-and-preview step, including the name TextInput and a horizontal strip of item thumbnails.
+ */
 
 function NameStep({
   name,
@@ -256,7 +281,12 @@ function NameStep({
 
 // ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
+/**
+ * Maps a clothing category name to a representative emoji.
+ *
+ * @param name - The clothing category name (or `null`) to map to an emoji
+ * @returns An emoji corresponding to the category; returns 🧺 for unknown or `null` categories
+ */
 
 function categoryEmoji(name: string | null): string {
   switch (name) {

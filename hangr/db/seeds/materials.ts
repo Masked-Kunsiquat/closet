@@ -26,6 +26,11 @@ const MATERIALS = [
   'Other',
 ] as const;
 
+/**
+ * Seed the materials table with predefined fabric names.
+ *
+ * Inserts each name from MATERIALS into the `materials` table; duplicate names are ignored so existing rows are not modified.
+ */
 export async function seedMaterials(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     for (const name of MATERIALS) {

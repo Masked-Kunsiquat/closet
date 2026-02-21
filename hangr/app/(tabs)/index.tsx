@@ -21,6 +21,13 @@ import { contrastingTextColor } from '@/utils/color';
 
 const CARD_GAP = Spacing[2];
 
+/**
+ * Renders the Closet screen including header, filter/sort controls, grid/list views of items, empty states, a floating add button, and the filter panel.
+ *
+ * The component reads clothing items and view state from hooks, displays counts and loading states, allows switching between grid and list layouts, supports pull-to-refresh, navigation to item details and item creation, and exposes filtering and sorting via the FilterPanel.
+ *
+ * @returns The Closet screen React element
+ */
 export default function ClosetScreen() {
   const { items, loading, error, refresh } = useClothingItems();
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -183,7 +190,16 @@ export default function ClosetScreen() {
 
 // ---------------------------------------------------------------------------
 // Grid card
-// ---------------------------------------------------------------------------
+/**
+ * Render a tappable grid-style card for a clothing item.
+ *
+ * Displays the item's image (or a category emoji placeholder), the name and optional category,
+ * and overlays a favorite star and a status badge when applicable.
+ *
+ * @param item - The clothing item with metadata to display (image_path, name, category_name, is_favorite, status, etc.)
+ * @param onPress - Callback invoked when the card is pressed
+ * @returns The card element to render in a grid
+ */
 
 function GridCard({ item, onPress }: { item: ClothingItemWithMeta; onPress: () => void }) {
   return (
@@ -228,7 +244,16 @@ function GridCard({ item, onPress }: { item: ClothingItemWithMeta; onPress: () =
 
 // ---------------------------------------------------------------------------
 // List row
-// ---------------------------------------------------------------------------
+/**
+ * Renders a pressable list row representing a clothing item.
+ *
+ * Displays the item's thumbnail (or category emoji), primary name, secondary line (brand or category),
+ * a favorite star when marked, wear count when > 0, and a status pill when status is not "Active".
+ *
+ * @param item - The clothing item with metadata to render
+ * @param onPress - Callback invoked when the row is pressed
+ * @returns The rendered list row element
+ */
 
 function ListRow({ item, onPress }: { item: ClothingItemWithMeta; onPress: () => void }) {
   return (
@@ -278,7 +303,13 @@ function ListRow({ item, onPress }: { item: ClothingItemWithMeta; onPress: () =>
 
 // ---------------------------------------------------------------------------
 // Empty states
-// ---------------------------------------------------------------------------
+/**
+ * Renders an empty-closet placeholder with a call-to-action to add the first item.
+ *
+ * Presents an emoji, title, subtitle, and an "Add Item" button. Pressing the button navigates to the item creation route (/item/add).
+ *
+ * @returns The empty-closet UI element.
+ */
 
 function EmptyCloset() {
   const { accent } = useAccent();
@@ -299,6 +330,11 @@ function EmptyCloset() {
   );
 }
 
+/**
+ * Renders an empty-state view shown when no items match the active filters.
+ *
+ * @param onClear - Callback invoked when the user taps the "Clear Filters" button.
+ */
 function EmptyFilter({ onClear }: { onClear: () => void }) {
   return (
     <View style={styles.emptyContainer}>
@@ -314,7 +350,12 @@ function EmptyFilter({ onClear }: { onClear: () => void }) {
 
 // ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
+/**
+ * Maps a clothing category name to an emoji representing that category.
+ *
+ * @param name - The category name (e.g., "Tops"); may be null.
+ * @returns The emoji corresponding to the category, or '🧺' when the category is unknown or null.
+ */
 
 function categoryEmoji(name: string | null): string {
   switch (name) {

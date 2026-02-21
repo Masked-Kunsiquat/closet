@@ -18,7 +18,13 @@ const migrations: Migration[] = [migration001];
 
 // ---------------------------------------------------------------------------
 // Runner
-// ---------------------------------------------------------------------------
+/**
+ * Applies any pending schema migrations to the provided SQLite database and records each applied version.
+ *
+ * Each migration in the registered list is applied at most once; applied migrations are recorded in
+ * the `schema_migrations` table. Each migration is executed inside a transaction so application and
+ * recording occur atomically.
+ */
 
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   // Ensure the tracking table exists before anything else.

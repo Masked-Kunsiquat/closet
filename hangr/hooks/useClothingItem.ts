@@ -27,6 +27,18 @@ type State = {
   error: string | null;
 };
 
+/**
+ * Fetches a clothing item by its id along with related metadata and exposes load state and a refresh function.
+ *
+ * The returned `item` (when present) merges the stored clothing record with derived fields:
+ * `wearCount` (number), `costPerWear` (purchase price divided by `wearCount`, or `null`), and ID arrays `colorIds`, `materialIds`, `seasonIds`, `occasionIds`, and `patternIds`.
+ *
+ * @returns An object containing:
+ * - `item`: the combined clothing item detail or `null` if not found or on error
+ * - `loading`: `true` while the item and metadata are being fetched
+ * - `error`: an error message string or `null`
+ * - `refresh`: a function to re-fetch the item and metadata
+ */
 export function useClothingItem(id: number) {
   const [state, setState] = useState<State>({ item: null, loading: true, error: null });
   const requestIdRef = useRef(0);

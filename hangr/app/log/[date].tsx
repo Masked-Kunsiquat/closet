@@ -26,7 +26,12 @@ import { OutfitLogWithMeta } from '@/db/types';
 import { useLogsForDate } from '@/hooks/useOutfitLog';
 import { contrastingTextColor } from '@/utils/color';
 
-/** Formats YYYY-MM-DD → human-readable "March 21, 2025" */
+/**
+ * Convert an ISO date string (YYYY-MM-DD) into a localized, human-readable date.
+ *
+ * @param iso - Date in `YYYY-MM-DD` format
+ * @returns A locale-formatted date string like "March 21, 2025"
+ */
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, {
@@ -34,6 +39,13 @@ function formatDate(iso: string): string {
   });
 }
 
+/**
+ * Renders the Day Detail screen showing outfit logs for a specific date, including header, empty state, and a list of logs with OOTD and delete actions.
+ *
+ * The component reads the target date from the route, fetches logs for that date, and provides UI for toggling an outfit as OOTD (with replacement confirmation) and deleting logs (with confirmation). Navigation to an outfit detail is available when a log references an outfit.
+ *
+ * @returns The screen component that displays and manages outfit logs for the provided date.
+ */
 export default function DayDetailScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const { accent } = useAccent();
@@ -149,7 +161,20 @@ export default function DayDetailScreen() {
 
 // ---------------------------------------------------------------------------
 // Log row
-// ---------------------------------------------------------------------------
+/**
+ * Renders a single outfit log row with thumbnail, metadata, and action controls.
+ *
+ * Shows a pressable cover thumbnail (or placeholder), outfit name, item count and notes,
+ * plus buttons to toggle OOTD and delete the log. When the log is marked OOTD the badge
+ * uses the provided accent color.
+ *
+ * @param log - The outfit log and associated metadata to display
+ * @param accent - Accent color used for the active OOTD badge
+ * @param onToggleOotd - Called when the OOTD badge is pressed
+ * @param onDelete - Called when the delete action is pressed
+ * @param onPressOutfit - Called when the thumbnail area is pressed
+ * @returns A JSX element representing the log row
+ */
 
 function LogRow({
   log,

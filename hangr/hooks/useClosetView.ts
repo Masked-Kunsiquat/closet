@@ -56,7 +56,20 @@ export const SORT_LABELS: Record<SortKey, string> = {
 
 // ---------------------------------------------------------------------------
 // Hook
-// ---------------------------------------------------------------------------
+/**
+ * Manages view mode, sorting, and active filters for a closet item list.
+ *
+ * Provides local state and derived results for rendering and controlling a closet view:
+ * - current view mode and setter (`viewMode`, `setViewMode`)
+ * - current sort key and setter (`sortKey`, `setSortKey`)
+ * - active filter state and updaters (`filters`, `setFilter`, `applyFilters`, `clearFilters`)
+ * - filter panel visibility and setter (`filterPanelOpen`, `setFilterPanelOpen`)
+ * - `activeFilterCount`: number of non-null scalar filters currently applied
+ * - `filteredAndSorted`: the input items filtered and ordered according to `filters` and `sortKey`
+ *
+ * @param items - The list of clothing items with metadata to be filtered and sorted
+ * @returns An object containing view and filter state, mutators, `activeFilterCount`, and `filteredAndSorted`
+ */
 
 export function useClosetView(items: ClothingItemWithMeta[]) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');

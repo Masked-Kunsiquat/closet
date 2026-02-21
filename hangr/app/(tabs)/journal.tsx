@@ -34,12 +34,22 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/** Returns YYYY-MM string for the given year+month (0-indexed month). */
+/**
+ * Format a year and 0-indexed month into a `YYYY-MM` string.
+ *
+ * @param year - The full year (e.g., `2026`)
+ * @param month - Month as 0-indexed (0 = January, 11 = December)
+ * @returns A string in the format `YYYY-MM` where the month is one-based and zero-padded
+ */
 function toYearMonth(year: number, month: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}`;
 }
 
-/** Returns today as YYYY-MM-DD in local time. */
+/**
+ * Get today's date formatted as YYYY-MM-DD in the local timezone.
+ *
+ * @returns The current local date as `YYYY-MM-DD`
+ */
 function todayIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -47,6 +57,13 @@ function todayIso(): string {
 
 type CalendarDayMap = Record<string, CalendarDay>;
 
+/**
+ * Render the Journal screen with a monthly calendar view, month navigation, and pull-to-refresh.
+ *
+ * Displays a calendar grid for the selected year/month where each day cell shows a log count chip and an OOTD indicator when applicable. Provides previous/next month controls, highlights today, supports pull-to-refresh, and shows an error view with a retry action when calendar data fails to load. Tapping a day with logs navigates to that day's log page.
+ *
+ * @returns The Journal screen React element.
+ */
 export default function JournalScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
@@ -181,7 +198,16 @@ export default function JournalScreen() {
 
 // ---------------------------------------------------------------------------
 // Calendar grid
-// ---------------------------------------------------------------------------
+/**
+ * Render a 7-column calendar grid of DayCell components for the provided month cells.
+ *
+ * @param cells - Flat array of date strings or `null` values (padding) representing the month laid out row-wise.
+ * @param dayMap - Map from ISO date string to CalendarDay data used to populate each cell.
+ * @param today - ISO date string for the current day; used to mark the "today" cell.
+ * @param accent - Accent color used for today/indicator styling.
+ * @param onPressDay - Callback invoked with an ISO date string when a populated day cell is pressed.
+ * @returns A React element containing rows of DayCell components arranged into a 7-column calendar grid.
+ */
 
 function CalendarGrid({
   cells,
@@ -226,7 +252,16 @@ function CalendarGrid({
 
 // ---------------------------------------------------------------------------
 // Individual day cell
-// ---------------------------------------------------------------------------
+/**
+ * Render a calendar day cell that displays the day number and, when present, a log count chip and an OOTD star; the cell can be pressed when it represents today or has logs.
+ *
+ * @param date - The date for the cell in `YYYY-MM-DD` format, or `null` for an empty/padding cell.
+ * @param data - Optional calendar metadata for the date (used to derive `log_count` and `has_ootd`).
+ * @param isToday - Whether this cell represents today; affects styling and enabled state.
+ * @param accent - Accent color used for highlighting and the log count chip background.
+ * @param onPress - Optional callback invoked when the cell is pressed.
+ * @returns A React element representing the day cell.
+ */
 
 
 function DayCell({

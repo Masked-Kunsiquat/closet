@@ -21,6 +21,11 @@ import { OutfitWithMeta } from '@/db/types';
 import { useOutfits } from '@/hooks/useOutfits';
 import { contrastingTextColor } from '@/utils/color';
 
+/**
+ * Renders the Outfits screen with a header showing the outfit count, a refreshable list of outfits (or an empty state when none exist), and a floating action button to create a new outfit.
+ *
+ * @returns The React element representing the Outfits screen.
+ */
 export default function OutfitsScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
@@ -90,7 +95,13 @@ export default function OutfitsScreen() {
 
 // ---------------------------------------------------------------------------
 // Outfit row
-// ---------------------------------------------------------------------------
+/**
+ * Renders a tappable list row displaying an outfit's thumbnail, name, and item count.
+ *
+ * @param outfit - Outfit data; expected to include `id`, `name`, `cover_image`, and `item_count` (used to show the thumbnail, title, and item count).
+ * @param onPress - Callback invoked when the row is pressed.
+ * @returns A React element representing the outfit row for use in a list.
+ */
 
 function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () => void }) {
   return (
@@ -127,7 +138,15 @@ function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () =>
 
 // ---------------------------------------------------------------------------
 // Empty state
-// ---------------------------------------------------------------------------
+/**
+ * Renders the empty state shown when there are no outfits.
+ *
+ * Displays an emoji, title, subtitle, and a call-to-action button styled with the provided accent color.
+ * Pressing the button navigates to the new-outfit screen.
+ *
+ * @param accent - Color used as the CTA button background
+ * @returns The empty-state React element for the Outfits screen
+ */
 
 function EmptyOutfits({ accent }: { accent: string }) {
   const router = useRouter();
