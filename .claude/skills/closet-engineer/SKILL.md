@@ -18,16 +18,37 @@ A personal, local-first digital wardrobe and outfit tracking app. React Native /
 - Phosphor Icons (SVG, stored as local assets; icon name stored as string in DB)
 
 ## Folder Conventions
+All source lives directly under `hangr/` — there is no `src/` wrapper.
 ```
-db/
-  migrations/   # 001_initial.ts, 002_add_icon.ts ...
-  seeds/        # categories.ts, seasons.ts ...
-src/
-  components/   # colocated by feature
-  screens/
-  theme/        # design tokens
-assets/
-  icons/        # Phosphor SVG files
+hangr/
+  app/                    # expo-router file-based routing
+    (tabs)/               # index (Closet), outfits, journal, stats, settings
+    item/                 # add.tsx, [id].tsx, [id]/edit.tsx
+    log/                  # [date].tsx
+    outfit/               # new.tsx, [id].tsx
+    _layout.tsx
+  components/
+    clothing/             # ItemForm.tsx, PickerSheet.tsx
+    closet/               # FilterPanel.tsx
+    ui/                   # SkeletonLoader.tsx, collapsible.tsx, icon-symbol.tsx
+    PhosphorIcon.tsx
+    haptic-tab.tsx
+  context/                # AccentContext.tsx, SettingsContext.tsx
+  db/
+    migrations/           # 001_initial_schema.ts, 002_app_settings.ts ...
+    seeds/                # categories.ts, colors.ts, seasons.ts ...
+    index.ts              # getDatabase() singleton
+    queries.ts            # all SQL queries
+    types.ts              # TypeScript types mirroring schema
+  hooks/                  # useClothingItems, useClothingItem, useClosetView, useOutfits, useStats ...
+  constants/
+    tokens.ts             # all design tokens (Palette, Spacing, Radius, FontSize, etc.)
+    theme.ts              # legacy shim — new code imports from tokens.ts directly
+  utils/
+    color.ts
+  assets/
+    icons/                # Phosphor SVG files (28px, fill=#000000)
+    images/
 ```
 
 ## Database Rules
