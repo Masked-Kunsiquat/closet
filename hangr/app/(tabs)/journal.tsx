@@ -109,7 +109,13 @@ export default function JournalScreen() {
 
         {/* Month navigation */}
         <View style={styles.monthNav}>
-          <TouchableOpacity onPress={goToPrevMonth} hitSlop={12} style={styles.navBtn}>
+          <TouchableOpacity
+            onPress={goToPrevMonth}
+            hitSlop={12}
+            style={styles.navBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Previous month"
+          >
             <Text style={styles.navArrow}>‹</Text>
           </TouchableOpacity>
 
@@ -117,7 +123,13 @@ export default function JournalScreen() {
             {MONTH_NAMES[month]} {year}
           </Text>
 
-          <TouchableOpacity onPress={goToNextMonth} hitSlop={12} style={styles.navBtn}>
+          <TouchableOpacity
+            onPress={goToNextMonth}
+            hitSlop={12}
+            style={styles.navBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Next month"
+          >
             <Text style={styles.navArrow}>›</Text>
           </TouchableOpacity>
         </View>
@@ -214,11 +226,19 @@ function DayCell({
   const hasLogs = !!data && data.log_count > 0;
   const isOotd = !!data && data.has_ootd === 1;
 
+  const parts = [String(dayNumber)];
+  if (hasLogs) parts.push(`${data!.log_count} outfit log${data!.log_count !== 1 ? 's' : ''}`);
+  if (isOotd) parts.push('Outfit of the Day');
+  const a11yLabel = parts.join(', ');
+
   return (
     <Pressable
       style={[styles.cell, isToday && styles.cellToday]}
       onPress={onPress}
       disabled={!hasLogs && !isToday}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ disabled: !hasLogs && !isToday }}
     >
       {/* Day number */}
       <Text style={[
