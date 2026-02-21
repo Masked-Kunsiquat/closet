@@ -22,15 +22,23 @@ export function getDatabase(): Promise<Db> {
   if (_ready) return _ready;
 
   _ready = (async () => {
-    _db = openDatabaseSync(DB_NAME);
+    try {
+      _db = openDatabaseSync(DB_NAME);
 
-    // Referential integrity must be on before anything else.
-    await _db.execAsync('PRAGMA foreign_keys = ON');
+      // Referential integrity must be on before anything else.
+      await _db.execAsync('PRAGMA foreign_keys = ON');
 
-    await runMigrations(_db);
-    await runSeeds(_db);
+      await runMigrations(_db);
+      await runSeeds(_db);
 
-    return _db;
+      return _db;
+    } catch (e) {
+      // Reset so the next call can retry initialization from scratch.
+      _db?.closeSync?.();
+      _db = null;
+      _ready = null;
+      throw e;
+    }
   })();
 
   return _ready;

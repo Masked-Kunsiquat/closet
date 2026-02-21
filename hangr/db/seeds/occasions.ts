@@ -13,10 +13,12 @@ const OCCASIONS = [
 ] as const;
 
 export async function seedOccasions(db: SQLiteDatabase): Promise<void> {
-  for (const row of OCCASIONS) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO occasions (name, icon) VALUES (?, ?)`,
-      [row.name, row.icon]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    for (const row of OCCASIONS) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO occasions (name, icon) VALUES (?, ?)`,
+        [row.name, row.icon]
+      );
+    }
+  });
 }

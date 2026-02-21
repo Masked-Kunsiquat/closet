@@ -27,10 +27,12 @@ const MATERIALS = [
 ] as const;
 
 export async function seedMaterials(db: SQLiteDatabase): Promise<void> {
-  for (const name of MATERIALS) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO materials (name) VALUES (?)`,
-      [name]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    for (const name of MATERIALS) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO materials (name) VALUES (?)`,
+        [name]
+      );
+    }
+  });
 }

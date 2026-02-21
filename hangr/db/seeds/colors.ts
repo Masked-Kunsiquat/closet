@@ -31,10 +31,12 @@ const COLORS: { name: string; hex: string }[] = [
 ];
 
 export async function seedColors(db: SQLiteDatabase): Promise<void> {
-  for (const color of COLORS) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO colors (name, hex) VALUES (?, ?)`,
-      [color.name, color.hex || null]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    for (const color of COLORS) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO colors (name, hex) VALUES (?, ?)`,
+        [color.name, color.hex || null]
+      );
+    }
+  });
 }

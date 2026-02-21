@@ -21,10 +21,12 @@ const PATTERNS = [
 ] as const;
 
 export async function seedPatterns(db: SQLiteDatabase): Promise<void> {
-  for (const name of PATTERNS) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO patterns (name) VALUES (?)`,
-      [name]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    for (const name of PATTERNS) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO patterns (name) VALUES (?)`,
+        [name]
+      );
+    }
+  });
 }

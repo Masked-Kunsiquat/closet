@@ -9,10 +9,12 @@ const SEASONS = [
 ] as const;
 
 export async function seedSeasons(db: SQLiteDatabase): Promise<void> {
-  for (const row of SEASONS) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)`,
-      [row.name, row.icon]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    for (const row of SEASONS) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)`,
+        [row.name, row.icon]
+      );
+    }
+  });
 }

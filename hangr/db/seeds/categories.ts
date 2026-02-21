@@ -92,24 +92,26 @@ const CATEGORIES = [
 ] as const;
 
 export async function seedCategories(db: SQLiteDatabase): Promise<void> {
-  for (const [i, cat] of CATEGORIES.entries()) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO categories (name, icon, sort_order) VALUES (?, ?, ?)`,
-      [cat.name, cat.icon, cat.sort_order]
-    );
-
-    // Fetch the id (works whether just inserted or already existed).
-    const row = await db.getFirstAsync<{ id: number }>(
-      `SELECT id FROM categories WHERE name = ?`,
-      [cat.name]
-    );
-    if (!row) continue;
-
-    for (const [j, sub] of cat.subcategories.entries()) {
+  await db.withTransactionAsync(async () => {
+    for (const cat of CATEGORIES) {
       await db.runAsync(
-        `INSERT OR IGNORE INTO subcategories (category_id, name, sort_order) VALUES (?, ?, ?)`,
-        [row.id, sub, j + 1]
+        `INSERT OR IGNORE INTO categories (name, icon, sort_order) VALUES (?, ?, ?)`,
+        [cat.name, cat.icon, cat.sort_order]
       );
+
+      // Fetch the id (works whether just inserted or already existed).
+      const row = await db.getFirstAsync<{ id: number }>(
+        `SELECT id FROM categories WHERE name = ?`,
+        [cat.name]
+      );
+      if (!row) continue;
+
+      for (const [j, sub] of cat.subcategories.entries()) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO subcategories (category_id, name, sort_order) VALUES (?, ?, ?)`,
+          [row.id, sub, j + 1]
+        );
+      }
     }
-  }
+  });
 }

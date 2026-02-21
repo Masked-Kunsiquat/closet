@@ -177,13 +177,15 @@ export async function setClothingItemColors(
   itemId: number,
   colorIds: number[]
 ): Promise<void> {
-  await db.runAsync(`DELETE FROM clothing_item_colors WHERE clothing_item_id = ?`, [itemId]);
-  for (const colorId of colorIds) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO clothing_item_colors (clothing_item_id, color_id) VALUES (?, ?)`,
-      [itemId, colorId]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM clothing_item_colors WHERE clothing_item_id = ?`, [itemId]);
+    for (const colorId of colorIds) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO clothing_item_colors (clothing_item_id, color_id) VALUES (?, ?)`,
+        [itemId, colorId]
+      );
+    }
+  });
 }
 
 export async function setClothingItemMaterials(
@@ -191,13 +193,15 @@ export async function setClothingItemMaterials(
   itemId: number,
   materialIds: number[]
 ): Promise<void> {
-  await db.runAsync(`DELETE FROM clothing_item_materials WHERE clothing_item_id = ?`, [itemId]);
-  for (const id of materialIds) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO clothing_item_materials (clothing_item_id, material_id) VALUES (?, ?)`,
-      [itemId, id]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM clothing_item_materials WHERE clothing_item_id = ?`, [itemId]);
+    for (const id of materialIds) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO clothing_item_materials (clothing_item_id, material_id) VALUES (?, ?)`,
+        [itemId, id]
+      );
+    }
+  });
 }
 
 export async function setClothingItemSeasons(
@@ -205,13 +209,15 @@ export async function setClothingItemSeasons(
   itemId: number,
   seasonIds: number[]
 ): Promise<void> {
-  await db.runAsync(`DELETE FROM clothing_item_seasons WHERE clothing_item_id = ?`, [itemId]);
-  for (const id of seasonIds) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO clothing_item_seasons (clothing_item_id, season_id) VALUES (?, ?)`,
-      [itemId, id]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM clothing_item_seasons WHERE clothing_item_id = ?`, [itemId]);
+    for (const id of seasonIds) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO clothing_item_seasons (clothing_item_id, season_id) VALUES (?, ?)`,
+        [itemId, id]
+      );
+    }
+  });
 }
 
 export async function setClothingItemOccasions(
@@ -219,13 +225,15 @@ export async function setClothingItemOccasions(
   itemId: number,
   occasionIds: number[]
 ): Promise<void> {
-  await db.runAsync(`DELETE FROM clothing_item_occasions WHERE clothing_item_id = ?`, [itemId]);
-  for (const id of occasionIds) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO clothing_item_occasions (clothing_item_id, occasion_id) VALUES (?, ?)`,
-      [itemId, id]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM clothing_item_occasions WHERE clothing_item_id = ?`, [itemId]);
+    for (const id of occasionIds) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO clothing_item_occasions (clothing_item_id, occasion_id) VALUES (?, ?)`,
+        [itemId, id]
+      );
+    }
+  });
 }
 
 export async function setClothingItemPatterns(
@@ -233,13 +241,15 @@ export async function setClothingItemPatterns(
   itemId: number,
   patternIds: number[]
 ): Promise<void> {
-  await db.runAsync(`DELETE FROM clothing_item_patterns WHERE clothing_item_id = ?`, [itemId]);
-  for (const id of patternIds) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO clothing_item_patterns (clothing_item_id, pattern_id) VALUES (?, ?)`,
-      [itemId, id]
-    );
-  }
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM clothing_item_patterns WHERE clothing_item_id = ?`, [itemId]);
+    for (const id of patternIds) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO clothing_item_patterns (clothing_item_id, pattern_id) VALUES (?, ?)`,
+        [itemId, id]
+      );
+    }
+  });
 }
 
 export async function getClothingItemColorIds(

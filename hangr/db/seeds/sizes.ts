@@ -54,23 +54,25 @@ const SIZE_SYSTEMS: { name: string; values: string[] }[] = [
 ];
 
 export async function seedSizes(db: SQLiteDatabase): Promise<void> {
-  for (const system of SIZE_SYSTEMS) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO size_systems (name) VALUES (?)`,
-      [system.name]
-    );
-
-    const row = await db.getFirstAsync<{ id: number }>(
-      `SELECT id FROM size_systems WHERE name = ?`,
-      [system.name]
-    );
-    if (!row) continue;
-
-    for (const [i, value] of system.values.entries()) {
+  await db.withTransactionAsync(async () => {
+    for (const system of SIZE_SYSTEMS) {
       await db.runAsync(
-        `INSERT OR IGNORE INTO size_values (size_system_id, value, sort_order) VALUES (?, ?, ?)`,
-        [row.id, value, i + 1]
+        `INSERT OR IGNORE INTO size_systems (name) VALUES (?)`,
+        [system.name]
       );
+
+      const row = await db.getFirstAsync<{ id: number }>(
+        `SELECT id FROM size_systems WHERE name = ?`,
+        [system.name]
+      );
+      if (!row) continue;
+
+      for (const [i, value] of system.values.entries()) {
+        await db.runAsync(
+          `INSERT OR IGNORE INTO size_values (size_system_id, value, sort_order) VALUES (?, ?, ?)`,
+          [row.id, value, i + 1]
+        );
+      }
     }
-  }
+  });
 }
