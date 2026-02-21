@@ -1,7 +1,7 @@
 # Closet — Agent Instructions
 
 ## What This Project Is
-A personal, local-first digital wardrobe and outfit tracking app. React Native / Expo. SQLite on-device. No accounts, no ads, no telemetry, no cloud dependency. Open source passion project.
+A personal, local-first digital wardrobe and outfit tracking app. React Native / Expo. SQLite on-device. No accounts, no ads, no telemetry, no cloud dependency. Open-source passion project.
 
 **Mantra: built well over built fast.**
 
