@@ -29,6 +29,9 @@ export default function RootLayout() {
           <Stack.Screen name="item/add" />
           <Stack.Screen name="item/[id]" />
           <Stack.Screen name="item/[id]/edit" />
+          <Stack.Screen name="outfit/new" />
+          <Stack.Screen name="outfit/[id]" />
+          <Stack.Screen name="log/[date]" />
         </Stack>
         <StatusBar style="light" />
       </ThemeProvider>

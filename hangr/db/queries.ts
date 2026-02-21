@@ -1,12 +1,18 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
 import {
+  CalendarDay,
   Category,
   ClothingItem,
   ClothingItemWithMeta,
   Color,
   Material,
   Occasion,
+  Outfit,
+  OutfitLog,
+  OutfitLogWithMeta,
+  OutfitWithItems,
+  OutfitWithMeta,
   Pattern,
   Season,
   SizeSystem,
@@ -374,4 +380,207 @@ export async function getDistinctBrands(db: SQLiteDatabase): Promise<string[]> {
     `SELECT DISTINCT brand FROM clothing_items WHERE brand IS NOT NULL AND brand != '' ORDER BY brand`
   );
   return rows.map((r) => r.brand);
+}
+
+// ---------------------------------------------------------------------------
+// Outfits
+// ---------------------------------------------------------------------------
+
+export async function getAllOutfits(db: SQLiteDatabase): Promise<OutfitWithMeta[]> {
+  return db.getAllAsync<OutfitWithMeta>(`
+    SELECT
+      o.*,
+      COUNT(oi.clothing_item_id)                              AS item_count,
+      (SELECT ci.image_path
+       FROM outfit_items oi2
+       JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
+       WHERE oi2.outfit_id = o.id AND ci.image_path IS NOT NULL
+       LIMIT 1)                                               AS cover_image
+    FROM outfits o
+    LEFT JOIN outfit_items oi ON oi.outfit_id = o.id
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
+  `);
+}
+
+export async function getOutfitWithItems(
+  db: SQLiteDatabase,
+  outfitId: number
+): Promise<OutfitWithItems | null> {
+  const outfit = await db.getFirstAsync<Outfit>(
+    `SELECT * FROM outfits WHERE id = ?`,
+    [outfitId]
+  );
+  if (!outfit) return null;
+
+  const items = await db.getAllAsync<ClothingItemWithMeta>(`
+    SELECT
+      ci.*,
+      c.name  AS category_name,
+      sc.name AS subcategory_name,
+      (
+        SELECT COUNT(DISTINCT ol.id)
+        FROM outfit_logs ol
+        JOIN outfit_items oi2 ON ol.outfit_id = oi2.outfit_id
+        WHERE oi2.clothing_item_id = ci.id
+      ) AS wear_count
+    FROM outfit_items oi
+    JOIN clothing_items ci ON ci.id = oi.clothing_item_id
+    LEFT JOIN categories    c  ON ci.category_id    = c.id
+    LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
+    WHERE oi.outfit_id = ?
+    ORDER BY c.sort_order, ci.name
+  `, [outfitId]);
+
+  return { ...outfit, items };
+}
+
+export type NewOutfit = { name: string | null; notes: string | null };
+
+export async function insertOutfit(
+  db: SQLiteDatabase,
+  outfit: NewOutfit,
+  itemIds: number[]
+): Promise<number> {
+  let outfitId = 0;
+  await db.withTransactionAsync(async () => {
+    const result = await db.runAsync(
+      `INSERT INTO outfits (name, notes) VALUES (?, ?)`,
+      [outfit.name, outfit.notes]
+    );
+    outfitId = result.lastInsertRowId;
+    for (const itemId of itemIds) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO outfit_items (outfit_id, clothing_item_id) VALUES (?, ?)`,
+        [outfitId, itemId]
+      );
+    }
+  });
+  return outfitId;
+}
+
+export async function updateOutfit(
+  db: SQLiteDatabase,
+  outfitId: number,
+  outfit: NewOutfit,
+  itemIds: number[]
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE outfits SET name = ?, notes = ?, updated_at = datetime('now') WHERE id = ?`,
+      [outfit.name, outfit.notes, outfitId]
+    );
+    await db.runAsync(`DELETE FROM outfit_items WHERE outfit_id = ?`, [outfitId]);
+    for (const itemId of itemIds) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO outfit_items (outfit_id, clothing_item_id) VALUES (?, ?)`,
+        [outfitId, itemId]
+      );
+    }
+  });
+}
+
+export async function deleteOutfit(db: SQLiteDatabase, outfitId: number): Promise<void> {
+  // outfit_items cascade via ON DELETE CASCADE
+  await db.runAsync(`DELETE FROM outfits WHERE id = ?`, [outfitId]);
+}
+
+// ---------------------------------------------------------------------------
+// Outfit logs
+// ---------------------------------------------------------------------------
+
+export async function getLogsByDate(
+  db: SQLiteDatabase,
+  date: string
+): Promise<OutfitLogWithMeta[]> {
+  return db.getAllAsync<OutfitLogWithMeta>(`
+    SELECT
+      ol.*,
+      o.name AS outfit_name,
+      COUNT(oi.clothing_item_id) AS item_count,
+      (SELECT ci.image_path
+       FROM outfit_items oi2
+       JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
+       WHERE oi2.outfit_id = ol.outfit_id AND ci.image_path IS NOT NULL
+       LIMIT 1) AS cover_image
+    FROM outfit_logs ol
+    LEFT JOIN outfits o     ON o.id  = ol.outfit_id
+    LEFT JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+    WHERE ol.date = ?
+    GROUP BY ol.id
+    ORDER BY ol.is_ootd DESC, ol.created_at ASC
+  `, [date]);
+}
+
+export async function getLogById(
+  db: SQLiteDatabase,
+  logId: number
+): Promise<OutfitLog | null> {
+  return db.getFirstAsync<OutfitLog>(
+    `SELECT * FROM outfit_logs WHERE id = ?`,
+    [logId]
+  );
+}
+
+export async function insertOutfitLog(
+  db: SQLiteDatabase,
+  log: { outfit_id: number | null; date: string; is_ootd: 0 | 1; notes: string | null }
+): Promise<number> {
+  const result = await db.runAsync(
+    `INSERT INTO outfit_logs (outfit_id, date, is_ootd, notes) VALUES (?, ?, ?, ?)`,
+    [log.outfit_id, log.date, log.is_ootd, log.notes]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function deleteOutfitLog(db: SQLiteDatabase, logId: number): Promise<void> {
+  await db.runAsync(`DELETE FROM outfit_logs WHERE id = ?`, [logId]);
+}
+
+/**
+ * Sets one log as OOTD for its date, clearing any previous OOTD on the same date.
+ * Runs in a transaction to avoid violating the partial unique index.
+ */
+export async function setOotd(
+  db: SQLiteDatabase,
+  logId: number,
+  date: string
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE outfit_logs SET is_ootd = 0 WHERE date = ? AND is_ootd = 1`,
+      [date]
+    );
+    await db.runAsync(
+      `UPDATE outfit_logs SET is_ootd = 1 WHERE id = ?`,
+      [logId]
+    );
+  });
+}
+
+/**
+ * Clears OOTD status for a given log (sets is_ootd = 0).
+ */
+export async function clearOotd(db: SQLiteDatabase, logId: number): Promise<void> {
+  await db.runAsync(`UPDATE outfit_logs SET is_ootd = 0 WHERE id = ?`, [logId]);
+}
+
+/**
+ * Returns one CalendarDay row per date that has at least one log,
+ * within the given month (YYYY-MM prefix).
+ */
+export async function getCalendarDaysForMonth(
+  db: SQLiteDatabase,
+  yearMonth: string   // e.g. '2025-03'
+): Promise<CalendarDay[]> {
+  return db.getAllAsync<CalendarDay>(`
+    SELECT
+      date,
+      COUNT(*)                  AS log_count,
+      MAX(is_ootd)              AS has_ootd
+    FROM outfit_logs
+    WHERE date LIKE ?
+    GROUP BY date
+    ORDER BY date
+  `, [`${yearMonth}-%`]);
 }
