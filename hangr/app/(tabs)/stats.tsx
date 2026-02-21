@@ -46,7 +46,10 @@ function toFromDate(range: TimeRange): string | null {
   const originalDay = now.getDate();
 
   if (range === 'year') {
-    return new Date(now.getFullYear() - 1, now.getMonth(), originalDay).toISOString().slice(0, 10);
+    const targetYear = now.getFullYear() - 1;
+    const targetMonth = now.getMonth();
+    const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+    return new Date(targetYear, targetMonth, Math.min(originalDay, lastDay)).toISOString().slice(0, 10);
   }
 
   const monthsBack = range === 'month' ? 1 : 3;
@@ -513,15 +516,15 @@ const styles = StyleSheet.create({
     gap: Spacing[3],
   },
   wornThumb: {
-    width: 40,
-    height: 40,
+    width: Spacing[10],
+    height: Spacing[10],
     borderRadius: Radius.sm,
     overflow: 'hidden',
     backgroundColor: Palette.surface3,
   },
   wornThumbImage: {
-    width: 40,
-    height: 40,
+    width: Spacing[10],
+    height: Spacing[10],
   },
   wornThumbPlaceholder: {
     flex: 1,
@@ -557,17 +560,17 @@ const styles = StyleSheet.create({
   },
   barTrack: {
     flex: 1,
-    height: 12,
+    height: Spacing[3],
     backgroundColor: Palette.surface3,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
   barFill: {
-    height: 12,
+    height: Spacing[3],
     borderRadius: Radius.full,
   },
   barCount: {
-    flexBasis: 32,
+    flexBasis: Spacing[8],
     flexShrink: 0,
     fontSize: FontSize.sm,
     color: Palette.textSecondary,

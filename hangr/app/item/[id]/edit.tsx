@@ -52,9 +52,7 @@ export default function EditItemScreen() {
         ]);
 
         if (!item) {
-          Alert.alert('Not Found', 'This item no longer exists.', [
-            { text: 'OK', onPress: () => router.back() },
-          ]);
+          setLoadError('Item not found.');
           return;
         }
 
@@ -226,12 +224,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[3],
   },
   errorText: {
-    color: '#fff',
+    color: Palette.white,
     fontSize: FontSize.sm,
     flex: 1,
   },
   errorDismiss: {
-    color: '#fff',
+    color: Palette.white,
     fontSize: FontSize.sm,
     marginLeft: Spacing[3],
   },

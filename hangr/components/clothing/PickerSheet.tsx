@@ -6,7 +6,7 @@
  * immediately (no draft state — the parent owns all selection state).
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Modal,
@@ -36,7 +36,7 @@ type PickerSheetProps<T extends { id: number; name: string }> = {
   selectedIds: number[];
   onToggle: (id: number) => void;
   /** Optional leading dot/swatch renderer per item (used for color chips). */
-  renderDot?: (item: T) => React.ReactNode;
+  renderDot?: (item: T) => ReactNode;
 };
 
 // ---------------------------------------------------------------------------
@@ -178,8 +178,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing[2],
   },
   handle: {
-    width: 36,
-    height: 4,
+    width: Spacing[8] + Spacing[1],
+    height: Spacing[1],
     borderRadius: Radius.full,
     backgroundColor: Palette.border,
     alignSelf: 'center',

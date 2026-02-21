@@ -18,7 +18,7 @@ import {
 /**
  * Renders the "Add Item" screen with a form for creating a clothing item.
  *
- * Submitting the form persists the item and its associated attributes to the local database; on success it navigates to the newly created item's detail screen, and on failure it displays an error alert.
+ * Submitting the form persists the item and its associated attributes to the local database; on success it navigates to the newly created item's detail screen, and on failure it shows an inline error banner.
  *
  * @returns The React element for the Add Item screen.
  */
@@ -126,12 +126,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing[3],
   },
   errorText: {
-    color: '#fff',
+    color: Palette.white,
     fontSize: FontSize.sm,
     flex: 1,
   },
   errorDismiss: {
-    color: '#fff',
+    color: Palette.white,
     fontSize: FontSize.sm,
     marginLeft: Spacing[3],
   },

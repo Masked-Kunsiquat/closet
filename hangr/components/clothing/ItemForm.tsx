@@ -13,7 +13,7 @@
 
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -389,7 +389,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
               items={categories}
               selectedId={values.category_id}
               onSelect={(id) => {
-                set('category_id', Number(id));
+                set('category_id', id === null ? null : Number(id));
                 set('subcategory_id', null);
               }}
               accent={accent.primary}
@@ -402,7 +402,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
               <ChipSelector
                 items={subcategories}
                 selectedId={values.subcategory_id}
-                onSelect={(id) => set('subcategory_id', Number(id))}
+                onSelect={(id) => set('subcategory_id', id === null ? null : Number(id))}
                 accent={accent.primary}
               />
             </View>
@@ -414,7 +414,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
               items={sizeSystems}
               selectedId={values.size_system_id}
               onSelect={(id) => {
-                set('size_system_id', Number(id));
+                set('size_system_id', id === null ? null : Number(id));
                 set('size_value_id', null);
               }}
               accent={accent.primary}
@@ -427,7 +427,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
               <ChipSelector
                 items={sizeValues.map((sv) => ({ id: sv.id, name: sv.value }))}
                 selectedId={values.size_value_id}
-                onSelect={(id) => set('size_value_id', Number(id))}
+                onSelect={(id) => set('size_value_id', id === null ? null : Number(id))}
                 accent={accent.primary}
               />
             </View>
@@ -687,7 +687,7 @@ function FormCollapsible({
   summary: string;
   open: boolean;
   onToggle: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <View style={styles.collapsibleSection}>
@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
     gap: Spacing[2],
   },
   photoPlaceholderIcon: {
-    fontSize: 36,
+    fontSize: FontSize['4xl'],
   },
   photoPlaceholderText: {
     color: Palette.textSecondary,
