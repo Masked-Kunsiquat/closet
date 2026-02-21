@@ -19,10 +19,9 @@ Read and apply these skills before working on relevant tasks. They are the sourc
 ## Source of Truth Files
 These files live in the project and define the canonical data — always consult them before generating seed data, icons, or categories:
 
-- `Clothing_Categories` — category and subcategory names
-- `Reference_Data_Banks` — seasons, occasions, materials, patterns
-- `Sizing_Banks___Conversions` — all size systems and values
-- `Icon_Selections_-_V1` — approved Phosphor icon names per entity
+- `.claude/skills/closet-migrations/SKILL.md` — categories (with sort_order), subcategory quick-ref, seasons, occasions
+- `.claude/skills/closet-migrations/reference.md` — full subcategory list, materials, patterns, all size systems and values
+- `.claude/skills/closet-engineer/SKILL.md` — approved Phosphor icon names per entity (Icon System section)
 
 ## Absolute Rules
 - Never store derived fields. Wear Count and Cost Per Wear are always computed.

@@ -77,7 +77,7 @@ Phosphor SVGs are bundled locally in `assets/icons/`. Use `<PhosphorIcon name="t
 
 ## Key conventions
 
-- **Image paths are always relative** — never absolute, never `file://`. Store the URI returned by expo-image-picker as-is.
+- **Image paths are always relative** — never persist an absolute path or raw `file://` URI. After picking with expo-image-picker, copy the file into a stable app-owned directory using `expo-file-system` `copyAsync`, then store only the path segment relative to that directory root. Reconstruct the full URI at read time by prepending the directory root (e.g. `FileSystem.documentDirectory + relativePath`).
 - **Junction tables** follow the pattern `clothing_item_colors`, `clothing_item_materials`, etc. Use the `set*` helpers in `queries.ts` (delete-then-insert, not append).
 - **Wear count** = `COUNT(DISTINCT outfit_logs.id)` joined through `outfit_items`. Never a column.
 - **Cost per wear** = `purchase_price / wear_count`. Return `null` when wears = 0 or price is null.
