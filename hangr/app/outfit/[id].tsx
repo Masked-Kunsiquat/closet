@@ -30,13 +30,17 @@ import { useSettings } from '@/context/SettingsContext';
 import { toImageUri } from '@/utils/image';
 import { getDatabase } from '@/db';
 import {
+  clearOotd,
+  deleteOutfitLog,
   getLogsByDate,
   getOutfitWithItems,
   insertOutfitLog,
   setOotd,
+  updateOutfitLog,
 } from '@/db/queries';
 import { contrastingTextColor } from '@/utils/color';
-import { OutfitWithItems, WeatherCondition } from '@/db/types';
+import { OutfitLog, OutfitWithItems, WeatherCondition } from '@/db/types';
+import { useLogsForOutfit } from '@/hooks/useOutfitLog';
 
 /**
  * Get today's date in local time formatted as YYYY-MM-DD.
@@ -79,6 +83,9 @@ export default function OutfitDetailScreen() {
   const [outfit, setOutfit] = useState<OutfitWithItems | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [logModalVisible, setLogModalVisible] = useState(false);
+  // Incrementing this causes WearHistorySection to re-mount and reload its logs
+  const [wearHistoryKey, setWearHistoryKey] = useState(0);
+  const refreshWearHistory = () => setWearHistoryKey((k) => k + 1);
 
   const load = useCallback(async () => {
     if (!Number.isFinite(outfitId) || outfitId <= 0) return;
@@ -158,6 +165,14 @@ export default function OutfitDetailScreen() {
             {outfit.items.length} item{outfit.items.length !== 1 ? 's' : ''}
           </Text>
         }
+        ListFooterComponent={
+          <WearHistorySection
+            key={wearHistoryKey}
+            outfitId={outfitId}
+            accent={accent.primary}
+            onLogSaved={refreshWearHistory}
+          />
+        }
         renderItem={({ item }) => (
           <Pressable
             style={styles.gridCell}
@@ -193,6 +208,7 @@ export default function OutfitDetailScreen() {
         visible={logModalVisible}
         outfitId={outfitId}
         onClose={() => setLogModalVisible(false)}
+        onSaved={refreshWearHistory}
         accent={accent.primary}
       />
     </View>
@@ -219,11 +235,13 @@ function LogModal({
   visible,
   outfitId,
   onClose,
+  onSaved,
   accent,
 }: {
   visible: boolean;
   outfitId: number;
   onClose: () => void;
+  onSaved: () => void;
   accent: string;
 }) {
   const router = useRouter();
@@ -313,6 +331,7 @@ function LogModal({
                   });
                   await setOotd(db, logId, date);
                   navigateTo = date;
+                  onSaved();
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 } catch (e) {
                   Alert.alert('Error', String(e));
@@ -341,6 +360,7 @@ function LogModal({
         await setOotd(db, logId, date);
       }
 
+      onSaved();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSaving(false);
       onClose();
@@ -503,6 +523,355 @@ function categoryEmoji(name: string | null): string {
     case 'Swimwear':              return '🩱';
     default:                      return '🧺';
   }
+}
+
+// ---------------------------------------------------------------------------
+// Wear History helpers
+
+function formatLogDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+}
+
+function logWeatherSummary(
+  condition: WeatherCondition | null,
+  tempLow: number | null,
+  tempHigh: number | null,
+  unit: 'F' | 'C'
+): string | null {
+  const EMOJI: Record<WeatherCondition, string> = {
+    'Sunny': '☀️', 'Partly Cloudy': '⛅', 'Cloudy': '☁️',
+    'Rainy': '🌧', 'Snowy': '❄️', 'Windy': '💨',
+  };
+  const parts: string[] = [];
+  if (condition) parts.push(`${EMOJI[condition]} ${condition}`);
+  if (tempLow != null || tempHigh != null) {
+    const lo = tempLow  != null ? `${tempLow}°${unit}`  : null;
+    const hi = tempHigh != null ? `${tempHigh}°${unit}` : null;
+    if (lo && hi) parts.push(`${lo} – ${hi}`);
+    else parts.push((lo ?? hi)!);
+  }
+  return parts.length ? parts.join('  ·  ') : null;
+}
+
+// ---------------------------------------------------------------------------
+// WearHistorySection
+
+function WearHistorySection({
+  outfitId,
+  accent,
+  onLogSaved,
+}: {
+  outfitId: number;
+  accent: string;
+  onLogSaved: () => void;
+}) {
+  const { settings: { temperatureUnit } } = useSettings();
+  const { logs, loading, refresh } = useLogsForOutfit(outfitId);
+  const [editingLog, setEditingLog] = useState<OutfitLog | null>(null);
+
+  const handleSaved = () => {
+    refresh();
+    onLogSaved();
+  };
+
+  if (loading && logs.length === 0) return null;
+
+  return (
+    <View style={styles.wearHistorySection}>
+      <Text style={styles.wearHistoryTitle}>
+        Wear History{logs.length > 0 ? ` (${logs.length})` : ''}
+      </Text>
+
+      {logs.length === 0 ? (
+        <Text style={styles.wearHistoryEmpty}>{'No logs yet — tap "Log Outfit" to record a wear.'}</Text>
+      ) : (
+        logs.map((log, idx) => {
+          const weather = logWeatherSummary(
+            log.weather_condition,
+            log.temperature_low,
+            log.temperature_high,
+            temperatureUnit
+          );
+          return (
+            <TouchableOpacity
+              key={log.id}
+              style={[
+                styles.wearLogRow,
+                idx < logs.length - 1 && styles.wearLogRowBorder,
+              ]}
+              onPress={() => setEditingLog(log)}
+              activeOpacity={0.75}
+            >
+              <View style={styles.wearLogMain}>
+                <View style={styles.wearLogDateRow}>
+                  <Text style={styles.wearLogDate}>{formatLogDate(log.date)}</Text>
+                  {log.is_ootd === 1 && (
+                    <View style={[styles.ootdBadge, { backgroundColor: accent }]}>
+                      <Text style={[styles.ootdBadgeText, { color: contrastingTextColor(accent) }]}>
+                        OOTD
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {weather && (
+                  <Text style={styles.wearLogMeta} numberOfLines={1}>{weather}</Text>
+                )}
+                {log.notes ? (
+                  <Text style={styles.wearLogMeta} numberOfLines={1}>{log.notes}</Text>
+                ) : null}
+              </View>
+              <PhosphorIcon name="pencil-simple" size={14} color={Palette.textDisabled} />
+            </TouchableOpacity>
+          );
+        })
+      )}
+
+      {editingLog && (
+        <EditLogModal
+          log={editingLog}
+          outfitId={outfitId}
+          accent={accent}
+          onClose={() => setEditingLog(null)}
+          onSaved={handleSaved}
+        />
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EditLogModal — pre-filled bottom sheet for editing an existing log
+
+function EditLogModal({
+  log,
+  outfitId,
+  accent,
+  onClose,
+  onSaved,
+}: {
+  log: OutfitLog;
+  outfitId: number;
+  accent: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { settings } = useSettings();
+
+  const [date, setDate] = useState(log.date);
+  const [isOotd, setIsOotd] = useState(log.is_ootd === 1);
+  const [weatherCondition, setWeatherCondition] = useState<WeatherCondition | null>(
+    log.weather_condition ?? null
+  );
+  const [tempLow,  setTempLow]  = useState(log.temperature_low  != null ? String(log.temperature_low)  : '');
+  const [tempHigh, setTempHigh] = useState(log.temperature_high != null ? String(log.temperature_high) : '');
+  const [notes, setNotes] = useState(log.notes ?? '');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const buildPayload = () => {
+    const lo = parseFloat(tempLow.trim());
+    const hi = parseFloat(tempHigh.trim());
+    return {
+      date,
+      notes: notes.trim() || null,
+      temperature_low:  Number.isFinite(lo) ? lo : null,
+      temperature_high: Number.isFinite(hi) ? hi : null,
+      weather_condition: weatherCondition,
+    };
+  };
+
+  const handleSave = async () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      Alert.alert('Invalid date', 'Enter a date in YYYY-MM-DD format.');
+      return;
+    }
+    const [dy, dm, dd] = date.split('-').map(Number);
+    const dateObj = new Date(dy, dm - 1, dd);
+    if (dateObj.getFullYear() !== dy || dateObj.getMonth() + 1 !== dm || dateObj.getDate() !== dd) {
+      Alert.alert('Invalid date', 'Enter a valid calendar date.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const db = await getDatabase();
+      await updateOutfitLog(db, log.id, buildPayload());
+      // Handle OOTD toggle separately to respect the partial-unique constraint
+      if (isOotd && log.is_ootd !== 1) {
+        await setOotd(db, log.id, date);
+      } else if (!isOotd && log.is_ootd === 1) {
+        await clearOotd(db, log.id);
+      }
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onSaved();
+      onClose();
+    } catch (e) {
+      Alert.alert('Error', String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Remove log?', 'This removes the wear entry for this day.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive',
+        onPress: async () => {
+          setDeleting(true);
+          try {
+            const db = await getDatabase();
+            await deleteOutfitLog(db, log.id);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            onSaved();
+            onClose();
+          } catch (e) {
+            Alert.alert('Error', String(e));
+          } finally {
+            setDeleting(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose} />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Edit Log</Text>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.sheetScrollContent}
+        >
+          {/* Date */}
+          <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={date}
+            onChangeText={setDate}
+            placeholder="2025-03-21"
+            placeholderTextColor={Palette.textDisabled}
+            keyboardType="numbers-and-punctuation"
+            maxLength={10}
+          />
+
+          {/* OOTD toggle */}
+          <TouchableOpacity
+            style={styles.ootdRow}
+            onPress={() => setIsOotd((v) => !v)}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.ootdLabel}>Mark as OOTD</Text>
+            <View style={[styles.toggle, isOotd && { backgroundColor: accent }]}>
+              <View style={[
+                styles.toggleKnob,
+                isOotd && styles.toggleKnobOn,
+                isOotd && { backgroundColor: contrastingTextColor(accent) },
+              ]} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Weather condition chips */}
+          <Text style={styles.fieldLabel}>Weather</Text>
+          <View style={styles.chipRow}>
+            {WEATHER_CHIPS.map(({ condition, emoji, label }) => {
+              const isActive = weatherCondition === condition;
+              return (
+                <TouchableOpacity
+                  key={condition}
+                  style={[
+                    styles.weatherChip,
+                    isActive && { backgroundColor: accent, borderColor: accent },
+                  ]}
+                  onPress={() => setWeatherCondition(isActive ? null : condition)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.weatherChipEmoji}>{emoji}</Text>
+                  <Text style={[
+                    styles.weatherChipLabel,
+                    isActive && { color: contrastingTextColor(accent) },
+                  ]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Temperature */}
+          <Text style={styles.fieldLabel}>Temperature</Text>
+          <View style={styles.tempRow}>
+            <View style={styles.tempField}>
+              <TextInput
+                style={[styles.fieldInput, styles.tempInput]}
+                value={tempLow}
+                onChangeText={setTempLow}
+                placeholder="Low"
+                placeholderTextColor={Palette.textDisabled}
+                keyboardType="numbers-and-punctuation"
+                maxLength={6}
+              />
+              <Text style={styles.tempUnit}>°{settings.temperatureUnit}</Text>
+            </View>
+            <View style={styles.tempField}>
+              <TextInput
+                style={[styles.fieldInput, styles.tempInput]}
+                value={tempHigh}
+                onChangeText={setTempHigh}
+                placeholder="High"
+                placeholderTextColor={Palette.textDisabled}
+                keyboardType="numbers-and-punctuation"
+                maxLength={6}
+              />
+              <Text style={styles.tempUnit}>°{settings.temperatureUnit}</Text>
+            </View>
+          </View>
+
+          {/* Notes */}
+          <Text style={styles.fieldLabel}>Notes (optional)</Text>
+          <TextInput
+            style={[styles.fieldInput, styles.fieldInputMultiline]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Mood, occasion, context…"
+            placeholderTextColor={Palette.textDisabled}
+            multiline
+            numberOfLines={3}
+          />
+
+          {/* Save */}
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: accent }, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving || deleting}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.saveButtonText, { color: contrastingTextColor(accent) }]}>
+              {saving ? 'Saving…' : 'Save Changes'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Delete */}
+          <TouchableOpacity
+            style={[styles.deleteLogButton, deleting && { opacity: 0.5 }]}
+            onPress={handleDelete}
+            disabled={saving || deleting}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.deleteLogButtonText}>
+              {deleting ? 'Removing…' : 'Remove Log'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -766,5 +1135,79 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semibold,
+  },
+
+  // Wear History section
+  wearHistorySection: {
+    marginTop: Spacing[6],
+    paddingHorizontal: Spacing[4],
+    paddingBottom: Spacing[20],
+  },
+  wearHistoryTitle: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Spacing[3],
+  },
+  wearHistoryEmpty: {
+    color: Palette.textDisabled,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    paddingVertical: Spacing[4],
+  },
+  wearLogRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing[3],
+    gap: Spacing[3],
+  },
+  wearLogRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.border,
+  },
+  wearLogMain: {
+    flex: 1,
+    gap: 2,
+  },
+  wearLogDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+  },
+  wearLogDate: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+  ootdBadge: {
+    paddingHorizontal: Spacing[2],
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+  },
+  ootdBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+    letterSpacing: 0.3,
+  },
+  wearLogMeta: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.xs,
+  },
+
+  // Delete log button
+  deleteLogButton: {
+    paddingVertical: Spacing[3],
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    marginTop: Spacing[2],
+    borderWidth: 1,
+    borderColor: Palette.error,
+  },
+  deleteLogButtonText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    color: Palette.error,
   },
 });
