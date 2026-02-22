@@ -84,7 +84,7 @@ export default function EditOutfitScreen() {
   const activeItems = useMemo(
     () => items.filter((i) => i.status === 'Active' || selected.has(i.id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items] // selected is only used for the initial filter; don't re-derive on every toggle
+    [items, loaded] // recompute once loaded so pre-selected outfit items are included; not on every toggle
   );
 
   const categories = useMemo(() => {
