@@ -34,8 +34,9 @@ import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/toke
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { useSettings } from '@/context/SettingsContext';
-import { contrastingTextColor } from '@/utils/color';
+import { contrastingTextColor, matchColorsFromHexes } from '@/utils/color';
 import { toImageUri } from '@/utils/image';
+import { extractImageColors } from '@/hooks/useImageColors';
 import { getDatabase } from '@/db';
 import {
   getCategories,
@@ -371,7 +372,24 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
         console.error('[ItemForm] image copy failed', e);
         try { destFile.delete(); } catch { /* ignore cleanup errors */ }
         Alert.alert('Photo error', 'Could not save the photo. Please try again.');
+        return;
       }
+
+      // Auto-suggest colors from the image (no-ops silently on Expo Go).
+      // Only runs if the user hasn't already chosen colors for this item.
+      setValues((current) => {
+        if (current.colorIds.length > 0) return current;
+        extractImageColors(sourceUri).then((hexes) => {
+          if (hexes.length === 0) return;
+          setValues((v) => {
+            if (v.colorIds.length > 0) return v; // user picked something while we were extracting
+            const suggested = matchColorsFromHexes(hexes, colors, v.colorIds);
+            if (suggested.length === 0) return v;
+            return { ...v, colorIds: suggested };
+          });
+        });
+        return current;
+      });
     }
   };
 

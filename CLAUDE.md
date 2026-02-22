@@ -87,4 +87,4 @@ Phosphor SVGs are bundled locally in `assets/icons/`. Use `<PhosphorIcon name="t
 - `waist` and `inseam` are `REAL` to support half sizes (e.g. `32.5`)
 
 ## What is deferred — do not build
-Collage builder, outfit planning for future dates, packing lists, weather API, goals/missions, cloud backup, color dropper from image.
+Collage builder, outfit planning for future dates, packing lists, weather API, goals/missions, cloud backup.
