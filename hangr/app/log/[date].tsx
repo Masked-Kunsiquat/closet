@@ -28,6 +28,7 @@ import { clearOotd, deleteOutfitLog, setOotd } from '@/db/queries';
 import { OutfitLogWithMeta } from '@/db/types';
 import { useLogsForDate } from '@/hooks/useOutfitLog';
 import { contrastingTextColor } from '@/utils/color';
+import { toImageUri } from '@/utils/image';
 
 /**
  * Convert an ISO date string (YYYY-MM-DD) into a localized, human-readable date.
@@ -241,7 +242,7 @@ function LogRow({
         accessibilityState={{ disabled: !log.outfit_id }}
       >
         {log.cover_image ? (
-          <Image source={{ uri: log.cover_image }} style={styles.logThumbImage} contentFit="cover" />
+          <Image source={{ uri: toImageUri(log.cover_image)! }} style={styles.logThumbImage} contentFit="cover" />
         ) : (
           <View style={styles.logThumbPlaceholder}>
             <Text style={styles.logThumbEmoji}>👗</Text>

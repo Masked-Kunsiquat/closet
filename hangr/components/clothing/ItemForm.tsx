@@ -12,6 +12,7 @@
  */
 
 import * as ImagePicker from 'expo-image-picker';
+import { Directory, File, Paths } from 'expo-file-system';
 import { Image } from 'expo-image';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import {
@@ -355,7 +356,15 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
       quality: 0.85,
     });
     if (!result.canceled && result.assets[0]) {
-      set('image_path', result.assets[0].uri);
+      const sourceUri = result.assets[0].uri;
+      const ext = sourceUri.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const filename = `${Date.now()}.${ext}`;
+      const imagesDir = new Directory(Paths.document, 'images');
+      imagesDir.create({ intermediates: true, idempotent: true });
+      const destFile = new File(imagesDir, filename);
+      new File(sourceUri).copy(destFile);
+      // Store only the relative path — reconstruct full URI at read time
+      set('image_path', `images/${filename}`);
     }
   };
 

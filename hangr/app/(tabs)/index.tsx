@@ -22,6 +22,7 @@ import { ClothingItemWithMeta } from '@/db/types';
 import { useClothingItems } from '@/hooks/useClothingItems';
 import { useClosetView } from '@/hooks/useClosetView';
 import { contrastingTextColor } from '@/utils/color';
+import { toImageUri } from '@/utils/image';
 
 const CARD_GAP = Spacing[2];
 const GRID_COLUMNS = 3;
@@ -229,7 +230,7 @@ function GridCard({ item, cardWidth, onPress }: { item: ClothingItemWithMeta; ca
       <View style={styles.cardImageContainer}>
         {item.image_path ? (
           <Image
-            source={{ uri: item.image_path }}
+            source={{ uri: toImageUri(item.image_path)! }}
             style={styles.cardImage}
             contentFit="cover"
             transition={150}
@@ -283,7 +284,7 @@ function ListRow({ item, onPress }: { item: ClothingItemWithMeta; onPress: () =>
       <View style={styles.listThumb}>
         {item.image_path ? (
           <Image
-            source={{ uri: item.image_path }}
+            source={{ uri: toImageUri(item.image_path)! }}
             style={styles.listThumbImage}
             contentFit="cover"
             transition={150}

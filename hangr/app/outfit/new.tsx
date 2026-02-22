@@ -30,6 +30,7 @@ import { insertOutfit } from '@/db/queries';
 import { ClothingItemWithMeta } from '@/db/types';
 import { useClothingItems } from '@/hooks/useClothingItems';
 import { contrastingTextColor } from '@/utils/color';
+import { toImageUri } from '@/utils/image';
 
 type Step = 'pick' | 'name';
 
@@ -206,7 +207,7 @@ function ItemPicker({
           >
             {item.image_path ? (
               <Image
-                source={{ uri: item.image_path }}
+                source={{ uri: toImageUri(item.image_path)! }}
                 style={styles.pickerImage}
                 contentFit="cover"
               />
@@ -271,7 +272,7 @@ function NameStep({
           <View key={item.id} style={styles.previewThumb}>
             {item.image_path ? (
               <Image
-                source={{ uri: item.image_path }}
+                source={{ uri: toImageUri(item.image_path)! }}
                 style={styles.previewThumbImage}
                 contentFit="cover"
               />

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
+import { toImageUri } from '@/utils/image';
 import { getDatabase } from '@/db';
 import { deleteClothingItem, updateWashStatus } from '@/db/queries';
 import { useClothingItem } from '@/hooks/useClothingItem';
@@ -118,7 +119,7 @@ export default function ItemDetailScreen() {
         <View style={styles.heroContainer}>
           {item.image_path ? (
             <Image
-              source={{ uri: item.image_path }}
+              source={{ uri: toImageUri(item.image_path)! }}
               style={styles.hero}
               contentFit="cover"
             />

@@ -27,6 +27,7 @@ import { useAccent } from '@/context/AccentContext';
 import { BreakdownRow, ColorBreakdownRow, StatItem } from '@/db/types';
 import { useStats } from '@/hooks/useStats';
 import { contrastingTextColor } from '@/utils/color';
+import { toImageUri } from '@/utils/image';
 
 // ---------------------------------------------------------------------------
 // Time range
@@ -131,11 +132,7 @@ function TimeRangeFilter({
 
 function WornItemRow({ item, showCount }: { item: StatItem; showCount: boolean }) {
   const { accent } = useAccent();
-  const imageUri = item.image_path
-    ? item.image_path.startsWith('file://') || item.image_path.startsWith('http')
-      ? item.image_path
-      : `file://${item.image_path}`
-    : null;
+  const imageUri = toImageUri(item.image_path);
   return (
     <View style={styles.wornRow}>
       <View style={styles.wornThumb}>

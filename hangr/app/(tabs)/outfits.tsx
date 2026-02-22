@@ -22,6 +22,7 @@ import { useAccent } from '@/context/AccentContext';
 import { OutfitWithMeta } from '@/db/types';
 import { useOutfits } from '@/hooks/useOutfits';
 import { contrastingTextColor } from '@/utils/color';
+import { toImageUri } from '@/utils/image';
 
 /**
  * Renders the Outfits screen with a header showing the outfit count, a refreshable list of outfits (or an empty state when none exist), and a floating action button to create a new outfit.
@@ -126,7 +127,7 @@ function OutfitRow({ outfit, onPress }: { outfit: OutfitWithMeta; onPress: () =>
       <View style={styles.thumb}>
         {outfit.cover_image ? (
           <Image
-            source={{ uri: outfit.cover_image }}
+            source={{ uri: toImageUri(outfit.cover_image)! }}
             style={styles.thumbImage}
             contentFit="cover"
             transition={150}
