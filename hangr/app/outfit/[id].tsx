@@ -288,11 +288,15 @@ function LogModal({
     return () => { cancelled = true; };
   }, [date, visible]);
 
-  const buildWeatherPayload = () => ({
-    temperature_low:  tempLow  !== '' ? parseFloat(tempLow)  : null,
-    temperature_high: tempHigh !== '' ? parseFloat(tempHigh) : null,
-    weather_condition: weatherCondition,
-  });
+  const buildWeatherPayload = () => {
+    const lo = parseFloat(tempLow.trim());
+    const hi = parseFloat(tempHigh.trim());
+    return {
+      temperature_low:  Number.isFinite(lo) ? lo : null,
+      temperature_high: Number.isFinite(hi) ? hi : null,
+      weather_condition: weatherCondition,
+    };
+  };
 
   const handleSave = async () => {
     // Validate YYYY-MM-DD format and semantic correctness (e.g., reject Feb 30)

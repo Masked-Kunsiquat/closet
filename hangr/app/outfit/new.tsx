@@ -225,6 +225,7 @@ export default function NewOutfitScreen() {
           onToggle={toggleItem}
           accent={accent.primary}
           cardWidth={cardWidth}
+          isFiltered={selectedCategory !== null}
         />
       ) : (
         <NameStep
@@ -258,6 +259,7 @@ function ItemPicker({
   onToggle,
   accent,
   cardWidth,
+  isFiltered,
 }: {
   items: ClothingItemWithMeta[];
   loading: boolean;
@@ -265,6 +267,7 @@ function ItemPicker({
   onToggle: (id: number) => void;
   accent: string;
   cardWidth: number;
+  isFiltered: boolean;
 }) {
   if (loading) {
     return (
@@ -277,7 +280,9 @@ function ItemPicker({
   if (items.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={styles.emptyText}>No active items in your closet yet.</Text>
+        <Text style={styles.emptyText}>
+          {isFiltered ? 'No items in this category.' : 'No active items in your closet yet.'}
+        </Text>
       </View>
     );
   }
