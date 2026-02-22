@@ -30,7 +30,6 @@ import { useSettings } from '@/context/SettingsContext';
 import { toImageUri } from '@/utils/image';
 import { getDatabase } from '@/db';
 import {
-  deleteOutfit,
   getLogsByDate,
   getOutfitWithItems,
   insertOutfitLog,
@@ -95,30 +94,6 @@ export default function OutfitDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDelete = () => {
-    Alert.alert('Delete outfit?', 'This will remove the outfit. Logged history is kept.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          if (deleting) return;
-          setDeleting(true);
-          try {
-            const db = await getDatabase();
-            await deleteOutfit(db, outfitId);
-            router.replace('/(tabs)/outfits');
-          } catch (e) {
-            console.error('[handleDelete]', e);
-            Alert.alert('Error', 'Could not delete the outfit. Please try again.');
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
-  };
-
   if (!Number.isFinite(outfitId) || outfitId <= 0) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -163,8 +138,11 @@ export default function OutfitDetailScreen() {
         <Text style={styles.headerTitle} numberOfLines={1}>
           {outfit.name ?? 'Untitled Outfit'}
         </Text>
-        <TouchableOpacity onPress={handleDelete} hitSlop={10}>
-          <Text style={styles.deleteText}>Delete</Text>
+        <TouchableOpacity
+          onPress={() => router.push(`/outfit/${outfitId}/edit`)}
+          hitSlop={10}
+        >
+          <Text style={[styles.editText, { color: accent.primary }]}>Edit</Text>
         </TouchableOpacity>
       </View>
 
@@ -572,9 +550,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: Spacing[2],
   },
-  deleteText: {
-    color: Palette.error,
+  editText: {
     fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
     minWidth: 60,
     textAlign: 'right',
   },
