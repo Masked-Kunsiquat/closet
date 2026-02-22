@@ -19,6 +19,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -34,11 +35,16 @@ import { toImageUri } from '@/utils/image';
 
 type Step = 'pick' | 'name';
 
+const CARD_GAP = Spacing[2];
+const GRID_COLUMNS = 3;
+const GRID_PADDING = Spacing[3];
+
 /**
  * Multi-step screen to create a new outfit by selecting items, optionally naming it, and saving it.
  *
- * Presents a "pick" step for choosing active closet items and a "name" step for entering an optional outfit name
- * with a preview of selected items. On save, the outfit is persisted and the UI navigates to the newly created outfit.
+ * Presents a "pick" step for choosing active closet items (with category filter pills) and a "name"
+ * step for entering an optional outfit name with a preview of selected items. On save, the outfit is
+ * persisted and the UI navigates to the newly created outfit.
  *
  * @returns The JSX element rendering the new-outfit creation screen.
  */
@@ -46,6 +52,7 @@ export default function NewOutfitScreen() {
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
 
   const { items, loading } = useClothingItems();
 
@@ -53,9 +60,36 @@ export default function NewOutfitScreen() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [outfitName, setOutfitName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Only show Active items in the picker
   const activeItems = useMemo(() => items.filter((i) => i.status === 'Active'), [items]);
+
+  // Derive distinct categories from active items (preserves insertion order)
+  const categories = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const item of activeItems) {
+      if (item.category_name && !seen.has(item.category_name)) {
+        seen.add(item.category_name);
+        result.push(item.category_name);
+      }
+    }
+    return result;
+  }, [activeItems]);
+
+  // Items shown in the picker grid — filtered by selected category, or all
+  const filteredItems = useMemo(
+    () =>
+      selectedCategory
+        ? activeItems.filter((i) => i.category_name === selectedCategory)
+        : activeItems,
+    [activeItems, selectedCategory]
+  );
+
+  // Card width matching the closet screen grid math
+  const cardWidth =
+    (screenWidth - GRID_PADDING * 2 - CARD_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
   const toggleItem = (id: number) => {
     setSelected((prev) => {
@@ -130,13 +164,67 @@ export default function NewOutfitScreen() {
         )}
       </View>
 
+      {/* Category pill bar — only shown on pick step with multiple categories */}
+      {step === 'pick' && categories.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.pillBar}
+          style={styles.pillBarWrapper}
+        >
+          <TouchableOpacity
+            style={[
+              styles.pill,
+              !selectedCategory && {
+                backgroundColor: accent.subtle,
+                borderColor: accent.primary,
+              },
+            ]}
+            onPress={() => setSelectedCategory(null)}
+            activeOpacity={0.75}
+          >
+            <Text
+              style={[
+                styles.pillText,
+                !selectedCategory && { color: accent.primary },
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+
+          {categories.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[
+                  styles.pill,
+                  isActive && {
+                    backgroundColor: accent.subtle,
+                    borderColor: accent.primary,
+                  },
+                ]}
+                onPress={() => setSelectedCategory(isActive ? null : cat)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.pillText, isActive && { color: accent.primary }]}>
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
       {step === 'pick' ? (
         <ItemPicker
-          items={activeItems}
+          items={filteredItems}
           loading={loading}
           selected={selected}
           onToggle={toggleItem}
           accent={accent.primary}
+          cardWidth={cardWidth}
         />
       ) : (
         <NameStep
@@ -159,6 +247,7 @@ export default function NewOutfitScreen() {
  * @param selected - Set of item IDs currently selected; selected tiles show a highlighted border and checkmark.
  * @param onToggle - Callback invoked with an item ID when a tile is pressed to toggle its selection.
  * @param accent - Color used for selection highlights and activity indicator.
+ * @param cardWidth - Explicit card width computed from screen width and grid constants.
  * @returns A React element containing either a loading indicator, an empty message, or the selectable item grid.
  */
 
@@ -168,12 +257,14 @@ function ItemPicker({
   selected,
   onToggle,
   accent,
+  cardWidth,
 }: {
   items: ClothingItemWithMeta[];
   loading: boolean;
   selected: Set<number>;
   onToggle: (id: number) => void;
   accent: string;
+  cardWidth: number;
 }) {
   if (loading) {
     return (
@@ -202,7 +293,11 @@ function ItemPicker({
         const isSelected = selected.has(item.id);
         return (
           <Pressable
-            style={[styles.pickerCell, isSelected && { borderColor: accent, borderWidth: 2.5 }]}
+            style={[
+              styles.pickerCell,
+              { width: cardWidth },
+              isSelected && { borderColor: accent, borderWidth: 2.5 },
+            ]}
             onPress={() => onToggle(item.id)}
           >
             {item.image_path ? (
@@ -237,7 +332,6 @@ function ItemPicker({
  * @param name - The current text value of the outfit name input.
  * @param onChangeName - Callback invoked with the new name when the input changes.
  * @param selectedItems - Array of clothing items to display as thumbnails in the preview strip.
- * @param accent - Accent color used for theming the step (passed through from parent).
  * @returns The UI for the name-and-preview step, including the name TextInput and a horizontal strip of item thumbnails.
  */
 
@@ -353,6 +447,31 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
+  // Category pill bar
+  pillBarWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.border,
+    flexGrow: 0,
+  },
+  pillBar: {
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2],
+    gap: Spacing[2],
+  },
+  pill: {
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2],
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.surface2,
+  },
+  pillText: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+
   center: {
     flex: 1,
     alignItems: 'center',
@@ -366,15 +485,14 @@ const styles = StyleSheet.create({
 
   // Picker grid
   pickerGrid: {
-    padding: Spacing[2],
+    padding: GRID_PADDING,
     paddingBottom: Spacing[16],
   },
   pickerRow: {
-    gap: Spacing[2],
-    marginBottom: Spacing[2],
+    gap: CARD_GAP,
+    marginBottom: CARD_GAP,
   },
   pickerCell: {
-    flex: 1,
     borderRadius: Radius.sm,
     overflow: 'hidden',
     backgroundColor: Palette.surface1,

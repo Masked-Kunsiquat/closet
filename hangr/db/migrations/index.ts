@@ -2,6 +2,7 @@ import { SQLiteDatabase } from 'expo-sqlite';
 
 import migration001 from './001_initial_schema';
 import migration002 from './002_app_settings';
+import migration003 from './003_outfit_weather';
 
 // ---------------------------------------------------------------------------
 // Migration registry
@@ -15,7 +16,7 @@ type Migration = {
   up: (db: SQLiteDatabase) => Promise<void>;
 };
 
-const migrations: Migration[] = [migration001, migration002];
+const migrations: Migration[] = [migration001, migration002, migration003];
 
 // ---------------------------------------------------------------------------
 // Runner

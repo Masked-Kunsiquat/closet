@@ -2,7 +2,7 @@
  * Outfit Detail screen
  *
  * Shows the outfit's items in a scrollable grid.
- * Log-to-date action: pick a date (today or past), choose is_ootd, save.
+ * Log-to-date action: pick a date (today or past), choose is_ootd, weather, notes, save.
  */
 
 import { Image } from 'expo-image';
@@ -14,6 +14,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -25,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
+import { useSettings } from '@/context/SettingsContext';
 import { toImageUri } from '@/utils/image';
 import { getDatabase } from '@/db';
 import {
@@ -35,7 +37,7 @@ import {
   setOotd,
 } from '@/db/queries';
 import { contrastingTextColor } from '@/utils/color';
-import { OutfitWithItems } from '@/db/types';
+import { OutfitWithItems, WeatherCondition } from '@/db/types';
 
 /**
  * Get today's date in local time formatted as YYYY-MM-DD.
@@ -47,9 +49,20 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Weather chip definitions — defined at module level to avoid re-creation on each render
+type WeatherChipDef = { condition: WeatherCondition; emoji: string; label: string };
+const WEATHER_CHIPS: WeatherChipDef[] = [
+  { condition: 'Sunny',         emoji: '☀️',  label: 'Sunny' },
+  { condition: 'Partly Cloudy', emoji: '⛅',  label: 'Partly Cloudy' },
+  { condition: 'Cloudy',        emoji: '☁️',  label: 'Cloudy' },
+  { condition: 'Rainy',         emoji: '🌧',  label: 'Rainy' },
+  { condition: 'Snowy',         emoji: '❄️',  label: 'Snowy' },
+  { condition: 'Windy',         emoji: '💨',  label: 'Windy' },
+];
+
 /**
  * Renders the Outfit Detail screen that displays an outfit's items in a 3-column grid,
- * provides a delete action, and exposes a modal for logging the outfit (date, OOTD, notes).
+ * provides a delete action, and exposes a modal for logging the outfit (date, OOTD, weather, notes).
  *
  * Shows image thumbnails or category emoji placeholders for items, a floating "Log Outfit"
  * action button, and navigates to item or date-specific log views as appropriate.
@@ -209,11 +222,13 @@ export default function OutfitDetailScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Log Modal — choose date, OOTD toggle, optional note, save
+// Log Modal — choose date, OOTD toggle, weather, optional note, save
 /**
  * Modal for creating a log entry for a specific outfit.
  *
- * Presents a date input, an optional "Mark as OOTD" toggle, notes field, and a save action that inserts a log and optionally sets the OOTD for the selected date.
+ * Presents a date input, an optional "Mark as OOTD" toggle, weather condition chips,
+ * temperature inputs, notes field, and a save action that inserts a log and optionally
+ * sets the OOTD for the selected date.
  *
  * @param visible - Whether the modal is visible.
  * @param outfitId - Database ID of the outfit being logged.
@@ -234,8 +249,13 @@ function LogModal({
   accent: string;
 }) {
   const router = useRouter();
+  const { settings } = useSettings();
+
   const [date, setDate] = useState(todayIso());
   const [isOotd, setIsOotd] = useState(false);
+  const [weatherCondition, setWeatherCondition] = useState<WeatherCondition | null>(null);
+  const [tempLow, setTempLow] = useState('');
+  const [tempHigh, setTempHigh] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -244,6 +264,9 @@ function LogModal({
     if (!visible) return;
     setDate(todayIso());
     setIsOotd(false);
+    setWeatherCondition(null);
+    setTempLow('');
+    setTempHigh('');
     setNotes('');
     setSaving(false);
   }, [visible]);
@@ -264,6 +287,12 @@ function LogModal({
     })();
     return () => { cancelled = true; };
   }, [date, visible]);
+
+  const buildWeatherPayload = () => ({
+    temperature_low:  tempLow  !== '' ? parseFloat(tempLow)  : null,
+    temperature_high: tempHigh !== '' ? parseFloat(tempHigh) : null,
+    weather_condition: weatherCondition,
+  });
 
   const handleSave = async () => {
     // Validate YYYY-MM-DD format and semantic correctness (e.g., reject Feb 30)
@@ -298,6 +327,7 @@ function LogModal({
                     date,
                     is_ootd: 0,   // insert neutral first to avoid index conflict
                     notes: notes.trim() || null,
+                    ...buildWeatherPayload(),
                   });
                   await setOotd(db, logId, date);
                   navigateTo = date;
@@ -321,6 +351,7 @@ function LogModal({
         date,
         is_ootd: isOotd ? 1 : 0,
         notes: notes.trim() || null,
+        ...buildWeatherPayload(),
       });
 
       // If we set OOTD but skipped the replace dialog path
@@ -345,59 +376,123 @@ function LogModal({
         <View style={styles.sheetHandle} />
         <Text style={styles.sheetTitle}>Log Outfit</Text>
 
-        {/* Date */}
-        <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
-        <TextInput
-          style={styles.fieldInput}
-          value={date}
-          onChangeText={setDate}
-          placeholder="2025-03-21"
-          placeholderTextColor={Palette.textDisabled}
-          keyboardType="numbers-and-punctuation"
-          maxLength={10}
-        />
-
-        {/* OOTD toggle */}
-        <TouchableOpacity
-          style={styles.ootdRow}
-          onPress={() => setIsOotd((v) => !v)}
-          activeOpacity={0.75}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.sheetScrollContent}
         >
-          <View>
-            <Text style={styles.ootdLabel}>Mark as OOTD</Text>
-            {ootdTaken && !isOotd && (
-              <Text style={styles.ootdWarning}>OOTD already set for this date</Text>
-            )}
-          </View>
-          <View style={[styles.toggle, isOotd && { backgroundColor: accent }]}>
-            <View style={[
-              styles.toggleKnob,
-              isOotd && styles.toggleKnobOn,
-              isOotd && { backgroundColor: contrastingTextColor(accent) },
-            ]} />
-          </View>
-        </TouchableOpacity>
+          {/* Date */}
+          <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={date}
+            onChangeText={setDate}
+            placeholder="2025-03-21"
+            placeholderTextColor={Palette.textDisabled}
+            keyboardType="numbers-and-punctuation"
+            maxLength={10}
+          />
 
-        {/* Notes */}
-        <Text style={styles.fieldLabel}>Notes (optional)</Text>
-        <TextInput
-          style={[styles.fieldInput, styles.fieldInputMultiline]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Weather, mood, occasion…"
-          placeholderTextColor={Palette.textDisabled}
-          multiline
-          numberOfLines={3}
-        />
+          {/* OOTD toggle */}
+          <TouchableOpacity
+            style={styles.ootdRow}
+            onPress={() => setIsOotd((v) => !v)}
+            activeOpacity={0.75}
+          >
+            <View>
+              <Text style={styles.ootdLabel}>Mark as OOTD</Text>
+              {ootdTaken && !isOotd && (
+                <Text style={styles.ootdWarning}>OOTD already set for this date</Text>
+              )}
+            </View>
+            <View style={[styles.toggle, isOotd && { backgroundColor: accent }]}>
+              <View style={[
+                styles.toggleKnob,
+                isOotd && styles.toggleKnobOn,
+                isOotd && { backgroundColor: contrastingTextColor(accent) },
+              ]} />
+            </View>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.saveButton, { backgroundColor: accent }, saving && { opacity: 0.6 }]}
-          onPress={handleSave}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.saveButtonText, { color: contrastingTextColor(accent) }]}>{saving ? 'Saving…' : 'Save Log'}</Text>
-        </TouchableOpacity>
+          {/* Weather condition chips */}
+          <Text style={styles.fieldLabel}>Weather</Text>
+          <View style={styles.chipRow}>
+            {WEATHER_CHIPS.map(({ condition, emoji, label }) => {
+              const isActive = weatherCondition === condition;
+              return (
+                <TouchableOpacity
+                  key={condition}
+                  style={[
+                    styles.weatherChip,
+                    isActive && { backgroundColor: accent, borderColor: accent },
+                  ]}
+                  onPress={() => setWeatherCondition(isActive ? null : condition)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.weatherChipEmoji}>{emoji}</Text>
+                  <Text style={[
+                    styles.weatherChipLabel,
+                    isActive && { color: contrastingTextColor(accent) },
+                  ]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Temperature */}
+          <Text style={styles.fieldLabel}>Temperature</Text>
+          <View style={styles.tempRow}>
+            <View style={styles.tempField}>
+              <TextInput
+                style={[styles.fieldInput, styles.tempInput]}
+                value={tempLow}
+                onChangeText={setTempLow}
+                placeholder="Low"
+                placeholderTextColor={Palette.textDisabled}
+                keyboardType="numbers-and-punctuation"
+                maxLength={6}
+              />
+              <Text style={styles.tempUnit}>°{settings.temperatureUnit}</Text>
+            </View>
+            <View style={styles.tempField}>
+              <TextInput
+                style={[styles.fieldInput, styles.tempInput]}
+                value={tempHigh}
+                onChangeText={setTempHigh}
+                placeholder="High"
+                placeholderTextColor={Palette.textDisabled}
+                keyboardType="numbers-and-punctuation"
+                maxLength={6}
+              />
+              <Text style={styles.tempUnit}>°{settings.temperatureUnit}</Text>
+            </View>
+          </View>
+
+          {/* Notes */}
+          <Text style={styles.fieldLabel}>Notes (optional)</Text>
+          <TextInput
+            style={[styles.fieldInput, styles.fieldInputMultiline]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Mood, occasion, context…"
+            placeholderTextColor={Palette.textDisabled}
+            multiline
+            numberOfLines={3}
+          />
+
+          <TouchableOpacity
+            style={[styles.saveButton, { backgroundColor: accent }, saving && { opacity: 0.6 }]}
+            onPress={handleSave}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.saveButtonText, { color: contrastingTextColor(accent) }]}>
+              {saving ? 'Saving…' : 'Save Log'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -556,12 +651,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    maxHeight: '90%',
     backgroundColor: Palette.surface1,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
-    padding: Spacing[5],
-    paddingBottom: Spacing[8],
+    paddingTop: Spacing[5],
+    paddingHorizontal: Spacing[5],
+  },
+  sheetScrollContent: {
     gap: Spacing[3],
+    paddingBottom: Spacing[10],
   },
   sheetHandle: {
     width: 36,
@@ -631,6 +730,51 @@ const styles = StyleSheet.create({
   toggleKnobOn: {
     alignSelf: 'flex-end',
   },
+
+  // Weather chips
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing[2],
+  },
+  weatherChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[1],
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2],
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.surface3,
+  },
+  weatherChipEmoji: {
+    fontSize: FontSize.md,
+  },
+  weatherChipLabel: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.sm,
+  },
+
+  // Temperature inputs
+  tempRow: {
+    flexDirection: 'row',
+    gap: Spacing[3],
+  },
+  tempField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+  },
+  tempInput: {
+    flex: 1,
+  },
+  tempUnit: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.md,
+  },
+
   saveButton: {
     paddingVertical: Spacing[3],
     borderRadius: Radius.md,

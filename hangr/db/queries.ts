@@ -22,6 +22,7 @@ import {
   StatItem,
   StatsOverview,
   Subcategory,
+  WeatherCondition,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -758,16 +759,26 @@ export async function getLogById(
 /**
  * Insert a new outfit log row.
  *
- * @param log - Object describing the log: `outfit_id` (nullable outfit id), `date` (YYYY-MM-DD string), `is_ootd` (0 or 1), and `notes` (nullable)
+ * @param log - Object describing the log: `outfit_id` (nullable outfit id), `date` (YYYY-MM-DD string), `is_ootd` (0 or 1), `notes` (nullable), and optional weather fields
  * @returns The inserted outfit_log row id
  */
 export async function insertOutfitLog(
   db: SQLiteDatabase,
-  log: { outfit_id: number | null; date: string; is_ootd: 0 | 1; notes: string | null }
+  log: {
+    outfit_id: number | null;
+    date: string;
+    is_ootd: 0 | 1;
+    notes: string | null;
+    temperature_low: number | null;
+    temperature_high: number | null;
+    weather_condition: WeatherCondition | null;
+  }
 ): Promise<number> {
   const result = await db.runAsync(
-    `INSERT INTO outfit_logs (outfit_id, date, is_ootd, notes) VALUES (?, ?, ?, ?)`,
-    [log.outfit_id, log.date, log.is_ootd, log.notes]
+    `INSERT INTO outfit_logs
+       (outfit_id, date, is_ootd, notes, temperature_low, temperature_high, weather_condition)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [log.outfit_id, log.date, log.is_ootd, log.notes, log.temperature_low, log.temperature_high, log.weather_condition]
   );
   return result.lastInsertRowId;
 }

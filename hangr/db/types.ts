@@ -113,12 +113,23 @@ export type OutfitWithItems = Outfit & {
 // Outfit logs
 // ---------------------------------------------------------------------------
 
+export type WeatherCondition =
+  | 'Sunny'
+  | 'Partly Cloudy'
+  | 'Cloudy'
+  | 'Rainy'
+  | 'Snowy'
+  | 'Windy';
+
 export type OutfitLog = {
   id: number;
   outfit_id: number | null;
   date: string; // YYYY-MM-DD
   is_ootd: 0 | 1;
   notes: string | null;
+  temperature_low: number | null;
+  temperature_high: number | null;
+  weather_condition: WeatherCondition | null;
   created_at: string;
 };
 
