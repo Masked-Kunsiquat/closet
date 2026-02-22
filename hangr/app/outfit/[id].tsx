@@ -25,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
+import { toImageUri } from '@/utils/image';
 import { getDatabase } from '@/db';
 import {
   deleteOutfit,
@@ -173,7 +174,7 @@ export default function OutfitDetailScreen() {
           >
             {item.image_path ? (
               <Image
-                source={{ uri: item.image_path }}
+                source={{ uri: toImageUri(item.image_path)! }}
                 style={styles.gridImage}
                 contentFit="cover"
               />
