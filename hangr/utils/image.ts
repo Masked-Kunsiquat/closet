@@ -14,5 +14,7 @@ export function toImageUri(imagePath: string | null | undefined): string | null 
   if (imagePath.startsWith('file://') || imagePath.startsWith('http')) {
     return imagePath;
   }
-  return `${Paths.document.uri}${imagePath}`;
+  const base = Paths.document.uri.replace(/\/+$/, '');
+  const relative = imagePath.replace(/^\/+/, '');
+  return `${base}/${relative}`;
 }

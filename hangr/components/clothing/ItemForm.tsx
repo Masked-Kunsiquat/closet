@@ -35,6 +35,7 @@ import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { useSettings } from '@/context/SettingsContext';
 import { contrastingTextColor } from '@/utils/color';
+import { toImageUri } from '@/utils/image';
 import { getDatabase } from '@/db';
 import {
   getCategories,
@@ -360,11 +361,17 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
       const ext = sourceUri.split('.').pop()?.toLowerCase() ?? 'jpg';
       const filename = `${Date.now()}.${ext}`;
       const imagesDir = new Directory(Paths.document, 'images');
-      imagesDir.create({ intermediates: true, idempotent: true });
       const destFile = new File(imagesDir, filename);
-      new File(sourceUri).copy(destFile);
-      // Store only the relative path — reconstruct full URI at read time
-      set('image_path', `images/${filename}`);
+      try {
+        imagesDir.create({ intermediates: true, idempotent: true });
+        new File(sourceUri).copy(destFile);
+        // Store only the relative path — reconstruct full URI at read time
+        set('image_path', `images/${filename}`);
+      } catch (e) {
+        console.error('[ItemForm] image copy failed', e);
+        try { destFile.delete(); } catch { /* ignore cleanup errors */ }
+        Alert.alert('Photo error', 'Could not save the photo. Please try again.');
+      }
     }
   };
 
@@ -411,7 +418,7 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
         <TouchableOpacity style={styles.photoButton} onPress={pickImage} activeOpacity={0.8}>
           {values.image_path ? (
             <Image
-              source={{ uri: values.image_path }}
+              source={{ uri: toImageUri(values.image_path) ?? undefined }}
               style={styles.photoPreview}
               contentFit="cover"
             />

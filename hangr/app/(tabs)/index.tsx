@@ -230,7 +230,7 @@ function GridCard({ item, cardWidth, onPress }: { item: ClothingItemWithMeta; ca
       <View style={styles.cardImageContainer}>
         {item.image_path ? (
           <Image
-            source={{ uri: toImageUri(item.image_path)! }}
+            source={{ uri: toImageUri(item.image_path) ?? undefined }}
             style={styles.cardImage}
             contentFit="cover"
             transition={150}
@@ -284,7 +284,7 @@ function ListRow({ item, onPress }: { item: ClothingItemWithMeta; onPress: () =>
       <View style={styles.listThumb}>
         {item.image_path ? (
           <Image
-            source={{ uri: toImageUri(item.image_path)! }}
+            source={{ uri: toImageUri(item.image_path) ?? undefined }}
             style={styles.listThumbImage}
             contentFit="cover"
             transition={150}
