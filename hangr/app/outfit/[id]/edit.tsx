@@ -52,6 +52,7 @@ export default function EditOutfitScreen() {
   const [step, setStep] = useState<Step>('pick');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [outfitName, setOutfitName] = useState('');
+  const [outfitNotes, setOutfitNotes] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,6 +72,7 @@ export default function EditOutfitScreen() {
           return;
         }
         setOutfitName(outfit.name ?? '');
+        setOutfitNotes(outfit.notes);
         setSelected(new Set(outfit.items.map((i) => i.id)));
         setLoaded(true);
       } catch (e) {
@@ -129,7 +131,7 @@ export default function EditOutfitScreen() {
       await updateOutfit(
         db,
         outfitId,
-        { name: outfitName.trim() || null, notes: null },
+        { name: outfitName.trim() || null, notes: outfitNotes },
         [...selected]
       );
       router.back();
@@ -328,7 +330,7 @@ function ItemPicker({
     <FlatList
       data={items}
       keyExtractor={(i) => String(i.id)}
-      numColumns={3}
+      numColumns={GRID_COLUMNS}
       contentContainerStyle={styles.pickerGrid}
       columnWrapperStyle={styles.pickerRow}
       renderItem={({ item }) => {
