@@ -22,6 +22,7 @@ import {
   StatItem,
   StatsOverview,
   Subcategory,
+  WeatherCondition,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -758,18 +759,133 @@ export async function getLogById(
 /**
  * Insert a new outfit log row.
  *
- * @param log - Object describing the log: `outfit_id` (nullable outfit id), `date` (YYYY-MM-DD string), `is_ootd` (0 or 1), and `notes` (nullable)
+ * @param log - Object describing the log: `outfit_id` (nullable outfit id), `date` (YYYY-MM-DD string), `is_ootd` (0 or 1), `notes` (nullable), and optional weather fields
  * @returns The inserted outfit_log row id
  */
 export async function insertOutfitLog(
   db: SQLiteDatabase,
-  log: { outfit_id: number | null; date: string; is_ootd: 0 | 1; notes: string | null }
+  log: {
+    outfit_id: number | null;
+    date: string;
+    is_ootd: 0 | 1;
+    notes: string | null;
+    temperature_low: number | null;
+    temperature_high: number | null;
+    weather_condition: WeatherCondition | null;
+  }
 ): Promise<number> {
   const result = await db.runAsync(
-    `INSERT INTO outfit_logs (outfit_id, date, is_ootd, notes) VALUES (?, ?, ?, ?)`,
-    [log.outfit_id, log.date, log.is_ootd, log.notes]
+    `INSERT INTO outfit_logs
+       (outfit_id, date, is_ootd, notes, temperature_low, temperature_high, weather_condition)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [log.outfit_id, log.date, log.is_ootd, log.notes, log.temperature_low, log.temperature_high, log.weather_condition]
   );
   return result.lastInsertRowId;
+}
+
+/**
+ * Update the date, notes, and weather fields of an existing outfit log.
+ *
+ * `is_ootd` is intentionally excluded — use `setOotd` / `clearOotd` to manage
+ * OOTD status so the partial-unique index constraint is never violated.
+ *
+ * @param logId - The id of the outfit log to update
+ * @param log - Fields to update: date, notes, temperature_low, temperature_high, weather_condition
+ */
+export async function updateOutfitLog(
+  db: SQLiteDatabase,
+  logId: number,
+  log: {
+    date: string;
+    notes: string | null;
+    temperature_low: number | null;
+    temperature_high: number | null;
+    weather_condition: WeatherCondition | null;
+  }
+): Promise<void> {
+  await db.runAsync(
+    `UPDATE outfit_logs
+     SET date = ?, notes = ?, temperature_low = ?, temperature_high = ?, weather_condition = ?
+     WHERE id = ?`,
+    [log.date, log.notes, log.temperature_low, log.temperature_high, log.weather_condition, logId]
+  );
+}
+
+/**
+ * Fetches all outfit logs for a specific outfit, ordered by date descending.
+ *
+ * @param outfitId - The id of the outfit whose logs to fetch
+ * @returns An array of `OutfitLog` rows ordered by date DESC
+ */
+export async function getLogsForOutfit(
+  db: SQLiteDatabase,
+  outfitId: number
+): Promise<OutfitLog[]> {
+  return db.getAllAsync<OutfitLog>(
+    `SELECT * FROM outfit_logs WHERE outfit_id = ? ORDER BY date DESC`,
+    [outfitId]
+  );
+}
+
+/**
+ * Fetches all outfits that contain a specific clothing item, with item_count and cover_image metadata.
+ *
+ * @param itemId - The id of the clothing item
+ * @returns An array of `OutfitWithMeta` objects ordered by created_at DESC
+ */
+export async function getOutfitsForItem(
+  db: SQLiteDatabase,
+  itemId: number
+): Promise<OutfitWithMeta[]> {
+  return db.getAllAsync<OutfitWithMeta>(`
+    SELECT
+      o.*,
+      COUNT(oi2.clothing_item_id) AS item_count,
+      (SELECT ci.image_path
+       FROM outfit_items oi3
+       JOIN clothing_items ci ON ci.id = oi3.clothing_item_id
+       WHERE oi3.outfit_id = o.id AND ci.image_path IS NOT NULL
+       LIMIT 1) AS cover_image
+    FROM outfit_items oi
+    JOIN outfits o ON o.id = oi.outfit_id
+    LEFT JOIN outfit_items oi2 ON oi2.outfit_id = o.id
+    WHERE oi.clothing_item_id = ?
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
+  `, [itemId]);
+}
+
+/**
+ * Fetches all outfit logs for any outfit that contains the given clothing item.
+ *
+ * Returns `OutfitLogWithMeta` rows (includes outfit_name, item_count, cover_image),
+ * ordered by date descending.
+ *
+ * @param itemId - The id of the clothing item
+ * @returns An array of `OutfitLogWithMeta` rows ordered by date DESC
+ */
+export async function getLogsForItem(
+  db: SQLiteDatabase,
+  itemId: number
+): Promise<OutfitLogWithMeta[]> {
+  return db.getAllAsync<OutfitLogWithMeta>(`
+    SELECT
+      ol.*,
+      o.name AS outfit_name,
+      COUNT(DISTINCT oi2.clothing_item_id) AS item_count,
+      (SELECT ci2.image_path
+       FROM outfit_items oi3
+       JOIN clothing_items ci2 ON ci2.id = oi3.clothing_item_id
+       WHERE oi3.outfit_id = ol.outfit_id AND ci2.image_path IS NOT NULL
+       LIMIT 1) AS cover_image
+    FROM outfit_logs ol
+    JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+    LEFT JOIN outfits o ON o.id = ol.outfit_id
+    LEFT JOIN outfit_items oi2 ON oi2.outfit_id = ol.outfit_id
+    WHERE oi.clothing_item_id = ?
+    GROUP BY ol.id
+    ORDER BY ol.date DESC
+  `, [itemId]);
 }
 
 /**

@@ -23,9 +23,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
+import { useSettings } from '@/context/SettingsContext';
 import { getDatabase } from '@/db';
 import { clearOotd, deleteOutfitLog, setOotd } from '@/db/queries';
-import { OutfitLogWithMeta } from '@/db/types';
+import { OutfitLogWithMeta, WeatherCondition } from '@/db/types';
 import { useLogsForDate } from '@/hooks/useOutfitLog';
 import { contrastingTextColor } from '@/utils/color';
 import { toImageUri } from '@/utils/image';
@@ -43,6 +44,30 @@ function formatDate(iso: string): string {
   });
 }
 
+function weatherEmoji(condition: WeatherCondition): string {
+  const map: Record<WeatherCondition, string> = {
+    'Sunny': '☀️',
+    'Partly Cloudy': '⛅',
+    'Cloudy': '☁️',
+    'Rainy': '🌧',
+    'Snowy': '❄️',
+    'Windy': '💨',
+  };
+  return map[condition];
+}
+
+function formatTempRange(
+  low: number | null,
+  high: number | null,
+  unit: 'F' | 'C'
+): string | null {
+  if (low == null && high == null) return null;
+  const lo = low  != null ? `${low}°${unit}`  : null;
+  const hi = high != null ? `${high}°${unit}` : null;
+  if (lo && hi) return `${lo} – ${hi}`;
+  return lo ?? hi;
+}
+
 function LogSeparator() {
   return <View style={styles.separator} />;
 }
@@ -57,6 +82,7 @@ function LogSeparator() {
 export default function DayDetailScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const { accent } = useAccent();
+  const { settings: { temperatureUnit } } = useSettings();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -185,6 +211,7 @@ export default function DayDetailScreen() {
             <LogRow
               log={item}
               accent={accent.primary}
+              temperatureUnit={temperatureUnit}
               onToggleOotd={() => handleToggleOotd(item)}
               onDelete={() => handleDeleteLog(item)}
               onPressOutfit={() => {
@@ -220,12 +247,14 @@ export default function DayDetailScreen() {
 function LogRow({
   log,
   accent,
+  temperatureUnit,
   onToggleOotd,
   onDelete,
   onPressOutfit,
 }: {
   log: OutfitLogWithMeta;
   accent: string;
+  temperatureUnit: 'F' | 'C';
   onToggleOotd: () => void;
   onDelete: () => void;
   onPressOutfit: () => void;
@@ -255,6 +284,16 @@ function LogRow({
         <Text style={styles.logOutfitName} numberOfLines={1}>
           {log.outfit_name ?? 'Untitled Outfit'}
         </Text>
+        {(log.weather_condition || log.temperature_low != null || log.temperature_high != null) && (
+          <Text style={styles.logWeather} numberOfLines={1}>
+            {[
+              log.weather_condition
+                ? `${weatherEmoji(log.weather_condition)} ${log.weather_condition}`
+                : null,
+              formatTempRange(log.temperature_low, log.temperature_high, temperatureUnit),
+            ].filter(Boolean).join('  ·  ')}
+          </Text>
+        )}
         <Text style={styles.logItemCount}>
           {log.item_count} item{log.item_count !== 1 ? 's' : ''}
           {log.notes ? ` · ${log.notes}` : ''}
@@ -408,6 +447,11 @@ const styles = StyleSheet.create({
     color: Palette.textPrimary,
     fontSize: FontSize.md,
     fontWeight: FontWeight.medium,
+  },
+  logWeather: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.xs,
+    marginTop: 1,
   },
   logItemCount: {
     color: Palette.textSecondary,

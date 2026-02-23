@@ -2,15 +2,18 @@ import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
+import { useSettings } from '@/context/SettingsContext';
 import { toImageUri } from '@/utils/image';
 import { getDatabase } from '@/db';
-import { deleteClothingItem, updateWashStatus } from '@/db/queries';
+import { deleteClothingItem, getLogsForItem, getOutfitsForItem, updateWashStatus } from '@/db/queries';
+import { OutfitLogWithMeta, OutfitWithMeta, WeatherCondition } from '@/db/types';
 import { useClothingItem } from '@/hooks/useClothingItem';
 
 /**
@@ -27,8 +30,33 @@ export default function ItemDetailScreen() {
   const itemId = parseInt(id ?? '', 10);
   const { item, loading, error, refresh } = useClothingItem(itemId);
   const { accent } = useAccent();
+  const { settings } = useSettings();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const [outfits, setOutfits] = useState<OutfitWithMeta[]>([]);
+  const [itemLogs, setItemLogs] = useState<OutfitLogWithMeta[]>([]);
+
+  useEffect(() => {
+    if (!Number.isFinite(itemId) || itemId <= 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const db = await getDatabase();
+        const [o, l] = await Promise.all([
+          getOutfitsForItem(db, itemId),
+          getLogsForItem(db, itemId),
+        ]);
+        if (!cancelled) {
+          setOutfits(o);
+          setItemLogs(l);
+        }
+      } catch {
+        // Non-critical — sections simply won't render
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [itemId]);
 
   const handleWashToggle = async () => {
     if (!item) return;
@@ -192,6 +220,84 @@ export default function ItemDetailScreen() {
           </Section>
         ) : null}
 
+        {/* Appears In */}
+        {outfits.length > 0 && (
+          <Section title="Appears In">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.outfitCardStrip}
+            >
+              {outfits.map((outfit) => (
+                <TouchableOpacity
+                  key={outfit.id}
+                  style={styles.outfitCard}
+                  onPress={() => router.push(`/outfit/${outfit.id}`)}
+                  activeOpacity={0.8}
+                >
+                  {outfit.cover_image ? (
+                    <Image
+                      source={{ uri: toImageUri(outfit.cover_image)! }}
+                      style={styles.outfitCardImage}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={[styles.outfitCardImage, styles.outfitCardPlaceholder]}>
+                      <Text style={styles.outfitCardEmoji}>👗</Text>
+                    </View>
+                  )}
+                  <Text style={styles.outfitCardName} numberOfLines={2}>
+                    {outfit.name ?? 'Untitled'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Section>
+        )}
+
+        {/* Wear History (read-only) */}
+        {itemLogs.length > 0 && (
+          <Section title={`Wear History (${itemLogs.length})`}>
+            {itemLogs.map((log, idx) => {
+              const weather = itemLogWeatherSummary(
+                log.weather_condition,
+                log.temperature_low,
+                log.temperature_high,
+                settings.temperatureUnit
+              );
+              return (
+                <View
+                  key={log.id}
+                  style={[
+                    styles.itemLogRow,
+                    idx < itemLogs.length - 1 && styles.itemLogRowBorder,
+                  ]}
+                >
+                  <View style={styles.itemLogLeft}>
+                    <Text style={styles.itemLogDate}>{formatItemLogDate(log.date)}</Text>
+                    {log.is_ootd === 1 && (
+                      <Text style={[styles.itemLogOotd, { color: accent.primary }]}>★ OOTD</Text>
+                    )}
+                  </View>
+                  <View style={styles.itemLogRight}>
+                    {log.outfit_name ? (
+                      <Text style={styles.itemLogOutfitName} numberOfLines={1}>
+                        {log.outfit_name}
+                      </Text>
+                    ) : null}
+                    {weather ? (
+                      <Text style={styles.itemLogMeta} numberOfLines={1}>{weather}</Text>
+                    ) : null}
+                    {log.notes ? (
+                      <Text style={styles.itemLogMeta} numberOfLines={1}>{log.notes}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
+          </Section>
+        )}
+
         {/* Delete */}
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} activeOpacity={0.8}>
           <Text style={styles.deleteText}>Delete Item</Text>
@@ -201,6 +307,37 @@ export default function ItemDetailScreen() {
       </ScrollView>
     </View>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+
+function formatItemLogDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+}
+
+function itemLogWeatherSummary(
+  condition: WeatherCondition | null,
+  tempLow: number | null,
+  tempHigh: number | null,
+  unit: 'F' | 'C'
+): string | null {
+  const EMOJI: Record<WeatherCondition, string> = {
+    'Sunny': '☀️', 'Partly Cloudy': '⛅', 'Cloudy': '☁️',
+    'Rainy': '🌧', 'Snowy': '❄️', 'Windy': '💨',
+  };
+  const parts: string[] = [];
+  if (condition) parts.push(`${EMOJI[condition]} ${condition}`);
+  if (tempLow != null || tempHigh != null) {
+    const lo = tempLow  != null ? `${tempLow}°${unit}`  : null;
+    const hi = tempHigh != null ? `${tempHigh}°${unit}` : null;
+    if (lo && hi) parts.push(`${lo} – ${hi}`);
+    else parts.push((lo ?? hi)!);
+  }
+  return parts.length ? parts.join('  ·  ') : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -474,5 +611,71 @@ const styles = StyleSheet.create({
     color: Palette.error,
     fontSize: FontSize.md,
     fontWeight: FontWeight.medium,
+  },
+
+  // Appears In
+  outfitCardStrip: {
+    gap: Spacing[3],
+    paddingBottom: Spacing[2],
+  },
+  outfitCard: {
+    width: 80,
+    alignItems: 'center',
+    gap: Spacing[2],
+  },
+  outfitCardImage: {
+    width: 80,
+    height: 100,
+    borderRadius: Radius.sm,
+  },
+  outfitCardPlaceholder: {
+    backgroundColor: Palette.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  outfitCardEmoji: {
+    fontSize: 28,
+  },
+  outfitCardName: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.xs,
+    textAlign: 'center',
+  },
+
+  // Item Wear History rows
+  itemLogRow: {
+    flexDirection: 'row',
+    paddingVertical: Spacing[3],
+    gap: Spacing[3],
+  },
+  itemLogRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.borderMuted,
+  },
+  itemLogLeft: {
+    width: 96,
+    gap: 2,
+  },
+  itemLogDate: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+  itemLogOotd: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semibold,
+  },
+  itemLogRight: {
+    flex: 1,
+    gap: 2,
+  },
+  itemLogOutfitName: {
+    color: Palette.textPrimary,
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.medium,
+  },
+  itemLogMeta: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.xs,
   },
 });

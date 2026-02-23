@@ -1,13 +1,13 @@
 /**
- * Outfit Builder
+ * Edit Outfit screen — /outfit/[id]/edit
  *
- * Multi-step: pick items from closet → set optional name → save.
- * No routing params — always creates a new outfit.
+ * Same two-step flow as new.tsx (pick items → set name) but pre-populated
+ * with existing outfit data. Saves via updateOutfit. Delete lives here.
  */
 
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -27,7 +27,7 @@ import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/toke
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { getDatabase } from '@/db';
-import { insertOutfit } from '@/db/queries';
+import { deleteOutfit, getOutfitWithItems, updateOutfit } from '@/db/queries';
 import { ClothingItemWithMeta } from '@/db/types';
 import { useClothingItems } from '@/hooks/useClothingItems';
 import { contrastingTextColor } from '@/utils/color';
@@ -39,33 +39,56 @@ const CARD_GAP = Spacing[2];
 const GRID_COLUMNS = 3;
 const GRID_PADDING = Spacing[3];
 
-/**
- * Multi-step screen to create a new outfit by selecting items, optionally naming it, and saving it.
- *
- * Presents a "pick" step for choosing active closet items (with category filter pills) and a "name"
- * step for entering an optional outfit name with a preview of selected items. On save, the outfit is
- * persisted and the UI navigates to the newly created outfit.
- *
- * @returns The JSX element rendering the new-outfit creation screen.
- */
-export default function NewOutfitScreen() {
+export default function EditOutfitScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const outfitId = parseInt(id ?? '', 10);
   const { accent } = useAccent();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
 
-  const { items, loading } = useClothingItems();
+  const { items, loading: itemsLoading } = useClothingItems();
 
   const [step, setStep] = useState<Step>('pick');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [outfitName, setOutfitName] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [outfitNotes, setOutfitNotes] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Only show Active items in the picker
-  const activeItems = useMemo(() => items.filter((i) => i.status === 'Active'), [items]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  // Derive distinct categories from active items (preserves insertion order)
+  // Load existing outfit to pre-fill state
+  useEffect(() => {
+    if (!Number.isFinite(outfitId) || outfitId <= 0) return;
+    (async () => {
+      try {
+        const db = await getDatabase();
+        const outfit = await getOutfitWithItems(db, outfitId);
+        if (!outfit) {
+          setLoadError('Outfit not found.');
+          return;
+        }
+        setOutfitName(outfit.name ?? '');
+        setOutfitNotes(outfit.notes);
+        setSelected(new Set(outfit.items.map((i) => i.id)));
+        setLoaded(true);
+      } catch (e) {
+        setLoadError(String(e));
+      }
+    })();
+  }, [outfitId]);
+
+  // Active items — include items that were originally in the outfit even if now non-Active
+  // so they stay selectable when editing
+  const activeItems = useMemo(
+    () => items.filter((i) => i.status === 'Active' || selected.has(i.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, loaded] // recompute once loaded so pre-selected outfit items are included; not on every toggle
+  );
+
   const categories = useMemo(() => {
     const seen = new Set<string>();
     const result: string[] = [];
@@ -78,7 +101,6 @@ export default function NewOutfitScreen() {
     return result;
   }, [activeItems]);
 
-  // Items shown in the picker grid — filtered by selected category, or all
   const filteredItems = useMemo(
     () =>
       selectedCategory
@@ -87,7 +109,6 @@ export default function NewOutfitScreen() {
     [activeItems, selectedCategory]
   );
 
-  // Card width matching the closet screen grid math
   const cardWidth =
     (screenWidth - GRID_PADDING * 2 - CARD_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
@@ -101,41 +122,84 @@ export default function NewOutfitScreen() {
 
   const handleSave = async () => {
     if (selected.size === 0) {
-      Alert.alert('No items selected', 'Pick at least one item for the outfit.');
+      Alert.alert('No items selected', 'An outfit needs at least one item.');
       return;
     }
     setSaving(true);
     try {
       const db = await getDatabase();
-      const outfitId = await insertOutfit(
+      await updateOutfit(
         db,
-        { name: outfitName.trim() || null, notes: null },
+        outfitId,
+        { name: outfitName.trim() || null, notes: outfitNotes },
         [...selected]
       );
-      router.replace(`/outfit/${outfitId}` as any);
+      router.back();
     } catch (e) {
       Alert.alert('Error', String(e));
       setSaving(false);
     }
   };
 
+  const handleDelete = useCallback(() => {
+    Alert.alert('Delete outfit?', 'This will remove the outfit. Logged history is kept.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          if (deleting) return;
+          setDeleting(true);
+          try {
+            const db = await getDatabase();
+            await deleteOutfit(db, outfitId);
+            router.replace('/(tabs)/outfits');
+          } catch (e) {
+            console.error('[handleDelete]', e);
+            Alert.alert('Error', 'Could not delete the outfit. Please try again.');
+            setDeleting(false);
+          }
+        },
+      },
+    ]);
+  }, [deleting, outfitId, router]);
+
+  if (!Number.isFinite(outfitId) || outfitId <= 0 || loadError) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.center}>
+          <Text style={styles.placeholderText}>{loadError ?? 'Outfit not found.'}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (!loaded || itemsLoading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.center}>
+          <ActivityIndicator color={accent.primary} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => (step === 'name' ? setStep('pick') : router.back())} hitSlop={10} style={styles.headerBackBtn}>
-          {step === 'name' ? (
-            <>
-              <PhosphorIcon name="caret-left" size={18} color={Palette.textSecondary} />
-              <Text style={styles.headerBack}>Back</Text>
-            </>
-          ) : (
-            <Text style={styles.headerBack}>Cancel</Text>
-          )}
+        <TouchableOpacity
+          onPress={() => (step === 'name' ? setStep('pick') : router.back())}
+          hitSlop={10}
+          style={styles.headerBackBtn}
+        >
+          <PhosphorIcon name="caret-left" size={18} color={Palette.textSecondary} />
+          <Text style={styles.headerBack}>
+            {step === 'name' ? 'Back' : 'Cancel'}
+          </Text>
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>
-          {step === 'pick' ? 'Pick Items' : 'Name Outfit'}
+          {step === 'pick' ? 'Edit Items' : 'Edit Name'}
         </Text>
 
         {step === 'pick' ? (
@@ -164,7 +228,7 @@ export default function NewOutfitScreen() {
         )}
       </View>
 
-      {/* Category pill bar — only shown on pick step with multiple categories */}
+      {/* Category pill bar */}
       {step === 'pick' && categories.length > 1 && (
         <ScrollView
           horizontal
@@ -183,12 +247,7 @@ export default function NewOutfitScreen() {
             onPress={() => setSelectedCategory(null)}
             activeOpacity={0.75}
           >
-            <Text
-              style={[
-                styles.pillText,
-                !selectedCategory && { color: accent.primary },
-              ]}
-            >
+            <Text style={[styles.pillText, !selectedCategory && { color: accent.primary }]}>
               All
             </Text>
           </TouchableOpacity>
@@ -220,7 +279,6 @@ export default function NewOutfitScreen() {
       {step === 'pick' ? (
         <ItemPicker
           items={filteredItems}
-          loading={loading}
           selected={selected}
           onToggle={toggleItem}
           accent={accent.primary}
@@ -232,6 +290,8 @@ export default function NewOutfitScreen() {
           name={outfitName}
           onChangeName={setOutfitName}
           selectedItems={activeItems.filter((i) => selected.has(i.id))}
+          onDelete={handleDelete}
+          deleting={deleting}
         />
       )}
     </View>
@@ -239,22 +299,10 @@ export default function NewOutfitScreen() {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1 — Item picker grid
-/**
- * Render a 3-column grid UI that lets the user pick clothing items, with built-in loading and empty states.
- *
- * @param items - Array of clothing items (with metadata) to display as selectable tiles.
- * @param loading - When true, show a centered activity indicator instead of the grid.
- * @param selected - Set of item IDs currently selected; selected tiles show a highlighted border and checkmark.
- * @param onToggle - Callback invoked with an item ID when a tile is pressed to toggle its selection.
- * @param accent - Color used for selection highlights and activity indicator.
- * @param cardWidth - Explicit card width computed from screen width and grid constants.
- * @returns A React element containing either a loading indicator, an empty message, or the selectable item grid.
- */
+// Item picker grid (same as new.tsx, no loading state needed here — parent handles it)
 
 function ItemPicker({
   items,
-  loading,
   selected,
   onToggle,
   accent,
@@ -262,21 +310,12 @@ function ItemPicker({
   isFiltered,
 }: {
   items: ClothingItemWithMeta[];
-  loading: boolean;
   selected: Set<number>;
   onToggle: (id: number) => void;
   accent: string;
   cardWidth: number;
   isFiltered: boolean;
 }) {
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={accent} />
-      </View>
-    );
-  }
-
   if (items.length === 0) {
     return (
       <View style={styles.center}>
@@ -291,7 +330,7 @@ function ItemPicker({
     <FlatList
       data={items}
       keyExtractor={(i) => String(i.id)}
-      numColumns={3}
+      numColumns={GRID_COLUMNS}
       contentContainerStyle={styles.pickerGrid}
       columnWrapperStyle={styles.pickerRow}
       renderItem={({ item }) => {
@@ -330,24 +369,20 @@ function ItemPicker({
 }
 
 // ---------------------------------------------------------------------------
-// Step 2 — Name + preview
-/**
- * Renders the "name" step of the outfit creation flow: an optional outfit name input and a thumbnail preview of selected items.
- *
- * @param name - The current text value of the outfit name input.
- * @param onChangeName - Callback invoked with the new name when the input changes.
- * @param selectedItems - Array of clothing items to display as thumbnails in the preview strip.
- * @returns The UI for the name-and-preview step, including the name TextInput and a horizontal strip of item thumbnails.
- */
+// Name step with Delete action
 
 function NameStep({
   name,
   onChangeName,
   selectedItems,
+  onDelete,
+  deleting,
 }: {
   name: string;
   onChangeName: (v: string) => void;
   selectedItems: ClothingItemWithMeta[];
+  onDelete: () => void;
+  deleting: boolean;
 }) {
   return (
     <ScrollView contentContainerStyle={styles.nameContent} keyboardShouldPersistTaps="handled">
@@ -383,18 +418,22 @@ function NameStep({
           </View>
         ))}
       </View>
+
+      {/* Delete — placed at the bottom to keep it out of the way */}
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={onDelete}
+        disabled={deleting}
+        activeOpacity={0.75}
+      >
+        <Text style={styles.deleteButtonText}>{deleting ? 'Deleting…' : 'Delete Outfit'}</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
-/**
- * Maps a clothing category name to a representative emoji.
- *
- * @param name - The clothing category name (or `null`) to map to an emoji
- * @returns An emoji corresponding to the category; returns 🧺 for unknown or `null` categories
- */
 
 function categoryEmoji(name: string | null): string {
   switch (name) {
@@ -414,13 +453,23 @@ function categoryEmoji(name: string | null): string {
 
 // ---------------------------------------------------------------------------
 // Styles
-// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Palette.surface0,
   },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderText: {
+    color: Palette.textSecondary,
+    fontSize: FontSize.md,
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,15 +526,11 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.medium,
   },
 
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   emptyText: {
     color: Palette.textSecondary,
     fontSize: FontSize.md,
     textAlign: 'center',
+    paddingHorizontal: Spacing[6],
   },
 
   // Picker grid
@@ -588,5 +633,20 @@ const styles = StyleSheet.create({
   },
   previewThumbEmoji: {
     fontSize: 24,
+  },
+
+  // Delete
+  deleteButton: {
+    marginTop: Spacing[6],
+    paddingVertical: Spacing[3],
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.error,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: Palette.error,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.medium,
   },
 });

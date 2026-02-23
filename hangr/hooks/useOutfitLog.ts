@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { getDatabase } from '@/db';
-import { getCalendarDaysForMonth, getLogsByDate } from '@/db/queries';
-import { CalendarDay, OutfitLogWithMeta } from '@/db/types';
+import { getCalendarDaysForMonth, getLogsByDate, getLogsForOutfit } from '@/db/queries';
+import { CalendarDay, OutfitLog, OutfitLogWithMeta } from '@/db/types';
 
 // ---------------------------------------------------------------------------
 // Logs for a single date
@@ -37,6 +37,41 @@ export function useLogsForDate(date: string) {
       setState((s) => ({ ...s, loading: false, error: String(e) }));
     }
   }, [date]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { ...state, refresh: load };
+}
+
+// ---------------------------------------------------------------------------
+// Logs for a single outfit
+// ---------------------------------------------------------------------------
+
+type OutfitLogState = {
+  logs: OutfitLog[];
+  loading: boolean;
+  error: string | null;
+};
+
+/**
+ * Provides all outfit logs for a specific outfit, ordered by date descending.
+ *
+ * @param outfitId - The database id of the outfit whose logs to load
+ * @returns An object containing `logs`, `loading`, `error`, and `refresh`
+ */
+export function useLogsForOutfit(outfitId: number) {
+  const [state, setState] = useState<OutfitLogState>({ logs: [], loading: true, error: null });
+
+  const load = useCallback(async () => {
+    setState((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const db = await getDatabase();
+      const logs = await getLogsForOutfit(db, outfitId);
+      setState({ logs, loading: false, error: null });
+    } catch (e) {
+      setState((s) => ({ ...s, loading: false, error: String(e) }));
+    }
+  }, [outfitId]);
 
   useEffect(() => { load(); }, [load]);
 
