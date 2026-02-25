@@ -31,6 +31,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
+import { PatternIcon } from '@/components/PatternIcon';
 import { PhosphorIcon } from '@/components/PhosphorIcon';
 import { useAccent } from '@/context/AccentContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -784,6 +785,9 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
         items={patterns}
         selectedIds={values.patternIds}
         onToggle={(id) => toggleMulti('patternIds', id)}
+        renderDot={(pattern) => (
+          <PatternIcon name={pattern.name} size={16} color={Palette.textSecondary} />
+        )}
       />
       <PickerSheet
         visible={openSheet === 'seasons'}

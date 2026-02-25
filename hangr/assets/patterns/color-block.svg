@@ -1,0 +1,8 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+  <!-- Top block -->
+  <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+  <!-- Bottom-left block -->
+  <path d="M2 12 H11 V22 H4 Q2 22 2 20 Z"/>
+  <!-- Bottom-right block -->
+  <path d="M13 12 H22 V20 Q22 22 20 22 H13 Z" opacity="0.5"/>
+</svg>

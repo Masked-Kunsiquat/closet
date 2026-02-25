@@ -1,0 +1,24 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+  <!-- Row 1 -->
+  <rect x="2"  y="2"  width="5" height="5"/>
+  <rect x="9"  y="2"  width="5" height="5"/>
+  <rect x="16" y="2"  width="6" height="5"/>
+  <!-- Row 2 -->
+  <rect x="7"  y="9"  width="5" height="5" opacity="0.35"/>
+  <rect x="14" y="9"  width="8" height="5" opacity="0.35"/>
+  <rect x="2"  y="9"  width="3" height="5" opacity="0.35"/>
+  <!-- Row 1 cols -->
+  <rect x="2"  y="2"  width="5" height="5"/>
+  <rect x="9"  y="2"  width="5" height="5"/>
+  <rect x="16" y="2"  width="6" height="5"/>
+  <!-- Even rows (offset) -->
+  <rect x="7"  y="7"  width="5" height="5"/>
+  <rect x="14" y="7"  width="8" height="5"/>
+  <!-- Odd rows -->
+  <rect x="2"  y="14" width="5" height="5"/>
+  <rect x="9"  y="14" width="5" height="5"/>
+  <rect x="16" y="14" width="6" height="5"/>
+  <!-- Even rows -->
+  <rect x="7"  y="19" width="5" height="3"/>
+  <rect x="14" y="19" width="8" height="3"/>
+</svg>
