@@ -1,6 +1,8 @@
 import { Image, ImageStyle } from 'expo-image';
 import { StyleProp } from 'react-native';
 
+import { Palette } from '@/constants/tokens';
+
 // ---------------------------------------------------------------------------
 // Static map of every pattern SVG bundled in assets/patterns/.
 // Key = pattern name lowercased, spaces/slashes replaced with hyphens
@@ -48,7 +50,7 @@ type Props = {
 // Component
 // ---------------------------------------------------------------------------
 
-export function PatternIcon({ name, size = 24, color = '#FFFFFF', style }: Props) {
+export function PatternIcon({ name, size = 24, color = Palette.white, style }: Props) {
   const source = PATTERN_MAP[patternKey(name)];
   if (!source) return null;
 
