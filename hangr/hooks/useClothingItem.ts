@@ -88,6 +88,7 @@ export function useClothingItem(id: number) {
       });
     } catch (e) {
       if (requestIdRef.current !== reqId) return;
+      if (__DEV__) console.error('[useClothingItem] load failed', e);
       setState({ item: null, loading: false, error: String(e) });
     }
   }, [id]);
