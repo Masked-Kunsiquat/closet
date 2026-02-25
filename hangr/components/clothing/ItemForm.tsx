@@ -759,16 +759,13 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
       />
 
       {/* ── Picker sheets ── */}
-      <PickerSheet
+      <ColorSheet
         visible={openSheet === 'colors'}
-        onClose={() => setOpenSheet(null)}
-        title="Colors"
-        items={colors}
+        colors={colors}
         selectedIds={values.colorIds}
         onToggle={(id) => toggleMulti('colorIds', id)}
-        renderDot={(color) => color.hex ? (
-          <View style={[styles.colorDot, { backgroundColor: color.hex }]} />
-        ) : null}
+        onClose={() => setOpenSheet(null)}
+        accentPrimary={accent.primary}
       />
       <MaterialSheet
         visible={openSheet === 'materials'}
@@ -1031,6 +1028,60 @@ function SubcategorySheet({
 }
 
 // ---------------------------------------------------------------------------
+// ColorSheet
+// ---------------------------------------------------------------------------
+
+function ColorSheet({
+  visible,
+  colors,
+  selectedIds,
+  onToggle,
+  onClose,
+  accentPrimary,
+}: {
+  visible: boolean;
+  colors: Color[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  onClose: () => void;
+  accentPrimary: string;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Colors</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {colors.map((color, i) => {
+            const active = selectedIds.includes(color.id);
+            return (
+              <Pressable
+                key={color.id}
+                style={[styles.sheetOption, i < colors.length - 1 && styles.sheetOptionBorder]}
+                onPress={() => onToggle(color.id)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: active }}
+              >
+                <View style={styles.sheetOptionLeft}>
+                  <View style={[styles.colorSwatch, color.hex ? { backgroundColor: color.hex } : styles.colorSwatchNull]} />
+                  <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                    {color.name}
+                  </Text>
+                </View>
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // MaterialSheet
 // ---------------------------------------------------------------------------
 
@@ -1214,12 +1265,15 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     fontWeight: FontWeight.semibold,
   },
-  colorDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  colorSwatch: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Palette.dotBorder,
+  },
+  colorSwatchNull: {
+    backgroundColor: Palette.surface3,
   },
 
   // Photo
