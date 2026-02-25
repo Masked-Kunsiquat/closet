@@ -770,13 +770,13 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
           <View style={[styles.colorDot, { backgroundColor: color.hex }]} />
         ) : null}
       />
-      <PickerSheet
+      <MaterialSheet
         visible={openSheet === 'materials'}
-        onClose={() => setOpenSheet(null)}
-        title="Materials"
-        items={materials}
+        materials={materials}
         selectedIds={values.materialIds}
         onToggle={(id) => toggleMulti('materialIds', id)}
+        onClose={() => setOpenSheet(null)}
+        accentPrimary={accent.primary}
       />
       <PatternSheet
         visible={openSheet === 'patterns'}
@@ -1018,6 +1018,57 @@ function SubcategorySheet({
               >
                 <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
                   {sub.name}
+                </Text>
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MaterialSheet
+// ---------------------------------------------------------------------------
+
+function MaterialSheet({
+  visible,
+  materials,
+  selectedIds,
+  onToggle,
+  onClose,
+  accentPrimary,
+}: {
+  visible: boolean;
+  materials: Material[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  onClose: () => void;
+  accentPrimary: string;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Materials</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {materials.map((material, i) => {
+            const active = selectedIds.includes(material.id);
+            return (
+              <Pressable
+                key={material.id}
+                style={[styles.sheetOption, i < materials.length - 1 && styles.sheetOptionBorder]}
+                onPress={() => onToggle(material.id)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: active }}
+              >
+                <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                  {material.name}
                 </Text>
                 {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
               </Pressable>
