@@ -31,7 +31,7 @@ const PATTERN_MAP: Record<string, ReturnType<typeof require>> = {
 
 /** Derive the map key from a pattern display name (e.g. "Plaid/Tartan" → "plaid-tartan"). */
 export function patternKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 // ---------------------------------------------------------------------------
