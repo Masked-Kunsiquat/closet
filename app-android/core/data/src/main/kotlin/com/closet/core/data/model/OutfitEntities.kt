@@ -48,13 +48,7 @@ data class OutfitItemEntity(
     ],
     indices = [
         Index(value = ["outfit_id"]),
-        Index(value = ["date"], unique = false, orders = [Index.Order.ASC]),
-        Index(
-            value = ["date"],
-            name = "one_ootd_per_day",
-            unique = true,
-            where = "is_ootd = 1"
-        )
+        Index(value = ["date"], unique = false, orders = [Index.Order.ASC])
     ]
 )
 data class OutfitLogEntity(
@@ -73,6 +67,7 @@ data class OutfitLogEntity(
  * Mirror of OutfitWithItems from types.ts.
  * Leverage: Uses Room's @Junction for high-performance relationship mapping.
  */
+@Suppress("unused")
 data class OutfitWithItems(
     @Embedded val outfit: OutfitEntity,
     @Relation(
