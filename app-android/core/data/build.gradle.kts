@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.closet.core.data"
-    compileSdk = 36
+    compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
         minSdk = 26
