@@ -1,5 +1,7 @@
 package com.closet.core.data.repository
 
+import androidx.room.withTransaction
+import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.OutfitDao
 import com.closet.core.data.dao.OutfitWithMeta
 import com.closet.core.data.model.OutfitEntity
@@ -14,6 +16,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class OutfitRepository @Inject constructor(
+    private val database: ClothingDatabase,
     private val outfitDao: OutfitDao
 ) {
     /**
@@ -23,21 +26,20 @@ class OutfitRepository @Inject constructor(
 
     /**
      * Create a new outfit and associate it with clothing items.
-     * Transaction moved to DAO for atomicity.
+     * Built Well: Uses withTransaction for atomic creation.
      */
-    suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): Long {
-        // Implementation should ideally use a single @Transaction DAO method
-        // or db.withTransaction { ... }. For now, ensuring clear separation.
+    suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): Long = database.withTransaction {
         val outfitId = outfitDao.insertOutfit(OutfitEntity(name = name, notes = notes))
         val outfitItems = itemIds.map { OutfitItemEntity(outfitId, it) }
         outfitDao.insertOutfitItems(outfitItems)
-        return outfitId
+        outfitId
     }
 
     /**
      * Update an outfit and replace its items.
+     * Built Well: Uses withTransaction for atomic replacement.
      */
-    suspend fun updateOutfit(outfitId: Long, name: String?, notes: String?, itemIds: List<Long>) {
+    suspend fun updateOutfit(outfitId: Long, name: String?, notes: String?, itemIds: List<Long>) = database.withTransaction {
         outfitDao.updateOutfit(OutfitEntity(id = outfitId, name = name, notes = notes))
         outfitDao.deleteItemsForOutfit(outfitId)
         val outfitItems = itemIds.map { OutfitItemEntity(outfitId, it) }

@@ -24,14 +24,18 @@ object DataModule {
     }
 
     @Provides
+    @Singleton
     fun provideClothingDao(db: ClothingDatabase): ClothingDao = db.clothingDao()
 
     @Provides
+    @Singleton
     fun provideLookupDao(db: ClothingDatabase): LookupDao = db.lookupDao()
 
     @Provides
+    @Singleton
     fun provideOutfitDao(db: ClothingDatabase): OutfitDao = db.outfitDao()
 
     @Provides
+    @Singleton
     fun provideLogDao(db: ClothingDatabase): LogDao = db.logDao()
 }
