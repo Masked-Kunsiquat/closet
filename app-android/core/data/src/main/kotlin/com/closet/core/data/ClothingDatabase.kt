@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.closet.core.data.dao.ClothingDao
+import com.closet.core.data.dao.*
 import com.closet.core.data.model.*
 
 @Database(
@@ -34,6 +34,9 @@ import com.closet.core.data.model.*
 )
 abstract class ClothingDatabase : RoomDatabase() {
     abstract fun clothingDao(): ClothingDao
+    abstract fun lookupDao(): LookupDao
+    abstract fun outfitDao(): OutfitDao
+    abstract fun logDao(): LogDao
 
     companion object {
         private const val DATABASE_NAME = "closet.db"
