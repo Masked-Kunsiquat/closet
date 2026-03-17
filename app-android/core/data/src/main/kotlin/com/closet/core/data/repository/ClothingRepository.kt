@@ -30,15 +30,18 @@ class ClothingRepository @Inject constructor(
     // --- Junction Table Management ---
     // Parity: Mirror of setClothingItemColors, setClothingItemMaterials, etc. from queries.ts
 
-    suspend fun updateItemColors(itemId: Long, colorIds: List<Long>) {
-        // Implementation delegates to DAO delete-then-insert pattern (to be added to DAO if not present)
-    }
+    suspend fun updateItemColors(itemId: Long, colorIds: List<Long>) = 
+        clothingDao.updateItemColors(itemId, colorIds)
 
-    suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>) {
-        // Implementation delegates to DAO delete-then-insert pattern
-    }
+    suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>) = 
+        clothingDao.updateItemMaterials(itemId, materialIds)
 
-    suspend fun updateItemSeasons(itemId: Long, seasonIds: List<Long>) {
-        // Implementation delegates to DAO delete-then-insert pattern
-    }
+    suspend fun updateItemSeasons(itemId: Long, seasonIds: List<Long>) = 
+        clothingDao.updateItemSeasons(itemId, seasonIds)
+
+    suspend fun updateItemOccasions(itemId: Long, occasionIds: List<Long>) = 
+        clothingDao.updateItemOccasions(itemId, occasionIds)
+
+    suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>) = 
+        clothingDao.updateItemPatterns(itemId, patternIds)
 }

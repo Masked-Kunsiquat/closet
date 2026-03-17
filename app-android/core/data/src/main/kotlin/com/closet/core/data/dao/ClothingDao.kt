@@ -1,11 +1,7 @@
 package com.closet.core.data.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
-import androidx.room.Update
-import com.closet.core.data.model.ClothingItemEntity
-import com.closet.core.data.model.ClothingItemWithMeta
+import androidx.room.*
+import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -61,4 +57,66 @@ interface ClothingDao {
     
     @Query("UPDATE clothing_items SET wash_status = :washStatus, updated_at = datetime('now') WHERE id = :id")
     suspend fun updateWashStatus(id: Long, washStatus: String)
+
+    // --- Junction Table Helpers (Atomically replace associations) ---
+
+    @Transaction
+    suspend fun updateItemColors(itemId: Long, colorIds: List<Long>) {
+        deleteItemColors(itemId)
+        insertItemColors(colorIds.map { ClothingItemColorEntity(itemId, it) })
+    }
+
+    @Query("DELETE FROM clothing_item_colors WHERE clothing_item_id = :itemId")
+    suspend fun deleteItemColors(itemId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertItemColors(items: List<ClothingItemColorEntity>)
+
+    @Transaction
+    suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>) {
+        deleteItemMaterials(itemId)
+        insertItemMaterials(materialIds.map { ClothingItemMaterialEntity(itemId, it) })
+    }
+
+    @Query("DELETE FROM clothing_item_materials WHERE clothing_item_id = :itemId")
+    suspend fun deleteItemMaterials(itemId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertItemMaterials(items: List<ClothingItemMaterialEntity>)
+
+    @Transaction
+    suspend fun updateItemSeasons(itemId: Long, seasonIds: List<Long>) {
+        deleteItemSeasons(itemId)
+        insertItemSeasons(seasonIds.map { ClothingItemSeasonEntity(itemId, it) })
+    }
+
+    @Query("DELETE FROM clothing_item_seasons WHERE clothing_item_id = :itemId")
+    suspend fun deleteItemSeasons(itemId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertItemSeasons(items: List<ClothingItemSeasonEntity>)
+
+    @Transaction
+    suspend fun updateItemOccasions(itemId: Long, occasionIds: List<Long>) {
+        deleteItemOccasions(itemId)
+        insertItemOccasions(occasionIds.map { ClothingItemOccasionEntity(itemId, it) })
+    }
+
+    @Query("DELETE FROM clothing_item_occasions WHERE clothing_item_id = :itemId")
+    suspend fun deleteItemOccasions(itemId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertItemOccasions(items: List<ClothingItemOccasionEntity>)
+
+    @Transaction
+    suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>) {
+        deleteItemPatterns(itemId)
+        insertItemPatterns(patternIds.map { ClothingItemPatternEntity(itemId, it) })
+    }
+
+    @Query("DELETE FROM clothing_item_patterns WHERE clothing_item_id = :itemId")
+    suspend fun deleteItemPatterns(itemId: Long)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertItemPatterns(items: List<ClothingItemPatternEntity>)
 }
