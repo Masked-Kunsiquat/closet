@@ -12,8 +12,8 @@ data class OutfitEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String? = null,
     val notes: String? = null,
-    @ColumnInfo(name = "created_at") val createdAt: String = Instant.now().toString(),
-    @ColumnInfo(name = "updated_at") val updatedAt: String = Instant.now().toString()
+    @ColumnInfo(name = "created_at") val createdAt: Instant = Instant.now(),
+    @ColumnInfo(name = "updated_at") val updatedAt: Instant = Instant.now()
 )
 
 @Entity(
@@ -65,6 +65,6 @@ data class OutfitLogEntity(
     val notes: String? = null,
     @ColumnInfo(name = "temperature_low") val temperatureLow: Double? = null,
     @ColumnInfo(name = "temperature_high") val temperatureHigh: Double? = null,
-    @ColumnInfo(name = "weather_condition") val weatherCondition: String? = null,
-    @ColumnInfo(name = "created_at") val createdAt: String = Instant.now().toString()
+    @ColumnInfo(name = "weather_condition") val weatherCondition: WeatherCondition? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Instant = Instant.now()
 )

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.closet.core.data.dao.*
 import com.closet.core.data.model.*
@@ -32,6 +33,7 @@ import com.closet.core.data.model.*
     version = 1,
     exportSchema = true
 )
+@TypeConverters(Converters::class)
 abstract class ClothingDatabase : RoomDatabase() {
     abstract fun clothingDao(): ClothingDao
     abstract fun lookupDao(): LookupDao

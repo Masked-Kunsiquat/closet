@@ -9,7 +9,7 @@ import java.time.Instant
 
 /**
  * Mirror of ClothingItem type from the Expo project.
- * Parity check: id, name, brand, category_id, subcategory_id, etc.
+ * Upgraded with Enums and Instant for Native Best Practices.
  */
 @Entity(
     tableName = "clothing_items",
@@ -72,24 +72,25 @@ data class ClothingItemEntity(
     
     val notes: String? = null,
     
-    val status: String = "Active", // 'Active' | 'Sold' | 'Donated' | 'Lost'
+    val status: ClothingStatus = ClothingStatus.Active,
     
     @ColumnInfo(name = "wash_status")
-    val washStatus: String = "Clean", // 'Clean' | 'Dirty'
+    val washStatus: WashStatus = WashStatus.Clean,
     
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Int = 0, // 0 | 1
     
     @ColumnInfo(name = "created_at")
-    val createdAt: String = Instant.now().toString(),
+    val createdAt: Instant = Instant.now(),
     
     @ColumnInfo(name = "updated_at")
-    val updatedAt: String = Instant.now().toString()
+    val updatedAt: Instant = Instant.now()
 )
 
 /**
  * Data class for join results, mirroring ClothingItemWithMeta.
  * Parity check: includes category_name, subcategory_name, and wear_count.
+ * Leverage: Includes computed cost_per_wear.
  */
 data class ClothingItemWithMeta(
     val id: Long,
@@ -103,7 +104,16 @@ data class ClothingItemWithMeta(
     val imagePath: String?,
     @ColumnInfo(name = "wear_count")
     val wearCount: Int,
-    val status: String,
+    @ColumnInfo(name = "purchase_price")
+    val purchasePrice: Double?,
+    val status: ClothingStatus,
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Int
-)
+) {
+    /** 
+     * Computed at runtime for parity with "built well" rules.
+     * purchase_price / wear_count
+     */
+    val costPerWear: Double?
+        get() = if (wearCount > 0) (purchasePrice ?: 0.0) / wearCount else purchasePrice
+}
