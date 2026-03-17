@@ -36,18 +36,18 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.ui.tooling-preview)
+    implementation(libs.androidx.ui.tooling.preview)
     debugImplementation(libs.androidx.ui.tooling)
 
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.androidx.hilt.navigation-compose)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     // Lifecycle
-    implementation(libs.androidx.lifecycle.viewmodel-compose)
-    implementation(libs.androidx.lifecycle.runtime-compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Image loading
-    implementation(libs.coil-compose)
+    implementation(libs.coil.compose)
 }
