@@ -36,6 +36,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.tooling.preview)
     
+    implementation(libs.androidx.core.ktx)
+
     // Image loading
     implementation(libs.coil.compose)
 
