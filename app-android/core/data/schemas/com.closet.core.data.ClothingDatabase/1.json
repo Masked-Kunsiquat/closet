@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "cd6181f244b12c1d3ea42d1e4a961d43",
+    "identityHash": "410f8e21e62b47f3e42081b20979bf3d",
     "entities": [
       {
         "tableName": "clothing_items",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL, `wash_status` TEXT NOT NULL, `is_favorite` INTEGER NOT NULL, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL DEFAULT 'Active', `wash_status` TEXT NOT NULL DEFAULT 'Clean', `is_favorite` INTEGER NOT NULL, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -90,13 +90,15 @@
             "fieldPath": "status",
             "columnName": "status",
             "affinity": "TEXT",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "'Active'"
           },
           {
             "fieldPath": "washStatus",
             "columnName": "wash_status",
             "affinity": "TEXT",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "'Clean'"
           },
           {
             "fieldPath": "isFavorite",
@@ -1074,7 +1076,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cd6181f244b12c1d3ea42d1e4a961d43')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '410f8e21e62b47f3e42081b20979bf3d')"
     ]
   }
 }

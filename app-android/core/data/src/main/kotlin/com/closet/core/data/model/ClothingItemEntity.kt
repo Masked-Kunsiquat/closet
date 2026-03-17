@@ -72,9 +72,10 @@ data class ClothingItemEntity(
     
     val notes: String? = null,
     
+    @ColumnInfo(defaultValue = "Active")
     val status: ClothingStatus = ClothingStatus.Active,
     
-    @ColumnInfo(name = "wash_status")
+    @ColumnInfo(name = "wash_status", defaultValue = "Clean")
     val washStatus: WashStatus = WashStatus.Clean,
     
     @ColumnInfo(name = "is_favorite")
