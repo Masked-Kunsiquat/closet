@@ -1,1 +1,10 @@
 node_modules/
+.idea/caches/
+.idea/studiobot.xml
+.idea/*.iml
+.idea/workspace.xml
+.idea/shelf/
+.idea/deviceManager.xml
+.idea/appInsightsSettings.xml
+.assistant_cache
+.assistant_context
