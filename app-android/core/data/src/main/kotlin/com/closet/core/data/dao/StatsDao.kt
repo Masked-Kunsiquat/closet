@@ -73,13 +73,14 @@ interface StatsDao {
 
     /**
      * Parity: Mirror of getBreakdownByCategory in queries.ts.
+     * Use LEFT JOIN and COALESCE to include uncategorized items.
      */
     @Query("""
-        SELECT c.name AS label, COUNT(DISTINCT ci.id) AS count
+        SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(DISTINCT ci.id) AS count
         FROM clothing_items ci
-        JOIN categories c ON c.id = ci.category_id
+        LEFT JOIN categories c ON c.id = ci.category_id
         WHERE ci.status = 'Active'
-        GROUP BY c.id
+        GROUP BY label
         ORDER BY count DESC
     """)
     fun getBreakdownByCategory(): Flow<List<BreakdownRow>>
