@@ -39,6 +39,7 @@ abstract class ClothingDatabase : RoomDatabase() {
     abstract fun lookupDao(): LookupDao
     abstract fun outfitDao(): OutfitDao
     abstract fun logDao(): LogDao
+    abstract fun statsDao(): StatsDao
 
     companion object {
         private const val DATABASE_NAME = "closet.db"

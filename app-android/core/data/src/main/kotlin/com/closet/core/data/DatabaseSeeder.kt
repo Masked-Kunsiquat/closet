@@ -12,6 +12,7 @@ object DatabaseSeeder {
         db.beginTransaction()
         try {
             seedCategories(db)
+            seedSubcategories(db)
             seedSeasons(db)
             seedOccasions(db)
             seedMaterials(db)
@@ -36,11 +37,34 @@ object DatabaseSeeder {
             Triple("Underwear & Intimates", "sock", 9),
             Triple("Swimwear", "goggles", 10)
         )
-        categories.forEach { (name, icon, order) ->
+        categories.forEachIndexed { index, (name, icon, order) ->
             db.execSQL(
-                "INSERT OR IGNORE INTO categories (name, icon, sort_order) VALUES (?, ?, ?)",
-                arrayOf(name, icon, order)
+                "INSERT OR IGNORE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)",
+                arrayOf(index + 1, name, icon, order)
             )
+        }
+    }
+
+    private fun seedSubcategories(db: SupportSQLiteDatabase) {
+        val mapping = mapOf(
+            1L to listOf("T-Shirt", "Tank Top", "Blouse", "Shirt", "Polo", "Sweater", "Hoodie", "Sweatshirt", "Cardigan", "Bodysuit"),
+            2L to listOf("Jeans", "Trousers/Slacks", "Chinos", "Shorts", "Skirt", "Leggings", "Joggers/Sweatpants"),
+            3L to listOf("Jacket", "Coat", "Blazer", "Vest", "Raincoat"),
+            4L to listOf("Dress", "Romper", "Jumpsuit"),
+            5L to listOf("Sneakers", "Boots", "Sandals", "Dress Shoes", "Slippers"),
+            6L to listOf("Belt", "Hat/Cap", "Scarf", "Sunglasses", "Watch", "Jewelry", "Tie", "Cufflinks"),
+            7L to listOf("Backpack", "Tote", "Crossbody", "Duffel"),
+            8L to listOf("Sports Bra", "Athletic Shorts", "Track Jacket"),
+            9L to listOf("Underwear", "Bra/Bralette", "Socks", "Tights"),
+            10L to listOf("One-Piece", "Bikini/Trunks", "Rash Guard")
+        )
+        mapping.forEach { (catId, subs) ->
+            subs.forEachIndexed { index, name ->
+                db.execSQL(
+                    "INSERT OR IGNORE INTO subcategories (category_id, name, sort_order) VALUES (?, ?, ?)",
+                    arrayOf(catId, name, index + 1)
+                )
+            }
         }
     }
 
@@ -104,14 +128,23 @@ object DatabaseSeeder {
     }
 
     private fun seedSizeSystems(db: SupportSQLiteDatabase) {
-        // Size System: Letter
-        db.execSQL("INSERT OR IGNORE INTO size_systems (id, name) VALUES (1, 'Letter')")
-        val letterSizes = listOf("XS", "S", "M", "L", "XL", "XXL", "XXXL")
-        letterSizes.forEachIndexed { index, value ->
-            db.execSQL(
-                "INSERT OR IGNORE INTO size_values (size_system_id, value, sort_order) VALUES (1, ?, ?)",
-                arrayOf(value, index + 1)
-            )
+        val systems = mapOf(
+            "Letter" to listOf("XS", "S", "M", "L", "XL", "XXL", "XXXL"),
+            "Women's Numeric" to listOf("00", "0", "2", "4", "6", "8", "10", "12", "14", "16"),
+            "Shoes (US Men's)" to listOf("6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10", "10.5", "11", "11.5", "12", "13", "14", "15"),
+            "One Size" to listOf("One Size")
+        )
+        
+        var sysId = 1L
+        systems.forEach { (name, values) ->
+            db.execSQL("INSERT OR IGNORE INTO size_systems (id, name) VALUES (?, ?)", arrayOf(sysId, name))
+            values.forEachIndexed { index, v ->
+                db.execSQL(
+                    "INSERT OR IGNORE INTO size_values (size_system_id, value, sort_order) VALUES (?, ?, ?)",
+                    arrayOf(sysId, v, index + 1)
+                )
+            }
+            sysId++
         }
     }
 }
