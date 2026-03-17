@@ -66,6 +66,9 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    
+    // Required for Material 3 XML theme parent
+    implementation(libs.google.material)
 
     // Hilt
     implementation(libs.hilt.android)
