@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ClothingDao {
 
+    @RewriteQueriesToDropUnusedColumns
     @Query("""
         SELECT
             ci.*,
@@ -28,6 +29,7 @@ interface ClothingDao {
     """)
     fun getAllClothingItems(): Flow<List<ClothingItemWithMeta>>
 
+    @RewriteQueriesToDropUnusedColumns
     @Query("""
         SELECT
             ci.*,
