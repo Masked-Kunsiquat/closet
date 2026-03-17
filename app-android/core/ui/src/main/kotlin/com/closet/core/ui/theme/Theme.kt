@@ -46,7 +46,7 @@ private fun getLightColorScheme(accent: ClosetAccent) = lightColorScheme(
     surface = White,
     onBackground = Surface0,
     onSurface = Surface0,
-    surfaceVariant = Gray100, // From previous Color.kt
+    surfaceVariant = Gray100,
     onSurfaceVariant = TextSecondary,
     outline = BorderMuted,
     error = ErrorColor
@@ -72,10 +72,9 @@ fun ClosetTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
-            
             val insetsController = WindowCompat.getInsetsController(window, view)
+            
+            // With Edge-to-Edge enabled in Activity, we only manage the appearance of the icons
             insetsController.isAppearanceLightStatusBars = !darkTheme
             insetsController.isAppearanceLightNavigationBars = !darkTheme
         }
