@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,7 +28,7 @@ fun ClosetScreen(
         modifier = modifier,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.my_closet)) }
+                title = { Text(stringResource(R.string.wardrobe_my_closet)) }
             )
         }
     ) { padding ->
@@ -60,7 +61,11 @@ private fun ClosetGrid(
             ClothingItemCard(
                 name = itemWithMeta.name,
                 imagePath = itemWithMeta.imagePath,
-                subtitle = stringResource(R.string.worn_times, itemWithMeta.wearCount),
+                subtitle = pluralStringResource(
+                    R.plurals.wardrobe_worn_times,
+                    itemWithMeta.wearCount,
+                    itemWithMeta.wearCount
+                ),
                 onClick = { onItemClick(itemWithMeta.id) }
             )
         }
@@ -73,6 +78,6 @@ private fun EmptyClosetMessage(modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
-        Text(stringResource(R.string.empty_closet))
+        Text(stringResource(R.string.wardrobe_empty_closet))
     }
 }
