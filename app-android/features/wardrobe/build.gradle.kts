@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.closet.features.wardrobe"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26
@@ -24,13 +24,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 }
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:ui"))
     
     // Compose
     implementation(platform(libs.androidx.compose.bom))
