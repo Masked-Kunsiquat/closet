@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -17,6 +18,7 @@ import com.closet.core.ui.components.ClothingItemCard
 @Composable
 fun ClosetScreen(
     modifier: Modifier = Modifier,
+    onItemClick: (Long) -> Unit = {},
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
@@ -25,7 +27,7 @@ fun ClosetScreen(
         modifier = modifier,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("My Closet") }
+                title = { Text(stringResource(R.string.my_closet)) }
             )
         }
     ) { padding ->
@@ -34,6 +36,7 @@ fun ClosetScreen(
         } else {
             ClosetGrid(
                 items = items,
+                onItemClick = onItemClick,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -43,6 +46,7 @@ fun ClosetScreen(
 @Composable
 private fun ClosetGrid(
     items: List<ClothingItemWithMeta>,
+    onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
@@ -56,8 +60,8 @@ private fun ClosetGrid(
             ClothingItemCard(
                 name = itemWithMeta.name,
                 imagePath = itemWithMeta.imagePath,
-                subtitle = "Worn ${itemWithMeta.wearCount} times",
-                onClick = { /* Handle navigation to details */ }
+                subtitle = stringResource(R.string.worn_times, itemWithMeta.wearCount),
+                onClick = { onItemClick(itemWithMeta.id) }
             )
         }
     }
@@ -69,6 +73,6 @@ private fun EmptyClosetMessage(modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
-        Text("Your closet is empty. Add some clothes!")
+        Text(stringResource(R.string.empty_closet))
     }
 }
