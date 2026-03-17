@@ -13,6 +13,8 @@ coil = "2.7.0"
 junit = "4.13.2"
 androidxTestExt = "1.2.1"
 androidxEspresso = "3.6.1"
+compileSdk = "36"
+targetSdk = "35"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
