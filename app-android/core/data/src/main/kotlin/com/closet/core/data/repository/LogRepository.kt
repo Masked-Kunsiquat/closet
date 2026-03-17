@@ -38,7 +38,7 @@ class LogRepository @Inject constructor(
      * Delete a log by ID.
      */
     suspend fun deleteLog(logId: Long) {
-        logDao.deleteLog(OutfitLogEntity(id = logId, date = "")) // date is unused by delete
+        logDao.deleteLogById(logId)
     }
 
     /**
@@ -58,6 +58,9 @@ class LogRepository @Inject constructor(
      * Monthly summary for the calendar view.
      * yearMonth format: "2024-03"
      */
-    fun getCalendarDaysForMonth(yearMonth: String): Flow<List<CalendarDay>> = 
-        logDao.getCalendarDaysForMonth(yearMonth)
+    fun getCalendarDaysForMonth(yearMonth: String): Flow<List<CalendarDay>> {
+        val startDate = "${yearMonth}-01"
+        val endDate = "${yearMonth}-31" // SQLite handles 31 even for shorter months
+        return logDao.getCalendarDaysInRange(startDate, endDate)
+    }
 }

@@ -38,6 +38,9 @@ interface LogDao {
     @Delete
     suspend fun deleteLog(log: OutfitLogEntity)
 
+    @Query("DELETE FROM outfit_logs WHERE id = :logId")
+    suspend fun deleteLogById(logId: Long)
+
     @Transaction
     suspend fun setOotd(logId: Long, date: String) {
         clearOotdForDate(date)
@@ -50,17 +53,22 @@ interface LogDao {
     @Query("UPDATE outfit_logs SET is_ootd = 1 WHERE id = :logId")
     suspend fun markOotd(logId: Long)
 
+    /**
+     * Using BETWEEN allows SQLite to use the index on the date column.
+     * startDate: "YYYY-MM-01"
+     * endDate: "YYYY-MM-31" (or last day of month)
+     */
     @Query("""
         SELECT
           date,
           COUNT(*)                  AS log_count,
           MAX(is_ootd)              AS has_ootd
         FROM outfit_logs
-        WHERE date LIKE :yearMonth || '%'
+        WHERE date BETWEEN :startDate AND :endDate
         GROUP BY date
         ORDER BY date
     """)
-    fun getCalendarDaysForMonth(yearMonth: String): Flow<List<CalendarDay>>
+    fun getCalendarDaysInRange(startDate: String, endDate: String): Flow<List<CalendarDay>>
 }
 
 /**

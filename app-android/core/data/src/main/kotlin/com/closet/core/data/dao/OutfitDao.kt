@@ -42,6 +42,10 @@ interface OutfitDao {
     @Delete
     suspend fun deleteOutfit(outfit: OutfitEntity)
 
+    @Query("DELETE FROM outfits WHERE id = :outfitId")
+    suspend fun deleteOutfitById(outfitId: Long)
+
+    @Transaction
     @Query("""
         SELECT
             o.*,
