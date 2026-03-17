@@ -12,7 +12,7 @@ import androidx.room.Index
         ForeignKey(entity = ClothingItemEntity::class, parentColumns = ["id"], childColumns = ["clothing_item_id"], onDelete = ForeignKey.CASCADE),
         ForeignKey(entity = ColorEntity::class, parentColumns = ["id"], childColumns = ["color_id"], onDelete = ForeignKey.CASCADE)
     ],
-    indices = [Index("color_id")]
+    indices = [Index("color_id"), Index("clothing_item_id")]
 )
 data class ClothingItemColorEntity(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
@@ -26,7 +26,7 @@ data class ClothingItemColorEntity(
         ForeignKey(entity = ClothingItemEntity::class, parentColumns = ["id"], childColumns = ["clothing_item_id"], onDelete = ForeignKey.CASCADE),
         ForeignKey(entity = MaterialEntity::class, parentColumns = ["id"], childColumns = ["material_id"], onDelete = ForeignKey.CASCADE)
     ],
-    indices = [Index("material_id")]
+    indices = [Index("material_id"), Index("clothing_item_id")]
 )
 data class ClothingItemMaterialEntity(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
@@ -40,7 +40,7 @@ data class ClothingItemMaterialEntity(
         ForeignKey(entity = ClothingItemEntity::class, parentColumns = ["id"], childColumns = ["clothing_item_id"], onDelete = ForeignKey.CASCADE),
         ForeignKey(entity = SeasonEntity::class, parentColumns = ["id"], childColumns = ["season_id"], onDelete = ForeignKey.CASCADE)
     ],
-    indices = [Index("season_id")]
+    indices = [Index("season_id"), Index("clothing_item_id")]
 )
 data class ClothingItemSeasonEntity(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
@@ -54,7 +54,7 @@ data class ClothingItemSeasonEntity(
         ForeignKey(entity = ClothingItemEntity::class, parentColumns = ["id"], childColumns = ["clothing_item_id"], onDelete = ForeignKey.CASCADE),
         ForeignKey(entity = OccasionEntity::class, parentColumns = ["id"], childColumns = ["occasion_id"], onDelete = ForeignKey.CASCADE)
     ],
-    indices = [Index("occasion_id")]
+    indices = [Index("occasion_id"), Index("clothing_item_id")]
 )
 data class ClothingItemOccasionEntity(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
@@ -68,7 +68,7 @@ data class ClothingItemOccasionEntity(
         ForeignKey(entity = ClothingItemEntity::class, parentColumns = ["id"], childColumns = ["clothing_item_id"], onDelete = ForeignKey.CASCADE),
         ForeignKey(entity = PatternEntity::class, parentColumns = ["id"], childColumns = ["pattern_id"], onDelete = ForeignKey.CASCADE)
     ],
-    indices = [Index("pattern_id")]
+    indices = [Index("pattern_id"), Index("clothing_item_id")]
 )
 data class ClothingItemPatternEntity(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,

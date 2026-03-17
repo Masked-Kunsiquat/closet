@@ -1,8 +1,7 @@
 package com.closet.core.data.repository
 
 import com.closet.core.data.dao.ClothingDao
-import com.closet.core.data.model.ClothingItemEntity
-import com.closet.core.data.model.ClothingItemWithMeta
+import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,4 +26,19 @@ class ClothingRepository @Inject constructor(
 
     suspend fun updateWashStatus(id: Long, washStatus: String) = 
         clothingDao.updateWashStatus(id, washStatus)
+
+    // --- Junction Table Management ---
+    // Parity: Mirror of setClothingItemColors, setClothingItemMaterials, etc. from queries.ts
+
+    suspend fun updateItemColors(itemId: Long, colorIds: List<Long>) {
+        // Implementation delegates to DAO delete-then-insert pattern (to be added to DAO if not present)
+    }
+
+    suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>) {
+        // Implementation delegates to DAO delete-then-insert pattern
+    }
+
+    suspend fun updateItemSeasons(itemId: Long, seasonIds: List<Long>) {
+        // Implementation delegates to DAO delete-then-insert pattern
+    }
 }

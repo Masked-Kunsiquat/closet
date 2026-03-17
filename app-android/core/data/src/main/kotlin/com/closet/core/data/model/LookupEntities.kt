@@ -3,6 +3,7 @@ package com.closet.core.data.model
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "categories")
@@ -22,7 +23,8 @@ data class CategoryEntity(
             childColumns = ["category_id"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["category_id"])]
 )
 data class SubcategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -79,7 +81,8 @@ data class SizeSystemEntity(
             childColumns = ["size_system_id"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["size_system_id"])]
 )
 data class SizeValueEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

@@ -56,6 +56,9 @@ abstract class ClothingDatabase : RoomDatabase() {
                         super.onCreate(db)
                         // Seed data on first creation
                         DatabaseSeeder.seedAll(db)
+                        
+                        // Parity: Only one outfit per day can be OOTD
+                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
                     }
 
                     override fun onOpen(db: SupportSQLiteDatabase) {

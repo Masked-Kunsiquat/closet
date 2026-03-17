@@ -13,6 +13,26 @@ import java.time.Instant
  */
 @Entity(
     tableName = "clothing_items",
+    foreignKeys = [
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["category_id"],
+            onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = SubcategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["subcategory_id"],
+            onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = SizeValueEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["size_value_id"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
     indices = [
         Index(value = ["category_id"]),
         Index(value = ["subcategory_id"]),

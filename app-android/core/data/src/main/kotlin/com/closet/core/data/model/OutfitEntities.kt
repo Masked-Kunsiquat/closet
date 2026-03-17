@@ -52,8 +52,9 @@ data class OutfitItemEntity(
     ],
     indices = [
         Index(value = ["outfit_id"]),
-        // Parity: CREATE UNIQUE INDEX one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1
-        Index(value = ["date"], unique = true, orders = [Index.Order.ASC]) // Partial index handled in manual SQL if possible, or validated in Room.
+        // Index is non-unique here to allow multiple logs per day. 
+        // Partial unique index for OOTD is created manually in ClothingDatabase callback.
+        Index(value = ["date"], unique = false, orders = [Index.Order.ASC])
     ]
 )
 data class OutfitLogEntity(
