@@ -115,6 +115,7 @@ data class ClothingItemWithMeta(
      * Computed at runtime for parity with "built well" rules.
      * purchase_price / wear_count
      */
+    @Suppress("unused")
     val costPerWear: Double?
         get() = if (wearCount > 0) (purchasePrice ?: 0.0) / wearCount else purchasePrice
 }
