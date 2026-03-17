@@ -40,7 +40,7 @@ object DatabaseSeeder {
         categories.forEachIndexed { index, (name, icon, order) ->
             db.execSQL(
                 "INSERT OR IGNORE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)",
-                arrayOf(index + 1, name, icon, order)
+                arrayOf<Any>(index + 1, name, icon, order)
             )
         }
     }
@@ -62,7 +62,7 @@ object DatabaseSeeder {
             subs.forEachIndexed { index, name ->
                 db.execSQL(
                     "INSERT OR IGNORE INTO subcategories (category_id, name, sort_order) VALUES (?, ?, ?)",
-                    arrayOf(catId, name, index + 1)
+                    arrayOf<Any>(catId, name, index + 1)
                 )
             }
         }
@@ -79,7 +79,7 @@ object DatabaseSeeder {
         seasons.forEach { (name, icon) ->
             db.execSQL(
                 "INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)",
-                arrayOf(name, icon)
+                arrayOf<Any>(name, icon)
             )
         }
     }
@@ -99,7 +99,7 @@ object DatabaseSeeder {
         occasions.forEach { (name, icon) ->
             db.execSQL(
                 "INSERT OR IGNORE INTO occasions (name, icon) VALUES (?, ?)",
-                arrayOf(name, icon)
+                arrayOf<Any>(name, icon)
             )
         }
     }
@@ -112,7 +112,7 @@ object DatabaseSeeder {
             "Modal", "Bamboo", "Other"
         )
         materials.forEach { name ->
-            db.execSQL("INSERT OR IGNORE INTO materials (name) VALUES (?)", arrayOf(name))
+            db.execSQL("INSERT OR IGNORE INTO materials (name) VALUES (?)", arrayOf<Any>(name))
         }
     }
 
@@ -123,7 +123,7 @@ object DatabaseSeeder {
             "Houndstooth", "Graphic", "Color Block", "Ombre", "Other"
         )
         patterns.forEach { name ->
-            db.execSQL("INSERT OR IGNORE INTO patterns (name) VALUES (?)", arrayOf(name))
+            db.execSQL("INSERT OR IGNORE INTO patterns (name) VALUES (?)", arrayOf<Any>(name))
         }
     }
 
@@ -137,11 +137,11 @@ object DatabaseSeeder {
         
         var sysId = 1L
         systems.forEach { (name, values) ->
-            db.execSQL("INSERT OR IGNORE INTO size_systems (id, name) VALUES (?, ?)", arrayOf(sysId, name))
+            db.execSQL("INSERT OR IGNORE INTO size_systems (id, name) VALUES (?, ?)", arrayOf<Any>(sysId, name))
             values.forEachIndexed { index, v ->
                 db.execSQL(
                     "INSERT OR IGNORE INTO size_values (size_system_id, value, sort_order) VALUES (?, ?, ?)",
-                    arrayOf(sysId, v, index + 1)
+                    arrayOf<Any>(sysId, v, index + 1)
                 )
             }
             sysId++
