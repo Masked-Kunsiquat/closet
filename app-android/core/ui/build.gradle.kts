@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.closet.core.ui"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 26
@@ -22,8 +22,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 }
 
@@ -33,5 +35,9 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui.tooling.preview)
+    
+    // Image loading
+    implementation(libs.coil.compose)
+
     debugImplementation(libs.androidx.ui.tooling)
 }

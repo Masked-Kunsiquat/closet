@@ -7,12 +7,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.closet.core.data.model.ClothingItemWithMeta
+import com.closet.core.ui.components.ClothingItemCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,41 +53,12 @@ private fun ClosetGrid(
         modifier = modifier.fillMaxSize()
     ) {
         items(items, key = { it.id }) { itemWithMeta ->
-            ClothingItemCard(itemWithMeta = itemWithMeta)
-        }
-    }
-}
-
-@Composable
-private fun ClothingItemCard(
-    itemWithMeta: ClothingItemWithMeta,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column {
-            AsyncImage(
-                model = itemWithMeta.imagePath,
-                contentDescription = itemWithMeta.name,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-                contentScale = ContentScale.Crop
+            ClothingItemCard(
+                name = itemWithMeta.name,
+                imagePath = itemWithMeta.imagePath,
+                subtitle = "Worn ${itemWithMeta.wearCount} times",
+                onClick = { /* Handle navigation to details */ }
             )
-            Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                    text = itemWithMeta.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1
-                )
-                Text(
-                    text = "Worn ${itemWithMeta.wearCount} times",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
 }
