@@ -1,1 +1,8 @@
 node_modules/
+.idea/caches/
+.idea/studiobot.xml
+.idea/*.iml
+.idea/workspace.xml
+.idea/shelf/
+.assistant_cache
+.assistant_context
