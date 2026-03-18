@@ -16,6 +16,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 /**
@@ -26,6 +28,10 @@ data class AddClothingUiState(
     val brand: String = "",
     val category: CategoryEntity? = null,
     val subcategory: SubcategoryEntity? = null,
+    val price: String = "",
+    val purchaseDate: LocalDate? = null,
+    val purchaseLocation: String = "",
+    val notes: String = "",
     val imagePath: String? = null,
     val imageFile: File? = null,
     val categories: List<CategoryEntity> = emptyList(),
@@ -35,7 +41,9 @@ data class AddClothingUiState(
     val errorMessage: Int? = null,
     val canSave: Boolean = false,
     val isDirty: Boolean = false
-)
+) {
+    val formattedDate: String? = purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
+}
 
 /**
  * ViewModel for managing the state of the Add Clothing form.
@@ -52,7 +60,12 @@ class AddClothingViewModel @Inject constructor(
     private val _brand = MutableStateFlow("")
     private val _selectedCategory = MutableStateFlow<CategoryEntity?>(null)
     private val _selectedSubcategory = MutableStateFlow<SubcategoryEntity?>(null)
+    private val _price = MutableStateFlow("")
+    private val _purchaseDate = MutableStateFlow<LocalDate?>(null)
+    private val _purchaseLocation = MutableStateFlow("")
+    private val _notes = MutableStateFlow("")
     private val _imagePath = MutableStateFlow<String?>(null)
+    
     private val _isNameError = MutableStateFlow(false)
     private val _isSaving = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<Int?>(null)
@@ -73,29 +86,42 @@ class AddClothingViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val uiState: StateFlow<AddClothingUiState> = combine(
-        _name, _brand, _selectedCategory, _selectedSubcategory, _imagePath, _isNameError, _isSaving, _errorMessage, categories, subcategories
+        _name, _brand, _selectedCategory, _selectedSubcategory, 
+        _price, _purchaseDate, _purchaseLocation, _notes,
+        _imagePath, _isNameError, _isSaving, _errorMessage, 
+        categories, subcategories
     ) { args: Array<Any?> ->
         val name = args[0] as String
         val brand = args[1] as String
         val category = args[2] as CategoryEntity?
         val subcategory = args[3] as SubcategoryEntity?
-        val imagePath = args[4] as String?
+        val price = args[4] as String
+        val purchaseDate = args[5] as LocalDate?
+        val purchaseLocation = args[6] as String
+        val notes = args[7] as String
+        val imagePath = args[8] as String?
         
-        val isDirty = name.isNotBlank() || brand.isNotBlank() || category != null || imagePath != null
+        val isDirty = name.isNotBlank() || brand.isNotBlank() || category != null || 
+                      price.isNotBlank() || purchaseDate != null || purchaseLocation.isNotBlank() ||
+                      notes.isNotBlank() || imagePath != null
 
         AddClothingUiState(
             name = name,
             brand = brand,
             category = category,
             subcategory = subcategory,
+            price = price,
+            purchaseDate = purchaseDate,
+            purchaseLocation = purchaseLocation,
+            notes = notes,
             imagePath = imagePath,
             imageFile = imagePath?.let { storageRepository.getFile(it) },
-            isNameError = args[5] as Boolean,
-            isSaving = args[6] as Boolean,
-            errorMessage = args[7] as Int?,
-            categories = args[8] as List<CategoryEntity>,
-            subcategories = args[9] as List<SubcategoryEntity>,
-            canSave = name.isNotBlank() && !(args[6] as Boolean),
+            isNameError = args[9] as Boolean,
+            isSaving = args[10] as Boolean,
+            errorMessage = args[11] as Int?,
+            categories = args[12] as List<CategoryEntity>,
+            subcategories = args[13] as List<SubcategoryEntity>,
+            canSave = name.isNotBlank() && !(args[10] as Boolean),
             isDirty = isDirty
         )
     }.stateIn(
@@ -104,46 +130,48 @@ class AddClothingViewModel @Inject constructor(
         initialValue = AddClothingUiState()
     )
 
-    /**
-     * Updates the clothing name and performs basic validation.
-     */
     fun updateName(newName: String) {
         _name.value = newName
         _isNameError.value = false
     }
 
-    /**
-     * Updates the clothing brand.
-     */
     fun updateBrand(newBrand: String) {
         _brand.value = newBrand
     }
 
-    /**
-     * Selects a category and resets the subcategory.
-     */
     fun selectCategory(category: CategoryEntity?) {
         _selectedCategory.value = category
         _selectedSubcategory.value = null
     }
 
-    /**
-     * Selects a subcategory.
-     */
     fun selectSubcategory(subcategory: SubcategoryEntity?) {
         _selectedSubcategory.value = subcategory
     }
 
-    /**
-     * Handles image selection and storage.
-     */
+    fun updatePrice(newPrice: String) {
+        // Simple validation to allow only numbers and decimal point
+        if (newPrice.isEmpty() || newPrice.matches(Regex("""^\d*\.?\d{0,2}$"""))) {
+            _price.value = newPrice
+        }
+    }
+
+    fun updatePurchaseDate(date: LocalDate?) {
+        _purchaseDate.value = date
+    }
+
+    fun updatePurchaseLocation(location: String) {
+        _purchaseLocation.value = location
+    }
+
+    fun updateNotes(newNotes: String) {
+        _notes.value = newNotes
+    }
+
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
             try {
-                // Delete old image if it exists to keep storage clean during form editing
                 _imagePath.value?.let { storageRepository.deleteImage(it) }
-                
                 val relativePath = storageRepository.saveImage(uri)
                 _imagePath.value = relativePath
             } catch (e: Exception) {
@@ -152,9 +180,6 @@ class AddClothingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Validates and saves the clothing item.
-     */
     fun save() {
         if (_name.value.isBlank()) {
             _isNameError.value = true
@@ -170,6 +195,10 @@ class AddClothingViewModel @Inject constructor(
                 brand = _brand.value.trim().takeIf { it.isNotBlank() },
                 categoryId = _selectedCategory.value?.id,
                 subcategoryId = _selectedSubcategory.value?.id,
+                purchasePrice = _price.value.toDoubleOrNull(),
+                purchaseDate = _purchaseDate.value?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                purchaseLocation = _purchaseLocation.value.trim().takeIf { it.isNotBlank() },
+                notes = _notes.value.trim().takeIf { it.isNotBlank() },
                 imagePath = _imagePath.value
             )
 
@@ -180,20 +209,9 @@ class AddClothingViewModel @Inject constructor(
                 is DataResult.Error -> {
                     _errorMessage.value = R.string.wardrobe_error_save_failed
                 }
-                else -> { /* No-op for Loading */ }
+                else -> { /* No-op */ }
             }
             _isSaving.value = false
         }
     }
-
-    override fun onCleared() {
-        super.onCleared()
-        // Note: In a robust implementation, we might want to delete the temporary image if not saved.
-        // But since we want to keep it if they just rotated or similar, usually we clean up orphaned 
-        // images periodically or when specifically discarding.
-    }
-}
-
-sealed class AddClothingEvent {
-    object NavigateBack : AddClothingEvent()
 }

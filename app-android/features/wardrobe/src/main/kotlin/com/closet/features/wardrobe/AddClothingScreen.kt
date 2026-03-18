@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,15 +18,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -42,6 +48,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,6 +64,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -65,13 +73,12 @@ import coil.compose.AsyncImage
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.ui.theme.ClosetTheme
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Screen for adding a new clothing item to the wardrobe.
- *
- * @param onBackClick Callback to navigate back.
- * @param modifier The [Modifier] to be applied to the screen.
- * @param viewModel The [AddClothingViewModel] managing form state.
  */
 @Composable
 fun AddClothingScreen(
@@ -138,6 +145,10 @@ fun AddClothingScreen(
         onBrandChange = viewModel::updateBrand,
         onCategorySelect = viewModel::selectCategory,
         onSubcategorySelect = viewModel::selectSubcategory,
+        onPriceChange = viewModel::updatePrice,
+        onDateChange = viewModel::updatePurchaseDate,
+        onLocationChange = viewModel::updatePurchaseLocation,
+        onNotesChange = viewModel::updateNotes,
         onPhotoClick = {
             launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
@@ -159,6 +170,10 @@ internal fun AddClothingContent(
     onBrandChange: (String) -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,
+    onPriceChange: (String) -> Unit,
+    onDateChange: (LocalDate?) -> Unit,
+    onLocationChange: (String) -> Unit,
+    onNotesChange: (String) -> Unit,
     onPhotoClick: () -> Unit,
     onSaveClick: () -> Unit,
     onBackClick: () -> Unit,
@@ -167,6 +182,7 @@ internal fun AddClothingContent(
     val focusManager = LocalFocusManager.current
     var showCategorySheet by remember { mutableStateOf(false) }
     var showSubcategorySheet by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     if (showCategorySheet) {
         ModalBottomSheet(onDismissRequest = { showCategorySheet = false }) {
@@ -193,6 +209,33 @@ internal fun AddClothingContent(
                     showSubcategorySheet = false
                 }
             )
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.purchaseDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val selectedDate = datePickerState.selectedDateMillis?.let {
+                        Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                    }
+                    onDateChange(selectedDate)
+                    showDatePicker = false
+                }) {
+                    Text(stringResource(R.string.wardrobe_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(stringResource(R.string.wardrobe_cancel))
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 
@@ -237,6 +280,7 @@ internal fun AddClothingContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -296,6 +340,7 @@ internal fun AddClothingContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Primary Fields
             OutlinedTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
@@ -333,16 +378,16 @@ internal fun AddClothingContent(
                 enabled = !uiState.isSaving,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Done
+                    imeAction = ImeAction.Next
                 ),
                 keyboardActions = KeyboardActions(
-                    onDone = { focusManager.clearFocus() }
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 )
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Selection
+            // Category & Subcategory
             ReadOnlyTextField(
                 value = uiState.category?.name ?: "",
                 label = stringResource(R.string.wardrobe_category),
@@ -355,8 +400,6 @@ internal fun AddClothingContent(
 
             if (uiState.category != null && uiState.subcategories.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
-
-                // Subcategory Selection
                 ReadOnlyTextField(
                     value = uiState.subcategory?.name ?: "",
                     label = stringResource(R.string.wardrobe_subcategory),
@@ -367,6 +410,82 @@ internal fun AddClothingContent(
                     }
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Extended Metadata
+            OutlinedTextField(
+                value = uiState.price,
+                onValueChange = onPriceChange,
+                label = { Text(stringResource(R.string.wardrobe_purchase_price)) },
+                placeholder = { Text(stringResource(R.string.wardrobe_price_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !uiState.isSaving,
+                prefix = { Text("$") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ReadOnlyTextField(
+                value = uiState.formattedDate ?: "",
+                label = stringResource(R.string.wardrobe_purchase_date),
+                enabled = !uiState.isSaving,
+                trailingIcon = {
+                    Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null)
+                },
+                onClick = {
+                    focusManager.clearFocus()
+                    showDatePicker = true
+                }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = uiState.purchaseLocation,
+                onValueChange = onLocationChange,
+                label = { Text(stringResource(R.string.wardrobe_purchase_location)) },
+                placeholder = { Text(stringResource(R.string.wardrobe_location_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !uiState.isSaving,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = uiState.notes,
+                onValueChange = onNotesChange,
+                label = { Text(stringResource(R.string.wardrobe_notes)) },
+                placeholder = { Text(stringResource(R.string.wardrobe_notes_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                enabled = !uiState.isSaving,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.clearFocus() }
+                )
+            )
         }
     }
 }
@@ -380,7 +499,8 @@ private fun ReadOnlyTextField(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    trailingIcon: @Composable (() -> Unit)? = null
 ) {
     Box(modifier = modifier.clickable(enabled = enabled, onClick = onClick)) {
         OutlinedTextField(
@@ -388,8 +508,9 @@ private fun ReadOnlyTextField(
             onValueChange = {},
             label = { Text(label) },
             readOnly = true,
-            enabled = false, // Use disabled colors to signal read-only interaction
+            enabled = false,
             modifier = Modifier.fillMaxWidth(),
+            trailingIcon = trailingIcon,
             colors = OutlinedTextFieldDefaults.colors(
                 disabledTextColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 disabledBorderColor = if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
@@ -412,7 +533,7 @@ private fun <T> SelectionSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 32.dp) // Extra padding for system bars
+            .padding(bottom = 32.dp)
     ) {
         Text(
             text = title,
@@ -448,55 +569,10 @@ private fun AddClothingContentPreview() {
                 onBrandChange = {},
                 onCategorySelect = {},
                 onSubcategorySelect = {},
-                onPhotoClick = {},
-                onSaveClick = {},
-                onBackClick = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun AddClothingSavingPreview() {
-    ClosetTheme {
-        Surface {
-            AddClothingContent(
-                uiState = AddClothingUiState(
-                    name = "Vintage Jacket",
-                    brand = "Levi's",
-                    isSaving = true,
-                    canSave = false
-                ),
-                snackbarHostState = remember { SnackbarHostState() },
-                onNameChange = {},
-                onBrandChange = {},
-                onCategorySelect = {},
-                onSubcategorySelect = {},
-                onPhotoClick = {},
-                onSaveClick = {},
-                onBackClick = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun AddClothingErrorPreview() {
-    ClosetTheme {
-        Surface {
-            AddClothingContent(
-                uiState = AddClothingUiState(
-                    name = "",
-                    isNameError = true,
-                    canSave = false
-                ),
-                snackbarHostState = remember { SnackbarHostState() },
-                onNameChange = {},
-                onBrandChange = {},
-                onCategorySelect = {},
-                onSubcategorySelect = {},
+                onPriceChange = {},
+                onDateChange = {},
+                onLocationChange = {},
+                onNotesChange = {},
                 onPhotoClick = {},
                 onSaveClick = {},
                 onBackClick = {}
