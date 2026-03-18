@@ -1,5 +1,6 @@
 package com.closet.features.wardrobe
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,9 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,10 +36,14 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,14 +80,60 @@ fun AddClothingScreen(
     viewModel: AddClothingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                AddClothingEvent.NavigateBack -> onBackClick()
+            }
+        }
+    }
+
+    uiState.errorMessage?.let { messageRes ->
+        val message = stringResource(messageRes)
+        LaunchedEffect(messageRes) {
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri -> viewModel.onImageSelected(uri) }
     )
 
+    val handleBack = {
+        if (uiState.isDirty) {
+            showDiscardDialog = true
+        } else {
+            onBackClick()
+        }
+    }
+
+    BackHandler(onBack = handleBack)
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text(stringResource(R.string.wardrobe_discard_changes_title)) },
+            text = { Text(stringResource(R.string.wardrobe_discard_changes_message)) },
+            confirmButton = {
+                TextButton(onClick = onBackClick) {
+                    Text(stringResource(R.string.wardrobe_discard))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text(stringResource(R.string.wardrobe_cancel))
+                }
+            }
+        )
+    }
+
     AddClothingContent(
         uiState = uiState,
+        snackbarHostState = snackbarHostState,
         onNameChange = viewModel::updateName,
         onBrandChange = viewModel::updateBrand,
         onCategorySelect = viewModel::selectCategory,
@@ -90,12 +141,8 @@ fun AddClothingScreen(
         onPhotoClick = {
             launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
-        onSaveClick = {
-            if (viewModel.validate()) {
-                // Save logic will be implemented in Sub-phase 1.6
-            }
-        },
-        onBackClick = onBackClick,
+        onSaveClick = viewModel::save,
+        onBackClick = handleBack,
         modifier = modifier
     )
 }
@@ -107,6 +154,7 @@ fun AddClothingScreen(
 @Composable
 internal fun AddClothingContent(
     uiState: AddClothingUiState,
+    snackbarHostState: SnackbarHostState,
     onNameChange: (String) -> Unit,
     onBrandChange: (String) -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
@@ -150,6 +198,7 @@ internal fun AddClothingContent(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.wardrobe_add_item)) },
@@ -162,14 +211,23 @@ internal fun AddClothingContent(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = onSaveClick,
-                        enabled = uiState.canSave
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = stringResource(R.string.wardrobe_save)
+                    if (uiState.isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(end = 16.dp)
+                                .size(24.dp),
+                            strokeWidth = 2.dp
                         )
+                    } else {
+                        IconButton(
+                            onClick = onSaveClick,
+                            enabled = uiState.canSave
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = stringResource(R.string.wardrobe_save)
+                            )
+                        }
                     }
                 }
             )
@@ -198,7 +256,6 @@ internal fun AddClothingContent(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
-                    // Optional: Add a "change" label or icon overlay
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -246,6 +303,7 @@ internal fun AddClothingContent(
                 modifier = Modifier.fillMaxWidth(),
                 isError = uiState.isNameError,
                 singleLine = true,
+                enabled = !uiState.isSaving,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
                     imeAction = ImeAction.Next
@@ -272,6 +330,7 @@ internal fun AddClothingContent(
                 label = { Text(stringResource(R.string.wardrobe_brand)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                enabled = !uiState.isSaving,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
                     imeAction = ImeAction.Done
@@ -287,6 +346,7 @@ internal fun AddClothingContent(
             ReadOnlyTextField(
                 value = uiState.category?.name ?: "",
                 label = stringResource(R.string.wardrobe_category),
+                enabled = !uiState.isSaving,
                 onClick = {
                     focusManager.clearFocus()
                     showCategorySheet = true
@@ -300,6 +360,7 @@ internal fun AddClothingContent(
                 ReadOnlyTextField(
                     value = uiState.subcategory?.name ?: "",
                     label = stringResource(R.string.wardrobe_subcategory),
+                    enabled = !uiState.isSaving,
                     onClick = {
                         focusManager.clearFocus()
                         showSubcategorySheet = true
@@ -318,9 +379,10 @@ private fun ReadOnlyTextField(
     value: String,
     label: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
-    Box(modifier = modifier.clickable(onClick = onClick)) {
+    Box(modifier = modifier.clickable(enabled = enabled, onClick = onClick)) {
         OutlinedTextField(
             value = value,
             onValueChange = {},
@@ -329,9 +391,9 @@ private fun ReadOnlyTextField(
             enabled = false, // Use disabled colors to signal read-only interaction
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                disabledBorderColor = MaterialTheme.colorScheme.outline,
-                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                disabledTextColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                disabledBorderColor = if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                disabledLabelColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
             )
         )
     }
@@ -381,6 +443,56 @@ private fun AddClothingContentPreview() {
                     canSave = true,
                     categories = listOf(CategoryEntity(1, "Tops", null, 1))
                 ),
+                snackbarHostState = remember { SnackbarHostState() },
+                onNameChange = {},
+                onBrandChange = {},
+                onCategorySelect = {},
+                onSubcategorySelect = {},
+                onPhotoClick = {},
+                onSaveClick = {},
+                onBackClick = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AddClothingSavingPreview() {
+    ClosetTheme {
+        Surface {
+            AddClothingContent(
+                uiState = AddClothingUiState(
+                    name = "Vintage Jacket",
+                    brand = "Levi's",
+                    isSaving = true,
+                    canSave = false
+                ),
+                snackbarHostState = remember { SnackbarHostState() },
+                onNameChange = {},
+                onBrandChange = {},
+                onCategorySelect = {},
+                onSubcategorySelect = {},
+                onPhotoClick = {},
+                onSaveClick = {},
+                onBackClick = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AddClothingErrorPreview() {
+    ClosetTheme {
+        Surface {
+            AddClothingContent(
+                uiState = AddClothingUiState(
+                    name = "",
+                    isNameError = true,
+                    canSave = false
+                ),
+                snackbarHostState = remember { SnackbarHostState() },
                 onNameChange = {},
                 onBrandChange = {},
                 onCategorySelect = {},

@@ -4,11 +4,15 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.CategoryEntity
+import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.SubcategoryEntity
+import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
@@ -27,7 +31,10 @@ data class AddClothingUiState(
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
     val isNameError: Boolean = false,
-    val canSave: Boolean = false
+    val isSaving: Boolean = false,
+    val errorMessage: Int? = null,
+    val canSave: Boolean = false,
+    val isDirty: Boolean = false
 )
 
 /**
@@ -37,7 +44,8 @@ data class AddClothingUiState(
 @HiltViewModel
 class AddClothingViewModel @Inject constructor(
     private val lookupRepository: LookupRepository,
-    private val storageRepository: StorageRepository
+    private val storageRepository: StorageRepository,
+    private val clothingRepository: ClothingRepository
 ) : ViewModel() {
 
     private val _name = MutableStateFlow("")
@@ -46,6 +54,12 @@ class AddClothingViewModel @Inject constructor(
     private val _selectedSubcategory = MutableStateFlow<SubcategoryEntity?>(null)
     private val _imagePath = MutableStateFlow<String?>(null)
     private val _isNameError = MutableStateFlow(false)
+    private val _isSaving = MutableStateFlow(false)
+    private val _errorMessage = MutableStateFlow<Int?>(null)
+
+    // One-time events for navigation
+    private val _events = Channel<AddClothingEvent>()
+    val events = _events.receiveAsFlow()
 
     val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -59,20 +73,30 @@ class AddClothingViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val uiState: StateFlow<AddClothingUiState> = combine(
-        _name, _brand, _selectedCategory, _selectedSubcategory, _imagePath, _isNameError, categories, subcategories
+        _name, _brand, _selectedCategory, _selectedSubcategory, _imagePath, _isNameError, _isSaving, _errorMessage, categories, subcategories
     ) { args: Array<Any?> ->
+        val name = args[0] as String
+        val brand = args[1] as String
+        val category = args[2] as CategoryEntity?
+        val subcategory = args[3] as SubcategoryEntity?
         val imagePath = args[4] as String?
+        
+        val isDirty = name.isNotBlank() || brand.isNotBlank() || category != null || imagePath != null
+
         AddClothingUiState(
-            name = args[0] as String,
-            brand = args[1] as String,
-            category = args[2] as CategoryEntity?,
-            subcategory = args[3] as SubcategoryEntity?,
+            name = name,
+            brand = brand,
+            category = category,
+            subcategory = subcategory,
             imagePath = imagePath,
             imageFile = imagePath?.let { storageRepository.getFile(it) },
             isNameError = args[5] as Boolean,
-            categories = args[6] as List<CategoryEntity>,
-            subcategories = args[7] as List<SubcategoryEntity>,
-            canSave = (args[0] as String).isNotBlank()
+            isSaving = args[6] as Boolean,
+            errorMessage = args[7] as Int?,
+            categories = args[8] as List<CategoryEntity>,
+            subcategories = args[9] as List<SubcategoryEntity>,
+            canSave = name.isNotBlank() && !(args[6] as Boolean),
+            isDirty = isDirty
         )
     }.stateIn(
         scope = viewModelScope,
@@ -123,25 +147,53 @@ class AddClothingViewModel @Inject constructor(
                 val relativePath = storageRepository.saveImage(uri)
                 _imagePath.value = relativePath
             } catch (e: Exception) {
-                // In a production app, we'd handle this via UI error state
-                e.printStackTrace()
+                _errorMessage.value = R.string.wardrobe_error_save_failed
             }
         }
     }
 
     /**
-     * Validates the form. Returns true if valid.
+     * Validates and saves the clothing item.
      */
-    fun validate(): Boolean {
-        val isValid = _name.value.isNotBlank()
-        _isNameError.value = !isValid
-        return isValid
+    fun save() {
+        if (_name.value.isBlank()) {
+            _isNameError.value = true
+            return
+        }
+
+        viewModelScope.launch {
+            _isSaving.value = true
+            _errorMessage.value = null
+
+            val item = ClothingItemEntity(
+                name = _name.value.trim(),
+                brand = _brand.value.trim().takeIf { it.isNotBlank() },
+                categoryId = _selectedCategory.value?.id,
+                subcategoryId = _selectedSubcategory.value?.id,
+                imagePath = _imagePath.value
+            )
+
+            when (val result = clothingRepository.insertItem(item)) {
+                is DataResult.Success -> {
+                    _events.send(AddClothingEvent.NavigateBack)
+                }
+                is DataResult.Error -> {
+                    _errorMessage.value = R.string.wardrobe_error_save_failed
+                }
+                else -> { /* No-op for Loading */ }
+            }
+            _isSaving.value = false
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
-        // If the user leaves without saving, we might want to clean up the temporary image.
-        // However, standard Android ViewModel behavior doesn't guarantee this for all exit scenarios.
-        // For this sub-phase, we'll keep it simple. Sub-phase 1.6 (Saving) will handle the final state.
+        // Note: In a robust implementation, we might want to delete the temporary image if not saved.
+        // But since we want to keep it if they just rotated or similar, usually we clean up orphaned 
+        // images periodically or when specifically discarding.
     }
+}
+
+sealed class AddClothingEvent {
+    object NavigateBack : AddClothingEvent()
 }

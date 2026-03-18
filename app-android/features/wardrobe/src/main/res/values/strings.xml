@@ -31,4 +31,8 @@
     <string name="wardrobe_add_photo">Add Photo</string>
     <string name="wardrobe_change_photo">Change Photo</string>
     <string name="wardrobe_clothing_photo">Clothing photo</string>
+    <string name="wardrobe_discard_changes_title">Discard Changes?</string>
+    <string name="wardrobe_discard_changes_message">You have unsaved changes. Are you sure you want to discard them?</string>
+    <string name="wardrobe_discard">Discard</string>
+    <string name="wardrobe_error_save_failed">Failed to save item. Please try again.</string>
 </resources>
