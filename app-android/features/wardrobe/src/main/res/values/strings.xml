@@ -6,4 +6,5 @@
         <item quantity="other">Worn %d times</item>
     </plurals>
     <string name="wardrobe_empty_closet">Your closet is empty. Add some clothes!</string>
+    <string name="wardrobe_all_items">All</string>
 </resources>

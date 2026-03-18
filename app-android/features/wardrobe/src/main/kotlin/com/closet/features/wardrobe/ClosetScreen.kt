@@ -1,9 +1,11 @@
 package com.closet.features.wardrobe
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -13,6 +15,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.WashStatus
@@ -34,9 +37,14 @@ fun ClosetScreen(
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
     val items by viewModel.items.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val selectedCategoryId by viewModel.selectedCategoryId.collectAsStateWithLifecycle()
 
     ClosetContent(
         items = items,
+        categories = categories,
+        selectedCategoryId = selectedCategoryId,
+        onCategorySelect = viewModel::selectCategory,
         onItemClick = onItemClick,
         modifier = modifier
     )
@@ -49,6 +57,9 @@ fun ClosetScreen(
 @Composable
 internal fun ClosetContent(
     items: List<ClothingItemWithMeta>,
+    categories: List<CategoryEntity>,
+    selectedCategoryId: Long?,
+    onCategorySelect: (Long?) -> Unit,
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -60,13 +71,52 @@ internal fun ClosetContent(
             )
         }
     ) { padding ->
-        if (items.isEmpty()) {
-            EmptyClosetMessage(modifier = Modifier.padding(padding))
-        } else {
-            ClosetGrid(
-                items = items,
-                onItemClick = onItemClick,
-                modifier = Modifier.padding(padding)
+        Column(modifier = Modifier.padding(padding)) {
+            CategoryFilterRow(
+                categories = categories,
+                selectedCategoryId = selectedCategoryId,
+                onCategorySelect = onCategorySelect
+            )
+            
+            if (items.isEmpty()) {
+                EmptyClosetMessage()
+            } else {
+                ClosetGrid(
+                    items = items,
+                    onItemClick = onItemClick
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A horizontal row of filter chips for categories.
+ */
+@Composable
+private fun CategoryFilterRow(
+    categories: List<CategoryEntity>,
+    selectedCategoryId: Long?,
+    onCategorySelect: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FilterChip(
+                selected = selectedCategoryId == null,
+                onClick = { onCategorySelect(null) },
+                label = { Text(stringResource(R.string.wardrobe_all_items)) }
+            )
+        }
+        items(categories, key = { it.id }) { category ->
+            FilterChip(
+                selected = selectedCategoryId == category.id,
+                onClick = { onCategorySelect(category.id) },
+                label = { Text(category.name) }
             )
         }
     }
@@ -153,21 +203,15 @@ private fun ClosetScreenPreview() {
                         status = ClothingStatus.Active,
                         isFavorite = 0,
                         washStatus = WashStatus.Dirty
-                    ),
-                    ClothingItemWithMeta(
-                        id = 3,
-                        name = "Black Chinos",
-                        brand = "Everlane",
-                        categoryName = "Pants",
-                        subcategoryName = "Chinos",
-                        imagePath = null,
-                        wearCount = 20,
-                        purchasePrice = 68.00,
-                        status = ClothingStatus.Active,
-                        isFavorite = 1,
-                        washStatus = WashStatus.Clean
                     )
                 ),
+                categories = listOf(
+                    CategoryEntity(id = 1, name = "Tops", sortOrder = 1),
+                    CategoryEntity(id = 2, name = "Pants", sortOrder = 2),
+                    CategoryEntity(id = 3, name = "Outerwear", sortOrder = 3)
+                ),
+                selectedCategoryId = null,
+                onCategorySelect = {},
                 onItemClick = {}
             )
         }
@@ -181,6 +225,9 @@ private fun ClosetScreenEmptyPreview() {
         Surface {
             ClosetContent(
                 items = emptyList(),
+                categories = emptyList(),
+                selectedCategoryId = null,
+                onCategorySelect = {},
                 onItemClick = {}
             )
         }
