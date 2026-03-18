@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.closet.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
@@ -7,6 +9,8 @@ import androidx.compose.ui.graphics.Color
  */
 val Black = Color(0xFF000000)
 val White = Color(0xFFFFFFFF)
+
+val Gray100 = Color(0xFFF5F5F5)
 
 val Surface0 = Color(0xFF0A0A0A) // Deepest background
 val Surface1 = Color(0xFF111111) // Card base

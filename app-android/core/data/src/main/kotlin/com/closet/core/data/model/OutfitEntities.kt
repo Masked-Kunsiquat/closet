@@ -1,10 +1,6 @@
 package com.closet.core.data.model
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
+import androidx.room.*
 import java.time.Instant
 
 @Entity(tableName = "outfits")
@@ -52,8 +48,6 @@ data class OutfitItemEntity(
     ],
     indices = [
         Index(value = ["outfit_id"]),
-        // Index is non-unique here to allow multiple logs per day. 
-        // Partial unique index for OOTD is created manually in ClothingDatabase callback.
         Index(value = ["date"], unique = false, orders = [Index.Order.ASC])
     ]
 )
@@ -67,4 +61,23 @@ data class OutfitLogEntity(
     @ColumnInfo(name = "temperature_high") val temperatureHigh: Double? = null,
     @ColumnInfo(name = "weather_condition") val weatherCondition: WeatherCondition? = null,
     @ColumnInfo(name = "created_at") val createdAt: Instant = Instant.now()
+)
+
+/**
+ * Mirror of OutfitWithItems from types.ts.
+ * Leverage: Uses Room's @Junction for high-performance relationship mapping.
+ */
+@Suppress("unused")
+data class OutfitWithItems(
+    @Embedded val outfit: OutfitEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = OutfitItemEntity::class,
+            parentColumn = "outfit_id",
+            entityColumn = "clothing_item_id"
+        )
+    )
+    val items: List<ClothingItemEntity>
 )

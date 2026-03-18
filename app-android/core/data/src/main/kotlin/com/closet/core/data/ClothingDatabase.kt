@@ -39,6 +39,7 @@ abstract class ClothingDatabase : RoomDatabase() {
     abstract fun lookupDao(): LookupDao
     abstract fun outfitDao(): OutfitDao
     abstract fun logDao(): LogDao
+    abstract fun statsDao(): StatsDao
 
     companion object {
         private const val DATABASE_NAME = "closet.db"
@@ -59,8 +60,10 @@ abstract class ClothingDatabase : RoomDatabase() {
                         // Seed data on first creation
                         DatabaseSeeder.seedAll(db)
                         
-                        // Parity: Only one outfit per day can be OOTD
+                        // Enforce one-OOTD-per-day via partial unique index
                         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
+                        
+                        createCategoryConsistencyTriggers(db)
                     }
 
                     override fun onOpen(db: SupportSQLiteDatabase) {
@@ -73,6 +76,65 @@ abstract class ClothingDatabase : RoomDatabase() {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        private fun createCategoryConsistencyTriggers(db: SupportSQLiteDatabase) {
+            // Enforce category_id and subcategory_id consistency (Both NULL or both NOT NULL)
+            val consistencyCheck = """
+                SELECT CASE
+                    WHEN (NEW.subcategory_id IS NOT NULL AND NEW.category_id IS NULL)
+                    OR (NEW.subcategory_id IS NULL AND NEW.category_id IS NOT NULL)
+                    THEN RAISE(ABORT, 'Category and Subcategory must both be NULL or both be NOT NULL')
+                END;
+            """
+
+            // Enforce that subcategory belongs to the selected category
+            val relationshipCheck = """
+                SELECT CASE
+                    WHEN (SELECT category_id FROM subcategories WHERE id = NEW.subcategory_id) != NEW.category_id
+                    THEN RAISE(ABORT, 'Subcategory does not belong to the selected Category')
+                END;
+            """
+
+            // INSERT Triggers
+            db.execSQL("""
+                CREATE TRIGGER IF NOT EXISTS check_clothing_item_category_consistency_insert
+                BEFORE INSERT ON clothing_items
+                FOR EACH ROW
+                BEGIN
+                    $consistencyCheck
+                END;
+            """)
+
+            db.execSQL("""
+                CREATE TRIGGER IF NOT EXISTS verify_subcategory_parent_category_insert
+                BEFORE INSERT ON clothing_items
+                FOR EACH ROW
+                WHEN NEW.subcategory_id IS NOT NULL
+                BEGIN
+                    $relationshipCheck
+                END;
+            """)
+
+            // UPDATE Triggers
+            db.execSQL("""
+                CREATE TRIGGER IF NOT EXISTS check_clothing_item_category_consistency_update
+                BEFORE UPDATE OF category_id, subcategory_id ON clothing_items
+                FOR EACH ROW
+                BEGIN
+                    $consistencyCheck
+                END;
+            """)
+
+            db.execSQL("""
+                CREATE TRIGGER IF NOT EXISTS verify_subcategory_parent_category_update
+                BEFORE UPDATE OF category_id, subcategory_id ON clothing_items
+                FOR EACH ROW
+                WHEN NEW.subcategory_id IS NOT NULL
+                BEGIN
+                    $relationshipCheck
+                END;
+            """)
         }
     }
 }

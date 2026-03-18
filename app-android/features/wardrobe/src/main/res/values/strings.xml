@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wardrobe_my_closet">My Closet</string>
+    <plurals name="wardrobe_worn_times">
+        <item quantity="one">Worn %d time</item>
+        <item quantity="other">Worn %d times</item>
+    </plurals>
+    <string name="wardrobe_empty_closet">Your closet is empty. Add some clothes!</string>
+</resources>

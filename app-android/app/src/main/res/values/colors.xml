@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Parity with tokens.ts Palette.surface0 -->
+    <color name="surface_0">#0A0A0A</color>
+    <color name="surface_1">#111111</color>
+    <color name="text_primary">#F5F5F5</color>
+</resources>

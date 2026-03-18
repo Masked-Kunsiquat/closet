@@ -1,0 +1,50 @@
+# Build artifacts
+**/build/
+.gradle/
+/build/
+
+# IDE settings
+.idea/
+*.iml
+*.iws
+
+# Local configuration
+local.properties
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Android Studio / IntelliJ
+*.ipr
+*.iws
+*.iml
+.idea/modules.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/datasources.xml
+.idea/dataSources.ids
+.idea/sqlDataSources.xml
+.idea/dynamic.xml
+.idea/uiDesigner.xml
+.idea/gradle.xml
+.idea/libraries
+.idea/vcs.xml
+.idea/misc.xml
+.idea/modules
+.idea/caches
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/modules.xml
+
+# Captures and logs
+/captures/
+*.log
+
+# External native build
+.externalNativeBuild/
+.cxx/
+
+# Kotlin
+/bin/
+/gen/
