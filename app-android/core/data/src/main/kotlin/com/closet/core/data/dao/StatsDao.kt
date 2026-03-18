@@ -4,6 +4,9 @@ import androidx.room.Dao
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * High-level overview of wardrobe statistics.
+ */
 data class StatsOverview(
     val totalItems: Int,
     val wornItems: Int,
@@ -11,6 +14,9 @@ data class StatsOverview(
     val totalValue: Double?
 )
 
+/**
+ * Represents a single clothing item in a statistics list (e.g., most worn).
+ */
 data class StatItem(
     val id: Long,
     val name: String,
@@ -18,17 +24,27 @@ data class StatItem(
     val wearCount: Int
 )
 
+/**
+ * Represents a row in a statistical breakdown (e.g., by category).
+ */
 data class BreakdownRow(
     val label: String,
     val count: Int
 )
 
+/**
+ * Data Access Object for generating wardrobe and usage statistics.
+ * Parity: This is the native equivalent of various stats-related queries from queries.ts.
+ */
 @Dao
 interface StatsDao {
 
     /**
-     * Parity: Mirror of getStatsOverview in queries.ts.
-     * Calculates totals and worn/never-worn counts for Active items.
+     * Calculates a high-level overview of the wardrobe, including total item count,
+     * worn vs. never-worn counts, and total monetary value.
+     * Only considers items with 'Active' status.
+     * @param fromDate Optional start date to filter usage (YYYY-MM-DD).
+     * @return A [Flow] emitting the [StatsOverview].
      */
     @Query("""
         SELECT
@@ -52,7 +68,10 @@ interface StatsDao {
     fun getStatsOverview(fromDate: String?): Flow<StatsOverview>
 
     /**
-     * Parity: Mirror of getMostWornItems in queries.ts.
+     * Retrieves the most frequently worn items within an optional date range.
+     * @param fromDate Optional start date to filter logs.
+     * @param limit The maximum number of items to return.
+     * @return A [Flow] emitting a list of [StatItem] ordered by wear count.
      */
     @Query("""
         SELECT
@@ -72,8 +91,8 @@ interface StatsDao {
     fun getMostWornItems(fromDate: String?, limit: Int = 15): Flow<List<StatItem>>
 
     /**
-     * Parity: Mirror of getBreakdownByCategory in queries.ts.
-     * Use LEFT JOIN and COALESCE to include uncategorized items.
+     * Generates a breakdown of active items by category.
+     * @return A [Flow] emitting a list of [BreakdownRow] showing item counts per category.
      */
     @Query("""
         SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(DISTINCT ci.id) AS count

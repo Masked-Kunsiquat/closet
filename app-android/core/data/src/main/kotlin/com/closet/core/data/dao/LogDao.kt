@@ -5,11 +5,17 @@ import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Mirror of OutfitLog queries from queries.ts.
+ * Data Access Object for outfit logging and calendar management.
+ * Parity: This is the native equivalent of OutfitLog queries from queries.ts.
  */
 @Dao
 interface LogDao {
 
+    /**
+     * Retrieves all outfit logs for a specific date, including metadata like outfit name and item count.
+     * @param date The date string (YYYY-MM-DD).
+     * @return A [Flow] emitting a list of [OutfitLogWithMeta].
+     */
     @Query("""
         SELECT
             ol.*,
@@ -29,34 +35,67 @@ interface LogDao {
     """)
     fun getLogsByDate(date: String): Flow<List<OutfitLogWithMeta>>
 
+    /**
+     * Inserts a new outfit log entry.
+     * @param log The [OutfitLogEntity] to insert.
+     * @return The row ID of the newly inserted log.
+     */
     @Insert
     suspend fun insertLog(log: OutfitLogEntity): Long
 
+    /**
+     * Updates an existing outfit log entry.
+     * @param log The [OutfitLogEntity] with updated values.
+     */
     @Update
     suspend fun updateLog(log: OutfitLogEntity)
 
+    /**
+     * Deletes a specific outfit log entry.
+     * @param log The [OutfitLogEntity] to delete.
+     */
     @Delete
     suspend fun deleteLog(log: OutfitLogEntity)
 
+    /**
+     * Deletes an outfit log entry by its ID.
+     * @param logId The ID of the log entry.
+     */
     @Query("DELETE FROM outfit_logs WHERE id = :logId")
     suspend fun deleteLogById(logId: Long)
 
+    /**
+     * Atomically sets a log entry as the Outfit of the Day (OOTD) for its date.
+     * Clears any existing OOTD for that date before marking the new one.
+     * @param logId The ID of the log entry to mark as OOTD.
+     * @param date The date for which to set the OOTD.
+     */
     @Transaction
     suspend fun setOotd(logId: Long, date: String) {
         clearOotdForDate(date)
         markOotd(logId)
     }
 
+    /**
+     * Clears the OOTD flag for all log entries on a specific date.
+     * @param date The date string.
+     */
     @Query("UPDATE outfit_logs SET is_ootd = 0 WHERE date = :date AND is_ootd = 1")
     suspend fun clearOotdForDate(date: String)
 
+    /**
+     * Marks a specific log entry as the OOTD.
+     * @param logId The ID of the log entry.
+     */
     @Query("UPDATE outfit_logs SET is_ootd = 1 WHERE id = :logId")
     suspend fun markOotd(logId: Long)
 
     /**
+     * Retrieves a summary of calendar days within a range, indicating log counts and OOTD status.
      * Using BETWEEN allows SQLite to use the index on the date column.
-     * startDate: "YYYY-MM-01"
-     * endDate: "YYYY-MM-31" (or last day of month)
+     * @param startDate The start date of the range (YYYY-MM-DD).
+     * @param endDate The end date of the range (YYYY-MM-DD).
+     * @return A [Flow] emitting a list of [CalendarDay].
      */
     @Query("""
         SELECT
@@ -72,7 +111,8 @@ interface LogDao {
 }
 
 /**
- * Mirror of OutfitLogWithMeta from types.ts.
+ * Representation of an outfit log entry with calculated metadata.
+ * Parity: This is the native equivalent of OutfitLogWithMeta from types.ts.
  */
 data class OutfitLogWithMeta(
     val id: Long,
@@ -90,7 +130,8 @@ data class OutfitLogWithMeta(
 )
 
 /**
- * Mirror of CalendarDay from types.ts.
+ * Summary of a single calendar day's logging activity.
+ * Parity: This is the native equivalent of CalendarDay from types.ts.
  */
 data class CalendarDay(
     val date: String,

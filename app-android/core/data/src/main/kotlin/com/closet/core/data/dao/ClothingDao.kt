@@ -5,11 +5,18 @@ import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Mirror of getAllClothingItems, getClothingItemById from queries.ts.
+ * Data Access Object for clothing items and their associated metadata.
+ * Provides methods for querying, inserting, updating, and deleting items.
+ * Parity: This is the native equivalent of queries.ts from the Expo project.
  */
 @Dao
 interface ClothingDao {
 
+    /**
+     * Retrieves all clothing items with their category, subcategory, and wear count.
+     * Items are ordered by creation date in descending order (newest first).
+     * @return A [Flow] emitting a list of [ClothingItemWithMeta].
+     */
     @Query("""
         SELECT
             ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite,
@@ -28,6 +35,11 @@ interface ClothingDao {
     """)
     fun getAllClothingItems(): Flow<List<ClothingItemWithMeta>>
 
+    /**
+     * Retrieves a single clothing item by its unique ID.
+     * @param id The ID of the clothing item to retrieve.
+     * @return The [ClothingItemWithMeta] if found, null otherwise.
+     */
     @Query("""
         SELECT
             ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite,
@@ -46,77 +58,147 @@ interface ClothingDao {
     """)
     suspend fun getClothingItemById(id: Long): ClothingItemWithMeta?
 
+    /**
+     * Inserts a new clothing item into the database.
+     * @param item The [ClothingItemEntity] to insert.
+     * @return The row ID of the newly inserted item.
+     */
     @Insert
     suspend fun insertClothingItem(item: ClothingItemEntity): Long
 
+    /**
+     * Updates an existing clothing item in the database.
+     * @param item The [ClothingItemEntity] with updated values.
+     */
     @Update
     suspend fun updateClothingItem(item: ClothingItemEntity)
 
+    /**
+     * Deletes a clothing item from the database by its ID.
+     * @param id The ID of the clothing item to delete.
+     */
     @Query("DELETE FROM clothing_items WHERE id = :id")
     suspend fun deleteClothingItem(id: Long)
     
+    /**
+     * Updates the wash status and modification timestamp for a specific clothing item.
+     * @param id The ID of the clothing item.
+     * @param washStatus The new wash status label.
+     */
     @Query("UPDATE clothing_items SET wash_status = :washStatus, updated_at = datetime('now') WHERE id = :id")
     suspend fun updateWashStatus(id: Long, washStatus: String)
 
     // --- Junction Table Helpers (Atomically replace associations) ---
 
+    /**
+     * Updates the color associations for a specific clothing item.
+     * Replaces all existing color associations with the provided list.
+     * @param itemId The ID of the clothing item.
+     * @param colorIds The list of color IDs to associate with the item.
+     */
     @Transaction
     suspend fun updateItemColors(itemId: Long, colorIds: List<Long>) {
         deleteItemColors(itemId)
         insertItemColors(colorIds.map { ClothingItemColorEntity(itemId, it) })
     }
 
+    /**
+     * Removes all color associations for a specific clothing item.
+     * @param itemId The ID of the clothing item.
+     */
     @Query("DELETE FROM clothing_item_colors WHERE clothing_item_id = :itemId")
     suspend fun deleteItemColors(itemId: Long)
 
+    /**
+     * Inserts a list of color associations for a clothing item.
+     * @param items The list of [ClothingItemColorEntity] objects to insert.
+     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemColors(items: List<ClothingItemColorEntity>)
 
+    /**
+     * Updates the material associations for a specific clothing item.
+     * @param itemId The ID of the clothing item.
+     * @param materialIds The list of material IDs to associate.
+     */
     @Transaction
     suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>) {
         deleteItemMaterials(itemId)
         insertItemMaterials(materialIds.map { ClothingItemMaterialEntity(itemId, it) })
     }
 
+    /**
+     * Removes all material associations for a specific clothing item.
+     */
     @Query("DELETE FROM clothing_item_materials WHERE clothing_item_id = :itemId")
     suspend fun deleteItemMaterials(itemId: Long)
 
+    /**
+     * Inserts a list of material associations for a clothing item.
+     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemMaterials(items: List<ClothingItemMaterialEntity>)
 
+    /**
+     * Updates the season associations for a specific clothing item.
+     */
     @Transaction
     suspend fun updateItemSeasons(itemId: Long, seasonIds: List<Long>) {
         deleteItemSeasons(itemId)
         insertItemSeasons(seasonIds.map { ClothingItemSeasonEntity(itemId, it) })
     }
 
+    /**
+     * Removes all season associations for a specific clothing item.
+     */
     @Query("DELETE FROM clothing_item_seasons WHERE clothing_item_id = :itemId")
     suspend fun deleteItemSeasons(itemId: Long)
 
+    /**
+     * Inserts a list of season associations for a clothing item.
+     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemSeasons(items: List<ClothingItemSeasonEntity>)
 
+    /**
+     * Updates the occasion associations for a specific clothing item.
+     */
     @Transaction
     suspend fun updateItemOccasions(itemId: Long, occasionIds: List<Long>) {
         deleteItemOccasions(itemId)
         insertItemOccasions(occasionIds.map { ClothingItemOccasionEntity(itemId, it) })
     }
 
+    /**
+     * Removes all occasion associations for a specific clothing item.
+     */
     @Query("DELETE FROM clothing_item_occasions WHERE clothing_item_id = :itemId")
     suspend fun deleteItemOccasions(itemId: Long)
 
+    /**
+     * Inserts a list of occasion associations for a clothing item.
+     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemOccasions(items: List<ClothingItemOccasionEntity>)
 
+    /**
+     * Updates the pattern associations for a specific clothing item.
+     */
     @Transaction
     suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>) {
         deleteItemPatterns(itemId)
         insertItemPatterns(patternIds.map { ClothingItemPatternEntity(itemId, it) })
     }
 
+    /**
+     * Removes all pattern associations for a specific clothing item.
+     */
     @Query("DELETE FROM clothing_item_patterns WHERE clothing_item_id = :itemId")
     suspend fun deleteItemPatterns(itemId: Long)
 
+    /**
+     * Inserts a list of pattern associations for a clothing item.
+     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemPatterns(items: List<ClothingItemPatternEntity>)
 }
