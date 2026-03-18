@@ -24,6 +24,7 @@ interface OutfitDao {
              FROM outfit_items oi2
              JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
              WHERE oi2.outfit_id = o.id AND ci.image_path IS NOT NULL
+             ORDER BY ci.id ASC
              LIMIT 1) AS cover_image
         FROM outfits o
         LEFT JOIN outfit_items oi ON oi.outfit_id = o.id
@@ -90,6 +91,7 @@ interface OutfitDao {
              FROM outfit_items oi3
              JOIN clothing_items ci ON ci.id = oi3.clothing_item_id
              WHERE oi3.outfit_id = o.id AND ci.image_path IS NOT NULL
+             ORDER BY ci.id ASC
              LIMIT 1) AS cover_image
         FROM outfit_items oi
         JOIN outfits o ON o.id = oi.outfit_id

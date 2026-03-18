@@ -23,6 +23,10 @@ class ClosetViewModel @Inject constructor(
     private val lookupRepository: LookupRepository
 ) : ViewModel() {
 
+    companion object {
+        private const val SHARED_SUBSCRIPTION_TIMEOUT_MS = 5000L
+    }
+
     /**
      * The list of clothing items to display in the grid.
      * Items are provided with metadata like category names and wear counts.
@@ -31,7 +35,7 @@ class ClosetViewModel @Inject constructor(
     val items: StateFlow<List<ClothingItemWithMeta>> = clothingRepository.getAllItems()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
             initialValue = emptyList()
         )
 
@@ -41,7 +45,7 @@ class ClosetViewModel @Inject constructor(
     val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
+            started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
             initialValue = emptyList()
         )
 }

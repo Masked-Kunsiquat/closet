@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 
 /**
  * Repository providing access to clothing items.
@@ -40,6 +41,7 @@ class ClothingRepository @Inject constructor(
             DataResult.Error(AppError.DatabaseError.NotFound())
         }
     } catch (e: Exception) {
+        if (e is CancellationException) throw e
         Timber.e(e, "Error fetching item by ID: $id")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
@@ -56,6 +58,7 @@ class ClothingRepository @Inject constructor(
         Timber.e(e, "Constraint violation inserting item")
         DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
     } catch (e: Exception) {
+        if (e is CancellationException) throw e
         Timber.e(e, "Unexpected error inserting item")
         DataResult.Error(AppError.Unexpected(e))
     }
@@ -69,6 +72,7 @@ class ClothingRepository @Inject constructor(
         clothingDao.updateClothingItem(item)
         DataResult.Success(Unit)
     } catch (e: Exception) {
+        if (e is CancellationException) throw e
         Timber.e(e, "Error updating item: ${item.id}")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
@@ -82,6 +86,7 @@ class ClothingRepository @Inject constructor(
         clothingDao.deleteClothingItem(id)
         DataResult.Success(Unit)
     } catch (e: Exception) {
+        if (e is CancellationException) throw e
         Timber.e(e, "Error deleting item: $id")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
@@ -96,6 +101,7 @@ class ClothingRepository @Inject constructor(
         clothingDao.updateWashStatus(id, washStatus.label)
         DataResult.Success(Unit)
     } catch (e: Exception) {
+        if (e is CancellationException) throw e
         Timber.e(e, "Error updating wash status for item: $id")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
@@ -162,6 +168,7 @@ class ClothingRepository @Inject constructor(
         Timber.e(e, "Database transaction constraint violation")
         DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
     } catch (e: Exception) {
+        if (e is CancellationException) throw e
         Timber.e(e, "Unexpected error in database transaction")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }

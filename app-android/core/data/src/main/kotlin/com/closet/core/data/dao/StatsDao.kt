@@ -88,7 +88,7 @@ interface StatsDao {
         ORDER BY wearCount DESC
         LIMIT :limit
     """)
-    fun getMostWornItems(fromDate: String?, limit: Int = 15): Flow<List<StatItem>>
+    fun getMostWornItems(fromDate: String?, limit: Int): Flow<List<StatItem>>
 
     /**
      * Generates a breakdown of active items by category.

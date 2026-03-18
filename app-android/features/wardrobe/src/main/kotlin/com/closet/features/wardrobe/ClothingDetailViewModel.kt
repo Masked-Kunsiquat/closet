@@ -7,7 +7,6 @@ import androidx.navigation.toRoute
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.util.AppError
-import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
@@ -54,7 +53,7 @@ class ClothingDetailViewModel @Inject constructor(
             _uiState.value = ClothingDetailUiState.Loading
 
             clothingRepository.getItemById(itemId).fold(
-                onLoading = { _uiState.value = ClothingDetailUiState.Loading },
+                onLoading = { /* Suspended results won't trigger onLoading here */ },
                 onSuccess = { item ->
                     _uiState.value = ClothingDetailUiState.Success(item)
                 },
