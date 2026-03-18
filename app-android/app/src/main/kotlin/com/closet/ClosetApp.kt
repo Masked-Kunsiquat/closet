@@ -3,6 +3,7 @@ package com.closet
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import com.closet.BuildConfig
 
 /**
  * The Application class for the Closet app.

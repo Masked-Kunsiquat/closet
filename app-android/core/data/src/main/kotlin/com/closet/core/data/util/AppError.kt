@@ -7,7 +7,7 @@ package com.closet.core.data.util
 sealed class AppError : Throwable() {
     
     sealed class DatabaseError : AppError() {
-        data object NotFound : DatabaseError()
+        class NotFound : DatabaseError()
         data class ConstraintViolation(override val message: String) : DatabaseError()
         data class QueryError(override val cause: Throwable?) : DatabaseError()
     }
