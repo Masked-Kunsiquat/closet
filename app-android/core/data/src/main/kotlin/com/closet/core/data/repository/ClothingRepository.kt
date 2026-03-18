@@ -33,7 +33,7 @@ class ClothingRepository @Inject constructor(
     fun getAllItems(): Flow<List<ClothingItemWithMeta>> = clothingDao.getAllClothingItems()
 
     /**
-     * Retrieves a single clothing item by its unique ID.
+     * Retrieves a single clothing item with meta by its unique ID.
      * @param id The ID of the clothing item.
      * @return A [DataResult] containing the item or an error if not found.
      */
@@ -47,6 +47,24 @@ class ClothingRepository @Inject constructor(
     } catch (e: Exception) {
         if (e is CancellationException) throw e
         Timber.e(e, "Error fetching item by ID: $id")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
+
+    /**
+     * Retrieves the raw clothing item entity by its unique ID.
+     * @param id The ID of the clothing item.
+     * @return A [DataResult] containing the entity or an error if not found.
+     */
+    suspend fun getItemEntityById(id: Long): DataResult<ClothingItemEntity> = try {
+        val item = clothingDao.getClothingItemEntityById(id)
+        if (item != null) {
+            DataResult.Success(item)
+        } else {
+            DataResult.Error(AppError.DatabaseError.NotFound())
+        }
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error fetching entity by ID: $id")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 

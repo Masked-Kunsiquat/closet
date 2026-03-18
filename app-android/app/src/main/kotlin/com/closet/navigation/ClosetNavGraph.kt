@@ -31,12 +31,21 @@ fun ClosetNavGraph(
         
         composable<ClothingDetailDestination> { 
             ClothingDetailScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onEditClick = { itemId ->
+                    navController.navigate(EditClothingDestination(itemId))
+                }
             )
         }
 
         composable<AddClothingDestination> {
-            AddClothingScreen(
+            ClothingFormScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable<EditClothingDestination> {
+            ClothingFormScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

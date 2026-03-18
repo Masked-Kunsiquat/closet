@@ -78,13 +78,13 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Screen for adding a new clothing item to the wardrobe.
+ * Unified screen for adding or editing a clothing item.
  */
 @Composable
-fun AddClothingScreen(
+fun ClothingFormScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: AddClothingViewModel = hiltViewModel()
+    viewModel: ClothingFormViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -93,7 +93,7 @@ fun AddClothingScreen(
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                AddClothingEvent.NavigateBack -> onBackClick()
+                ClothingFormEvent.NavigateBack -> onBackClick()
             }
         }
     }
@@ -138,33 +138,39 @@ fun AddClothingScreen(
         )
     }
 
-    AddClothingContent(
-        uiState = uiState,
-        snackbarHostState = snackbarHostState,
-        onNameChange = viewModel::updateName,
-        onBrandChange = viewModel::updateBrand,
-        onCategorySelect = viewModel::selectCategory,
-        onSubcategorySelect = viewModel::selectSubcategory,
-        onPriceChange = viewModel::updatePrice,
-        onDateChange = viewModel::updatePurchaseDate,
-        onLocationChange = viewModel::updatePurchaseLocation,
-        onNotesChange = viewModel::updateNotes,
-        onPhotoClick = {
-            launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        },
-        onSaveClick = viewModel::save,
-        onBackClick = handleBack,
-        modifier = modifier
-    )
+    if (uiState.isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        ClothingFormContent(
+            uiState = uiState,
+            snackbarHostState = snackbarHostState,
+            onNameChange = viewModel::updateName,
+            onBrandChange = viewModel::updateBrand,
+            onCategorySelect = viewModel::selectCategory,
+            onSubcategorySelect = viewModel::selectSubcategory,
+            onPriceChange = viewModel::updatePrice,
+            onDateChange = viewModel::updatePurchaseDate,
+            onLocationChange = viewModel::updatePurchaseLocation,
+            onNotesChange = viewModel::updateNotes,
+            onPhotoClick = {
+                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onSaveClick = viewModel::save,
+            onBackClick = handleBack,
+            modifier = modifier
+        )
+    }
 }
 
 /**
- * The content of the Add Clothing screen, decoupled for previews.
+ * The content of the Clothing form screen, decoupled for previews.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AddClothingContent(
-    uiState: AddClothingUiState,
+internal fun ClothingFormContent(
+    uiState: ClothingFormUiState,
     snackbarHostState: SnackbarHostState,
     onNameChange: (String) -> Unit,
     onBrandChange: (String) -> Unit,
@@ -244,7 +250,12 @@ internal fun AddClothingContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.wardrobe_add_item)) },
+                title = { 
+                    Text(
+                        if (uiState.isEditMode) stringResource(R.string.wardrobe_edit) 
+                        else stringResource(R.string.wardrobe_add_item)
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
@@ -554,11 +565,11 @@ private fun <T> SelectionSheetContent(
 
 @Preview(showBackground = true)
 @Composable
-private fun AddClothingContentPreview() {
+private fun ClothingFormContentPreview() {
     ClosetTheme {
         Surface {
-            AddClothingContent(
-                uiState = AddClothingUiState(
+            ClothingFormContent(
+                uiState = ClothingFormUiState(
                     name = "Vintage Jacket",
                     brand = "Levi's",
                     canSave = true,

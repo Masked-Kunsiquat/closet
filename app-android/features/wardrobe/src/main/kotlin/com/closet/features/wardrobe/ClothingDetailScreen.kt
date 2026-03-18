@@ -74,6 +74,7 @@ import java.util.Locale
 @Composable
 fun ClothingDetailScreen(
     onBackClick: () -> Unit,
+    onEditClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ClothingDetailViewModel = hiltViewModel()
 ) {
@@ -145,7 +146,7 @@ fun ClothingDetailScreen(
                                 tint = if (state.item.isFavorite == 1) Color.Red else LocalContentColor.current
                             )
                         }
-                        IconButton(onClick = { /* Placeholder for Edit */ }) {
+                        IconButton(onClick = { onEditClick(state.item.id) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = stringResource(R.string.wardrobe_edit)

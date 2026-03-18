@@ -36,7 +36,7 @@ interface ClothingDao {
     fun getAllClothingItems(): Flow<List<ClothingItemWithMeta>>
 
     /**
-     * Retrieves a single clothing item by its unique ID.
+     * Retrieves a single clothing item with meta by its unique ID.
      * @param id The ID of the clothing item to retrieve.
      * @return The [ClothingItemWithMeta] if found, null otherwise.
      */
@@ -57,6 +57,14 @@ interface ClothingDao {
         WHERE ci.id = :id
     """)
     suspend fun getClothingItemById(id: Long): ClothingItemWithMeta?
+
+    /**
+     * Retrieves the raw clothing item entity by its unique ID.
+     * @param id The ID of the clothing item to retrieve.
+     * @return The [ClothingItemEntity] if found, null otherwise.
+     */
+    @Query("SELECT * FROM clothing_items WHERE id = :id")
+    suspend fun getClothingItemEntityById(id: Long): ClothingItemEntity?
 
     /**
      * Inserts a new clothing item into the database.
