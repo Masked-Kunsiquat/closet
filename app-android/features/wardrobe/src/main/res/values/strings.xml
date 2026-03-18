@@ -28,4 +28,7 @@
     <string name="wardrobe_name">Name</string>
     <string name="wardrobe_brand">Brand</string>
     <string name="wardrobe_error_name_required">Name is required</string>
+    <string name="wardrobe_add_photo">Add Photo</string>
+    <string name="wardrobe_change_photo">Change Photo</string>
+    <string name="wardrobe_clothing_photo">Clothing photo</string>
 </resources>
