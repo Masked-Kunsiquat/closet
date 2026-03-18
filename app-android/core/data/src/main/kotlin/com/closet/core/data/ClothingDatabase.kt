@@ -9,6 +9,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.closet.core.data.dao.*
 import com.closet.core.data.model.*
 
+/**
+ * Main Room database for the Closet application.
+ * Manages tables for clothing items, outfits, logs, and various lookup categories.
+ * Parity: This is the native equivalent of the SQLite schema in the Expo project.
+ */
 @Database(
     entities = [
         ClothingItemEntity::class,
@@ -35,10 +40,15 @@ import com.closet.core.data.model.*
 )
 @TypeConverters(Converters::class)
 abstract class ClothingDatabase : RoomDatabase() {
+    /** @return [ClothingDao] for clothing item operations. */
     abstract fun clothingDao(): ClothingDao
+    /** @return [LookupDao] for lookup table queries. */
     abstract fun lookupDao(): LookupDao
+    /** @return [OutfitDao] for outfit management. */
     abstract fun outfitDao(): OutfitDao
+    /** @return [LogDao] for outfit logging and journal history. */
     abstract fun logDao(): LogDao
+    /** @return [StatsDao] for wardrobe analytics. */
     abstract fun statsDao(): StatsDao
 
     companion object {
@@ -47,6 +57,10 @@ abstract class ClothingDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: ClothingDatabase? = null
 
+        /**
+         * Returns a singleton instance of the database.
+         * Initializes the database with seeding, unique indices, and triggers on first creation.
+         */
         fun getDatabase(context: Context): ClothingDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -78,6 +92,11 @@ abstract class ClothingDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Creates SQLite triggers to enforce consistency between categories and subcategories.
+         * 1. Ensures both category_id and subcategory_id are either both NULL or both NOT NULL.
+         * 2. Verifies that a selected subcategory actually belongs to the selected parent category.
+         */
         private fun createCategoryConsistencyTriggers(db: SupportSQLiteDatabase) {
             // Enforce category_id and subcategory_id consistency (Both NULL or both NOT NULL)
             val consistencyCheck = """

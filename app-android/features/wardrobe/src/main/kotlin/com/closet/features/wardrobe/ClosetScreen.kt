@@ -15,6 +15,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.ui.components.ClothingItemCard
 
+/**
+ * The main screen for browsing the wardrobe (Closet).
+ * Displays a grid of clothing items with their wear counts and category metadata.
+ * 
+ * @param modifier The [Modifier] to be applied to the screen.
+ * @param onItemClick Callback invoked when a clothing item is tapped, passing its ID.
+ * @param viewModel The [ClosetViewModel] providing state for this screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ClosetScreen(
@@ -44,6 +52,13 @@ fun ClosetScreen(
     }
 }
 
+/**
+ * A vertical grid displaying clothing items.
+ * 
+ * @param items The list of clothing items to display.
+ * @param onItemClick Callback for item interaction.
+ * @param modifier The [Modifier] to be applied to the grid.
+ */
 @Composable
 private fun ClosetGrid(
     items: List<ClothingItemWithMeta>,
@@ -72,6 +87,9 @@ private fun ClosetGrid(
     }
 }
 
+/**
+ * Message displayed when the wardrobe contains no items.
+ */
 @Composable
 private fun EmptyClosetMessage(modifier: Modifier = Modifier) {
     Box(

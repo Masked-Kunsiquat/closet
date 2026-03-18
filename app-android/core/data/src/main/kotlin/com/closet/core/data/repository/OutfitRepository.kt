@@ -12,7 +12,8 @@ import javax.inject.Singleton
 
 /**
  * Repository for Outfit operations.
- * Mirror of Outfit queries in hangr/db/queries.ts.
+ * Manages the grouping of clothing items into cohesive outfits.
+ * Parity: This is the native equivalent of Outfit queries in hangr/db/queries.ts.
  */
 @Singleton
 class OutfitRepository @Inject constructor(
@@ -20,13 +21,18 @@ class OutfitRepository @Inject constructor(
     private val outfitDao: OutfitDao
 ) {
     /**
-     * Fetch all outfits with item count and cover image.
+     * Retrieves all outfits with their calculated metadata (item count and cover image).
+     * @return A [Flow] emitting a list of [OutfitWithMeta].
      */
     fun getAllOutfits(): Flow<List<OutfitWithMeta>> = outfitDao.getAllOutfits()
 
     /**
-     * Create a new outfit and associate it with clothing items.
-     * Built Well: Uses withTransaction for atomic creation.
+     * Creates a new outfit and associates it with a list of clothing items.
+     * Built Well: Uses [withTransaction] to ensure the outfit and its items are created atomically.
+     * @param name The display name of the outfit.
+     * @param notes Optional notes for the outfit.
+     * @param itemIds The list of clothing item IDs to include in the outfit.
+     * @return The unique ID of the newly created outfit.
      */
     suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): Long = database.withTransaction {
         val outfitId = outfitDao.insertOutfit(OutfitEntity(name = name, notes = notes))
@@ -36,8 +42,12 @@ class OutfitRepository @Inject constructor(
     }
 
     /**
-     * Update an outfit and replace its items.
-     * Built Well: Uses withTransaction for atomic replacement.
+     * Updates an existing outfit's details and replaces its item associations.
+     * Built Well: Uses [withTransaction] to ensure the replacement of associations is atomic.
+     * @param outfitId The ID of the outfit to update.
+     * @param name The updated name.
+     * @param notes The updated notes.
+     * @param itemIds The new list of clothing item IDs for the outfit.
      */
     suspend fun updateOutfit(outfitId: Long, name: String?, notes: String?, itemIds: List<Long>) = database.withTransaction {
         outfitDao.updateOutfit(OutfitEntity(id = outfitId, name = name, notes = notes))
@@ -47,14 +57,17 @@ class OutfitRepository @Inject constructor(
     }
 
     /**
-     * Delete an outfit and its associations.
+     * Deletes an outfit and all its constituent item associations.
+     * @param outfitId The ID of the outfit to delete.
      */
     suspend fun deleteOutfit(outfitId: Long) {
         outfitDao.deleteOutfitById(outfitId)
     }
 
     /**
-     * Get outfits containing a specific item.
+     * Retrieves all outfits that contain a specific clothing item.
+     * @param itemId The ID of the clothing item.
+     * @return A [Flow] emitting a list of [OutfitWithMeta].
      */
     fun getOutfitsForItem(itemId: Long): Flow<List<OutfitWithMeta>> = 
         outfitDao.getOutfitsForItem(itemId)

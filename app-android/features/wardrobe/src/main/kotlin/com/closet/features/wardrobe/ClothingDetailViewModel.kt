@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.util.AppError
+import com.closet.core.data.util.fold
+import com.closet.core.ui.util.UserMessage
+import com.closet.core.ui.util.asUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +17,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel for the Clothing Detail screen.
+ * Handles fetching a specific clothing item by its ID and managing the UI state.
+ *
+ * @param savedStateHandle Handle to saved state, used to retrieve navigation arguments.
+ * @param clothingRepository Repository for accessing clothing item data.
+ */
 @HiltViewModel
 class ClothingDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -20,33 +31,51 @@ class ClothingDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<ClothingDetailDestination>()
+
+    /** The ID of the clothing item being displayed. */
     val itemId = destination.itemId
 
     private val _uiState = MutableStateFlow<ClothingDetailUiState>(ClothingDetailUiState.Loading)
+
+    /** The current UI state of the detail screen. */
     val uiState: StateFlow<ClothingDetailUiState> = _uiState.asStateFlow()
 
     init {
         loadItem()
     }
 
+    /**
+     * Fetches the clothing item from the repository and updates the UI state.
+     * Uses the type-safe [DataResult] to handle success and various error states.
+     */
     private fun loadItem() {
         viewModelScope.launch {
-            try {
-                val item = clothingRepository.getItemById(itemId)
-                _uiState.value = if (item != null) {
-                    ClothingDetailUiState.Success(item)
-                } else {
-                    ClothingDetailUiState.Error("Item not found")
+            _uiState.value = ClothingDetailUiState.Loading
+
+            clothingRepository.getItemById(itemId).fold(
+                onLoading = { /* Suspended results won't trigger onLoading here */ },
+                onSuccess = { item ->
+                    _uiState.value = ClothingDetailUiState.Success(item)
+                },
+                onError = { throwable ->
+                    val error = throwable as? AppError ?: AppError.Unexpected(throwable)
+                    _uiState.value = ClothingDetailUiState.Error(error.asUserMessage())
                 }
-            } catch (e: Exception) {
-                _uiState.value = ClothingDetailUiState.Error(e.message ?: "Failed to load item")
-            }
+            )
         }
     }
 }
 
+/**
+ * UI state for the Clothing Detail screen.
+ */
 sealed interface ClothingDetailUiState {
+    /** Indicates the item is currently being fetched. */
     data object Loading : ClothingDetailUiState
+
+    /** Indicates the item was successfully retrieved. */
     data class Success(val item: ClothingItemWithMeta) : ClothingDetailUiState
-    data class Error(val message: String) : ClothingDetailUiState
+
+    /** Indicates a failure occurred while fetching the item. */
+    data class Error(val userMessage: UserMessage) : ClothingDetailUiState
 }

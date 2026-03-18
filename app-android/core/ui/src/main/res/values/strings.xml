@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_database_not_found">Item not found.</string>
+    <string name="error_database_constraint">Database constraint violation: %s</string>
+    <string name="error_database_query">A database error occurred.</string>
+    <string name="error_validation_invalid">Invalid input: %s</string>
+    <string name="error_validation_missing">Missing required field: %s</string>
+    <string name="error_unexpected">An unexpected error occurred.</string>
+</resources>
