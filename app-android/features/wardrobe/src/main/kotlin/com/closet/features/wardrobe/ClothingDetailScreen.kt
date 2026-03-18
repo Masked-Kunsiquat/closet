@@ -18,11 +18,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.ClothingItemWithMeta
+import com.closet.core.data.model.ClothingStatus
+import com.closet.core.data.model.WashStatus
+import com.closet.core.ui.theme.ClosetTheme
 import java.text.NumberFormat
 import java.util.*
 
@@ -351,5 +355,31 @@ private fun DetailRow(
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+@Preview(showBackground = true, name = "Light Mode")
+@Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
+@Composable
+private fun ClothingDetailContentPreview() {
+    ClosetTheme {
+        Surface {
+            ClothingDetailContent(
+                item = ClothingItemWithMeta(
+                    id = 1L,
+                    name = "Vintage Denim Jacket",
+                    brand = "Levi's",
+                    categoryName = "Outerwear",
+                    subcategoryName = "Jackets",
+                    imagePath = null,
+                    wearCount = 12,
+                    purchasePrice = 89.99,
+                    status = ClothingStatus.Active,
+                    isFavorite = 1,
+                    washStatus = WashStatus.Clean
+                ),
+                onWashStatusToggle = {}
+            )
+        }
     }
 }
