@@ -5,12 +5,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -24,10 +28,6 @@ import java.util.*
 
 /**
  * Screen for viewing the details of a specific clothing item.
- *
- * @param onBackClick Callback to navigate back to the previous screen.
- * @param modifier The [Modifier] to be applied to the screen.
- * @param viewModel The [ClothingDetailViewModel] providing state for this screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +37,31 @@ fun ClothingDetailScreen(
     viewModel: ClothingDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Item") },
+            text = { Text("Are you sure you want to delete this item? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteItem(onDeleted = onBackClick)
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = modifier,
@@ -55,6 +80,24 @@ fun ClothingDetailScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
+                    }
+                },
+                actions = {
+                    val state = uiState
+                    if (state is ClothingDetailUiState.Success) {
+                        IconButton(onClick = { viewModel.toggleFavorite() }) {
+                            Icon(
+                                imageVector = if (state.item.isFavorite == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = if (state.item.isFavorite == 1) Color.Red else LocalContentColor.current
+                            )
+                        }
+                        IconButton(onClick = { /* Placeholder for Edit */ }) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit")
+                        }
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete")
+                        }
                     }
                 }
             )
@@ -77,7 +120,10 @@ fun ClothingDetailScreen(
                     )
                 }
                 is ClothingDetailUiState.Success -> {
-                    ClothingDetailContent(item = state.item)
+                    ClothingDetailContent(
+                        item = state.item,
+                        onWashStatusToggle = { viewModel.toggleWashStatus() }
+                    )
                 }
             }
         }
@@ -110,6 +156,7 @@ private fun ErrorContent(
 @Composable
 private fun ClothingDetailContent(
     item: ClothingItemWithMeta,
+    onWashStatusToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -157,7 +204,7 @@ private fun ClothingDetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Stats Group Card (Wear Count and Cost Per Wear)
+        // Stats Group Card
         StatsGroup(
             wearCount = item.wearCount,
             costPerWear = item.costPerWear
@@ -165,7 +212,7 @@ private fun ClothingDetailContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Details Group Card (Category and Subcategory)
+        // Details Group Card
         DetailGroup(
             category = item.categoryName,
             subcategory = item.subcategoryName
@@ -184,7 +231,7 @@ private fun ClothingDetailContent(
             )
             
             AssistChip(
-                onClick = { /* Toggle wash handled in next phase */ },
+                onClick = onWashStatusToggle,
                 label = { Text(item.washStatus.label) }
             )
         }

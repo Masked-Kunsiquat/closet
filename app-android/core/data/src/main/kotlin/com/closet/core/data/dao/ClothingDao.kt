@@ -88,6 +88,14 @@ interface ClothingDao {
     @Query("UPDATE clothing_items SET wash_status = :washStatus, updated_at = datetime('now') WHERE id = :id")
     suspend fun updateWashStatus(id: Long, washStatus: String)
 
+    /**
+     * Updates the favorite status and modification timestamp for a specific clothing item.
+     * @param id The ID of the clothing item.
+     * @param isFavorite 1 if favorite, 0 otherwise.
+     */
+    @Query("UPDATE clothing_items SET is_favorite = :isFavorite, updated_at = datetime('now') WHERE id = :id")
+    suspend fun updateFavoriteStatus(id: Long, isFavorite: Int)
+
     // --- Junction Table Helpers (Atomically replace associations) ---
 
     /**

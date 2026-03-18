@@ -106,6 +106,21 @@ class ClothingRepository @Inject constructor(
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
+    /**
+     * Toggles the favorite status for a specific clothing item.
+     * @param id The ID of the item.
+     * @param isFavorite Whether the item should be marked as favorite.
+     * @return A [DataResult] indicating success or failure.
+     */
+    suspend fun updateFavoriteStatus(id: Long, isFavorite: Boolean): DataResult<Unit> = try {
+        clothingDao.updateFavoriteStatus(id, if (isFavorite) 1 else 0)
+        DataResult.Success(Unit)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error updating favorite status for item: $id")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
+
     // --- Junction Table Management ---
     // Atomic updates using withTransaction to ensure data integrity.
 
@@ -152,7 +167,7 @@ class ClothingRepository @Inject constructor(
     /**
      * Atomically replaces pattern associations for an item.
      * @param itemId The ID of the clothing item.
-     * @param patternIds The list of new pattern IDs.
+     * @param patternIds El list of new pattern IDs.
      */
     suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>): DataResult<Unit> = wrapInTransaction {
         clothingDao.deleteItemPatterns(itemId)
