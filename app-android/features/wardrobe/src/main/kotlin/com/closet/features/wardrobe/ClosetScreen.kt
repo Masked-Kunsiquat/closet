@@ -64,14 +64,18 @@ internal fun ClosetContent(
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.wardrobe_my_closet)) }
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
             CategoryFilterRow(
                 categories = categories,
                 selectedCategoryId = selectedCategoryId,
@@ -79,11 +83,12 @@ internal fun ClosetContent(
             )
             
             if (items.isEmpty()) {
-                EmptyClosetMessage()
+                EmptyClosetMessage(modifier = Modifier.weight(1f))
             } else {
                 ClosetGrid(
                     items = items,
-                    onItemClick = onItemClick
+                    onItemClick = onItemClick,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -105,7 +110,7 @@ private fun CategoryFilterRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item {
+        item(key = "all") {
             FilterChip(
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelect(null) },
