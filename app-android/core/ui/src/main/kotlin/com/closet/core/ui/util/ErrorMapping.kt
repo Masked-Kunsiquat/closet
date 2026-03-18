@@ -14,16 +14,16 @@ fun AppError.toUserMessage(context: Context): String {
             context.getString(R.string.error_database_not_found)
         
         is AppError.DatabaseError.ConstraintViolation -> 
-            context.getString(R.string.error_database_constraint, this.message)
+            context.getString(R.string.error_database_constraint)
         
         is AppError.DatabaseError.QueryError -> 
             context.getString(R.string.error_database_query)
         
         is AppError.ValidationError.InvalidInput -> 
-            context.getString(R.string.error_validation_invalid, this.message)
+            context.getString(R.string.error_validation_invalid)
         
         is AppError.ValidationError.MissingField -> 
-            context.getString(R.string.error_validation_missing, this.fieldName)
+            context.getString(R.string.error_validation_missing)
         
         is AppError.Unexpected -> 
             context.getString(R.string.error_unexpected)
@@ -59,16 +59,16 @@ fun AppError.asUserMessage(): UserMessage {
             UserMessage(R.string.error_database_not_found)
         
         is AppError.DatabaseError.ConstraintViolation -> 
-            UserMessage(R.string.error_database_constraint, arrayOf(this.message))
+            UserMessage(R.string.error_database_constraint)
         
         is AppError.DatabaseError.QueryError -> 
             UserMessage(R.string.error_database_query)
         
         is AppError.ValidationError.InvalidInput -> 
-            UserMessage(R.string.error_validation_invalid, arrayOf(this.message))
+            UserMessage(R.string.error_validation_invalid)
         
         is AppError.ValidationError.MissingField -> 
-            UserMessage(R.string.error_validation_missing, arrayOf(this.fieldName))
+            UserMessage(R.string.error_validation_missing)
         
         is AppError.Unexpected -> 
             UserMessage(R.string.error_unexpected)

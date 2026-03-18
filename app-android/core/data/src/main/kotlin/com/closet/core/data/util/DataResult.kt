@@ -1,5 +1,6 @@
 package com.closet.core.data.util
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -17,12 +18,18 @@ sealed interface DataResult<out T> {
 
 /**
  * Converts a [Flow] of [T] to a [Flow] of [DataResult] of [T].
+ * Ensures that [CancellationException] is rethrown to properly support coroutine cancellation.
  */
 fun <T> Flow<T>.asDataResult(): Flow<DataResult<T>> {
     return this
         .map<T, DataResult<T>> { DataResult.Success(it) }
         .onStart { emit(DataResult.Loading) }
-        .catch { emit(DataResult.Error(it)) }
+        .catch { throwable ->
+            if (throwable is CancellationException) {
+                throw throwable
+            }
+            emit(DataResult.Error(throwable))
+        }
 }
 
 /**

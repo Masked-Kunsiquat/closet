@@ -54,7 +54,7 @@ class ClothingRepository @Inject constructor(
         DataResult.Success(id)
     } catch (e: android.database.sqlite.SQLiteConstraintException) {
         Timber.e(e, "Constraint violation inserting item")
-        DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "Unknown constraint"))
+        DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
     } catch (e: Exception) {
         Timber.e(e, "Unexpected error inserting item")
         DataResult.Error(AppError.Unexpected(e))
@@ -160,7 +160,7 @@ class ClothingRepository @Inject constructor(
         DataResult.Success(database.withTransaction { block() })
     } catch (e: android.database.sqlite.SQLiteConstraintException) {
         Timber.e(e, "Database transaction constraint violation")
-        DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "Unknown constraint"))
+        DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
     } catch (e: Exception) {
         Timber.e(e, "Unexpected error in database transaction")
         DataResult.Error(AppError.DatabaseError.QueryError(e))

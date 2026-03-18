@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.fold
+import com.closet.core.ui.util.UserMessage
+import com.closet.core.ui.util.asUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +21,7 @@ import javax.inject.Inject
 /**
  * ViewModel for the Clothing Detail screen.
  * Handles fetching a specific clothing item by its ID and managing the UI state.
- * 
+ *
  * @param savedStateHandle Handle to saved state, used to retrieve navigation arguments.
  * @param clothingRepository Repository for accessing clothing item data.
  */
@@ -29,12 +32,12 @@ class ClothingDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<ClothingDetailDestination>()
-    
+
     /** The ID of the clothing item being displayed. */
     val itemId = destination.itemId
 
     private val _uiState = MutableStateFlow<ClothingDetailUiState>(ClothingDetailUiState.Loading)
-    
+
     /** The current UI state of the detail screen. */
     val uiState: StateFlow<ClothingDetailUiState> = _uiState.asStateFlow()
 
@@ -44,18 +47,20 @@ class ClothingDetailViewModel @Inject constructor(
 
     /**
      * Fetches the clothing item from the repository and updates the UI state.
+     * Uses the type-safe [DataResult] to handle success and various error states.
      */
     private fun loadItem() {
         viewModelScope.launch {
             _uiState.value = ClothingDetailUiState.Loading
-            
+
             clothingRepository.getItemById(itemId).fold(
                 onLoading = { _uiState.value = ClothingDetailUiState.Loading },
-                onSuccess = { item -> 
+                onSuccess = { item ->
                     _uiState.value = ClothingDetailUiState.Success(item)
                 },
-                onError = { error ->
-                    _uiState.value = ClothingDetailUiState.Error(error.message ?: "Failed to load item")
+                onError = { throwable ->
+                    val error = throwable as? AppError ?: AppError.Unexpected(throwable)
+                    _uiState.value = ClothingDetailUiState.Error(error.asUserMessage())
                 }
             )
         }
@@ -68,10 +73,10 @@ class ClothingDetailViewModel @Inject constructor(
 sealed interface ClothingDetailUiState {
     /** Indicates the item is currently being fetched. */
     data object Loading : ClothingDetailUiState
-    
+
     /** Indicates the item was successfully retrieved. */
     data class Success(val item: ClothingItemWithMeta) : ClothingDetailUiState
-    
+
     /** Indicates a failure occurred while fetching the item. */
-    data class Error(val message: String) : ClothingDetailUiState
+    data class Error(val userMessage: UserMessage) : ClothingDetailUiState
 }
