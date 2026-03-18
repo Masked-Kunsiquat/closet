@@ -28,7 +28,7 @@ class ClothingRepository @Inject constructor(
         if (item != null) {
             DataResult.Success(item)
         } else {
-            DataResult.Error(AppError.DatabaseError.NotFound)
+            DataResult.Error(AppError.DatabaseError.NotFound())
         }
     } catch (e: Exception) {
         Timber.e(e, "Error fetching item by ID: $id")
