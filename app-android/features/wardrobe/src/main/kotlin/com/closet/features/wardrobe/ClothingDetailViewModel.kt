@@ -7,6 +7,7 @@ import androidx.navigation.toRoute
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.fold
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -33,7 +35,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ClothingDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val clothingRepository: ClothingRepository
+    private val clothingRepository: ClothingRepository,
+    private val storageRepository: StorageRepository
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<ClothingDetailDestination>()
@@ -123,12 +126,25 @@ class ClothingDetailViewModel @Inject constructor(
      */
     fun deleteItem(onDeleted: () -> Unit) {
         viewModelScope.launch {
+            val currentState = _uiState.value
+            if (currentState is ClothingDetailUiState.Success) {
+                // Delete the image from storage first if it exists
+                currentState.item.imagePath?.let { storageRepository.deleteImage(it) }
+            }
+
             clothingRepository.deleteItem(itemId).fold(
                 onLoading = {},
                 onSuccess = { onDeleted() },
                 onError = { handleActionError(it) }
             )
         }
+    }
+
+    /**
+     * Helper for UI to get the absolute file for a relative path.
+     */
+    fun getAbsoluteFile(relativePath: String): File {
+        return storageRepository.getFile(relativePath)
     }
 
     /**

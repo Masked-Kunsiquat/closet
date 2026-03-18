@@ -3,7 +3,6 @@ package com.closet.features.wardrobe
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -64,6 +63,7 @@ import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.WashStatus
 import com.closet.core.ui.theme.ClosetTheme
 import kotlinx.coroutines.flow.collectLatest
+import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -181,7 +181,8 @@ fun ClothingDetailScreen(
                 is ClothingDetailUiState.Success -> {
                     ClothingDetailContent(
                         item = state.item,
-                        onWashStatusToggle = { viewModel.toggleWashStatus() }
+                        onWashStatusToggle = { viewModel.toggleWashStatus() },
+                        getAbsoluteFile = { viewModel.getAbsoluteFile(it) }
                     )
                 }
             }
@@ -216,6 +217,7 @@ private fun ErrorContent(
 private fun ClothingDetailContent(
     item: ClothingItemWithMeta,
     onWashStatusToggle: () -> Unit,
+    getAbsoluteFile: (String) -> File,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -232,8 +234,10 @@ private fun ClothingDetailContent(
             color = MaterialTheme.colorScheme.surfaceVariant,
             shape = MaterialTheme.shapes.medium
         ) {
+            val imageModel = item.imagePath?.let { getAbsoluteFile(it) }
+            
             AsyncImage(
-                model = item.imagePath,
+                model = imageModel,
                 contentDescription = item.name,
                 modifier = Modifier
                     .fillMaxSize()
@@ -439,7 +443,8 @@ private fun ClothingDetailContentPreview() {
                     isFavorite = 1,
                     washStatus = WashStatus.Clean
                 ),
-                onWashStatusToggle = {}
+                onWashStatusToggle = {},
+                getAbsoluteFile = { File(it) }
             )
         }
     }
