@@ -2,6 +2,7 @@ package com.closet.core.data.repository
 
 import androidx.room.withTransaction
 import com.closet.core.data.ClothingDatabase
+import com.closet.core.data.Converters
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.*
 import com.closet.core.data.util.AppError
@@ -11,6 +12,7 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import java.time.Instant
 
 /**
  * Repository providing access to clothing items.
@@ -22,6 +24,8 @@ class ClothingRepository @Inject constructor(
     private val database: ClothingDatabase,
     private val clothingDao: ClothingDao
 ) {
+    private val converters = Converters()
+
     /**
      * Retrieves all clothing items as a stream.
      * @return A [Flow] emitting a list of [ClothingItemWithMeta].
@@ -98,7 +102,8 @@ class ClothingRepository @Inject constructor(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateWashStatus(id: Long, washStatus: WashStatus): DataResult<Unit> = try {
-        clothingDao.updateWashStatus(id, washStatus.label)
+        val updatedAt = converters.dateToTimestamp(Instant.now()) ?: ""
+        clothingDao.updateWashStatus(id, washStatus.label, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
@@ -113,7 +118,8 @@ class ClothingRepository @Inject constructor(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateFavoriteStatus(id: Long, isFavorite: Boolean): DataResult<Unit> = try {
-        clothingDao.updateFavoriteStatus(id, if (isFavorite) 1 else 0)
+        val updatedAt = converters.dateToTimestamp(Instant.now()) ?: ""
+        clothingDao.updateFavoriteStatus(id, if (isFavorite) 1 else 0, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
@@ -167,7 +173,7 @@ class ClothingRepository @Inject constructor(
     /**
      * Atomically replaces pattern associations for an item.
      * @param itemId The ID of the clothing item.
-     * @param patternIds El list of new pattern IDs.
+     * @param patternIds The list of new pattern IDs.
      */
     suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>): DataResult<Unit> = wrapInTransaction {
         clothingDao.deleteItemPatterns(itemId)

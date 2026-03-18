@@ -29,24 +29,30 @@ class ClosetViewModel @Inject constructor(
     val selectedCategoryId: StateFlow<Long?> = _selectedCategoryId.asStateFlow()
 
     /**
+     * Available categories for filtering items in the main grid.
+     */
+    val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
+            initialValue = emptyList()
+        )
+
+    /**
      * The list of clothing items to display in the grid.
      * Items are provided with metadata like category names and wear counts.
-     * Parity: Mirrored order (newest first) and includes wear_count.
      * Logic: Filters items based on the selected category if one is set.
+     * Refined: Includes categories flow in combine to trigger recomputation on category updates.
      */
     val items: StateFlow<List<ClothingItemWithMeta>> = combine(
         clothingRepository.getAllItems(),
-        _selectedCategoryId
-    ) { allItems, selectedId ->
+        _selectedCategoryId,
+        categories
+    ) { allItems, selectedId, categoriesList ->
         if (selectedId == null) {
             allItems
         } else {
-            // Note: In a larger DB, we'd move this filter to the DAO/Repository.
-            // For Closet's local-first scale, in-memory filtering is performant.
-            // We match by categoryName since ClothingItemWithMeta doesn't expose categoryId directly yet,
-            // but for robustness we should ideally use IDs if we update the model.
-            // Checking the category name from the entity list:
-            val selectedCategoryName = categories.value.find { it.id == selectedId }?.name
+            val selectedCategoryName = categoriesList.find { it.id == selectedId }?.name
             if (selectedCategoryName != null) {
                 allItems.filter { it.categoryName == selectedCategoryName }
             } else {
@@ -58,16 +64,6 @@ class ClosetViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
         initialValue = emptyList()
     )
-
-    /**
-     * Available categories for filtering items in the main grid.
-     */
-    val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
-            initialValue = emptyList()
-        )
 
     /**
      * Updates the currently selected category filter.

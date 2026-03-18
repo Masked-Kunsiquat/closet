@@ -13,8 +13,11 @@ import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -41,6 +44,10 @@ class ClothingDetailViewModel @Inject constructor(
 
     /** The current UI state of the detail screen. */
     val uiState: StateFlow<ClothingDetailUiState> = _uiState.asStateFlow()
+
+    private val _actionError = MutableSharedFlow<UserMessage>()
+    /** Transient error messages for actions like toggle or delete. */
+    val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
     init {
         loadItem()
@@ -120,13 +127,13 @@ class ClothingDetailViewModel @Inject constructor(
     }
 
     /**
-     * Maps action errors to the UI state to surface them to the user.
+     * Maps action errors to a transient event flow rather than replacing the whole UI state.
      */
     private fun handleActionError(throwable: Throwable) {
         val error = throwable as? AppError ?: AppError.Unexpected(throwable)
-        // We could use a separate state for transient action errors (like a Snackbar),
-        // but for now, we'll update the main UI state.
-        _uiState.value = ClothingDetailUiState.Error(error.asUserMessage())
+        viewModelScope.launch {
+            _actionError.emit(error.asUserMessage())
+        }
     }
 }
 

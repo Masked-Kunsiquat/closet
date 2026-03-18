@@ -46,8 +46,8 @@ fun ClothingDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Item") },
-            text = { Text("Are you sure you want to delete this item? This action cannot be undone.") },
+            title = { Text(stringResource(R.string.wardrobe_delete_item_title)) },
+            text = { Text(stringResource(R.string.wardrobe_delete_item_confirmation)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -56,12 +56,12 @@ fun ClothingDetailScreen(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.wardrobe_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.wardrobe_cancel))
                 }
             }
         )
@@ -82,7 +82,7 @@ fun ClothingDetailScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.wardrobe_back)
                         )
                     }
                 },
@@ -92,15 +92,21 @@ fun ClothingDetailScreen(
                         IconButton(onClick = { viewModel.toggleFavorite() }) {
                             Icon(
                                 imageVector = if (state.item.isFavorite == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = "Favorite",
+                                contentDescription = stringResource(R.string.wardrobe_favorite),
                                 tint = if (state.item.isFavorite == 1) Color.Red else LocalContentColor.current
                             )
                         }
                         IconButton(onClick = { /* Placeholder for Edit */ }) {
-                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit")
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.wardrobe_edit)
+                            )
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete")
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.wardrobe_delete)
+                            )
                         }
                     }
                 }
@@ -266,7 +272,7 @@ private fun StatsGroup(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Usage",
+                    text = stringResource(R.string.wardrobe_usage),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
@@ -289,7 +295,7 @@ private fun StatsGroup(
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Cost per wear",
+                    text = stringResource(R.string.wardrobe_cost_per_wear),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
@@ -319,14 +325,20 @@ private fun DetailGroup(
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            DetailRow(label = "Category", value = category ?: "Uncategorized")
+            DetailRow(
+                label = stringResource(R.string.wardrobe_category),
+                value = category ?: stringResource(R.string.wardrobe_uncategorized)
+            )
             if (subcategory != null) {
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 8.dp),
                     thickness = 0.5.dp,
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
-                DetailRow(label = "Subcategory", value = subcategory)
+                DetailRow(
+                    label = stringResource(R.string.wardrobe_subcategory),
+                    value = subcategory
+                )
             }
         }
     }

@@ -7,4 +7,18 @@
     </plurals>
     <string name="wardrobe_empty_closet">Your closet is empty. Add some clothes!</string>
     <string name="wardrobe_all_items">All</string>
+
+    <!-- Clothing Detail -->
+    <string name="wardrobe_back">Back</string>
+    <string name="wardrobe_favorite">Favorite</string>
+    <string name="wardrobe_edit">Edit</string>
+    <string name="wardrobe_delete">Delete</string>
+    <string name="wardrobe_usage">Usage</string>
+    <string name="wardrobe_cost_per_wear">Cost per wear</string>
+    <string name="wardrobe_delete_item_title">Delete Item</string>
+    <string name="wardrobe_delete_item_confirmation">Are you sure you want to delete this item? This action cannot be undone.</string>
+    <string name="wardrobe_cancel">Cancel</string>
+    <string name="wardrobe_category">Category</string>
+    <string name="wardrobe_subcategory">Subcategory</string>
+    <string name="wardrobe_uncategorized">Uncategorized</string>
 </resources>
