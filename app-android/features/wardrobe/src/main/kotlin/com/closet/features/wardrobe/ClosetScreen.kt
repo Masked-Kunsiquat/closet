@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -27,11 +29,13 @@ import com.closet.core.ui.theme.ClosetTheme
  * Displays a grid of clothing items with their wear counts and category metadata.
  * 
  * @param modifier The [Modifier] to be applied to the screen.
+ * @param onAddItemClick Callback invoked when the add button is tapped.
  * @param onItemClick Callback invoked when a clothing item is tapped, passing its ID.
  * @param viewModel The [ClosetViewModel] providing state for this screen.
  */
 @Composable
 fun ClosetScreen(
+    onAddItemClick: () -> Unit,
     modifier: Modifier = Modifier,
     onItemClick: (Long) -> Unit = {},
     viewModel: ClosetViewModel = hiltViewModel()
@@ -45,6 +49,7 @@ fun ClosetScreen(
         categories = categories,
         selectedCategoryId = selectedCategoryId,
         onCategorySelect = viewModel::selectCategory,
+        onAddItemClick = onAddItemClick,
         onItemClick = onItemClick,
         modifier = modifier
     )
@@ -60,6 +65,7 @@ internal fun ClosetContent(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     onCategorySelect: (Long?) -> Unit,
+    onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -69,6 +75,14 @@ internal fun ClosetContent(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.wardrobe_my_closet)) }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddItemClick) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = stringResource(R.string.wardrobe_add_item)
+                )
+            }
         }
     ) { padding ->
         Column(
@@ -217,6 +231,7 @@ private fun ClosetScreenPreview() {
                 ),
                 selectedCategoryId = null,
                 onCategorySelect = {},
+                onAddItemClick = {},
                 onItemClick = {}
             )
         }
@@ -233,6 +248,7 @@ private fun ClosetScreenEmptyPreview() {
                 categories = emptyList(),
                 selectedCategoryId = null,
                 onCategorySelect = {},
+                onAddItemClick = {},
                 onItemClick = {}
             )
         }

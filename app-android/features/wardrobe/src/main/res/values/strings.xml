@@ -21,4 +21,10 @@
     <string name="wardrobe_category">Category</string>
     <string name="wardrobe_subcategory">Subcategory</string>
     <string name="wardrobe_uncategorized">Uncategorized</string>
+
+    <!-- Add Clothing -->
+    <string name="wardrobe_add_item">Add Item</string>
+    <string name="wardrobe_save">Save</string>
+    <string name="wardrobe_name">Name</string>
+    <string name="wardrobe_brand">Brand</string>
 </resources>
