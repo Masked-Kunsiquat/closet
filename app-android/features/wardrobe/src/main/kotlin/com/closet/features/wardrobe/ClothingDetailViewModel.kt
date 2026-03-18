@@ -13,6 +13,7 @@ import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -45,7 +46,11 @@ class ClothingDetailViewModel @Inject constructor(
     /** The current UI state of the detail screen. */
     val uiState: StateFlow<ClothingDetailUiState> = _uiState.asStateFlow()
 
-    private val _actionError = MutableSharedFlow<UserMessage>()
+    private val _actionError = MutableSharedFlow<UserMessage>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
     /** Transient error messages for actions like toggle or delete. */
     val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
@@ -78,9 +83,9 @@ class ClothingDetailViewModel @Inject constructor(
      * Toggles the favorite status of the current item.
      */
     fun toggleFavorite() {
-        val currentState = _uiState.value
-        if (currentState is ClothingDetailUiState.Success) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            if (currentState is ClothingDetailUiState.Success) {
                 val newFavorite = currentState.item.isFavorite == 0
                 clothingRepository.updateFavoriteStatus(itemId, newFavorite).fold(
                     onLoading = {},
@@ -95,9 +100,9 @@ class ClothingDetailViewModel @Inject constructor(
      * Toggles the wash status of the current item between Clean and Dirty.
      */
     fun toggleWashStatus() {
-        val currentState = _uiState.value
-        if (currentState is ClothingDetailUiState.Success) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            if (currentState is ClothingDetailUiState.Success) {
                 val newStatus = if (currentState.item.washStatus == WashStatus.Clean) {
                     WashStatus.Dirty
                 } else {
