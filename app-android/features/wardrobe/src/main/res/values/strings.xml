@@ -30,6 +30,8 @@
     <string name="wardrobe_occasions">Occasions</string>
     <string name="wardrobe_patterns">Patterns</string>
     <string name="wardrobe_none_selected">None selected</string>
+    <string name="wardrobe_purchase_info">Purchase Information</string>
+    <string name="wardrobe_size">Size</string>
 
     <!-- Add Clothing -->
     <string name="wardrobe_add_item">Add Item</string>

@@ -18,6 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
@@ -29,6 +30,9 @@ import com.closet.core.ui.theme.ClosetTheme
 import kotlinx.coroutines.flow.collectLatest
 import java.io.File
 import java.text.NumberFormat
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 private enum class ActiveSheet {
@@ -249,6 +253,13 @@ private fun ErrorContent(
         modifier = modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = userMessage,
             style = MaterialTheme.typography.bodyLarge,
@@ -273,6 +284,9 @@ private fun ClothingDetailContent(
     getAbsoluteFile: (String) -> File,
     modifier: Modifier = Modifier
 ) {
+    val dateFormatter = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
+    val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale.getDefault()) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -328,14 +342,6 @@ private fun ClothingDetailContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Details Group Card
-        DetailGroup(
-            category = item.category?.name,
-            subcategory = item.subcategory?.name
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Appearance Group (Chips)
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -359,7 +365,77 @@ private fun ClothingDetailContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Details Group Card (Main Metadata)
+        DetailGroup {
+            DetailRow(
+                label = stringResource(R.string.wardrobe_category),
+                value = item.category?.name ?: stringResource(R.string.wardrobe_uncategorized)
+            )
+            val subcategory = item.subcategory
+            if (subcategory != null) {
+                DetailDivider()
+                DetailRow(
+                    label = stringResource(R.string.wardrobe_subcategory),
+                    value = subcategory.name
+                )
+            }
+            val sizeValue = item.sizeValue
+            if (sizeValue != null) {
+                DetailDivider()
+                DetailRow(
+                    label = stringResource(R.string.wardrobe_size),
+                    value = sizeValue.value
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Purchase Info Group
+        val price = item.item.purchasePrice
+        val dateStr = item.item.purchaseDate
+        val location = item.item.purchaseLocation
+        if (price != null || dateStr != null || location != null) {
+            DetailGroup(title = stringResource(R.string.wardrobe_purchase_info)) {
+                if (price != null) {
+                    DetailRow(
+                        label = stringResource(R.string.wardrobe_purchase_price),
+                        value = currencyFormatter.format(price)
+                    )
+                }
+                if (dateStr != null) {
+                    if (price != null) DetailDivider()
+                    val date = try { LocalDate.parse(dateStr) } catch (e: Exception) { null }
+                    DetailRow(
+                        label = stringResource(R.string.wardrobe_purchase_date),
+                        value = date?.format(dateFormatter) ?: dateStr
+                    )
+                }
+                if (location != null) {
+                    if (price != null || dateStr != null) DetailDivider()
+                    DetailRow(
+                        label = stringResource(R.string.wardrobe_purchase_location),
+                        value = location
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Notes Group
+        val notes = item.item.notes
+        if (!notes.isNullOrBlank()) {
+            DetailGroup(title = stringResource(R.string.wardrobe_notes)) {
+                Text(
+                    text = notes,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Attributes Section
         AttributeSection(
@@ -474,7 +550,8 @@ private fun AttributeSection(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
             )
             IconButton(onClick = onEditClick) {
                 Icon(
@@ -485,7 +562,7 @@ private fun AttributeSection(
             }
         }
         content()
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
@@ -549,7 +626,8 @@ private fun StatsGroup(
                         wearCount
                     ),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -568,7 +646,8 @@ private fun StatsGroup(
                 Text(
                     text = if (costPerWear != null) currencyFormatter.format(costPerWear) else "—",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -576,35 +655,33 @@ private fun StatsGroup(
 }
 
 /**
- * Card displaying primary metadata like Category and Subcategory.
+ * Generic group card for displaying metadata.
  */
 @Composable
 private fun DetailGroup(
-    category: String?,
-    subcategory: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            DetailRow(
-                label = stringResource(R.string.wardrobe_category),
-                value = category ?: stringResource(R.string.wardrobe_uncategorized)
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (title != null) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
+                fontWeight = FontWeight.Bold
             )
-            if (subcategory != null) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-                DetailRow(
-                    label = stringResource(R.string.wardrobe_subcategory),
-                    value = subcategory
-                )
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                content()
             }
         }
     }
@@ -620,7 +697,8 @@ private fun DetailRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
@@ -630,9 +708,19 @@ private fun DetailRow(
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium
         )
     }
+}
+
+@Composable
+private fun DetailDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 8.dp),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
 }
 
 @Preview(showBackground = true, name = "Light Mode")
