@@ -31,11 +31,15 @@ class ClothingDetailViewModel @Inject constructor(
 
     private fun loadItem() {
         viewModelScope.launch {
-            val item = clothingRepository.getItemById(itemId)
-            _uiState.value = if (item != null) {
-                ClothingDetailUiState.Success(item)
-            } else {
-                ClothingDetailUiState.Error("Item not found")
+            try {
+                val item = clothingRepository.getItemById(itemId)
+                _uiState.value = if (item != null) {
+                    ClothingDetailUiState.Success(item)
+                } else {
+                    ClothingDetailUiState.Error("Item not found")
+                }
+            } catch (e: Exception) {
+                _uiState.value = ClothingDetailUiState.Error(e.message ?: "Failed to load item")
             }
         }
     }
