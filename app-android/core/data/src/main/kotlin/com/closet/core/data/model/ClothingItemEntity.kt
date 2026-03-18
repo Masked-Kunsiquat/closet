@@ -109,13 +109,14 @@ data class ClothingItemWithMeta(
     val purchasePrice: Double?,
     val status: ClothingStatus,
     @ColumnInfo(name = "is_favorite")
-    val isFavorite: Int
+    val isFavorite: Int,
+    @ColumnInfo(name = "wash_status")
+    val washStatus: WashStatus
 ) {
     /** 
      * Computed at runtime for parity with "built well" rules.
      * purchase_price / wear_count
      */
-    @Suppress("unused")
     val costPerWear: Double?
         get() = if (wearCount > 0) (purchasePrice ?: 0.0) / wearCount else purchasePrice
 }

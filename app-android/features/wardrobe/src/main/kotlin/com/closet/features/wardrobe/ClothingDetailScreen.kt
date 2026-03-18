@@ -13,11 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.ClothingItemWithMeta
+import java.text.NumberFormat
+import java.util.*
 
 /**
  * Screen for viewing the details of a specific clothing item.
@@ -154,7 +157,15 @@ private fun ClothingDetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Details Group Card
+        // Stats Group Card (Wear Count and Cost Per Wear)
+        StatsGroup(
+            wearCount = item.wearCount,
+            costPerWear = item.costPerWear
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Details Group Card (Category and Subcategory)
         DetailGroup(
             category = item.categoryName,
             subcategory = item.subcategoryName
@@ -172,15 +183,72 @@ private fun ClothingDetailContent(
                 label = { Text(item.status.label) }
             )
             
-            // Note: WashStatus is not in ClothingItemWithMeta, we'll need to update it
-            // For now, using Status as a placeholder for the look.
             AssistChip(
                 onClick = { /* Toggle wash handled in next phase */ },
-                label = { Text("Clean") }, // Placeholder label
-                leadingIcon = {
-                    // We can add an icon here later if desired
-                }
+                label = { Text(item.washStatus.label) }
             )
+        }
+    }
+}
+
+/**
+ * Card displaying usage statistics like wear count and cost per wear.
+ */
+@Composable
+private fun StatsGroup(
+    wearCount: Int,
+    costPerWear: Double?,
+    modifier: Modifier = Modifier
+) {
+    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Usage",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.wardrobe_worn_times,
+                        wearCount,
+                        wearCount
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            VerticalDivider(
+                modifier = Modifier.height(40.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f)
+            )
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Cost per wear",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    text = if (costPerWear != null) currencyFormatter.format(costPerWear) else "—",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         }
     }
 }

@@ -19,7 +19,7 @@ interface ClothingDao {
      */
     @Query("""
         SELECT
-            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite,
+            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
             (
@@ -42,7 +42,7 @@ interface ClothingDao {
      */
     @Query("""
         SELECT
-            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite,
+            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
             (
