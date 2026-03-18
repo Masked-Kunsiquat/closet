@@ -24,6 +24,12 @@
     <string name="wardrobe_purchase_date">Purchase Date</string>
     <string name="wardrobe_purchase_location">Purchase Location</string>
     <string name="wardrobe_notes">Notes</string>
+    <string name="wardrobe_colors">Colors</string>
+    <string name="wardrobe_materials">Materials</string>
+    <string name="wardrobe_seasons">Seasons</string>
+    <string name="wardrobe_occasions">Occasions</string>
+    <string name="wardrobe_patterns">Patterns</string>
+    <string name="wardrobe_none_selected">None selected</string>
 
     <!-- Add Clothing -->
     <string name="wardrobe_add_item">Add Item</string>

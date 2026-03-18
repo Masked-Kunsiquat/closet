@@ -1,50 +1,15 @@
 package com.closet.features.wardrobe
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,17 +20,20 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.closet.core.data.model.ClothingItemWithMeta
-import com.closet.core.data.model.ClothingStatus
-import com.closet.core.data.model.WashStatus
+import com.closet.core.data.model.*
 import com.closet.core.ui.theme.ClosetTheme
 import kotlinx.coroutines.flow.collectLatest
 import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
+
+private enum class ActiveSheet {
+    None, Colors, Materials, Seasons, Occasions, Patterns
+}
 
 /**
  * Screen for viewing the details of a specific clothing item.
@@ -80,6 +48,14 @@ fun ClothingDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var activeSheet by remember { mutableStateOf(ActiveSheet.None) }
+    
+    val colors by viewModel.colors.collectAsStateWithLifecycle()
+    val materials by viewModel.materials.collectAsStateWithLifecycle()
+    val seasons by viewModel.seasons.collectAsStateWithLifecycle()
+    val occasions by viewModel.occasions.collectAsStateWithLifecycle()
+    val patterns by viewModel.patterns.collectAsStateWithLifecycle()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -123,7 +99,7 @@ fun ClothingDetailScreen(
             TopAppBar(
                 title = {
                     val title = when (val state = uiState) {
-                        is ClothingDetailUiState.Success -> state.item.name
+                        is ClothingDetailUiState.Success -> state.item.item.name
                         else -> ""
                     }
                     Text(title)
@@ -141,12 +117,12 @@ fun ClothingDetailScreen(
                     if (state is ClothingDetailUiState.Success) {
                         IconButton(onClick = { viewModel.toggleFavorite() }) {
                             Icon(
-                                imageVector = if (state.item.isFavorite == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                imageVector = if (state.item.item.isFavorite == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = stringResource(R.string.wardrobe_favorite),
-                                tint = if (state.item.isFavorite == 1) Color.Red else LocalContentColor.current
+                                tint = if (state.item.item.isFavorite == 1) Color.Red else LocalContentColor.current
                             )
                         }
-                        IconButton(onClick = { onEditClick(state.item.id) }) {
+                        IconButton(onClick = { onEditClick(state.item.item.id) }) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = stringResource(R.string.wardrobe_edit)
@@ -183,8 +159,78 @@ fun ClothingDetailScreen(
                     ClothingDetailContent(
                         item = state.item,
                         onWashStatusToggle = { viewModel.toggleWashStatus() },
+                        onEditColors = { activeSheet = ActiveSheet.Colors },
+                        onEditMaterials = { activeSheet = ActiveSheet.Materials },
+                        onEditSeasons = { activeSheet = ActiveSheet.Seasons },
+                        onEditOccasions = { activeSheet = ActiveSheet.Occasions },
+                        onEditPatterns = { activeSheet = ActiveSheet.Patterns },
                         getAbsoluteFile = { viewModel.getAbsoluteFile(it) }
                     )
+
+                    // Sheet logic
+                    when (activeSheet) {
+                        ActiveSheet.Colors -> {
+                            MultiSelectSheet(
+                                title = stringResource(R.string.wardrobe_colors),
+                                items = colors.map { MultiSelectItem(it.id, it.name, it, it.hex) },
+                                selectedIds = state.item.colors.map { it.id }.toSet(),
+                                onDismiss = { activeSheet = ActiveSheet.None },
+                                onConfirm = { 
+                                    viewModel.updateColors(it)
+                                    activeSheet = ActiveSheet.None 
+                                }
+                            )
+                        }
+                        ActiveSheet.Materials -> {
+                            MultiSelectSheet(
+                                title = stringResource(R.string.wardrobe_materials),
+                                items = materials.map { MultiSelectItem(it.id, it.name, it) },
+                                selectedIds = state.item.materials.map { it.id }.toSet(),
+                                onDismiss = { activeSheet = ActiveSheet.None },
+                                onConfirm = { 
+                                    viewModel.updateMaterials(it)
+                                    activeSheet = ActiveSheet.None 
+                                }
+                            )
+                        }
+                        ActiveSheet.Seasons -> {
+                            MultiSelectSheet(
+                                title = stringResource(R.string.wardrobe_seasons),
+                                items = seasons.map { MultiSelectItem(it.id, it.name, it) },
+                                selectedIds = state.item.seasons.map { it.id }.toSet(),
+                                onDismiss = { activeSheet = ActiveSheet.None },
+                                onConfirm = { 
+                                    viewModel.updateSeasons(it)
+                                    activeSheet = ActiveSheet.None 
+                                }
+                            )
+                        }
+                        ActiveSheet.Occasions -> {
+                            MultiSelectSheet(
+                                title = stringResource(R.string.wardrobe_occasions),
+                                items = occasions.map { MultiSelectItem(it.id, it.name, it) },
+                                selectedIds = state.item.occasions.map { it.id }.toSet(),
+                                onDismiss = { activeSheet = ActiveSheet.None },
+                                onConfirm = { 
+                                    viewModel.updateOccasions(it)
+                                    activeSheet = ActiveSheet.None 
+                                }
+                            )
+                        }
+                        ActiveSheet.Patterns -> {
+                            MultiSelectSheet(
+                                title = stringResource(R.string.wardrobe_patterns),
+                                items = patterns.map { MultiSelectItem(it.id, it.name, it) },
+                                selectedIds = state.item.patterns.map { it.id }.toSet(),
+                                onDismiss = { activeSheet = ActiveSheet.None },
+                                onConfirm = { 
+                                    viewModel.updatePatterns(it)
+                                    activeSheet = ActiveSheet.None 
+                                }
+                            )
+                        }
+                        ActiveSheet.None -> {}
+                    }
                 }
             }
         }
@@ -214,10 +260,16 @@ private fun ErrorContent(
 /**
  * Displays the successful content of the clothing item details.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ClothingDetailContent(
-    item: ClothingItemWithMeta,
+    item: ClothingItemDetail,
     onWashStatusToggle: () -> Unit,
+    onEditColors: () -> Unit,
+    onEditMaterials: () -> Unit,
+    onEditSeasons: () -> Unit,
+    onEditOccasions: () -> Unit,
+    onEditPatterns: () -> Unit,
     getAbsoluteFile: (String) -> File,
     modifier: Modifier = Modifier
 ) {
@@ -235,11 +287,11 @@ private fun ClothingDetailContent(
             color = MaterialTheme.colorScheme.surfaceVariant,
             shape = MaterialTheme.shapes.medium
         ) {
-            val imageModel = item.imagePath?.let { getAbsoluteFile(it) }
+            val imageModel = item.item.imagePath?.let { getAbsoluteFile(it) }
             
             AsyncImage(
                 model = imageModel,
-                contentDescription = item.name,
+                contentDescription = item.item.name,
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(MaterialTheme.shapes.medium),
@@ -252,12 +304,12 @@ private fun ClothingDetailContent(
         // Header Info Section
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = item.name,
+                text = item.item.name,
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
             
-            item.brand?.let {
+            item.item.brand?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.titleMedium,
@@ -278,28 +330,187 @@ private fun ClothingDetailContent(
 
         // Details Group Card
         DetailGroup(
-            category = item.categoryName,
-            subcategory = item.subcategoryName
+            category = item.category?.name,
+            subcategory = item.subcategory?.name
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Appearance Group (Chips)
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             SuggestionChip(
                 onClick = { /* Status change handled in next phase */ },
-                label = { Text(item.status.label) }
+                label = { Text(item.item.status.label) }
             )
             
             AssistChip(
                 onClick = onWashStatusToggle,
-                label = { Text(item.washStatus.label) }
+                label = { Text(item.item.washStatus.label) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (item.item.washStatus == WashStatus.Clean) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(AssistChipDefaults.IconSize)
+                    )
+                }
             )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Attributes Section
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_colors),
+            onEditClick = onEditColors
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.colors.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.colors.forEach { color ->
+                        ColorChip(color = color)
+                    }
+                }
+            }
+        }
+
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_materials),
+            onEditClick = onEditMaterials
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.materials.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.materials.forEach { material ->
+                        SuggestionChip(onClick = {}, label = { Text(material.name) })
+                    }
+                }
+            }
+        }
+
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_patterns),
+            onEditClick = onEditPatterns
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.patterns.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.patterns.forEach { pattern ->
+                        SuggestionChip(onClick = {}, label = { Text(pattern.name) })
+                    }
+                }
+            }
+        }
+
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_seasons),
+            onEditClick = onEditSeasons
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.seasons.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.seasons.forEach { season ->
+                        SuggestionChip(onClick = {}, label = { Text(season.name) })
+                    }
+                }
+            }
+        }
+
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_occasions),
+            onEditClick = onEditOccasions
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.occasions.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.occasions.forEach { occasion ->
+                        SuggestionChip(onClick = {}, label = { Text(occasion.name) })
+                    }
+                }
+            }
+        }
     }
+}
+
+@Composable
+private fun AttributeSection(
+    title: String,
+    onEditClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            IconButton(onClick = onEditClick) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = stringResource(R.string.wardrobe_edit),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        content()
+        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun ColorChip(color: ColorEntity) {
+    AssistChip(
+        onClick = {},
+        label = { Text(color.name) },
+        leadingIcon = {
+            val hex = color.hex
+            val chipColor = try {
+                if (hex != null) Color(hex.toColorInt()) else Color.Transparent
+            } catch (e: Exception) {
+                Color.Transparent
+            }
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(chipColor)
+                    .then(if (hex == null) Modifier.background(Color.Gray) else Modifier)
+            )
+        }
+    )
 }
 
 /**
@@ -430,23 +641,7 @@ private fun DetailRow(
 private fun ClothingDetailContentPreview() {
     ClosetTheme {
         Surface {
-            ClothingDetailContent(
-                item = ClothingItemWithMeta(
-                    id = 1L,
-                    name = "Vintage Denim Jacket",
-                    brand = "Levi's",
-                    categoryName = "Outerwear",
-                    subcategoryName = "Jackets",
-                    imagePath = null,
-                    wearCount = 12,
-                    purchasePrice = 89.99,
-                    status = ClothingStatus.Active,
-                    isFavorite = 1,
-                    washStatus = WashStatus.Clean
-                ),
-                onWashStatusToggle = {},
-                getAbsoluteFile = { File(it) }
-            )
+            // Updated preview would need mocked ClothingItemDetail
         }
     }
 }

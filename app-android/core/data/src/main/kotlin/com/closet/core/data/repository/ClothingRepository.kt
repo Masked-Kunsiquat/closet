@@ -51,6 +51,13 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * Retrieves the detailed clothing item with all associations by its unique ID.
+     * @param id The ID of the clothing item.
+     * @return A [Flow] emitting the [ClothingItemDetail].
+     */
+    fun getItemDetail(id: Long): Flow<ClothingItemDetail?> = clothingDao.getClothingItemDetail(id)
+
+    /**
      * Retrieves the raw clothing item entity by its unique ID.
      * @param id The ID of the clothing item.
      * @return A [DataResult] containing the entity or an error if not found.
@@ -154,8 +161,7 @@ class ClothingRepository @Inject constructor(
      * @param colorIds The list of new color IDs.
      */
     suspend fun updateItemColors(itemId: Long, colorIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemColors(itemId)
-        clothingDao.insertItemColors(colorIds.map { ClothingItemColorEntity(itemId, it) })
+        clothingDao.updateItemColors(itemId, colorIds)
     }
 
     /**
@@ -164,8 +170,7 @@ class ClothingRepository @Inject constructor(
      * @param materialIds The list of new material IDs.
      */
     suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemMaterials(itemId)
-        clothingDao.insertItemMaterials(materialIds.map { ClothingItemMaterialEntity(itemId, it) })
+        clothingDao.updateItemMaterials(itemId, materialIds)
     }
 
     /**
@@ -174,8 +179,7 @@ class ClothingRepository @Inject constructor(
      * @param seasonIds The list of new season IDs.
      */
     suspend fun updateItemSeasons(itemId: Long, seasonIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemSeasons(itemId)
-        clothingDao.insertItemSeasons(seasonIds.map { ClothingItemSeasonEntity(itemId, it) })
+        clothingDao.updateItemSeasons(itemId, seasonIds)
     }
 
     /**
@@ -184,8 +188,7 @@ class ClothingRepository @Inject constructor(
      * @param occasionIds The list of new occasion IDs.
      */
     suspend fun updateItemOccasions(itemId: Long, occasionIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemOccasions(itemId)
-        clothingDao.insertItemOccasions(occasionIds.map { ClothingItemOccasionEntity(itemId, it) })
+        clothingDao.updateItemOccasions(itemId, occasionIds)
     }
 
     /**
@@ -194,8 +197,7 @@ class ClothingRepository @Inject constructor(
      * @param patternIds The list of new pattern IDs.
      */
     suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemPatterns(itemId)
-        clothingDao.insertItemPatterns(patternIds.map { ClothingItemPatternEntity(itemId, it) })
+        clothingDao.updateItemPatterns(itemId, patternIds)
     }
 
     /**
