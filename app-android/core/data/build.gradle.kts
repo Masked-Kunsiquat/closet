@@ -24,6 +24,12 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
