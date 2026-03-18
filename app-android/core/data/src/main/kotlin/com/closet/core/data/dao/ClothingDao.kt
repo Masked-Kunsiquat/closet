@@ -19,7 +19,7 @@ interface ClothingDao {
      */
     @Query("""
         SELECT
-            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite,
+            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
             (
@@ -42,7 +42,7 @@ interface ClothingDao {
      */
     @Query("""
         SELECT
-            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite,
+            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
             (
@@ -85,8 +85,16 @@ interface ClothingDao {
      * @param id The ID of the clothing item.
      * @param washStatus The new wash status label.
      */
-    @Query("UPDATE clothing_items SET wash_status = :washStatus, updated_at = datetime('now') WHERE id = :id")
-    suspend fun updateWashStatus(id: Long, washStatus: String)
+    @Query("UPDATE clothing_items SET wash_status = :washStatus, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateWashStatus(id: Long, washStatus: String, updatedAt: String)
+
+    /**
+     * Updates the favorite status and modification timestamp for a specific clothing item.
+     * @param id The ID of the clothing item.
+     * @param isFavorite 1 if favorite, 0 otherwise.
+     */
+    @Query("UPDATE clothing_items SET is_favorite = :isFavorite, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateFavoriteStatus(id: Long, isFavorite: Int, updatedAt: String)
 
     // --- Junction Table Helpers (Atomically replace associations) ---
 

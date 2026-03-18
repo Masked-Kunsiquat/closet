@@ -7,8 +7,11 @@ import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -27,17 +30,8 @@ class ClosetViewModel @Inject constructor(
         private const val SHARED_SUBSCRIPTION_TIMEOUT_MS = 5000L
     }
 
-    /**
-     * The list of clothing items to display in the grid.
-     * Items are provided with metadata like category names and wear counts.
-     * Parity: Mirrored order (newest first) and includes wear_count.
-     */
-    val items: StateFlow<List<ClothingItemWithMeta>> = clothingRepository.getAllItems()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
-            initialValue = emptyList()
-        )
+    private val _selectedCategoryId = MutableStateFlow<Long?>(null)
+    val selectedCategoryId: StateFlow<Long?> = _selectedCategoryId.asStateFlow()
 
     /**
      * Available categories for filtering items in the main grid.
@@ -48,4 +42,39 @@ class ClosetViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
             initialValue = emptyList()
         )
+
+    /**
+     * The list of clothing items to display in the grid.
+     * Items are provided with metadata like category names and wear counts.
+     * Logic: Filters items based on the selected category if one is set.
+     * Refined: Includes categories flow in combine to trigger recomputation on category updates.
+     */
+    val items: StateFlow<List<ClothingItemWithMeta>> = combine(
+        clothingRepository.getAllItems(),
+        _selectedCategoryId,
+        categories
+    ) { allItems, selectedId, categoriesList ->
+        if (selectedId == null) {
+            allItems
+        } else {
+            val selectedCategoryName = categoriesList.find { it.id == selectedId }?.name
+            if (selectedCategoryName != null) {
+                allItems.filter { it.categoryName == selectedCategoryName }
+            } else {
+                allItems
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
+        initialValue = emptyList()
+    )
+
+    /**
+     * Updates the currently selected category filter.
+     * @param categoryId The ID of the category to filter by, or null to clear filter.
+     */
+    fun selectCategory(categoryId: Long?) {
+        _selectedCategoryId.value = categoryId
+    }
 }

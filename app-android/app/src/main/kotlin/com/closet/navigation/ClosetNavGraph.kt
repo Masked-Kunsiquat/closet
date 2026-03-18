@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import com.closet.features.wardrobe.ClosetDestination
 import com.closet.features.wardrobe.ClosetScreen
 import com.closet.features.wardrobe.ClothingDetailDestination
+import com.closet.features.wardrobe.ClothingDetailScreen
 
 @Composable
 fun ClosetNavGraph(
@@ -29,7 +30,9 @@ fun ClosetNavGraph(
         }
         
         composable<ClothingDetailDestination> { 
-            // TODO: Implement ClothingDetailScreen
+            ClothingDetailScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
     }
 }
