@@ -1,6 +1,5 @@
 package com.closet.features.wardrobe
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -114,6 +113,7 @@ private fun ClothingDetailContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .padding(16.dp)
     ) {
         // Hero Image Section
         Surface(
@@ -136,11 +136,7 @@ private fun ClothingDetailContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Header Info Section
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = item.name,
                 style = MaterialTheme.typography.headlineMedium,
@@ -155,7 +151,90 @@ private fun ClothingDetailContent(
                 )
             }
         }
-        
-        // Additional sections will follow (Tags, Stats, etc.)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Details Group Card
+        DetailGroup(
+            category = item.categoryName,
+            subcategory = item.subcategoryName
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Appearance Group (Chips)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SuggestionChip(
+                onClick = { /* Status change handled in next phase */ },
+                label = { Text(item.status.label) }
+            )
+            
+            // Note: WashStatus is not in ClothingItemWithMeta, we'll need to update it
+            // For now, using Status as a placeholder for the look.
+            AssistChip(
+                onClick = { /* Toggle wash handled in next phase */ },
+                label = { Text("Clean") }, // Placeholder label
+                leadingIcon = {
+                    // We can add an icon here later if desired
+                }
+            )
+        }
+    }
+}
+
+/**
+ * Card displaying primary metadata like Category and Subcategory.
+ */
+@Composable
+private fun DetailGroup(
+    category: String?,
+    subcategory: String?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            DetailRow(label = "Category", value = category ?: "Uncategorized")
+            if (subcategory != null) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                DetailRow(label = "Subcategory", value = subcategory)
+            }
+        }
+    }
+}
+
+/**
+ * A single row within a detail group.
+ */
+@Composable
+private fun DetailRow(
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
