@@ -1,6 +1,9 @@
 package com.closet.features.wardrobe
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -8,10 +11,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.closet.core.data.model.ClothingItemWithMeta
 
 /**
@@ -98,7 +104,6 @@ private fun ErrorContent(
 
 /**
  * Displays the successful content of the clothing item details.
- * TODO: Implement detailed item view in the next step.
  */
 @Composable
 private fun ClothingDetailContent(
@@ -108,9 +113,49 @@ private fun ClothingDetailContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
-        Text(text = "Details for: ${item.name}", style = MaterialTheme.typography.headlineMedium)
-        // More details will be added here in Step 2.2
+        // Hero Image Section
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.medium
+        ) {
+            AsyncImage(
+                model = item.imagePath,
+                contentDescription = item.name,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(MaterialTheme.shapes.medium),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Header Info Section
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = item.name,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            
+            item.brand?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+        }
+        
+        // Additional sections will follow (Tags, Stats, etc.)
     }
 }
