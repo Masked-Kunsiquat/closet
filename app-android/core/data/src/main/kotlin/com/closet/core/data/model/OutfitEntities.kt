@@ -33,7 +33,11 @@ data class OutfitEntity(
 )
 data class OutfitItemEntity(
     @ColumnInfo(name = "outfit_id") val outfitId: Long,
-    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "pos_x") val posX: Float? = null,
+    @ColumnInfo(name = "pos_y") val posY: Float? = null,
+    val scale: Float? = null,
+    @ColumnInfo(name = "z_index") val zIndex: Int? = null
 )
 
 @Entity(
@@ -65,19 +69,25 @@ data class OutfitLogEntity(
 
 /**
  * Mirror of OutfitWithItems from types.ts.
- * Leverage: Uses Room's @Junction for high-performance relationship mapping.
+ * Leverage: Fetches the Outfit along with its items and their layout metadata.
  */
-@Suppress("unused")
 data class OutfitWithItems(
     @Embedded val outfit: OutfitEntity,
     @Relation(
         parentColumn = "id",
-        entityColumn = "id",
-        associateBy = Junction(
-            value = OutfitItemEntity::class,
-            parentColumn = "outfit_id",
-            entityColumn = "clothing_item_id"
-        )
+        entityColumn = "outfit_id"
     )
-    val items: List<ClothingItemEntity>
+    val items: List<OutfitItemWithClothing>
+)
+
+/**
+ * Intermediate data class to pair an OutfitItemEntity with its ClothingItemEntity.
+ */
+data class OutfitItemWithClothing(
+    @Embedded val outfitItem: OutfitItemEntity,
+    @Relation(
+        parentColumn = "clothing_item_id",
+        entityColumn = "id"
+    )
+    val clothingItem: ClothingItemEntity
 )

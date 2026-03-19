@@ -34,6 +34,13 @@ interface OutfitDao {
     fun getAllOutfits(): Flow<List<OutfitWithMeta>>
 
     /**
+     * Retrieves a full outfit by its unique ID.
+     */
+    @Transaction
+    @Query("SELECT * FROM outfits WHERE id = :id")
+    fun getOutfitWithItems(id: Long): Flow<OutfitWithItems?>
+
+    /**
      * Inserts a new outfit entry.
      * @param outfit The [OutfitEntity] to insert.
      * @return The row ID of the newly inserted outfit.
@@ -45,7 +52,7 @@ interface OutfitDao {
      * Inserts multiple clothing items into an outfit.
      * @param items The list of [OutfitItemEntity] objects to insert.
      */
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOutfitItems(items: List<OutfitItemEntity>)
 
     /**

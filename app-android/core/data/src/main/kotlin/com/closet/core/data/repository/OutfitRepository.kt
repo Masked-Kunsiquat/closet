@@ -4,11 +4,36 @@ import androidx.room.withTransaction
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.OutfitDao
 import com.closet.core.data.dao.OutfitWithMeta
-import com.closet.core.data.model.OutfitEntity
-import com.closet.core.data.model.OutfitItemEntity
+import com.closet.core.data.model.*
+import com.closet.core.data.util.AppError
+import com.closet.core.data.util.DataResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Domain model for an Outfit with its constituent items and layout metadata.
+ */
+data class Outfit(
+    val id: Long,
+    val name: String?,
+    val notes: String?,
+    val items: List<OutfitItem>
+)
+
+/**
+ * Domain model for a clothing item within an outfit, including layout metadata.
+ */
+data class OutfitItem(
+    val clothingItem: ClothingItemEntity,
+    val posX: Float?,
+    val posY: Float?,
+    val scale: Float?,
+    val zIndex: Int?
+)
 
 /**
  * Repository for Outfit operations.
@@ -27,18 +52,30 @@ class OutfitRepository @Inject constructor(
     fun getAllOutfits(): Flow<List<OutfitWithMeta>> = outfitDao.getAllOutfits()
 
     /**
+     * Retrieves a full outfit by its ID, including all items and layout metadata.
+     */
+    fun getOutfitById(id: Long): Flow<Outfit?> = outfitDao.getOutfitWithItems(id).map { it?.toDomain() }
+
+    /**
      * Creates a new outfit and associates it with a list of clothing items.
      * Built Well: Uses [withTransaction] to ensure the outfit and its items are created atomically.
      * @param name The display name of the outfit.
      * @param notes Optional notes for the outfit.
      * @param itemIds The list of clothing item IDs to include in the outfit.
-     * @return The unique ID of the newly created outfit.
+     * @return The unique ID of the newly created outfit wrapped in [DataResult].
      */
-    suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): Long = database.withTransaction {
-        val outfitId = outfitDao.insertOutfit(OutfitEntity(name = name, notes = notes))
-        val outfitItems = itemIds.map { OutfitItemEntity(outfitId, it) }
-        outfitDao.insertOutfitItems(outfitItems)
-        outfitId
+    suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): DataResult<Long> = try {
+        val outfitId = database.withTransaction {
+            val id = outfitDao.insertOutfit(OutfitEntity(name = name, notes = notes))
+            val outfitItems = itemIds.map { OutfitItemEntity(id, it) }
+            outfitDao.insertOutfitItems(outfitItems)
+            id
+        }
+        DataResult.Success(outfitId)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error creating outfit")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
     /**
@@ -47,21 +84,47 @@ class OutfitRepository @Inject constructor(
      * @param outfitId The ID of the outfit to update.
      * @param name The updated name.
      * @param notes The updated notes.
-     * @param itemIds The new list of clothing item IDs for the outfit.
+     * @param items The new list of outfit items with their layout metadata.
      */
-    suspend fun updateOutfit(outfitId: Long, name: String?, notes: String?, itemIds: List<Long>) = database.withTransaction {
-        outfitDao.updateOutfit(OutfitEntity(id = outfitId, name = name, notes = notes))
-        outfitDao.deleteItemsForOutfit(outfitId)
-        val outfitItems = itemIds.map { OutfitItemEntity(outfitId, it) }
-        outfitDao.insertOutfitItems(outfitItems)
+    suspend fun updateOutfit(
+        outfitId: Long,
+        name: String?,
+        notes: String?,
+        items: List<OutfitItem>
+    ): DataResult<Unit> = try {
+        database.withTransaction {
+            outfitDao.updateOutfit(OutfitEntity(id = outfitId, name = name, notes = notes))
+            outfitDao.deleteItemsForOutfit(outfitId)
+            val outfitItems = items.map { 
+                OutfitItemEntity(
+                    outfitId = outfitId,
+                    clothingItemId = it.clothingItem.id,
+                    posX = it.posX,
+                    posY = it.posY,
+                    scale = it.scale,
+                    zIndex = it.zIndex
+                )
+            }
+            outfitDao.insertOutfitItems(outfitItems)
+        }
+        DataResult.Success(Unit)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error updating outfit: $outfitId")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
     /**
      * Deletes an outfit and all its constituent item associations.
      * @param outfitId The ID of the outfit to delete.
      */
-    suspend fun deleteOutfit(outfitId: Long) {
+    suspend fun deleteOutfit(outfitId: Long): DataResult<Unit> = try {
         outfitDao.deleteOutfitById(outfitId)
+        DataResult.Success(Unit)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error deleting outfit: $outfitId")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
     /**
@@ -71,4 +134,21 @@ class OutfitRepository @Inject constructor(
      */
     fun getOutfitsForItem(itemId: Long): Flow<List<OutfitWithMeta>> = 
         outfitDao.getOutfitsForItem(itemId)
+}
+
+private fun OutfitWithItems.toDomain(): Outfit {
+    return Outfit(
+        id = outfit.id,
+        name = outfit.name,
+        notes = outfit.notes,
+        items = items.map { 
+            OutfitItem(
+                clothingItem = it.clothingItem,
+                posX = it.outfitItem.posX,
+                posY = it.outfitItem.posY,
+                scale = it.outfitItem.scale,
+                zIndex = it.outfitItem.zIndex
+            )
+        }
+    )
 }
