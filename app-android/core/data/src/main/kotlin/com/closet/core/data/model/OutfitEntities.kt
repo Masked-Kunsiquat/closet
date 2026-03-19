@@ -88,7 +88,7 @@ data class OutfitItemWithClothing(
     @Embedded val outfitItem: OutfitItemEntity,
     @Relation(
         entity = ClothingItemEntity::class,
-        parentColumn = "id",
+        parentColumn = "clothing_item_id",
         entityColumn = "id"
     )
     val clothingItem: ClothingItemEntity
