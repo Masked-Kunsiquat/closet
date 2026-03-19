@@ -105,7 +105,7 @@ object DatabaseSeeder {
         }
     }
 
-    private fun seedColors(db: SupportSQLiteDatabase) {
+    fun seedColors(db: SupportSQLiteDatabase) {
         val colors = listOf(
             "Black" to "#000000",
             "White" to "#FFFFFF",
