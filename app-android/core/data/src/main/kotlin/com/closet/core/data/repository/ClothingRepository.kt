@@ -76,34 +76,36 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
-     * Inserts a new clothing item.
+     * Inserts a new clothing item along with its associations.
      * @param item The item entity to insert.
+     * @param colorIds Optional list of color IDs to associate.
      * @return A [DataResult] containing the new row ID.
      */
-    suspend fun insertItem(item: ClothingItemEntity): DataResult<Long> = try {
+    suspend fun insertItem(
+        item: ClothingItemEntity,
+        colorIds: List<Long> = emptyList()
+    ): DataResult<Long> = wrapInTransaction {
         val id = clothingDao.insertClothingItem(item)
-        DataResult.Success(id)
-    } catch (e: android.database.sqlite.SQLiteConstraintException) {
-        Timber.e(e, "Constraint violation inserting item")
-        DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
-    } catch (e: Exception) {
-        if (e is CancellationException) throw e
-        Timber.e(e, "Unexpected error inserting item")
-        DataResult.Error(AppError.Unexpected(e))
+        if (colorIds.isNotEmpty()) {
+            clothingDao.updateItemColors(id, colorIds)
+        }
+        id
     }
 
     /**
-     * Updates an existing clothing item.
+     * Updates an existing clothing item and its associations.
      * @param item The item entity with updated values.
+     * @param colorIds Optional list of color IDs to associate.
      * @return A [DataResult] indicating success or failure.
      */
-    suspend fun updateItem(item: ClothingItemEntity): DataResult<Unit> = try {
+    suspend fun updateItem(
+        item: ClothingItemEntity,
+        colorIds: List<Long>? = null
+    ): DataResult<Unit> = wrapInTransaction {
         clothingDao.updateClothingItem(item)
-        DataResult.Success(Unit)
-    } catch (e: Exception) {
-        if (e is CancellationException) throw e
-        Timber.e(e, "Error updating item: ${item.id}")
-        DataResult.Error(AppError.DatabaseError.QueryError(e))
+        if (colorIds != null) {
+            clothingDao.updateItemColors(item.id, colorIds)
+        }
     }
 
     /**
