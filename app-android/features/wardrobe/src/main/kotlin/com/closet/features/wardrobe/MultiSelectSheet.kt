@@ -6,17 +6,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 
 /**
  * Generic multi-select item for the bottom sheet.
@@ -25,7 +25,8 @@ data class MultiSelectItem<T>(
     val id: Long,
     val label: String,
     val original: T,
-    val colorHex: String? = null
+    val colorHex: String? = null,
+    val iconResId: Int? = null
 )
 
 /**
@@ -83,6 +84,7 @@ fun <T> MultiSelectSheet(
                     MultiSelectRow(
                         label = item.label,
                         colorHex = item.colorHex,
+                        iconResId = item.iconResId,
                         isSelected = currentSelection.contains(item.id),
                         onToggle = {
                             currentSelection = if (currentSelection.contains(item.id)) {
@@ -102,16 +104,17 @@ fun <T> MultiSelectSheet(
 private fun MultiSelectRow(
     label: String,
     colorHex: String?,
+    iconResId: Int?,
     isSelected: Boolean,
     onToggle: () -> Unit
 ) {
     ListItem(
         modifier = Modifier.clickable { onToggle() },
         headlineContent = { Text(label) },
-        leadingContent = colorHex?.let {
-            {
+        leadingContent = {
+            if (colorHex != null) {
                 val color = try {
-                    Color(android.graphics.Color.parseColor(it))
+                    Color(colorHex.toColorInt())
                 } catch (e: Exception) {
                     Color.Gray
                 }
@@ -120,7 +123,14 @@ private fun MultiSelectRow(
                         .size(24.dp)
                         .clip(CircleShape)
                         .background(color)
-                        .then(if (it.isEmpty()) Modifier.background(Color.Gray) else Modifier)
+                        .then(if (colorHex.isEmpty()) Modifier.background(Color.Gray) else Modifier)
+                )
+            } else if (iconResId != null) {
+                Icon(
+                    painter = painterResource(id = iconResId),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },

@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.*
 import com.closet.core.ui.theme.ClosetTheme
+import com.closet.core.ui.util.IconMapper
 import kotlinx.coroutines.flow.collectLatest
 import java.io.File
 import java.text.NumberFormat
@@ -176,7 +178,7 @@ fun ClothingDetailScreen(
                         ActiveSheet.Colors -> {
                             MultiSelectSheet(
                                 title = stringResource(R.string.wardrobe_colors),
-                                items = colors.map { MultiSelectItem(it.id, it.name, it, it.hex) },
+                                items = colors.map { MultiSelectItem(it.id, it.name, it, colorHex = it.hex) },
                                 selectedIds = state.item.colors.map { it.id }.toSet(),
                                 onDismiss = { activeSheet = ActiveSheet.None },
                                 onConfirm = { 
@@ -200,7 +202,14 @@ fun ClothingDetailScreen(
                         ActiveSheet.Seasons -> {
                             MultiSelectSheet(
                                 title = stringResource(R.string.wardrobe_seasons),
-                                items = seasons.map { MultiSelectItem(it.id, it.name, it) },
+                                items = seasons.map { 
+                                    MultiSelectItem(
+                                        id = it.id, 
+                                        label = it.name, 
+                                        original = it, 
+                                        iconResId = IconMapper.getIconResource(it.icon)
+                                    ) 
+                                },
                                 selectedIds = state.item.seasons.map { it.id }.toSet(),
                                 onDismiss = { activeSheet = ActiveSheet.None },
                                 onConfirm = { 
@@ -212,7 +221,14 @@ fun ClothingDetailScreen(
                         ActiveSheet.Occasions -> {
                             MultiSelectSheet(
                                 title = stringResource(R.string.wardrobe_occasions),
-                                items = occasions.map { MultiSelectItem(it.id, it.name, it) },
+                                items = occasions.map { 
+                                    MultiSelectItem(
+                                        id = it.id, 
+                                        label = it.name, 
+                                        original = it, 
+                                        iconResId = IconMapper.getIconResource(it.icon)
+                                    ) 
+                                },
                                 selectedIds = state.item.occasions.map { it.id }.toSet(),
                                 onDismiss = { activeSheet = ActiveSheet.None },
                                 onConfirm = { 
@@ -224,7 +240,14 @@ fun ClothingDetailScreen(
                         ActiveSheet.Patterns -> {
                             MultiSelectSheet(
                                 title = stringResource(R.string.wardrobe_patterns),
-                                items = patterns.map { MultiSelectItem(it.id, it.name, it) },
+                                items = patterns.map { 
+                                    MultiSelectItem(
+                                        id = it.id, 
+                                        label = it.name, 
+                                        original = it, 
+                                        iconResId = IconMapper.getPatternIcon(it.name)
+                                    ) 
+                                },
                                 selectedIds = state.item.patterns.map { it.id }.toSet(),
                                 onDismiss = { activeSheet = ActiveSheet.None },
                                 onConfirm = { 
@@ -371,7 +394,8 @@ private fun ClothingDetailContent(
         DetailGroup {
             DetailRow(
                 label = stringResource(R.string.wardrobe_category),
-                value = item.category?.name ?: stringResource(R.string.wardrobe_uncategorized)
+                value = item.category?.name ?: stringResource(R.string.wardrobe_uncategorized),
+                iconResId = IconMapper.getIconResource(item.category?.icon)
             )
             val subcategory = item.subcategory
             if (subcategory != null) {
@@ -489,7 +513,10 @@ private fun ClothingDetailContent(
                     )
                 } else {
                     item.patterns.forEach { pattern ->
-                        SuggestionChip(onClick = {}, label = { Text(pattern.name) })
+                        AttributeChip(
+                            label = pattern.name,
+                            iconResId = IconMapper.getPatternIcon(pattern.name)
+                        )
                     }
                 }
             }
@@ -508,7 +535,10 @@ private fun ClothingDetailContent(
                     )
                 } else {
                     item.seasons.forEach { season ->
-                        SuggestionChip(onClick = {}, label = { Text(season.name) })
+                        AttributeChip(
+                            label = season.name,
+                            iconResId = IconMapper.getIconResource(season.icon)
+                        )
                     }
                 }
             }
@@ -527,7 +557,10 @@ private fun ClothingDetailContent(
                     )
                 } else {
                     item.occasions.forEach { occasion ->
-                        SuggestionChip(onClick = {}, label = { Text(occasion.name) })
+                        AttributeChip(
+                            label = occasion.name,
+                            iconResId = IconMapper.getIconResource(occasion.icon)
+                        )
                     }
                 }
             }
@@ -586,6 +619,26 @@ private fun ColorChip(color: ColorEntity) {
                     .background(chipColor)
                     .then(if (hex == null) Modifier.background(Color.Gray) else Modifier)
             )
+        }
+    )
+}
+
+@Composable
+private fun AttributeChip(
+    label: String,
+    iconResId: Int?
+) {
+    AssistChip(
+        onClick = {},
+        label = { Text(label) },
+        leadingIcon = iconResId?.let {
+            {
+                Icon(
+                    painter = painterResource(id = it),
+                    contentDescription = null,
+                    modifier = Modifier.size(AssistChipDefaults.IconSize)
+                )
+            }
         }
     )
 }
@@ -693,18 +746,29 @@ private fun DetailGroup(
 @Composable
 private fun DetailRow(
     label: String,
-    value: String
+    value: String,
+    iconResId: Int? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (iconResId != null) {
+                Icon(
+                    painter = painterResource(id = iconResId),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp).padding(end = 8.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Text(
             text = value,
             style = MaterialTheme.typography.bodyLarge,
