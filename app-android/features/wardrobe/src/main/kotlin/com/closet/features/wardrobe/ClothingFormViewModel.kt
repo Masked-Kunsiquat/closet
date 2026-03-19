@@ -52,6 +52,28 @@ data class ClothingFormUiState(
     val formattedDate: String? = purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
 }
 
+private data class FormBasic(
+    val name: String,
+    val brand: String,
+    val category: CategoryEntity?,
+    val subcategory: SubcategoryEntity?,
+    val price: String
+)
+
+private data class FormDetails(
+    val purchaseDate: LocalDate?,
+    val purchaseLocation: String,
+    val notes: String,
+    val imagePath: String?
+)
+
+private data class FormStatus(
+    val isNameError: Boolean,
+    val isSaving: Boolean,
+    val isLoading: Boolean,
+    val errorMessage: Int?
+)
+
 /**
  * ViewModel for managing the state of the Clothing form (Add or Edit).
  * Implements Hydration logic for editing existing items.
@@ -107,59 +129,67 @@ class ClothingFormViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val uiState: StateFlow<ClothingFormUiState> = combine(
-        listOf(_name, _brand, _selectedCategory, _selectedSubcategory, 
-        _price, _purchaseDate, _purchaseLocation, _notes,
-        _imagePath, _isNameError, _isSaving, _isLoading, _errorMessage, 
-        categories, subcategories)
-    ) { args: Array<Any?> ->
-        val name = args[0] as String
-        val brand = args[1] as String
-        val category = args[2] as CategoryEntity?
-        val subcategory = args[3] as SubcategoryEntity?
-        val price = args[4] as String
-        val purchaseDate = args[5] as LocalDate?
-        val purchaseLocation = args[6] as String
-        val notes = args[7] as String
-        val imagePath = args[8] as String?
+    private val basicFields = combine(
+        _name, _brand, _selectedCategory, _selectedSubcategory, _price
+    ) { name, brand, category, subcategory, price ->
+        FormBasic(name, brand, category, subcategory, price)
+    }
 
+    private val detailFields = combine(
+        _purchaseDate, _purchaseLocation, _notes, _imagePath
+    ) { date, location, notes, path ->
+        FormDetails(date, location, notes, path)
+    }
+
+    private val statusFields = combine(
+        _isNameError, _isSaving, _isLoading, _errorMessage
+    ) { nameError, saving, loading, error ->
+        FormStatus(nameError, saving, loading, error)
+    }
+
+    val uiState: StateFlow<ClothingFormUiState> = combine(
+        basicFields,
+        detailFields,
+        statusFields,
+        categories,
+        subcategories
+    ) { basic, details, status, cats, subcats ->
         val isDirty = if (isEditMode && originalEntity != null) {
             val e = originalEntity!!
-            name != e.name || 
-            brand != (e.brand ?: "") || 
-            category?.id != e.categoryId || 
-            subcategory?.id != e.subcategoryId ||
-            price != (e.purchasePrice?.toString() ?: "") ||
-            purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE) != e.purchaseDate ||
-            purchaseLocation != (e.purchaseLocation ?: "") ||
-            notes != (e.notes ?: "") ||
-            imagePath != e.imagePath
+            basic.name != e.name || 
+            basic.brand != (e.brand ?: "") || 
+            basic.category?.id != e.categoryId || 
+            basic.subcategory?.id != e.subcategoryId ||
+            basic.price != (e.purchasePrice?.toString() ?: "") ||
+            details.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE) != e.purchaseDate ||
+            details.purchaseLocation != (e.purchaseLocation ?: "") ||
+            details.notes != (e.notes ?: "") ||
+            details.imagePath != e.imagePath
         } else {
-            name.isNotBlank() || brand.isNotBlank() || category != null || 
-            price.isNotBlank() || purchaseDate != null || purchaseLocation.isNotBlank() ||
-            notes.isNotBlank() || imagePath != null
+            basic.name.isNotBlank() || basic.brand.isNotBlank() || basic.category != null || 
+            basic.price.isNotBlank() || details.purchaseDate != null || details.purchaseLocation.isNotBlank() ||
+            details.notes.isNotBlank() || details.imagePath != null
         }
 
-        @Suppress("UNCHECKED_CAST")
         ClothingFormUiState(
             isEditMode = isEditMode,
-            name = name,
-            brand = brand,
-            category = category,
-            subcategory = subcategory,
-            price = price,
-            purchaseDate = purchaseDate,
-            purchaseLocation = purchaseLocation,
-            notes = notes,
-            imagePath = imagePath,
-            imageFile = imagePath?.let { storageRepository.getFile(it) },
-            isNameError = args[9] as Boolean,
-            isSaving = args[10] as Boolean,
-            isLoading = args[11] as Boolean,
-            errorMessage = args[12] as Int?,
-            categories = args[13] as List<CategoryEntity>,
-            subcategories = args[14] as List<SubcategoryEntity>,
-            canSave = name.isNotBlank() && !(args[10] as Boolean),
+            name = basic.name,
+            brand = basic.brand,
+            category = basic.category,
+            subcategory = basic.subcategory,
+            price = basic.price,
+            purchaseDate = details.purchaseDate,
+            purchaseLocation = details.purchaseLocation,
+            notes = details.notes,
+            imagePath = details.imagePath,
+            imageFile = details.imagePath?.let { storageRepository.getFile(it) },
+            isNameError = status.isNameError,
+            isSaving = status.isSaving,
+            isLoading = status.isLoading,
+            errorMessage = status.errorMessage,
+            categories = cats,
+            subcategories = subcats,
+            canSave = basic.name.isNotBlank() && !status.isSaving,
             isDirty = isDirty
         )
     }.stateIn(
@@ -259,7 +289,7 @@ class ClothingFormViewModel @Inject constructor(
                 val relativePath = storageRepository.saveImage(uri)
                 _imagePath.value = relativePath
             } catch (_: Exception) {
-                _errorMessage.value = R.string.wardrobe_error_save_failed
+                _errorMessage.value = R.string.wardrobe_error_image_failed
             }
         }
     }
@@ -316,5 +346,5 @@ class ClothingFormViewModel @Inject constructor(
 }
 
 sealed class ClothingFormEvent {
-    object NavigateBack : ClothingFormEvent()
+    data object NavigateBack : ClothingFormEvent()
 }

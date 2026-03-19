@@ -1,5 +1,6 @@
 package com.closet.features.wardrobe
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -63,12 +63,11 @@ fun ClothingDetailScreen(
     val patterns by viewModel.patterns.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collectLatest { userMessage ->
             snackbarHostState.showSnackbar(
-                message = context.getString(userMessage.resId, *userMessage.args)
+                message = "Action error: ${userMessage.resId}" 
             )
         }
     }
@@ -370,10 +369,19 @@ private fun ClothingDetailContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SuggestionChip(
-                onClick = { /* Status change handled in next phase */ },
-                label = { Text(item.item.status.label) }
-            )
+            // Status Chip (Non-interactive)
+            Surface(
+                shape = SuggestionChipDefaults.shape,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Text(
+                    text = item.item.status.label,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             
             AssistChip(
                 onClick = onWashStatusToggle,
@@ -431,7 +439,7 @@ private fun ClothingDetailContent(
                 }
                 if (dateStr != null) {
                     if (price != null) DetailDivider()
-                    val date = try { LocalDate.parse(dateStr) } catch (e: Exception) { null }
+                    val date = try { LocalDate.parse(dateStr) } catch (_: Exception) { null }
                     DetailRow(
                         label = stringResource(R.string.wardrobe_purchase_date),
                         value = date?.format(dateFormatter) ?: dateStr
@@ -475,7 +483,7 @@ private fun ClothingDetailContent(
                     )
                 } else {
                     item.colors.forEach { color ->
-                        ColorChip(color = color)
+                        ColorChip(color = color, onClick = onEditColors)
                     }
                 }
             }
@@ -494,7 +502,10 @@ private fun ClothingDetailContent(
                     )
                 } else {
                     item.materials.forEach { material ->
-                        SuggestionChip(onClick = {}, label = { Text(material.name) })
+                        SuggestionChip(
+                            onClick = onEditMaterials,
+                            label = { Text(material.name) }
+                        )
                     }
                 }
             }
@@ -515,7 +526,8 @@ private fun ClothingDetailContent(
                     item.patterns.forEach { pattern ->
                         AttributeChip(
                             label = pattern.name,
-                            iconResId = IconMapper.getPatternIcon(pattern.name)
+                            iconResId = IconMapper.getPatternIcon(pattern.name),
+                            onClick = onEditPatterns
                         )
                     }
                 }
@@ -537,7 +549,8 @@ private fun ClothingDetailContent(
                     item.seasons.forEach { season ->
                         AttributeChip(
                             label = season.name,
-                            iconResId = IconMapper.getIconResource(season.icon)
+                            iconResId = IconMapper.getIconResource(season.icon),
+                            onClick = onEditSeasons
                         )
                     }
                 }
@@ -559,7 +572,8 @@ private fun ClothingDetailContent(
                     item.occasions.forEach { occasion ->
                         AttributeChip(
                             label = occasion.name,
-                            iconResId = IconMapper.getIconResource(occasion.icon)
+                            iconResId = IconMapper.getIconResource(occasion.icon),
+                            onClick = onEditOccasions
                         )
                     }
                 }
@@ -589,7 +603,7 @@ private fun AttributeSection(
             IconButton(onClick = onEditClick) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
-                    contentDescription = stringResource(R.string.wardrobe_edit),
+                    contentDescription = stringResource(R.string.wardrobe_edit_with_section, title),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -601,23 +615,25 @@ private fun AttributeSection(
 }
 
 @Composable
-private fun ColorChip(color: ColorEntity) {
+private fun ColorChip(
+    color: ColorEntity,
+    onClick: () -> Unit
+) {
     AssistChip(
-        onClick = {},
+        onClick = onClick,
         label = { Text(color.name) },
         leadingIcon = {
             val hex = color.hex
             val chipColor = try {
-                if (hex != null) Color(hex.toColorInt()) else Color.Transparent
-            } catch (e: Exception) {
-                Color.Transparent
+                if (!hex.isNullOrBlank()) Color(hex.toColorInt()) else Color.Gray
+            } catch (_: Exception) {
+                Color.Gray
             }
             Box(
                 modifier = Modifier
                     .size(16.dp)
                     .clip(CircleShape)
                     .background(chipColor)
-                    .then(if (hex == null) Modifier.background(Color.Gray) else Modifier)
             )
         }
     )
@@ -626,10 +642,11 @@ private fun ColorChip(color: ColorEntity) {
 @Composable
 private fun AttributeChip(
     label: String,
-    iconResId: Int?
+    iconResId: Int?,
+    onClick: () -> Unit
 ) {
     AssistChip(
-        onClick = {},
+        onClick = onClick,
         label = { Text(label) },
         leadingIcon = iconResId?.let {
             {
@@ -731,7 +748,7 @@ private fun DetailGroup(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             ),
-            border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 content()

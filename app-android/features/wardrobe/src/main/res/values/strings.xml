@@ -12,6 +12,7 @@
     <string name="wardrobe_back">Back</string>
     <string name="wardrobe_favorite">Favorite</string>
     <string name="wardrobe_edit">Edit</string>
+    <string name="wardrobe_edit_with_section">Edit %1$s</string>
     <string name="wardrobe_delete">Delete</string>
     <string name="wardrobe_usage">Usage</string>
     <string name="wardrobe_cost_per_wear">Cost per wear</string>
@@ -47,6 +48,7 @@
     <string name="wardrobe_discard">Discard</string>
     <string name="wardrobe_error_save_failed">Failed to save item. Please try again.</string>
     <string name="wardrobe_error_load_failed">Failed to load item. Please try again.</string>
+    <string name="wardrobe_error_image_failed">Failed to save photo. Please try again.</string>
     <string name="wardrobe_purchase_price">Purchase Price</string>
     <string name="wardrobe_price_hint">0.00</string>
     <string name="wardrobe_location_hint">Where did you buy this?</string>
