@@ -109,17 +109,3 @@ interface OutfitDao {
     """)
     fun getOutfitsForItem(itemId: Long): Flow<List<OutfitWithMeta>>
 }
-
-/**
- * Representation of an outfit with aggregated metadata for display.
- * Parity: This is the native equivalent of OutfitWithMeta from types.ts.
- */
-data class OutfitWithMeta(
-    val id: Long,
-    val name: String?,
-    val notes: String?,
-    @ColumnInfo(name = "created_at") val createdAt: String,
-    @ColumnInfo(name = "updated_at") val updatedAt: String,
-    @ColumnInfo(name = "item_count") val itemCount: Int,
-    @ColumnInfo(name = "cover_image") val coverImage: String?
-)
