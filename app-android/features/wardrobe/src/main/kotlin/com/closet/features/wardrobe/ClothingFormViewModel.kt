@@ -50,6 +50,7 @@ data class ClothingFormUiState(
     val selectedColors: List<ColorEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
+    val allColors: List<ColorEntity> = emptyList(),
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
@@ -131,6 +132,9 @@ class ClothingFormViewModel @Inject constructor(
     val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allColors: StateFlow<List<ColorEntity>> = lookupRepository.getColors()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val subcategories: StateFlow<List<SubcategoryEntity>> = _selectedCategory
         .flatMapLatest { category ->
@@ -158,12 +162,11 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<ClothingFormUiState> = combine(
-        basicFields,
-        detailFields,
-        statusFields,
+        combine(basicFields, detailFields, statusFields) { b, d, s -> Triple(b, d, s) },
         categories,
-        subcategories
-    ) { basic, details, status, cats, subcats ->
+        subcategories,
+        allColors
+    ) { (basic, details, status), cats, subcats, colors ->
         val isDirty = if (isEditMode && originalEntity != null) {
             val e = originalEntity!!
             basic.name != e.name || 
@@ -200,6 +203,7 @@ class ClothingFormViewModel @Inject constructor(
             errorMessage = status.errorMessage,
             categories = cats,
             subcategories = subcats,
+            allColors = colors,
             canSave = basic.name.isNotBlank() && !status.isSaving,
             isDirty = isDirty
         )
@@ -346,6 +350,13 @@ class ClothingFormViewModel @Inject constructor(
             current.add(color)
         }
         _selectedColors.value = current
+    }
+
+    fun updateColors(colorIds: List<Long>) {
+        viewModelScope.launch {
+            val colors = lookupRepository.getColors().first()
+            _selectedColors.value = colors.filter { it.id in colorIds }
+        }
     }
 
     fun save() {

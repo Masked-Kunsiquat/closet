@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,9 +18,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -28,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -59,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -67,10 +74,12 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.CategoryEntity
+import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.ui.theme.ClosetTheme
 import java.time.Instant
@@ -154,6 +163,7 @@ fun ClothingFormScreen(
             onDateChange = viewModel::updatePurchaseDate,
             onLocationChange = viewModel::updatePurchaseLocation,
             onNotesChange = viewModel::updateNotes,
+            onColorsChange = viewModel::updateColors,
             onPhotoClick = {
                 launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             },
@@ -180,6 +190,7 @@ internal fun ClothingFormContent(
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
+    onColorsChange: (List<Long>) -> Unit,
     onPhotoClick: () -> Unit,
     onSaveClick: () -> Unit,
     onBackClick: () -> Unit,
@@ -189,6 +200,7 @@ internal fun ClothingFormContent(
     var showCategorySheet by remember { mutableStateOf(false) }
     var showSubcategorySheet by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showColorSheet by remember { mutableStateOf(false) }
 
     if (showCategorySheet) {
         ModalBottomSheet(onDismissRequest = { showCategorySheet = false }) {
@@ -216,6 +228,26 @@ internal fun ClothingFormContent(
                 }
             )
         }
+    }
+
+    if (showColorSheet) {
+        MultiSelectSheet(
+            title = stringResource(R.string.wardrobe_colors),
+            items = uiState.allColors.map { color ->
+                MultiSelectItem(
+                    id = color.id,
+                    label = color.name,
+                    original = color,
+                    colorHex = color.hex
+                )
+            },
+            selectedIds = uiState.selectedColors.map { it.id }.toSet(),
+            onDismiss = { showColorSheet = false },
+            onConfirm = { ids ->
+                onColorsChange(ids)
+                showColorSheet = false
+            }
+        )
     }
 
     if (showDatePicker) {
@@ -422,6 +454,49 @@ internal fun ClothingFormContent(
                 )
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Colors Section
+            ReadOnlyTextField(
+                value = if (uiState.selectedColors.isEmpty()) "" else " ", // Placeholder for height
+                label = stringResource(R.string.wardrobe_colors),
+                enabled = !uiState.isSaving,
+                onClick = {
+                    focusManager.clearFocus()
+                    showColorSheet = true
+                },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Palette, contentDescription = null)
+                },
+                content = {
+                    if (uiState.selectedColors.isNotEmpty()) {
+                        LazyRow(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(uiState.selectedColors) { color ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            color.hex?.let { Color(it.toColorInt()) }
+                                                ?: MaterialTheme.colorScheme.surfaceVariant
+                                        )
+                                        .border(
+                                            BorderStroke(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.outlineVariant
+                                            ),
+                                            CircleShape
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            )
+
             Spacer(modifier = Modifier.height(24.dp))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(24.dp))
@@ -511,7 +586,9 @@ private fun ReadOnlyTextField(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    trailingIcon: @Composable (() -> Unit)? = null
+    leadingIcon: @Composable (() -> Unit)? = null,
+    trailingIcon: @Composable (() -> Unit)? = null,
+    content: @Composable (() -> Unit)? = null
 ) {
     Box(modifier = modifier.clickable(enabled = enabled, onClick = onClick)) {
         OutlinedTextField(
@@ -521,13 +598,25 @@ private fun ReadOnlyTextField(
             readOnly = true,
             enabled = false,
             modifier = Modifier.fillMaxWidth(),
+            leadingIcon = leadingIcon,
             trailingIcon = trailingIcon,
             colors = OutlinedTextFieldDefaults.colors(
                 disabledTextColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 disabledBorderColor = if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                disabledLabelColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                disabledLabelColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                disabledLeadingIconColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                disabledTrailingIconColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
             )
         )
+        if (content != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(start = if (leadingIcon != null) 52.dp else 16.dp, end = if (trailingIcon != null) 52.dp else 16.dp, top = 8.dp)
+            ) {
+                content()
+            }
+        }
     }
 }
 
@@ -573,7 +662,11 @@ private fun ClothingFormContentPreview() {
                     name = "Vintage Jacket",
                     brand = "Levi's",
                     canSave = true,
-                    categories = listOf(CategoryEntity(1, "Tops", null, 1))
+                    categories = listOf(CategoryEntity(1, "Tops", null, 1)),
+                    selectedColors = listOf(
+                        ColorEntity(1, "Red", "#FF0000"),
+                        ColorEntity(2, "Blue", "#0000FF")
+                    )
                 ),
                 snackbarHostState = remember { SnackbarHostState() },
                 onNameChange = {},
@@ -584,6 +677,7 @@ private fun ClothingFormContentPreview() {
                 onDateChange = {},
                 onLocationChange = {},
                 onNotesChange = {},
+                onColorsChange = {},
                 onPhotoClick = {},
                 onSaveClick = {},
                 onBackClick = {}

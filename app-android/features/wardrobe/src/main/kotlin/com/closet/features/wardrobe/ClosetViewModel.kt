@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemWithMeta
+import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,10 +34,23 @@ class ClosetViewModel @Inject constructor(
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
     val selectedCategoryId: StateFlow<Long?> = _selectedCategoryId.asStateFlow()
 
+    private val _selectedColorIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedColorIds: StateFlow<Set<Long>> = _selectedColorIds.asStateFlow()
+
     /**
      * Available categories for filtering items in the main grid.
      */
     val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
+            initialValue = emptyList()
+        )
+
+    /**
+     * Available colors for filtering items.
+     */
+    val allColors: StateFlow<List<ColorEntity>> = lookupRepository.getColors()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
@@ -76,5 +90,22 @@ class ClosetViewModel @Inject constructor(
      */
     fun selectCategory(categoryId: Long?) {
         _selectedCategoryId.value = categoryId
+    }
+
+    /**
+     * Toggles the selection of a color filter.
+     * @param colorId The ID of the color to toggle.
+     */
+    fun toggleColor(colorId: Long) {
+        _selectedColorIds.value = _selectedColorIds.value.let { current ->
+            if (current.contains(colorId)) current - colorId else current + colorId
+        }
+    }
+
+    /**
+     * Clears all selected color filters.
+     */
+    fun clearColors() {
+        _selectedColorIds.value = emptySet()
     }
 }
