@@ -53,7 +53,7 @@ class ClothingRepository @Inject constructor(
     /**
      * Retrieves the detailed clothing item with all associations by its unique ID.
      * @param id The ID of the clothing item.
-     * @return A [Flow] emitting the [ClothingItemDetail].
+     * @return A [Flow] emitting the [ClothingItemDetail] if found.
      */
     fun getItemDetail(id: Long): Flow<ClothingItemDetail?> = clothingDao.getClothingItemDetail(id)
 
@@ -76,6 +76,11 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * Retrieves the colors associated with a clothing item.
+     */
+    fun getItemColors(itemId: Long): Flow<List<ColorEntity>> = clothingDao.getItemColors(itemId)
+
+    /**
      * Inserts a new clothing item along with its associations.
      * @param item The item entity to insert.
      * @param colorIds Optional list of color IDs to associate.
@@ -93,6 +98,14 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * Inserts a new clothing item along with its associated colors.
+     */
+    suspend fun insertItemWithColors(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>
+    ): DataResult<Long> = insertItem(item, colors.map { it.id })
+
+    /**
      * Updates an existing clothing item and its associations.
      * @param item The item entity with updated values.
      * @param colorIds Optional list of color IDs to associate.
@@ -107,6 +120,14 @@ class ClothingRepository @Inject constructor(
             clothingDao.updateItemColors(item.id, colorIds)
         }
     }
+
+    /**
+     * Updates an existing clothing item and its associated colors.
+     */
+    suspend fun updateItemWithColors(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>
+    ): DataResult<Unit> = updateItem(item, colors.map { it.id })
 
     /**
      * Deletes a clothing item by its ID.

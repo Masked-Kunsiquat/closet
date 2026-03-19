@@ -1,6 +1,8 @@
 package com.closet.core.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -64,5 +66,18 @@ class StorageRepository @Inject constructor(
      */
     fun exists(relativePath: String): Boolean {
         return File(imagesDir, relativePath).exists()
+    }
+
+    /**
+     * Loads a Bitmap from a Uri.
+     */
+    suspend fun getBitmap(uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input)
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 }

@@ -86,6 +86,16 @@ interface ClothingDao {
     suspend fun getClothingItemEntityById(id: Long): ClothingItemEntity?
 
     /**
+     * Retrieves the colors associated with a clothing item.
+     */
+    @Query("""
+        SELECT c.* FROM colors c
+        JOIN clothing_item_colors cic ON c.id = cic.color_id
+        WHERE cic.clothing_item_id = :itemId
+    """)
+    fun getItemColors(itemId: Long): Flow<List<ColorEntity>>
+
+    /**
      * Inserts a new clothing item into the database.
      * @param item The [ClothingItemEntity] to insert.
      * @return The row ID of the newly inserted item.

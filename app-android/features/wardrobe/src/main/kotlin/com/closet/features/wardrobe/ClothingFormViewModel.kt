@@ -1,24 +1,31 @@
 package com.closet.features.wardrobe
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import androidx.palette.graphics.Palette
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ClothingStatus
+import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -40,6 +47,7 @@ data class ClothingFormUiState(
     val notes: String = "",
     val imagePath: String? = null,
     val imageFile: File? = null,
+    val selectedColors: List<ColorEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
     val isNameError: Boolean = false,
@@ -64,7 +72,8 @@ private data class FormDetails(
     val purchaseDate: LocalDate?,
     val purchaseLocation: String,
     val notes: String,
-    val imagePath: String?
+    val imagePath: String?,
+    val selectedColors: List<ColorEntity>
 )
 
 private data class FormStatus(
@@ -104,6 +113,7 @@ class ClothingFormViewModel @Inject constructor(
     private val _purchaseLocation = MutableStateFlow("")
     private val _notes = MutableStateFlow("")
     private val _imagePath = MutableStateFlow<String?>(null)
+    private val _selectedColors = MutableStateFlow<List<ColorEntity>>(emptyList())
     
     private val _isNameError = MutableStateFlow(false)
     private val _isSaving = MutableStateFlow(false)
@@ -136,9 +146,9 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     private val detailFields = combine(
-        _purchaseDate, _purchaseLocation, _notes, _imagePath
-    ) { date, location, notes, path ->
-        FormDetails(date, location, notes, path)
+        _purchaseDate, _purchaseLocation, _notes, _imagePath, _selectedColors
+    ) { date, location, notes, path, colors ->
+        FormDetails(date, location, notes, path, colors)
     }
 
     private val statusFields = combine(
@@ -183,6 +193,7 @@ class ClothingFormViewModel @Inject constructor(
             notes = details.notes,
             imagePath = details.imagePath,
             imageFile = details.imagePath?.let { storageRepository.getFile(it) },
+            selectedColors = details.selectedColors,
             isNameError = status.isNameError,
             isSaving = status.isSaving,
             isLoading = status.isLoading,
@@ -236,6 +247,10 @@ class ClothingFormViewModel @Inject constructor(
                         _selectedSubcategory.value = subcats.find { it.id == subId }
                     }
                 }
+
+                // Hydrate colors
+                val colors = clothingRepository.getItemColors(id).first()
+                _selectedColors.value = colors
             } else {
                 _errorMessage.value = R.string.wardrobe_error_load_failed
             }
@@ -288,10 +303,49 @@ class ClothingFormViewModel @Inject constructor(
                 }
                 val relativePath = storageRepository.saveImage(uri)
                 _imagePath.value = relativePath
+                
+                // Process colors from the new image
+                extractColors(uri)
             } catch (_: Exception) {
                 _errorMessage.value = R.string.wardrobe_error_image_failed
             }
         }
+    }
+
+    private suspend fun extractColors(uri: Uri) = withContext(Dispatchers.IO) {
+        try {
+            val bitmap = storageRepository.getBitmap(uri) ?: return@withContext
+            val palette = Palette.from(bitmap).generate()
+            
+            val swatches = listOfNotNull(
+                palette.vibrantSwatch,
+                palette.mutedSwatch,
+                palette.dominantSwatch
+            )
+            
+            if (swatches.isNotEmpty()) {
+                val availableColors = lookupRepository.getColors().first()
+                if (availableColors.isNotEmpty()) {
+                    val snappedColors = swatches.map { swatch ->
+                        ColorMatcher.findNearestColor(swatch.rgb, availableColors)
+                    }.distinctBy { it.id }
+                    
+                    _selectedColors.value = snappedColors
+                }
+            }
+        } catch (e: Exception) {
+            // Silently fail color extraction
+        }
+    }
+
+    fun toggleColor(color: ColorEntity) {
+        val current = _selectedColors.value.toMutableList()
+        if (current.any { it.id == color.id }) {
+            current.removeAll { it.id == color.id }
+        } else {
+            current.add(color)
+        }
+        _selectedColors.value = current
     }
 
     fun save() {
@@ -323,9 +377,9 @@ class ClothingFormViewModel @Inject constructor(
             )
 
             val result = if (isEditMode) {
-                clothingRepository.updateItem(item)
+                clothingRepository.updateItemWithColors(item, _selectedColors.value)
             } else {
-                clothingRepository.insertItem(item)
+                clothingRepository.insertItemWithColors(item, _selectedColors.value)
             }
 
             when (result) {
