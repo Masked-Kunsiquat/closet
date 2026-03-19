@@ -365,9 +365,10 @@ private fun ClothingDetailContent(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Appearance Group (Chips)
-        FlowRow(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             // Status Chip (Non-interactive)
             Surface(
