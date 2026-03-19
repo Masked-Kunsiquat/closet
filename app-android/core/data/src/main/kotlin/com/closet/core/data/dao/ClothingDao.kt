@@ -124,9 +124,10 @@ interface ClothingDao {
     /**
      * Updates an existing clothing item in the database.
      * @param item The [ClothingItemEntity] with updated values.
+     * @return The number of rows affected.
      */
     @Update
-    suspend fun updateClothingItem(item: ClothingItemEntity)
+    suspend fun updateClothingItem(item: ClothingItemEntity): Int
 
     /**
      * Deletes a clothing item from the database by its ID.

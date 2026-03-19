@@ -115,16 +115,17 @@ class ClothingRepository @Inject constructor(
      * Updates an existing clothing item and its associations.
      * @param item The item entity with updated values.
      * @param colorIds Optional list of color IDs to associate.
-     * @return A [DataResult] indicating success or failure.
+     * @return A [DataResult] containing the number of rows updated.
      */
     suspend fun updateItem(
         item: ClothingItemEntity,
         colorIds: List<Long>? = null
-    ): DataResult<Unit> = wrapInTransaction {
-        clothingDao.updateClothingItem(item)
-        if (colorIds != null) {
+    ): DataResult<Int> = wrapInTransaction {
+        val rowsAffected = clothingDao.updateClothingItem(item)
+        if (rowsAffected > 0 && colorIds != null) {
             clothingDao.updateItemColors(item.id, colorIds)
         }
+        rowsAffected
     }
 
     /**
@@ -133,7 +134,7 @@ class ClothingRepository @Inject constructor(
     suspend fun updateItemWithColors(
         item: ClothingItemEntity,
         colors: List<ColorEntity>
-    ): DataResult<Unit> = updateItem(item, colors.map { it.id })
+    ): DataResult<Int> = updateItem(item, colors.map { it.id })
 
     /**
      * Deletes a clothing item by its ID.

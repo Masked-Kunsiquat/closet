@@ -18,6 +18,7 @@ import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -122,6 +123,7 @@ class ClothingFormViewModel @Inject constructor(
     // To handle image replacement cleanup
     private var originalImagePath: String? = null
     private var originalEntity: ClothingItemEntity? = null
+    private var originalColors: List<ColorEntity> = emptyList()
 
     // One-time events for navigation
     private val _events = Channel<ClothingFormEvent>()
@@ -167,6 +169,9 @@ class ClothingFormViewModel @Inject constructor(
     ) { (basic, details, status), cats, subcats, colors ->
         val isDirty = if (isEditMode && originalEntity != null) {
             val e = originalEntity!!
+            val colorsChanged = details.selectedColors.size != originalColors.size ||
+                    !details.selectedColors.containsAll(originalColors)
+
             basic.name != e.name || 
             basic.brand != (e.brand ?: "") || 
             basic.category?.id != e.categoryId || 
@@ -175,11 +180,12 @@ class ClothingFormViewModel @Inject constructor(
             details.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE) != e.purchaseDate ||
             details.purchaseLocation != (e.purchaseLocation ?: "") ||
             details.notes != (e.notes ?: "") ||
-            details.imagePath != e.imagePath
+            details.imagePath != e.imagePath ||
+            colorsChanged
         } else {
             basic.name.isNotBlank() || basic.brand.isNotBlank() || basic.category != null || 
             basic.price.isNotBlank() || details.purchaseDate != null || details.purchaseLocation.isNotBlank() ||
-            details.notes.isNotBlank() || details.imagePath != null
+            details.notes.isNotBlank() || details.imagePath != null || details.selectedColors.isNotEmpty()
         }
 
         ClothingFormUiState(
@@ -252,6 +258,7 @@ class ClothingFormViewModel @Inject constructor(
 
                 // Hydrate colors
                 val colors = clothingRepository.getItemColors(id).first()
+                originalColors = colors
                 _selectedColors.value = colors
             } else {
                 _errorMessage.value = R.string.wardrobe_error_load_failed
@@ -308,7 +315,8 @@ class ClothingFormViewModel @Inject constructor(
                 
                 // Process colors from the new image
                 extractColors(uri)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _errorMessage.value = R.string.wardrobe_error_image_failed
             }
         }
@@ -335,7 +343,8 @@ class ClothingFormViewModel @Inject constructor(
                     _selectedColors.value = snappedColors
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
             // Silently fail color extraction
         }
     }
@@ -348,52 +357,56 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     fun save() {
+        if (_isSaving.value) return
         if (_name.value.isBlank()) {
             _isNameError.value = true
             return
         }
 
+        _isSaving.value = true
+        _errorMessage.value = null
+
         viewModelScope.launch {
-            _isSaving.value = true
-            _errorMessage.value = null
+            try {
+                val item = ClothingItemEntity(
+                    id = itemId ?: 0,
+                    name = _name.value.trim(),
+                    brand = _brand.value.trim().takeIf { it.isNotBlank() },
+                    categoryId = _selectedCategory.value?.id,
+                    subcategoryId = _selectedSubcategory.value?.id,
+                    purchasePrice = _price.value.toDoubleOrNull(),
+                    purchaseDate = _purchaseDate.value?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    purchaseLocation = _purchaseLocation.value.trim().takeIf { it.isNotBlank() },
+                    notes = _notes.value.trim().takeIf { it.isNotBlank() },
+                    imagePath = _imagePath.value,
+                    status = originalEntity?.status ?: ClothingStatus.Active,
+                    washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
+                    isFavorite = originalEntity?.isFavorite ?: 0,
+                    createdAt = originalEntity?.createdAt ?: Instant.now(),
+                    updatedAt = Instant.now()
+                )
 
-            val item = ClothingItemEntity(
-                id = itemId ?: 0,
-                name = _name.value.trim(),
-                brand = _brand.value.trim().takeIf { it.isNotBlank() },
-                categoryId = _selectedCategory.value?.id,
-                subcategoryId = _selectedSubcategory.value?.id,
-                purchasePrice = _price.value.toDoubleOrNull(),
-                purchaseDate = _purchaseDate.value?.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                purchaseLocation = _purchaseLocation.value.trim().takeIf { it.isNotBlank() },
-                notes = _notes.value.trim().takeIf { it.isNotBlank() },
-                imagePath = _imagePath.value,
-                status = originalEntity?.status ?: ClothingStatus.Active,
-                washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
-                isFavorite = originalEntity?.isFavorite ?: 0,
-                createdAt = originalEntity?.createdAt ?: Instant.now(),
-                updatedAt = Instant.now()
-            )
+                val result = if (isEditMode) {
+                    clothingRepository.updateItemWithColors(item, _selectedColors.value)
+                } else {
+                    clothingRepository.insertItemWithColors(item, _selectedColors.value)
+                }
 
-            val result = if (isEditMode) {
-                clothingRepository.updateItemWithColors(item, _selectedColors.value)
-            } else {
-                clothingRepository.insertItemWithColors(item, _selectedColors.value)
-            }
-
-            when (result) {
-                is DataResult.Success -> {
-                    if (isEditMode && _imagePath.value != originalImagePath) {
-                        originalImagePath?.let { storageRepository.deleteImage(it) }
+                when (result) {
+                    is DataResult.Success -> {
+                        if (isEditMode && _imagePath.value != originalImagePath) {
+                            originalImagePath?.let { storageRepository.deleteImage(it) }
+                        }
+                        _events.send(ClothingFormEvent.NavigateBack)
                     }
-                    _events.send(ClothingFormEvent.NavigateBack)
+                    is DataResult.Error -> {
+                        _errorMessage.value = R.string.wardrobe_error_save_failed
+                    }
+                    else -> { /* No-op */ }
                 }
-                is DataResult.Error -> {
-                    _errorMessage.value = R.string.wardrobe_error_save_failed
-                }
-                else -> { /* No-op */ }
+            } finally {
+                _isSaving.value = false
             }
-            _isSaving.value = false
         }
     }
 }
