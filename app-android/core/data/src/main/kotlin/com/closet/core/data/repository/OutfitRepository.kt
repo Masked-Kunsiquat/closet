@@ -10,6 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -92,7 +93,12 @@ class OutfitRepository @Inject constructor(
         items: List<OutfitItem>
     ): DataResult<Unit> = try {
         database.withTransaction {
-            outfitDao.updateOutfit(OutfitEntity(id = outfitId, name = name, notes = notes))
+            outfitDao.updateOutfitFields(
+                id = outfitId,
+                name = name,
+                notes = notes,
+                updatedAt = Instant.now()
+            )
             outfitDao.deleteItemsForOutfit(outfitId)
             val outfitItems = items.map { 
                 OutfitItemEntity(

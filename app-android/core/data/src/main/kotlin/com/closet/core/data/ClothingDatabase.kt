@@ -60,14 +60,32 @@ abstract class ClothingDatabase : RoomDatabase() {
 
         /**
          * Migration from version 1 to 2: Add layout columns to outfit_items and populate colors.
+         * Note: Columns are checked before adding to avoid errors if they already exist in some v1 versions.
          */
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // Add missing layout columns to outfit_items that were added in the model but missing in v1 DB
-                db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_x REAL")
-                db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_y REAL")
-                db.execSQL("ALTER TABLE outfit_items ADD COLUMN scale REAL")
-                db.execSQL("ALTER TABLE outfit_items ADD COLUMN z_index INTEGER")
+                val cursor = db.query("PRAGMA table_info(outfit_items)")
+                val existingColumns = mutableSetOf<String>()
+                while (cursor.moveToNext()) {
+                    val nameIndex = cursor.getColumnIndex("name")
+                    if (nameIndex != -1) {
+                        existingColumns.add(cursor.getString(nameIndex))
+                    }
+                }
+                cursor.close()
+
+                if (!existingColumns.contains("pos_x")) {
+                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_x REAL")
+                }
+                if (!existingColumns.contains("pos_y")) {
+                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_y REAL")
+                }
+                if (!existingColumns.contains("scale")) {
+                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN scale REAL")
+                }
+                if (!existingColumns.contains("z_index")) {
+                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN z_index INTEGER")
+                }
 
                 DatabaseSeeder.seedColors(db)
             }

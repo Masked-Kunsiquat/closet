@@ -3,6 +3,7 @@ package com.closet.core.data.dao
 import androidx.room.*
 import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 /**
  * Data Access Object for managing outfits and their constituent items.
@@ -61,6 +62,12 @@ interface OutfitDao {
      */
     @Update
     suspend fun updateOutfit(outfit: OutfitEntity)
+
+    /**
+     * Updates specific fields of an outfit to preserve fields like createdAt.
+     */
+    @Query("UPDATE outfits SET name = :name, notes = :notes, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateOutfitFields(id: Long, name: String?, notes: String?, updatedAt: Instant)
 
     /**
      * Removes all clothing item associations for a specific outfit.
