@@ -22,11 +22,11 @@ object IconMapper {
         "houndstooth" -> R.drawable.ic_pattern_houndstooth
         "ombre" -> R.drawable.ic_pattern_ombre
         "paisley" -> R.drawable.ic_pattern_paisley
-        "plaid", "tartan", "plaid / tartan" -> R.drawable.ic_pattern_plaid_tartan
+        "plaid", "tartan", "plaid/tartan", "plaid / tartan" -> R.drawable.ic_pattern_plaid_tartan
         "polka dot" -> R.drawable.ic_pattern_polka_dot
         "solid" -> R.drawable.ic_pattern_solid
         "striped" -> R.drawable.ic_pattern_striped
-        "tie dye" -> R.drawable.ic_pattern_tie_dye
+        "tie dye", "tie-dye" -> R.drawable.ic_pattern_tie_dye
         "other" -> R.drawable.ic_pattern_other
         else -> null
     }
