@@ -1,7 +1,5 @@
 package com.closet.features.wardrobe
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -337,19 +335,9 @@ class ClothingFormViewModel @Inject constructor(
                     _selectedColors.value = snappedColors
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Silently fail color extraction
         }
-    }
-
-    fun toggleColor(color: ColorEntity) {
-        val current = _selectedColors.value.toMutableList()
-        if (current.any { it.id == color.id }) {
-            current.removeAll { it.id == color.id }
-        } else {
-            current.add(color)
-        }
-        _selectedColors.value = current
     }
 
     fun updateColors(colorIds: List<Long>) {
