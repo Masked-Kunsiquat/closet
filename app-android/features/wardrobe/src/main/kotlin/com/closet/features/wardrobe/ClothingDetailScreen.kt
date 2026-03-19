@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -66,12 +67,13 @@ fun ClothingDetailScreen(
     val occasions by viewModel.occasions.collectAsStateWithLifecycle()
     val patterns by viewModel.patterns.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.actionError.collectLatest { userMessage ->
             snackbarHostState.showSnackbar(
-                message = "Action error: ${userMessage.resId}" 
+                message = context.getString(userMessage.resId, *userMessage.args)
             )
         }
     }
@@ -437,10 +439,10 @@ private fun ClothingDetailContent(
         val location = item.item.purchaseLocation
         if (price != null || dateStr != null || location != null) {
             DetailGroup(title = stringResource(R.string.wardrobe_purchase_info)) {
-                price.let {
+                price?.let { p ->
                     DetailRow(
                         label = stringResource(R.string.wardrobe_purchase_price),
-                        value = currencyFormatter.format(it)
+                        value = currencyFormatter.format(p)
                     )
                 }
                 dateStr?.let { dStr ->
@@ -583,7 +585,7 @@ private fun ClothingDetailContent(
                         AttributeChip(
                             label = occasion.name,
                             iconResId = IconMapper.getIconResource(occasion.icon),
-                            onClick = onEditOccasions
+                            onClick = onEditSeasons
                         )
                     }
                 }
