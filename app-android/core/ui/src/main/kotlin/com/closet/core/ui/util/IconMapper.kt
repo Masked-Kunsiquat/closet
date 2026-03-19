@@ -39,6 +39,7 @@ object IconMapper {
         "leaf", "ic_icon_leaf" -> R.drawable.ic_icon_leaf
         "snowflake", "ic_icon_snowflake" -> R.drawable.ic_icon_snowflake
         "flower", "ic_icon_flower" -> R.drawable.ic_icon_flower
+        "thermometer", "ic_icon_thermometer" -> R.drawable.ic_icon_thermometer
         "briefcase", "ic_icon_briefcase" -> R.drawable.ic_icon_briefcase
         "cheers", "ic_icon_cheers" -> R.drawable.ic_icon_cheers
         "couch", "ic_icon_couch" -> R.drawable.ic_icon_couch
@@ -67,6 +68,23 @@ object IconMapper {
         "crown_simple", "ic_icon_crown_simple" -> R.drawable.ic_icon_crown_simple
         "person_simple_run", "ic_icon_person_simple_run" -> R.drawable.ic_icon_person_simple_run
         "person_simple_swim", "ic_icon_person_simple_swim" -> R.drawable.ic_icon_person_simple_swim
+        else -> null
+    }
+
+    /**
+     * Maps a category name to its primary icon resource.
+     */
+    fun getCategoryIcon(categoryName: String): Int? = when (categoryName.lowercase()) {
+        "top", "tops" -> R.drawable.ic_icon_t_shirt
+        "bottom", "bottoms" -> R.drawable.ic_icon_pants
+        "outerwear" -> R.drawable.ic_icon_hoodie
+        "dresses", "jumpsuits", "dresses/jumpsuits" -> R.drawable.ic_icon_dress
+        "footwear" -> R.drawable.ic_icon_sneaker
+        "accessories" -> R.drawable.ic_icon_watch
+        "bags" -> R.drawable.ic_icon_handbag
+        "activewear" -> R.drawable.ic_icon_person_simple_run
+        "underwear", "intimates", "underwear/intimates" -> R.drawable.ic_icon_sock
+        "swimwear" -> R.drawable.ic_icon_goggles
         else -> null
     }
 }
