@@ -6,7 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -330,16 +329,16 @@ private fun ClothingDetailContent(
             color = palette?.mutedSwatch?.rgb?.let { Color(it) } ?: MaterialTheme.colorScheme.surfaceVariant,
             shape = MaterialTheme.shapes.medium
         ) {
-            val imageModel = item.item.imagePath?.let { getAbsoluteFile(it) }
-            
-            AsyncImage(
-                model = imageModel,
-                contentDescription = item.item.name,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(MaterialTheme.shapes.medium),
-                contentScale = ContentScale.Crop
-            )
+            item.item.imagePath?.let { getAbsoluteFile(it) }?.let { imageModel ->
+                AsyncImage(
+                    model = imageModel,
+                    contentDescription = item.item.name,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(MaterialTheme.shapes.medium),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -414,16 +413,14 @@ private fun ClothingDetailContent(
                 value = item.category?.name ?: stringResource(R.string.wardrobe_uncategorized),
                 iconResId = IconMapper.getIconResource(item.category?.icon)
             )
-            val subcategory = item.subcategory
-            if (subcategory != null) {
+            item.subcategory?.let { subcategory ->
                 DetailDivider()
                 DetailRow(
                     label = stringResource(R.string.wardrobe_subcategory),
                     value = subcategory.name
                 )
             }
-            val sizeValue = item.sizeValue
-            if (sizeValue != null) {
+            item.sizeValue?.let { sizeValue ->
                 DetailDivider()
                 DetailRow(
                     label = stringResource(R.string.wardrobe_size),
@@ -440,25 +437,25 @@ private fun ClothingDetailContent(
         val location = item.item.purchaseLocation
         if (price != null || dateStr != null || location != null) {
             DetailGroup(title = stringResource(R.string.wardrobe_purchase_info)) {
-                if (price != null) {
+                price.let {
                     DetailRow(
                         label = stringResource(R.string.wardrobe_purchase_price),
-                        value = currencyFormatter.format(price)
+                        value = currencyFormatter.format(it)
                     )
                 }
-                if (dateStr != null) {
+                dateStr?.let { dStr ->
                     if (price != null) DetailDivider()
-                    val date = try { LocalDate.parse(dateStr) } catch (_: Exception) { null }
+                    val date = try { LocalDate.parse(dStr) } catch (_: Exception) { null }
                     DetailRow(
                         label = stringResource(R.string.wardrobe_purchase_date),
-                        value = date?.format(dateFormatter) ?: dateStr
+                        value = date?.format(dateFormatter) ?: dStr
                     )
                 }
-                if (location != null) {
+                location?.let { loc ->
                     if (price != null || dateStr != null) DetailDivider()
                     DetailRow(
                         label = stringResource(R.string.wardrobe_purchase_location),
-                        value = location
+                        value = loc
                     )
                 }
             }
@@ -466,8 +463,7 @@ private fun ClothingDetailContent(
         }
 
         // Notes Group
-        val notes = item.item.notes
-        if (!notes.isNullOrBlank()) {
+        item.item.notes?.takeIf { it.isNotBlank() }?.let { notes ->
             DetailGroup(title = stringResource(R.string.wardrobe_notes)) {
                 Text(
                     text = notes,

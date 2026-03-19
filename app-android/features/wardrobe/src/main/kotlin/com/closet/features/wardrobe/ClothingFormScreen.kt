@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -80,7 +79,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ColorEntity
-import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.ui.theme.ClosetTheme
 import java.time.Instant
 import java.time.LocalDate
@@ -185,7 +183,7 @@ internal fun ClothingFormContent(
     onNameChange: (String) -> Unit,
     onBrandChange: (String) -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
-    onSubcategorySelect: (SubcategoryEntity?) -> Unit,
+    onSubcategorySelect: (com.closet.core.data.model.SubcategoryEntity?) -> Unit,
     onPriceChange: (String) -> Unit,
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
@@ -208,8 +206,8 @@ internal fun ClothingFormContent(
                 title = stringResource(R.string.wardrobe_category),
                 items = uiState.categories,
                 itemLabel = { it.name },
-                onItemSelect = {
-                    onCategorySelect(it)
+                onItemSelect = { cat ->
+                    onCategorySelect(cat)
                     showCategorySheet = false
                 }
             )
@@ -222,8 +220,8 @@ internal fun ClothingFormContent(
                 title = stringResource(R.string.wardrobe_subcategory),
                 items = uiState.subcategories,
                 itemLabel = { it.name },
-                onItemSelect = {
-                    onSubcategorySelect(it)
+                onItemSelect = { sub ->
+                    onSubcategorySelect(sub)
                     showSubcategorySheet = false
                 }
             )
@@ -258,8 +256,8 @@ internal fun ClothingFormContent(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    val selectedDate = datePickerState.selectedDateMillis?.let {
-                        Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                    val selectedDate = datePickerState.selectedDateMillis?.let { ms ->
+                        Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
                     }
                     onDateChange(selectedDate)
                     showDatePicker = false
@@ -336,9 +334,9 @@ internal fun ClothingFormContent(
                     .clickable(onClick = onPhotoClick),
                 contentAlignment = Alignment.Center
             ) {
-                if (uiState.imageFile != null) {
+                uiState.imageFile?.let { imgFile ->
                     AsyncImage(
-                        model = uiState.imageFile,
+                        model = imgFile,
                         contentDescription = stringResource(R.string.wardrobe_clothing_photo),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -361,7 +359,7 @@ internal fun ClothingFormContent(
                             )
                         }
                     }
-                } else {
+                } ?: run {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
@@ -480,7 +478,7 @@ internal fun ClothingFormContent(
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            color.hex?.let { Color(it.toColorInt()) }
+                                            color.hex?.let { cHex -> Color(cHex.toColorInt()) }
                                                 ?: MaterialTheme.colorScheme.surfaceVariant
                                         )
                                         .border(
