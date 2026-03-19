@@ -3,7 +3,6 @@ package com.closet.core.data.repository
 import androidx.room.withTransaction
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.OutfitDao
-import com.closet.core.data.dao.OutfitWithMeta
 import com.closet.core.data.model.*
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
