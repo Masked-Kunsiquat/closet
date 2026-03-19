@@ -7,6 +7,7 @@ import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
+import com.closet.core.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -24,7 +26,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ClosetViewModel @Inject constructor(
     private val clothingRepository: ClothingRepository,
-    private val lookupRepository: LookupRepository
+    private val lookupRepository: LookupRepository,
+    private val storageRepository: StorageRepository
 ) : ViewModel() {
 
     companion object {
@@ -76,6 +79,13 @@ class ClosetViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
         initialValue = emptyList()
     )
+
+    /**
+     * Resolves a relative image path to an absolute File for UI display.
+     */
+    fun resolveImagePath(path: String?): File? {
+        return path?.let { storageRepository.getFile(it) }
+    }
 
     /**
      * Updates the currently selected category filter.

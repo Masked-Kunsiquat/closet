@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.*
 import com.closet.core.ui.components.ClothingItemCard
 import com.closet.core.ui.theme.ClosetTheme
+import java.io.File
 
 /**
  * The main screen for browsing the wardrobe (Closet).
@@ -46,6 +47,7 @@ fun ClosetScreen(
         categories = categories,
         selectedCategoryId = selectedCategoryId,
         onCategorySelect = viewModel::selectCategory,
+        resolveImagePath = viewModel::resolveImagePath,
         onAddItemClick = onAddItemClick,
         onItemClick = onItemClick,
         modifier = modifier
@@ -62,6 +64,7 @@ internal fun ClosetContent(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     onCategorySelect: (Long?) -> Unit,
+    resolveImagePath: (String?) -> File?,
     onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
@@ -99,6 +102,7 @@ internal fun ClosetContent(
                 ClosetGrid(
                     items = items,
                     onItemClick = onItemClick,
+                    resolveImagePath = resolveImagePath,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -143,12 +147,14 @@ private fun CategoryFilterRow(
  * 
  * @param items The list of clothing items to display.
  * @param onItemClick Callback for item interaction.
+ * @param resolveImagePath Function to resolve relative paths to absolute files.
  * @param modifier The [Modifier] to be applied to the grid.
  */
 @Composable
 private fun ClosetGrid(
     items: List<ClothingItemDetail>,
     onItemClick: (Long) -> Unit,
+    resolveImagePath: (String?) -> File?,
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
@@ -161,7 +167,7 @@ private fun ClosetGrid(
         items(items, key = { it.item.id }) { itemDetail ->
             ClothingItemCard(
                 name = itemDetail.item.name,
-                imagePath = itemDetail.item.imagePath,
+                imageModel = resolveImagePath(itemDetail.item.imagePath),
                 subtitle = pluralStringResource(
                     R.plurals.wardrobe_worn_times,
                     itemDetail.wearCount,
@@ -222,6 +228,7 @@ private fun ClosetScreenPreview() {
                 ),
                 selectedCategoryId = null,
                 onCategorySelect = {},
+                resolveImagePath = { null },
                 onAddItemClick = {},
                 onItemClick = {}
             )
@@ -239,6 +246,7 @@ private fun ClosetScreenEmptyPreview() {
                 categories = emptyList(),
                 selectedCategoryId = null,
                 onCategorySelect = {},
+                resolveImagePath = { null },
                 onAddItemClick = {},
                 onItemClick = {}
             )
