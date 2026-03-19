@@ -59,10 +59,16 @@ abstract class ClothingDatabase : RoomDatabase() {
         private var INSTANCE: ClothingDatabase? = null
 
         /**
-         * Migration from version 1 to 2: Populate the colors table with the predefined palette.
+         * Migration from version 1 to 2: Add layout columns to outfit_items and populate colors.
          */
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
+                // Add missing layout columns to outfit_items that were added in the model but missing in v1 DB
+                db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_x REAL")
+                db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_y REAL")
+                db.execSQL("ALTER TABLE outfit_items ADD COLUMN scale REAL")
+                db.execSQL("ALTER TABLE outfit_items ADD COLUMN z_index INTEGER")
+
                 DatabaseSeeder.seedColors(db)
             }
         }
