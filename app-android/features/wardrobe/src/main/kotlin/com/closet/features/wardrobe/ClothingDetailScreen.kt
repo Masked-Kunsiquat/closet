@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.palette.graphics.Palette
 import coil.compose.AsyncImage
 import com.closet.core.data.model.*
 import com.closet.core.ui.theme.ClosetTheme
@@ -53,6 +54,7 @@ fun ClothingDetailScreen(
     viewModel: ClothingDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val palette by viewModel.palette.collectAsStateWithLifecycle()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var activeSheet by remember { mutableStateOf(ActiveSheet.None) }
     
@@ -163,6 +165,7 @@ fun ClothingDetailScreen(
                 is ClothingDetailUiState.Success -> {
                     ClothingDetailContent(
                         item = state.item,
+                        palette = palette,
                         onWashStatusToggle = { viewModel.toggleWashStatus() },
                         onEditColors = { activeSheet = ActiveSheet.Colors },
                         onEditMaterials = { activeSheet = ActiveSheet.Materials },
@@ -297,6 +300,7 @@ private fun ErrorContent(
 @Composable
 private fun ClothingDetailContent(
     item: ClothingItemDetail,
+    palette: Palette?,
     onWashStatusToggle: () -> Unit,
     onEditColors: () -> Unit,
     onEditMaterials: () -> Unit,
@@ -320,7 +324,7 @@ private fun ClothingDetailContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = palette?.mutedSwatch?.rgb?.let { Color(it) } ?: MaterialTheme.colorScheme.surfaceVariant,
             shape = MaterialTheme.shapes.medium
         ) {
             val imageModel = item.item.imagePath?.let { getAbsoluteFile(it) }
@@ -359,7 +363,8 @@ private fun ClothingDetailContent(
         // Stats Group Card
         StatsGroup(
             wearCount = item.wearCount,
-            costPerWear = item.costPerWear
+            costPerWear = item.costPerWear,
+            accentColor = palette?.vibrantSwatch?.rgb?.let { Color(it) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -668,14 +673,15 @@ private fun AttributeChip(
 private fun StatsGroup(
     wearCount: Int,
     costPerWear: Double?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    accentColor: Color? = null
 ) {
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale.getDefault()) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
+            containerColor = accentColor?.copy(alpha = 0.15f) ?: MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
         Row(

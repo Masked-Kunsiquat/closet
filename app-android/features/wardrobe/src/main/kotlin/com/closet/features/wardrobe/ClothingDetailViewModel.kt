@@ -4,11 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import androidx.palette.graphics.Palette
 import com.closet.core.data.model.*
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.AppError
+import com.closet.core.data.util.PaletteUtil
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
@@ -54,15 +56,27 @@ class ClothingDetailViewModel @Inject constructor(
     )
     val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
+    private val _palette = MutableStateFlow<Palette?>(null)
+    val palette: StateFlow<Palette?> = _palette.asStateFlow()
+
     init {
         viewModelScope.launch {
             itemDetailFlow.collect { detail ->
                 if (detail != null) {
                     _uiState.value = ClothingDetailUiState.Success(detail)
+                    extractPalette(detail.item.imagePath)
                 } else {
                     _uiState.value = ClothingDetailUiState.Error(AppError.DatabaseError.NotFound().asUserMessage())
                 }
             }
+        }
+    }
+
+    private fun extractPalette(imagePath: String?) {
+        if (imagePath == null) return
+        viewModelScope.launch {
+            val file = storageRepository.getFile(imagePath)
+            _palette.value = PaletteUtil.extractPalette(file)
         }
     }
 

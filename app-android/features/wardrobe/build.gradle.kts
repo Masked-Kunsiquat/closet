@@ -59,4 +59,7 @@ dependencies {
 
     // Image loading
     implementation(libs.coil.compose)
+
+    // Palette
+    implementation(libs.androidx.palette.ktx)
 }
