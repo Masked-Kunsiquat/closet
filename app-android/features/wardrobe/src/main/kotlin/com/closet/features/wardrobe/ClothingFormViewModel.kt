@@ -356,6 +356,10 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    fun onErrorConsumed() {
+        _errorMessage.value = null
+    }
+
     fun save() {
         if (_isSaving.value) return
         if (_name.value.isBlank()) {

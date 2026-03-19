@@ -41,15 +41,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -63,17 +60,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -109,6 +103,7 @@ fun ClothingFormScreen(
         val message = stringResource(messageRes)
         LaunchedEffect(messageRes) {
             snackbarHostState.showSnackbar(message)
+            viewModel.onErrorConsumed()
         }
     }
 
@@ -130,556 +125,464 @@ fun ClothingFormScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text(stringResource(R.string.wardrobe_discard_changes_title)) },
-            text = { Text(stringResource(R.string.wardrobe_discard_changes_message)) },
+            title = { Text(stringResource(R.string.wardrobe_discard_title)) },
+            text = { Text(stringResource(R.string.wardrobe_discard_message)) },
             confirmButton = {
                 TextButton(onClick = onBackClick) {
-                    Text(stringResource(R.string.wardrobe_discard))
+                    Text(stringResource(R.string.wardrobe_discard_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
-                    Text(stringResource(R.string.wardrobe_cancel))
+                    Text(stringResource(R.string.wardrobe_discard_cancel))
                 }
             }
         )
     }
 
-    if (uiState.isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            ClothingFormTopBar(
+                isEditMode = uiState.isEditMode,
+                canSave = uiState.canSave,
+                onBackClick = handleBack,
+                onSaveClick = viewModel::save
+            )
         }
-    } else {
-        ClothingFormContent(
-            uiState = uiState,
-            snackbarHostState = snackbarHostState,
-            onNameChange = viewModel::updateName,
-            onBrandChange = viewModel::updateBrand,
-            onCategorySelect = viewModel::selectCategory,
-            onSubcategorySelect = viewModel::selectSubcategory,
-            onPriceChange = viewModel::updatePrice,
-            onDateChange = viewModel::updatePurchaseDate,
-            onLocationChange = viewModel::updatePurchaseLocation,
-            onNotesChange = viewModel::updateNotes,
-            onColorsChange = viewModel::updateColors,
-            onPhotoClick = {
-                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-            onSaveClick = viewModel::save,
-            onBackClick = handleBack,
-            modifier = modifier
-        )
+    ) { padding ->
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            ClothingFormContent(
+                uiState = uiState,
+                onNameChange = viewModel::updateName,
+                onBrandChange = viewModel::updateBrand,
+                onCategorySelect = viewModel::selectCategory,
+                onSubcategorySelect = viewModel::selectSubcategory,
+                onPriceChange = viewModel::updatePrice,
+                onDateChange = viewModel::updatePurchaseDate,
+                onLocationChange = viewModel::updatePurchaseLocation,
+                onNotesChange = viewModel::updateNotes,
+                onImageClick = {
+                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                onColorToggle = { color ->
+                    val newColors = if (uiState.selectedColors.contains(color)) {
+                        uiState.selectedColors.filter { it.id != color.id }
+                    } else {
+                        uiState.selectedColors + color
+                    }
+                    viewModel.updateColors(newColors.map { it.id })
+                },
+                modifier = Modifier.padding(padding)
+            )
+        }
     }
 }
 
-/**
- * The content of the Clothing form screen, decoupled for previews.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ClothingFormContent(
+private fun ClothingFormTopBar(
+    isEditMode: Boolean,
+    canSave: Boolean,
+    onBackClick: () -> Unit,
+    onSaveClick: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text(
+                if (isEditMode) stringResource(R.string.wardrobe_edit_item)
+                else stringResource(R.string.wardrobe_add_item)
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.wardrobe_back)
+                )
+            }
+        },
+        actions = {
+            IconButton(
+                onClick = onSaveClick,
+                enabled = canSave
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = stringResource(R.string.wardrobe_save)
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun ClothingFormContent(
     uiState: ClothingFormUiState,
-    snackbarHostState: SnackbarHostState,
     onNameChange: (String) -> Unit,
     onBrandChange: (String) -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
-    onSubcategorySelect: (com.closet.core.data.model.SubcategoryEntity?) -> Unit,
+    onSubcategorySelect: (SubcategoryEntity?) -> Unit,
     onPriceChange: (String) -> Unit,
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
-    onColorsChange: (List<Long>) -> Unit,
-    onPhotoClick: () -> Unit,
-    onSaveClick: () -> Unit,
-    onBackClick: () -> Unit,
+    onImageClick: () -> Unit,
+    onColorToggle: (ColorEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val focusManager = LocalFocusManager.current
-    var showCategorySheet by remember { mutableStateOf(false) }
-    var showSubcategorySheet by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showColorSheet by remember { mutableStateOf(false) }
-
-    if (showCategorySheet) {
-        ModalBottomSheet(onDismissRequest = { showCategorySheet = false }) {
-            SelectionSheetContent(
-                title = stringResource(R.string.wardrobe_category),
-                items = uiState.categories,
-                itemLabel = { it.name },
-                onItemSelect = { cat ->
-                    onCategorySelect(cat)
-                    showCategorySheet = false
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Image Section
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onImageClick),
+                contentAlignment = Alignment.Center
+            ) {
+                if (uiState.imagePath != null) {
+                    AsyncImage(
+                        model = uiState.imageFile ?: uiState.imagePath,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.AddAPhoto,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.wardrobe_add_photo),
+                            style = MaterialTheme.typography.labelLarge,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            )
-        }
-    }
-
-    if (showSubcategorySheet) {
-        ModalBottomSheet(onDismissRequest = { showSubcategorySheet = false }) {
-            SelectionSheetContent(
-                title = stringResource(R.string.wardrobe_subcategory),
-                items = uiState.subcategories,
-                itemLabel = { it.name },
-                onItemSelect = { sub ->
-                    onSubcategorySelect(sub)
-                    showSubcategorySheet = false
-                }
-            )
-        }
-    }
-
-    if (showColorSheet) {
-        MultiSelectSheet(
-            title = stringResource(R.string.wardrobe_colors),
-            items = uiState.allColors.map { color ->
-                MultiSelectItem(
-                    id = color.id,
-                    label = color.name,
-                    original = color,
-                    colorHex = color.hex
-                )
-            },
-            selectedIds = uiState.selectedColors.map { it.id }.toSet(),
-            onDismiss = { showColorSheet = false },
-            onConfirm = { ids ->
-                onColorsChange(ids)
-                showColorSheet = false
             }
-        )
+        }
+
+        // Basic Info Section
+        item {
+            OutlinedTextField(
+                value = uiState.name,
+                onValueChange = onNameChange,
+                label = { Text(stringResource(R.string.wardrobe_field_name)) },
+                modifier = Modifier.fillMaxWidth(),
+                isError = uiState.isNameError,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            )
+        }
+
+        item {
+            OutlinedTextField(
+                value = uiState.brand,
+                onValueChange = onBrandChange,
+                label = { Text(stringResource(R.string.wardrobe_field_brand)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            )
+        }
+
+        // Category & Subcategory
+        item {
+            CategoryDropdown(
+                selectedCategory = uiState.category,
+                categories = uiState.categories,
+                onCategorySelect = onCategorySelect
+            )
+        }
+
+        item {
+            SubcategoryDropdown(
+                selectedSubcategory = uiState.subcategory,
+                subcategories = uiState.subcategories,
+                onSubcategorySelect = onSubcategorySelect,
+                enabled = uiState.category != null
+            )
+        }
+
+        // Color Section
+        item {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.wardrobe_section_colors),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                ColorSelectionGrid(
+                    selectedColors = uiState.selectedColors,
+                    allColors = uiState.allColors,
+                    onColorToggle = onColorToggle
+                )
+            }
+        }
+
+        item { HorizontalDivider() }
+
+        // Purchase Info Section
+        item {
+            OutlinedTextField(
+                value = uiState.price,
+                onValueChange = onPriceChange,
+                label = { Text(stringResource(R.string.wardrobe_field_price)) },
+                modifier = Modifier.fillMaxWidth(),
+                prefix = { Text("$") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                )
+            )
+        }
+
+        item {
+            DatePickerField(
+                selectedDate = uiState.purchaseDate,
+                onDateChange = onDateChange
+            )
+        }
+
+        item {
+            OutlinedTextField(
+                value = uiState.purchaseLocation,
+                onValueChange = onLocationChange,
+                label = { Text(stringResource(R.string.wardrobe_field_location)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            )
+        }
+
+        // Notes Section
+        item {
+            OutlinedTextField(
+                value = uiState.notes,
+                onValueChange = onNotesChange,
+                label = { Text(stringResource(R.string.wardrobe_field_notes)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+            )
+        }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryDropdown(
+    selectedCategory: CategoryEntity?,
+    categories: List<CategoryEntity>,
+    onCategorySelect: (CategoryEntity?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = selectedCategory?.name ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(stringResource(R.string.wardrobe_field_category)) },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            colors = androidx.compose.material3.ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+        // Simple overlay to handle click since OutlinedTextField readOnly doesn't trigger onClick easily
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { expanded = true }
+        )
+
+        androidx.compose.material3.DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.9f)
+        ) {
+            categories.forEach { category ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(category.name) },
+                    onClick = {
+                        onCategorySelect(category)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SubcategoryDropdown(
+    selectedSubcategory: SubcategoryEntity?,
+    subcategories: List<SubcategoryEntity>,
+    onSubcategorySelect: (SubcategoryEntity?) -> Unit,
+    enabled: Boolean
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = selectedSubcategory?.name ?: "",
+            onValueChange = {},
+            readOnly = true,
+            enabled = enabled,
+            label = { Text(stringResource(R.string.wardrobe_field_subcategory)) },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = {
+                androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            colors = androidx.compose.material3.ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+        if (enabled) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable { expanded = true }
+            )
+        }
+
+        androidx.compose.material3.DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.9f)
+        ) {
+            subcategories.forEach { sub ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(sub.name) },
+                    onClick = {
+                        onSubcategorySelect(sub)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorSelectionGrid(
+    selectedColors: List<ColorEntity>,
+    allColors: List<ColorEntity>,
+    onColorToggle: (ColorEntity) -> Unit
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 4.dp)
+    ) {
+        items(allColors) { color ->
+            val isSelected = selectedColors.any { it.id == color.id }
+            val hexColor = try { Color(android.graphics.Color.parseColor(color.hexCode)) } catch(_: Exception) { Color.Gray }
+            
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(hexColor)
+                    .border(
+                        width = if (isSelected) 3.dp else 1.dp,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                        shape = CircleShape
+                    )
+                    .clickable { onColorToggle(color) },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = if (isColorDark(hexColor)) Color.White else Color.Black,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DatePickerField(
+    selectedDate: LocalDate?,
+    onDateChange: (LocalDate?) -> Unit
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+    )
+
+    OutlinedTextField(
+        value = selectedDate?.toString() ?: "",
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(stringResource(R.string.wardrobe_field_purchase_date)) },
+        modifier = Modifier.fillMaxWidth(),
+        trailingIcon = {
+            IconButton(onClick = { showDatePicker = true }) {
+                Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null)
+            }
+        }
+    )
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.purchaseDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
-        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    val selectedDate = datePickerState.selectedDateMillis?.let { ms ->
-                        Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
+                    datePickerState.selectedDateMillis?.let {
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                        onDateChange(date)
                     }
-                    onDateChange(selectedDate)
                     showDatePicker = false
                 }) {
-                    Text(stringResource(R.string.wardrobe_save))
+                    Text(stringResource(R.string.wardrobe_date_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.wardrobe_cancel))
+                    Text(stringResource(R.string.wardrobe_date_cancel))
                 }
             }
         ) {
             DatePicker(state = datePickerState)
         }
     }
-
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        if (uiState.isEditMode) stringResource(R.string.wardrobe_edit) 
-                        else stringResource(R.string.wardrobe_add_item)
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.wardrobe_back)
-                        )
-                    }
-                },
-                actions = {
-                    if (uiState.isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(end = 16.dp)
-                                .size(24.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        IconButton(
-                            onClick = onSaveClick,
-                            enabled = uiState.canSave
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = stringResource(R.string.wardrobe_save)
-                            )
-                        }
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Photo Selection / Preview
-            Box(
-                modifier = Modifier
-                    .size(160.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable(onClick = onPhotoClick),
-                contentAlignment = Alignment.Center
-            ) {
-                uiState.imageFile?.let { imgFile ->
-                    AsyncImage(
-                        model = imgFile,
-                        contentDescription = stringResource(R.string.wardrobe_clothing_photo),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.BottomCenter
-                    ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = stringResource(R.string.wardrobe_change_photo),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(vertical = 4.dp),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                        }
-                    }
-                } ?: run {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.wardrobe_add_photo),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Primary Fields
-            OutlinedTextField(
-                value = uiState.name,
-                onValueChange = onNameChange,
-                label = { Text(stringResource(R.string.wardrobe_name)) },
-                modifier = Modifier.fillMaxWidth(),
-                isError = uiState.isNameError,
-                singleLine = true,
-                enabled = !uiState.isSaving,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                )
-            )
-
-            if (uiState.isNameError) {
-                Text(
-                    text = stringResource(R.string.wardrobe_error_name_required),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = uiState.brand,
-                onValueChange = onBrandChange,
-                label = { Text(stringResource(R.string.wardrobe_brand)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !uiState.isSaving,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Category & Subcategory
-            ReadOnlyTextField(
-                value = uiState.category?.name ?: "",
-                label = stringResource(R.string.wardrobe_category),
-                enabled = !uiState.isSaving,
-                onClick = {
-                    focusManager.clearFocus()
-                    showCategorySheet = true
-                }
-            )
-
-            if (uiState.category != null && uiState.subcategories.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                ReadOnlyTextField(
-                    value = uiState.subcategory?.name ?: "",
-                    label = stringResource(R.string.wardrobe_subcategory),
-                    enabled = !uiState.isSaving,
-                    onClick = {
-                        focusManager.clearFocus()
-                        showSubcategorySheet = true
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Colors Section
-            ReadOnlyTextField(
-                value = if (uiState.selectedColors.isEmpty()) "" else " ", // Placeholder for height
-                label = stringResource(R.string.wardrobe_colors),
-                enabled = !uiState.isSaving,
-                onClick = {
-                    focusManager.clearFocus()
-                    showColorSheet = true
-                },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.Palette, contentDescription = null)
-                },
-                content = {
-                    if (uiState.selectedColors.isNotEmpty()) {
-                        LazyRow(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(uiState.selectedColors) { color ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            color.hex?.let { cHex -> Color(cHex.toColorInt()) }
-                                                ?: MaterialTheme.colorScheme.surfaceVariant
-                                        )
-                                        .border(
-                                            BorderStroke(
-                                                1.dp,
-                                                MaterialTheme.colorScheme.outlineVariant
-                                            ),
-                                            CircleShape
-                                        )
-                                )
-                            }
-                        }
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Extended Metadata
-            OutlinedTextField(
-                value = uiState.price,
-                onValueChange = onPriceChange,
-                label = { Text(stringResource(R.string.wardrobe_purchase_price)) },
-                placeholder = { Text(stringResource(R.string.wardrobe_price_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !uiState.isSaving,
-                prefix = { Text("$") },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            ReadOnlyTextField(
-                value = uiState.formattedDate ?: "",
-                label = stringResource(R.string.wardrobe_purchase_date),
-                enabled = !uiState.isSaving,
-                trailingIcon = {
-                    Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null)
-                },
-                onClick = {
-                    focusManager.clearFocus()
-                    showDatePicker = true
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = uiState.purchaseLocation,
-                onValueChange = onLocationChange,
-                label = { Text(stringResource(R.string.wardrobe_purchase_location)) },
-                placeholder = { Text(stringResource(R.string.wardrobe_location_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !uiState.isSaving,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = uiState.notes,
-                onValueChange = onNotesChange,
-                label = { Text(stringResource(R.string.wardrobe_notes)) },
-                placeholder = { Text(stringResource(R.string.wardrobe_notes_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                enabled = !uiState.isSaving,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = { focusManager.clearFocus() }
-                )
-            )
-        }
-    }
 }
 
-/**
- * A text field that looks editable but triggers an action instead.
- */
-@Composable
-private fun ReadOnlyTextField(
-    value: String,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    leadingIcon: @Composable (() -> Unit)? = null,
-    trailingIcon: @Composable (() -> Unit)? = null,
-    content: @Composable (() -> Unit)? = null
-) {
-    Box(modifier = modifier.clickable(enabled = enabled, onClick = onClick)) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = {},
-            label = { Text(label) },
-            readOnly = true,
-            enabled = false,
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = leadingIcon,
-            trailingIcon = trailingIcon,
-            colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                disabledBorderColor = if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                disabledLabelColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                disabledLeadingIconColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                disabledTrailingIconColor = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-            )
-        )
-        if (content != null) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .padding(start = if (leadingIcon != null) 52.dp else 16.dp, end = if (trailingIcon != null) 52.dp else 16.dp, top = 8.dp)
-            ) {
-                content()
-            }
-        }
-    }
-}
-
-/**
- * Common content for selection bottom sheets.
- */
-@Composable
-private fun <T> SelectionSheetContent(
-    title: String,
-    items: List<T>,
-    itemLabel: (T) -> String,
-    onItemSelect: (T) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 32.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(16.dp)
-        )
-        HorizontalDivider()
-        LazyColumn {
-            items(items) { item ->
-                ListItem(
-                    headlineContent = { Text(itemLabel(item)) },
-                    modifier = Modifier.clickable { onItemSelect(item) }
-                )
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ClothingFormContentPreview() {
-    ClosetTheme {
-        Surface {
-            ClothingFormContent(
-                uiState = ClothingFormUiState(
-                    name = "Vintage Jacket",
-                    brand = "Levi's",
-                    canSave = true,
-                    categories = listOf(CategoryEntity(1, "Tops", null, 1)),
-                    selectedColors = listOf(
-                        ColorEntity(1, "Red", "#FF0000"),
-                        ColorEntity(2, "Blue", "#0000FF")
-                    )
-                ),
-                snackbarHostState = remember { SnackbarHostState() },
-                onNameChange = {},
-                onBrandChange = {},
-                onCategorySelect = {},
-                onSubcategorySelect = {},
-                onPriceChange = {},
-                onDateChange = {},
-                onLocationChange = {},
-                onNotesChange = {},
-                onColorsChange = {},
-                onPhotoClick = {},
-                onSaveClick = {},
-                onBackClick = {}
-            )
-        }
-    }
+private fun isColorDark(color: Color): Boolean {
+    val luminance = 0.2126 * color.red + 0.7152 * color.green + 0.0722 * color.blue
+    return luminance < 0.5
 }
