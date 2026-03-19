@@ -18,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 
@@ -75,8 +76,12 @@ class ClothingDetailViewModel @Inject constructor(
     private fun extractPalette(imagePath: String?) {
         if (imagePath == null) return
         viewModelScope.launch {
-            val file = storageRepository.getFile(imagePath)
-            _palette.value = PaletteUtil.extractPalette(file)
+            try {
+                val file = storageRepository.getFile(imagePath)
+                _palette.value = PaletteUtil.extractPalette(file)
+            } catch (e: Throwable) {
+                Timber.e(e, "Failed to extract palette for image path: $imagePath")
+            }
         }
     }
 
