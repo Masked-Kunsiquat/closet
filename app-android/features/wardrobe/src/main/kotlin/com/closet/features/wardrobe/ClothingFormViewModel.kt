@@ -20,6 +20,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -65,7 +66,7 @@ class ClothingFormViewModel @Inject constructor(
 
     private val editDestination = try {
         savedStateHandle.toRoute<EditClothingDestination>()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 
@@ -187,7 +188,7 @@ class ClothingFormViewModel @Inject constructor(
                 _name.value = entity.name
                 _brand.value = entity.brand ?: ""
                 _price.value = entity.purchasePrice?.toString() ?: ""
-                _purchaseDate.value = entity.purchaseDate?.let { try { LocalDate.parse(it) } catch(e: Exception) { null } }
+                _purchaseDate.value = entity.purchaseDate?.let { try { LocalDate.parse(it) } catch(_: Exception) { null } }
                 _purchaseLocation.value = entity.purchaseLocation ?: ""
                 _notes.value = entity.notes ?: ""
                 _imagePath.value = entity.imagePath
@@ -206,7 +207,7 @@ class ClothingFormViewModel @Inject constructor(
                     }
                 }
             } else {
-                _errorMessage.value = R.string.wardrobe_error_save_failed
+                _errorMessage.value = R.string.wardrobe_error_load_failed
             }
             _isLoading.value = false
         }
@@ -257,7 +258,7 @@ class ClothingFormViewModel @Inject constructor(
                 }
                 val relativePath = storageRepository.saveImage(uri)
                 _imagePath.value = relativePath
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _errorMessage.value = R.string.wardrobe_error_save_failed
             }
         }
@@ -286,7 +287,9 @@ class ClothingFormViewModel @Inject constructor(
                 imagePath = _imagePath.value,
                 status = originalEntity?.status ?: ClothingStatus.Active,
                 washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
-                isFavorite = originalEntity?.isFavorite ?: 0
+                isFavorite = originalEntity?.isFavorite ?: 0,
+                createdAt = originalEntity?.createdAt ?: Instant.now(),
+                updatedAt = Instant.now()
             )
 
             val result = if (isEditMode) {
