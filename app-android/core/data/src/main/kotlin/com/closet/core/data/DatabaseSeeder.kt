@@ -15,6 +15,7 @@ object DatabaseSeeder {
             seedSubcategories(db)
             seedSeasons(db)
             seedOccasions(db)
+            seedColors(db)
             seedMaterials(db)
             seedPatterns(db)
             seedSizeSystems(db)
@@ -100,6 +101,35 @@ object DatabaseSeeder {
             db.execSQL(
                 "INSERT OR IGNORE INTO occasions (name, icon) VALUES (?, ?)",
                 arrayOf<Any>(name, icon)
+            )
+        }
+    }
+
+    private fun seedColors(db: SupportSQLiteDatabase) {
+        val colors = listOf(
+            "Black" to "#000000",
+            "White" to "#FFFFFF",
+            "Grey" to "#808080",
+            "Beige" to "#F5F5DC",
+            "Navy" to "#000080",
+            "Red" to "#FF0000",
+            "Royal Blue" to "#4169E1",
+            "Sky Blue" to "#87CEEB",
+            "Forest Green" to "#228B22",
+            "Olive" to "#808000",
+            "Mint" to "#98FF98",
+            "Burgundy" to "#800020",
+            "Pink" to "#FFC0CB",
+            "Orange" to "#FFA500",
+            "Yellow" to "#FFFF00",
+            "Purple" to "#800080",
+            "Brown" to "#A52A2A",
+            "Tan" to "#D2B48C"
+        )
+        colors.forEach { (name, hex) ->
+            db.execSQL(
+                "INSERT OR IGNORE INTO colors (name, hex) VALUES (?, ?)",
+                arrayOf<Any>(name, hex)
             )
         }
     }
