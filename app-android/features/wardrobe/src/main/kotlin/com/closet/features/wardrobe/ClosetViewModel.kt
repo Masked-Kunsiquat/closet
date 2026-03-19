@@ -3,7 +3,7 @@ package com.closet.features.wardrobe
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.CategoryEntity
-import com.closet.core.data.model.ClothingItemWithMeta
+import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
@@ -59,24 +59,17 @@ class ClosetViewModel @Inject constructor(
 
     /**
      * The list of clothing items to display in the grid.
-     * Items are provided with metadata like category names and wear counts.
-     * Logic: Filters items based on the selected category if one is set.
-     * Refined: Includes categories flow in combine to trigger recomputation on category updates.
+     * Items are provided with full metadata (ClothingItemDetail) for future filtering.
      */
-    val items: StateFlow<List<ClothingItemWithMeta>> = combine(
-        clothingRepository.getAllItems(),
+    val items: StateFlow<List<ClothingItemDetail>> = combine(
+        clothingRepository.getAllItemDetails(),
         _selectedCategoryId,
-        categories
-    ) { allItems, selectedId, categoriesList ->
-        if (selectedId == null) {
-            allItems
-        } else {
-            val selectedCategoryName = categoriesList.find { it.id == selectedId }?.name
-            if (selectedCategoryName != null) {
-                allItems.filter { it.categoryName == selectedCategoryName }
-            } else {
-                allItems
-            }
+        _selectedColorIds
+    ) { allItems, selectedCategoryId, selectedColorIds ->
+        allItems.filter { item ->
+            val matchesCategory = selectedCategoryId == null || item.item.categoryId == selectedCategoryId
+            val matchesColors = selectedColorIds.isEmpty() || item.colors.any { it.id in selectedColorIds }
+            matchesCategory && matchesColors
         }
     }.stateIn(
         scope = viewModelScope,

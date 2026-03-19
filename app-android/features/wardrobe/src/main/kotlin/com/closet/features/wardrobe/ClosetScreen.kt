@@ -17,10 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.closet.core.data.model.CategoryEntity
-import com.closet.core.data.model.ClothingItemWithMeta
-import com.closet.core.data.model.ClothingStatus
-import com.closet.core.data.model.WashStatus
+import com.closet.core.data.model.*
 import com.closet.core.ui.components.ClothingItemCard
 import com.closet.core.ui.theme.ClosetTheme
 
@@ -61,7 +58,7 @@ fun ClosetScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ClosetContent(
-    items: List<ClothingItemWithMeta>,
+    items: List<ClothingItemDetail>,
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     onCategorySelect: (Long?) -> Unit,
@@ -150,7 +147,7 @@ private fun CategoryFilterRow(
  */
 @Composable
 private fun ClosetGrid(
-    items: List<ClothingItemWithMeta>,
+    items: List<ClothingItemDetail>,
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -161,16 +158,16 @@ private fun ClosetGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxSize()
     ) {
-        items(items, key = { it.id }) { itemWithMeta ->
+        items(items, key = { it.item.id }) { itemDetail ->
             ClothingItemCard(
-                name = itemWithMeta.name,
-                imagePath = itemWithMeta.imagePath,
+                name = itemDetail.item.name,
+                imagePath = itemDetail.item.imagePath,
                 subtitle = pluralStringResource(
                     R.plurals.wardrobe_worn_times,
-                    itemWithMeta.wearCount,
-                    itemWithMeta.wearCount
+                    itemDetail.wearCount,
+                    itemDetail.wearCount
                 ),
-                onClick = { onItemClick(itemWithMeta.id) }
+                onClick = { onItemClick(itemDetail.item.id) }
             )
         }
     }
@@ -197,31 +194,25 @@ private fun ClosetScreenPreview() {
         Surface {
             ClosetContent(
                 items = listOf(
-                    ClothingItemWithMeta(
-                        id = 1,
-                        name = "Vintage Denim Jacket",
-                        brand = "Levi's",
-                        categoryName = "Outerwear",
-                        subcategoryName = "Jackets",
-                        imagePath = null,
+                    ClothingItemDetail(
+                        item = ClothingItemEntity(
+                            id = 1,
+                            name = "Vintage Denim Jacket",
+                            brand = "Levi's",
+                            categoryId = 1,
+                            status = ClothingStatus.Active,
+                            isFavorite = 1,
+                            washStatus = WashStatus.Clean
+                        ),
                         wearCount = 12,
-                        purchasePrice = 89.99,
-                        status = ClothingStatus.Active,
-                        isFavorite = 1,
-                        washStatus = WashStatus.Clean
-                    ),
-                    ClothingItemWithMeta(
-                        id = 2,
-                        name = "White Linen Shirt",
-                        brand = "Uniqlo",
-                        categoryName = "Tops",
-                        subcategoryName = "Shirts",
-                        imagePath = null,
-                        wearCount = 5,
-                        purchasePrice = 29.90,
-                        status = ClothingStatus.Active,
-                        isFavorite = 0,
-                        washStatus = WashStatus.Dirty
+                        category = CategoryEntity(id = 1, name = "Outerwear", sortOrder = 3),
+                        subcategory = null,
+                        sizeValue = null,
+                        colors = emptyList(),
+                        materials = emptyList(),
+                        seasons = emptyList(),
+                        occasions = emptyList(),
+                        patterns = emptyList()
                     )
                 ),
                 categories = listOf(

@@ -59,6 +59,24 @@ interface ClothingDao {
     suspend fun getClothingItemById(id: Long): ClothingItemWithMeta?
 
     /**
+     * Retrieves all clothing items with full associations for filtering and listing.
+     * @return A [Flow] emitting a list of [ClothingItemDetail].
+     */
+    @Transaction
+    @Query("""
+        SELECT ci.*,
+            (
+                SELECT COUNT(DISTINCT ol.id)
+                FROM outfit_logs ol
+                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
+                WHERE oi.clothing_item_id = ci.id
+            ) AS wear_count
+        FROM clothing_items ci
+        ORDER BY ci.created_at DESC
+    """)
+    fun getAllClothingItemDetails(): Flow<List<ClothingItemDetail>>
+
+    /**
      * Retrieves the detailed clothing item with all associations by its unique ID.
      * @param id The ID of the clothing item to retrieve.
      * @return A [Flow] emitting the [ClothingItemDetail] if found.

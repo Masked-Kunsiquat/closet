@@ -2,9 +2,12 @@ package com.closet.features.wardrobe
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -480,7 +483,12 @@ private fun ClothingDetailContent(
             title = stringResource(R.string.wardrobe_colors),
             onEditClick = onEditColors
         ) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 if (item.colors.isEmpty()) {
                     Text(
                         text = stringResource(R.string.wardrobe_none_selected),
@@ -637,9 +645,13 @@ private fun ColorChip(
             }
             Box(
                 modifier = Modifier
-                    .size(16.dp)
-                    .clip(CircleShape)
-                    .background(chipColor)
+                    .size(18.dp)
+                    .background(chipColor, RoundedCornerShape(4.dp))
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(4.dp)
+                    )
             )
         }
     )

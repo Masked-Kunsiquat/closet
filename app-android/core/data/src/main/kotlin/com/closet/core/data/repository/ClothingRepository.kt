@@ -33,6 +33,12 @@ class ClothingRepository @Inject constructor(
     fun getAllItems(): Flow<List<ClothingItemWithMeta>> = clothingDao.getAllClothingItems()
 
     /**
+     * Retrieves all clothing items with full associations for advanced filtering and listing.
+     * @return A [Flow] emitting a list of [ClothingItemDetail].
+     */
+    fun getAllItemDetails(): Flow<List<ClothingItemDetail>> = clothingDao.getAllClothingItemDetails()
+
+    /**
      * Retrieves a single clothing item with meta by its unique ID.
      * @param id The ID of the clothing item.
      * @return A [DataResult] containing the item or an error if not found.
