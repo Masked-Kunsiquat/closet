@@ -49,8 +49,12 @@ class LogRepository @Inject constructor(
      * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
      */
     suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> = try {
+        val today = LocalDate.now().toString()
+        // Idempotent: return existing log if already worn today (unique index enforces this at DB level too).
+        val existingId = logDao.getLogIdByOutfitAndDate(outfitId, today)
+        if (existingId != null) return DataResult.Success(existingId)
         val logId = logDao.insertLog(
-            OutfitLogEntity(outfitId = outfitId, date = LocalDate.now().toString())
+            OutfitLogEntity(outfitId = outfitId, date = today)
         )
         DataResult.Success(logId)
     } catch (e: Exception) {

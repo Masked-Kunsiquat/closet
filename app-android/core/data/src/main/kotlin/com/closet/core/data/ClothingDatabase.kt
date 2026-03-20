@@ -36,7 +36,7 @@ import com.closet.core.data.model.*
         ClothingItemOccasionEntity::class,
         ClothingItemPatternEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -92,6 +92,22 @@ abstract class ClothingDatabase : RoomDatabase() {
         }
 
         /**
+         * Migration 2→3: enforce one wear-log per outfit per day.
+         * The unique index mirrors the OutfitLogEntity annotation added in the same change;
+         * the app-level check in LogRepository.wearOutfitToday is the primary guard,
+         * but the index acts as a hard safety net at the schema level.
+         * Note: SQLite treats NULL as distinct, so rows with outfit_id = NULL are unaffected.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_outfit_logs_outfit_id_date` " +
+                    "ON `outfit_logs` (`outfit_id`, `date`)"
+                )
+            }
+        }
+
+        /**
          * Returns a singleton instance of the database.
          * Initializes the database with seeding, unique indices, and triggers on first creation.
          */
@@ -102,7 +118,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                     ClothingDatabase::class.java,
                     DATABASE_NAME
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

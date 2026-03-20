@@ -52,7 +52,8 @@ data class OutfitItemEntity(
     ],
     indices = [
         Index(value = ["outfit_id"]),
-        Index(value = ["date"], unique = false, orders = [Index.Order.ASC])
+        Index(value = ["date"], unique = false, orders = [Index.Order.ASC]),
+        Index(value = ["outfit_id", "date"], unique = true) // prevents duplicate same-day logs per outfit
     ]
 )
 data class OutfitLogEntity(
