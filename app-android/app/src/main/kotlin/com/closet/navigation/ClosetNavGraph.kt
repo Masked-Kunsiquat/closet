@@ -54,7 +54,7 @@ fun ClosetNavGraph(
             )
         }
 
-        outfitsScreen()
+        outfitsScreen(navController)
         outfitBuilderScreen(navController)
         wardrobePickerScreen(navController)
     }

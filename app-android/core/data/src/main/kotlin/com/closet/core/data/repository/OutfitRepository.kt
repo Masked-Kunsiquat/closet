@@ -52,6 +52,12 @@ class OutfitRepository @Inject constructor(
     fun getAllOutfits(): Flow<List<OutfitWithMeta>> = outfitDao.getAllOutfits()
 
     /**
+     * Retrieves all outfits with their full item list and layout metadata.
+     * Used by the gallery to power [OutfitPreview]'s collage-or-grid logic.
+     */
+    fun getAllOutfitsWithItems(): Flow<List<OutfitWithItems>> = outfitDao.getAllOutfitsWithItems()
+
+    /**
      * Retrieves a full outfit by its ID, including all items and layout metadata.
      */
     fun getOutfitById(id: Long): Flow<Outfit?> =

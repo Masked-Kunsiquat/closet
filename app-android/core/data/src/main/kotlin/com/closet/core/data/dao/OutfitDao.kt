@@ -42,6 +42,14 @@ interface OutfitDao {
     fun getOutfitWithItems(id: Long): Flow<OutfitWithItems?>
 
     /**
+     * Retrieves all outfits with their full item and layout data.
+     * Used by the gallery to drive [OutfitPreview]'s collage-or-grid logic.
+     */
+    @Transaction
+    @Query("SELECT * FROM outfits ORDER BY created_at DESC")
+    fun getAllOutfitsWithItems(): Flow<List<OutfitWithItems>>
+
+    /**
      * Inserts a new outfit entry.
      * @param outfit The [OutfitEntity] to insert.
      * @return The row ID of the newly inserted outfit.

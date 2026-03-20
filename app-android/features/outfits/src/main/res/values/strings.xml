@@ -10,6 +10,13 @@
     <string name="outfits_picker_selected">Selected</string>
     <string name="outfits_picker_back">Back</string>
 
+    <!-- Outfit Gallery -->
+    <string name="outfits_gallery_title">Outfits</string>
+    <string name="outfits_gallery_create">Create Outfit</string>
+    <string name="outfits_gallery_empty">No outfits yet. Create your first one!</string>
+    <string name="outfits_gallery_untitled">Untitled outfit</string>
+    <string name="outfits_gallery_item_count">%d items</string>
+
     <!-- Outfit Builder -->
     <string name="outfits_builder_title">New Outfit</string>
     <string name="outfits_builder_save">Save</string>

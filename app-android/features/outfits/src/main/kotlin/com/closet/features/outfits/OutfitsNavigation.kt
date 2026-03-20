@@ -30,9 +30,11 @@ fun NavController.navigateToWardrobePicker() {
     this.navigate(WardrobePickerDestination)
 }
 
-fun NavGraphBuilder.outfitsScreen() {
+fun NavGraphBuilder.outfitsScreen(navController: NavController) {
     composable<OutfitsRoute> {
-        // TODO: Implement OutfitsScreen
+        OutfitsScreen(
+            onCreateOutfit = { navController.navigateToOutfitBuilder() }
+        )
     }
 }
 
