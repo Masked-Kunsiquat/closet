@@ -26,7 +26,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.*
-import com.closet.core.ui.R
+import com.closet.core.ui.R as CoreR
 import com.closet.core.ui.util.IconMapper
 import java.io.File
 
@@ -218,7 +218,7 @@ fun ClothingDetailScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Icon(
-                                        painter = painterResource(id = R.drawable.ic_icon_washing_machine),
+                                        painter = painterResource(id = CoreR.drawable.ic_icon_washing_machine),
                                         contentDescription = null,
                                         tint = if (detail.item.washStatus == WashStatus.Dirty) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                     )
