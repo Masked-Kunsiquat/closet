@@ -65,9 +65,10 @@ interface OutfitDao {
 
     /**
      * Updates specific fields of an outfit to preserve fields like createdAt.
+     * @return The number of affected rows.
      */
     @Query("UPDATE outfits SET name = :name, notes = :notes, updated_at = :updatedAt WHERE id = :id")
-    suspend fun updateOutfitFields(id: Long, name: String?, notes: String?, updatedAt: Instant)
+    suspend fun updateOutfitFields(id: Long, name: String?, notes: String?, updatedAt: Instant): Int
 
     /**
      * Removes all clothing item associations for a specific outfit.

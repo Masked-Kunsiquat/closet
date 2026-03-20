@@ -3,6 +3,9 @@ package com.closet.core.data.repository
 import androidx.room.withTransaction
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.OutfitDao
+import com.closet.core.data.entity.OutfitEntity
+import com.closet.core.data.entity.OutfitItemEntity
+import com.closet.core.data.entity.OutfitWithItems
 import com.closet.core.data.model.*
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
@@ -54,7 +57,8 @@ class OutfitRepository @Inject constructor(
     /**
      * Retrieves a full outfit by its ID, including all items and layout metadata.
      */
-    fun getOutfitById(id: Long): Flow<Outfit?> = outfitDao.getOutfitWithItems(id).map { it?.toDomain() }
+    fun getOutfitById(id: Long): Flow<Outfit?> =
+        outfitDao.getOutfitWithItems(id).map { it?.toDomain() }
 
     /**
      * Creates a new outfit and associates it with a list of clothing items.
@@ -67,7 +71,7 @@ class OutfitRepository @Inject constructor(
     suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): DataResult<Long> = try {
         val outfitId = database.withTransaction {
             val id = outfitDao.insertOutfit(OutfitEntity(name = name, notes = notes))
-            val outfitItems = itemIds.map { OutfitItemEntity(id, it) }
+            val outfitItems = itemIds.map { OutfitItemEntity(outfitId = id, clothingItemId = it) }
             outfitDao.insertOutfitItems(outfitItems)
             id
         }
@@ -93,12 +97,17 @@ class OutfitRepository @Inject constructor(
         items: List<OutfitItem>
     ): DataResult<Unit> = try {
         database.withTransaction {
-            outfitDao.updateOutfitFields(
+            val updatedRows = outfitDao.updateOutfitFields(
                 id = outfitId,
                 name = name,
                 notes = notes,
                 updatedAt = Instant.now()
             )
+            
+            if (updatedRows == 0) {
+                throw AppError.DatabaseError.NotFound()
+            }
+
             outfitDao.deleteItemsForOutfit(outfitId)
             val outfitItems = items.map { 
                 OutfitItemEntity(
@@ -116,7 +125,11 @@ class OutfitRepository @Inject constructor(
     } catch (e: Exception) {
         if (e is CancellationException) throw e
         Timber.e(e, "Error updating outfit: $outfitId")
-        DataResult.Error(AppError.DatabaseError.QueryError(e))
+        if (e is AppError) {
+            DataResult.Error(e)
+        } else {
+            DataResult.Error(AppError.DatabaseError.QueryError(e))
+        }
     }
 
     /**
