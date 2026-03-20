@@ -62,4 +62,7 @@ dependencies {
 
     // Palette
     implementation(libs.androidx.palette.ktx)
+
+    // Logging
+    implementation(libs.timber)
 }
