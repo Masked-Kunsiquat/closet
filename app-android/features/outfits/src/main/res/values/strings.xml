@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="outfits_picker_title">Add Items</string>
+    <string name="outfits_picker_done">Done</string>
+    <string name="outfits_picker_done_count">Done (%d)</string>
+    <string name="outfits_picker_all_categories">All</string>
+    <string name="outfits_picker_all_seasons">All seasons</string>
+    <string name="outfits_picker_empty">No items in your wardrobe</string>
+    <string name="outfits_picker_selected">Selected</string>
+    <string name="outfits_picker_back">Back</string>
+</resources>
