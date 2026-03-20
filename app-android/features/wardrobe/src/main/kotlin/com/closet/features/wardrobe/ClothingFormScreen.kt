@@ -68,7 +68,6 @@ import coil.compose.AsyncImage
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
-import com.closet.features.wardrobe.R
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
