@@ -3,33 +3,9 @@ package com.closet.core.ui.util
 import com.closet.core.ui.R
 
 /**
- * Utility to map pattern names and icon names to their respective drawable resource IDs.
+ * Utility to map icon names (from the database) to their drawable resource IDs.
  */
 object IconMapper {
-
-    /**
-     * Maps a pattern name to a drawable resource ID.
-     */
-    fun getPatternIcon(name: String): Int? = when (name.lowercase()) {
-        "abstract" -> R.drawable.ic_pattern_abstract
-        "animal print" -> R.drawable.ic_pattern_animal_print
-        "camouflage" -> R.drawable.ic_pattern_camouflage
-        "checkered" -> R.drawable.ic_pattern_checkered
-        "color block" -> R.drawable.ic_pattern_color_block
-        "floral" -> R.drawable.ic_pattern_floral
-        "geometric" -> R.drawable.ic_pattern_geometric
-        "graphic" -> R.drawable.ic_pattern_graphic
-        "houndstooth" -> R.drawable.ic_pattern_houndstooth
-        "ombre" -> R.drawable.ic_pattern_ombre
-        "paisley" -> R.drawable.ic_pattern_paisley
-        "plaid", "tartan", "plaid/tartan", "plaid / tartan" -> R.drawable.ic_pattern_plaid_tartan
-        "polka dot" -> R.drawable.ic_pattern_polka_dot
-        "solid" -> R.drawable.ic_pattern_solid
-        "striped" -> R.drawable.ic_pattern_striped
-        "tie dye", "tie-dye" -> R.drawable.ic_pattern_tie_dye
-        "other" -> R.drawable.ic_pattern_other
-        else -> null
-    }
 
     /**
      * Maps an icon name (e.g. from database) to a drawable resource ID.
@@ -71,20 +47,4 @@ object IconMapper {
         else -> null
     }
 
-    /**
-     * Maps a category name to its primary icon resource.
-     */
-    fun getCategoryIcon(categoryName: String): Int? = when (categoryName.lowercase()) {
-        "top", "tops" -> R.drawable.ic_icon_t_shirt
-        "bottom", "bottoms" -> R.drawable.ic_icon_pants
-        "outerwear" -> R.drawable.ic_icon_hoodie
-        "dresses", "jumpsuits", "dresses/jumpsuits" -> R.drawable.ic_icon_dress
-        "footwear" -> R.drawable.ic_icon_sneaker
-        "accessories" -> R.drawable.ic_icon_watch
-        "bags" -> R.drawable.ic_icon_handbag
-        "activewear" -> R.drawable.ic_icon_person_simple_run
-        "underwear", "intimates", "underwear/intimates" -> R.drawable.ic_icon_sock
-        "swimwear" -> R.drawable.ic_icon_goggles
-        else -> null
-    }
 }
