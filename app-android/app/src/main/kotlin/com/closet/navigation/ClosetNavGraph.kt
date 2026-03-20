@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.closet.features.wardrobe.*
 import com.closet.features.outfits.outfitsScreen
+import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.wardrobePickerScreen
 import com.closet.features.outfits.OutfitsRoute
 
@@ -54,6 +55,7 @@ fun ClosetNavGraph(
         }
 
         outfitsScreen()
+        outfitBuilderScreen(navController)
         wardrobePickerScreen(navController)
     }
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Wardrobe Picker -->
     <string name="outfits_picker_title">Add Items</string>
     <string name="outfits_picker_done">Done</string>
     <string name="outfits_picker_done_count">Done (%d)</string>
@@ -8,4 +9,14 @@
     <string name="outfits_picker_empty">No items in your wardrobe</string>
     <string name="outfits_picker_selected">Selected</string>
     <string name="outfits_picker_back">Back</string>
+
+    <!-- Outfit Builder -->
+    <string name="outfits_builder_title">New Outfit</string>
+    <string name="outfits_builder_save">Save</string>
+    <string name="outfits_builder_back">Back</string>
+    <string name="outfits_builder_add_items">Add Items</string>
+    <string name="outfits_builder_name_hint">Outfit name (optional)</string>
+    <string name="outfits_builder_empty_hint">Tap "Add Items" to start building your outfit</string>
+    <string name="outfits_builder_remove_item">Remove item</string>
+    <string name="outfits_builder_save_error">Failed to save outfit. Please try again.</string>
 </resources>

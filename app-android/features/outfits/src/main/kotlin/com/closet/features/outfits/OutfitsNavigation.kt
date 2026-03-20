@@ -6,17 +6,24 @@ import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import kotlinx.serialization.Serializable
 
-// SavedStateHandle key used to pass selected item IDs back to the caller.
+// SavedStateHandle key used to pass selected item IDs back from WardrobePickerScreen.
 const val PICKER_RESULT_KEY = "wardrobe_picker_item_ids"
 
 @Serializable
 object OutfitsRoute
 
 @Serializable
+object OutfitBuilderDestination
+
+@Serializable
 object WardrobePickerDestination
 
 fun NavController.navigateToOutfits(navOptions: NavOptions? = null) {
     this.navigate(OutfitsRoute, navOptions)
+}
+
+fun NavController.navigateToOutfitBuilder() {
+    this.navigate(OutfitBuilderDestination)
 }
 
 fun NavController.navigateToWardrobePicker() {
@@ -26,6 +33,15 @@ fun NavController.navigateToWardrobePicker() {
 fun NavGraphBuilder.outfitsScreen() {
     composable<OutfitsRoute> {
         // TODO: Implement OutfitsScreen
+    }
+}
+
+fun NavGraphBuilder.outfitBuilderScreen(navController: NavController) {
+    composable<OutfitBuilderDestination> {
+        OutfitBuilderScreen(
+            onBack = { navController.popBackStack() },
+            onAddItems = { navController.navigateToWardrobePicker() }
+        )
     }
 }
 
