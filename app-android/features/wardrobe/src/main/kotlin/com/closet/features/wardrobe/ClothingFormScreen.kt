@@ -55,6 +55,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -418,6 +423,13 @@ private fun CategoryDropdown(
             onDismissRequest = { expanded = false },
             modifier = Modifier.fillMaxWidth(0.9f)
         ) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(stringResource(R.string.wardrobe_field_none)) },
+                onClick = {
+                    onCategorySelect(null)
+                    expanded = false
+                }
+            )
             categories.forEach { category ->
                 androidx.compose.material3.DropdownMenuItem(
                     text = { Text(category.name) },
@@ -467,6 +479,13 @@ private fun SubcategoryDropdown(
             onDismissRequest = { expanded = false },
             modifier = Modifier.fillMaxWidth(0.9f)
         ) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(stringResource(R.string.wardrobe_field_none)) },
+                onClick = {
+                    onSubcategorySelect(null)
+                    expanded = false
+                }
+            )
             subcategories.forEach { sub ->
                 androidx.compose.material3.DropdownMenuItem(
                     text = { Text(sub.name) },
@@ -493,27 +512,39 @@ private fun ColorSelectionGrid(
         items(allColors) { color ->
             val isSelected = selectedColors.any { it.id == color.id }
             val hexColor = try { Color(android.graphics.Color.parseColor(color.hex)) } catch(_: Exception) { Color.Gray }
-            
+            val label = color.name.ifBlank { color.hex ?: "" }
+
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(hexColor)
-                    .border(
-                        width = if (isSelected) 3.dp else 1.dp,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                        shape = CircleShape
-                    )
+                    .size(48.dp)
+                    .semantics {
+                        contentDescription = label
+                        selected = isSelected
+                        role = Role.Checkbox
+                    }
                     .clickable { onColorToggle(color) },
                 contentAlignment = Alignment.Center
             ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = if (isColorDark(hexColor)) Color.White else Color.Black,
-                        modifier = Modifier.size(24.dp)
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(hexColor)
+                        .border(
+                            width = if (isSelected) 3.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = if (isColorDark(hexColor)) Color.White else Color.Black,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
@@ -527,9 +558,6 @@ private fun DatePickerField(
     onDateChange: (LocalDate?) -> Unit
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = selectedDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
-    )
 
     OutlinedTextField(
         value = selectedDate?.toString() ?: "",
@@ -545,6 +573,9 @@ private fun DatePickerField(
     )
 
     if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
