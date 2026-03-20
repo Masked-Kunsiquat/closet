@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -44,6 +45,18 @@ fun ClothingDetailScreen(
     val allPatterns by viewModel.patterns.collectAsStateWithLifecycle()
 
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.actionError.collect { message ->
+            val text = if (message.args.isEmpty()) {
+                context.getString(message.resId)
+            } else {
+                context.getString(message.resId, *message.args)
+            }
+            snackbarHostState.showSnackbar(text)
+        }
+    }
 
     var showSeasonPicker by remember { mutableStateOf(false) }
     var showOccasionPicker by remember { mutableStateOf(false) }
@@ -52,6 +65,7 @@ fun ClothingDetailScreen(
     var showPatternPicker by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -112,7 +126,7 @@ fun ClothingDetailScreen(
                     ) {
                         detail.item.imagePath?.let { path ->
                             AsyncImage(
-                                model = File(path),
+                                model = viewModel.getAbsoluteFile(path),
                                 contentDescription = detail.item.name,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Fit
@@ -172,7 +186,7 @@ fun ClothingDetailScreen(
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                             ) {
                                 Text(
-                                    text = detail.item.status.name,
+                                    text = detail.item.status.label,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                                     style = MaterialTheme.typography.labelLarge
                                 )
@@ -210,7 +224,7 @@ fun ClothingDetailScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = detail.item.washStatus.name,
+                                        text = detail.item.washStatus.label,
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 }
