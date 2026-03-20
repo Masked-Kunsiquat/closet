@@ -10,6 +10,11 @@
     <string name="outfits_picker_selected">Selected</string>
     <string name="outfits_picker_back">Back</string>
 
+    <!-- Wear Tracking -->
+    <string name="outfits_wear_today">Wear today</string>
+    <string name="outfits_wear_success">Outfit logged — wear count updated!</string>
+    <string name="outfits_wear_error">Failed to log outfit. Please try again.</string>
+
     <!-- Outfit Gallery -->
     <string name="outfits_gallery_title">Outfits</string>
     <string name="outfits_gallery_create">Create Outfit</string>

@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,11 +24,27 @@ fun OutfitsScreen(
     viewModel: OutfitsViewModel = hiltViewModel()
 ) {
     val outfits by viewModel.outfits.collectAsStateWithLifecycle()
+    val wearingOutfitId by viewModel.wearingOutfitId.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val wearSuccess = stringResource(R.string.outfits_wear_success)
+    val wearError = stringResource(R.string.outfits_wear_error)
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                OutfitsEvent.WearSuccess -> snackbarHostState.showSnackbar(wearSuccess)
+                OutfitsEvent.WearError -> snackbarHostState.showSnackbar(wearError)
+            }
+        }
+    }
 
     OutfitsContent(
         outfits = outfits,
+        wearingOutfitId = wearingOutfitId,
         resolveImagePath = viewModel::resolveImagePath,
         onCreateOutfit = onCreateOutfit,
+        onWearOutfit = viewModel::wearOutfit,
+        snackbarHostState = snackbarHostState,
         modifier = modifier
     )
 }
@@ -36,8 +53,11 @@ fun OutfitsScreen(
 @Composable
 internal fun OutfitsContent(
     outfits: List<OutfitWithItems>,
+    wearingOutfitId: Long?,
     resolveImagePath: (String?) -> File?,
     onCreateOutfit: () -> Unit,
+    onWearOutfit: (Long) -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -54,7 +74,8 @@ internal fun OutfitsContent(
                     contentDescription = stringResource(R.string.outfits_gallery_create)
                 )
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (outfits.isEmpty()) {
             OutfitsEmptyState(
@@ -69,7 +90,7 @@ internal fun OutfitsContent(
                     start = 16.dp,
                     end = 16.dp,
                     top = padding.calculateTopPadding() + 8.dp,
-                    bottom = padding.calculateBottomPadding() + 88.dp // FAB clearance
+                    bottom = padding.calculateBottomPadding() + 88.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
@@ -77,7 +98,10 @@ internal fun OutfitsContent(
                 items(outfits, key = { it.outfit.id }) { outfitWithItems ->
                     OutfitCard(
                         outfitWithItems = outfitWithItems,
-                        resolveImagePath = resolveImagePath
+                        resolveImagePath = resolveImagePath,
+                        isWearing = wearingOutfitId == outfitWithItems.outfit.id,
+                        wearEnabled = wearingOutfitId == null,
+                        onWear = { onWearOutfit(outfitWithItems.outfit.id) }
                     )
                 }
             }
@@ -89,6 +113,9 @@ internal fun OutfitsContent(
 private fun OutfitCard(
     outfitWithItems: OutfitWithItems,
     resolveImagePath: (String?) -> File?,
+    isWearing: Boolean,
+    wearEnabled: Boolean,
+    onWear: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(modifier = modifier.fillMaxWidth()) {
@@ -97,21 +124,46 @@ private fun OutfitCard(
             resolveImagePath = resolveImagePath,
             modifier = Modifier.fillMaxWidth()
         )
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Text(
-                text = outfitWithItems.outfit.name
-                    ?: stringResource(R.string.outfits_gallery_untitled),
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1
-            )
-            Text(
-                text = stringResource(
-                    R.string.outfits_gallery_item_count,
-                    outfitWithItems.items.size
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = outfitWithItems.outfit.name
+                        ?: stringResource(R.string.outfits_gallery_untitled),
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
+                )
+                Text(
+                    text = stringResource(
+                        R.string.outfits_gallery_item_count,
+                        outfitWithItems.items.size
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(
+                onClick = onWear,
+                enabled = wearEnabled
+            ) {
+                if (isWearing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.CheckCircle,
+                        contentDescription = stringResource(R.string.outfits_wear_today),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

@@ -4,7 +4,12 @@ import com.closet.core.data.dao.CalendarDay
 import com.closet.core.data.dao.LogDao
 import com.closet.core.data.dao.OutfitLogWithMeta
 import com.closet.core.data.model.OutfitLogEntity
+import com.closet.core.data.util.AppError
+import com.closet.core.data.util.DataResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import timber.log.Timber
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,8 +35,29 @@ class LogRepository @Inject constructor(
      * @param log The [OutfitLogEntity] to insert.
      * @return The row ID of the newly created log.
      */
-    suspend fun insertLog(log: OutfitLogEntity): Long = 
+    suspend fun insertLog(log: OutfitLogEntity): Long =
         logDao.insertLog(log)
+
+    /**
+     * Logs an outfit as worn on today's date (device local time, YYYY-MM-DD).
+     *
+     * Wear count for every clothing item in the outfit is automatically reflected
+     * in the next emissions from clothing queries, because wear_count is computed
+     * as COUNT(DISTINCT outfit_logs.id) at query time — no extra write is required.
+     *
+     * @param outfitId The ID of the outfit that was worn.
+     * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
+     */
+    suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> = try {
+        val logId = logDao.insertLog(
+            OutfitLogEntity(outfitId = outfitId, date = LocalDate.now().toString())
+        )
+        DataResult.Success(logId)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error logging wear for outfit $outfitId")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
 
     /**
      * Updates an existing log's metadata (e.g., notes, weather, temperature).
