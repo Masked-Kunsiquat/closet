@@ -120,12 +120,20 @@ class ClothingRepository @Inject constructor(
     suspend fun updateItem(
         item: ClothingItemEntity,
         colorIds: List<Long>? = null
-    ): DataResult<Int> = wrapInTransaction {
-        val rowsAffected = clothingDao.updateClothingItem(item)
-        if (rowsAffected > 0 && colorIds != null) {
-            clothingDao.updateItemColors(item.id, colorIds)
+    ): DataResult<Int> {
+        val result = wrapInTransaction {
+            val rowsAffected = clothingDao.updateClothingItem(item)
+            if (rowsAffected == 0) return@wrapInTransaction 0
+            if (colorIds != null) {
+                clothingDao.updateItemColors(item.id, colorIds)
+            }
+            rowsAffected
         }
-        rowsAffected
+        return if (result is DataResult.Success && result.data == 0) {
+            DataResult.Error(AppError.DatabaseError.NotFound())
+        } else {
+            result
+        }
     }
 
     /**
