@@ -307,11 +307,12 @@ class ClothingFormViewModel @Inject constructor(
         if (uri == null) return
         viewModelScope.launch {
             try {
-                if (_imagePath.value != originalImagePath) {
-                    _imagePath.value?.let { storageRepository.deleteImage(it) }
-                }
+                val previousPath = _imagePath.value
                 val relativePath = storageRepository.saveImage(uri)
                 _imagePath.value = relativePath
+                if (previousPath != null && previousPath != originalImagePath) {
+                    storageRepository.deleteImage(previousPath)
+                }
                 
                 // Process colors from the new image
                 extractColors(uri)
@@ -346,6 +347,15 @@ class ClothingFormViewModel @Inject constructor(
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             // Silently fail color extraction
+        }
+    }
+
+    fun toggleColor(color: ColorEntity) {
+        val current = _selectedColors.value
+        _selectedColors.value = if (current.any { it.id == color.id }) {
+            current.filter { it.id != color.id }
+        } else {
+            current + color
         }
     }
 

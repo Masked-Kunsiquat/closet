@@ -176,14 +176,7 @@ fun ClothingFormScreen(
                 onImageClick = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
-                onColorToggle = { color ->
-                    val newColors = if (uiState.selectedColors.contains(color)) {
-                        uiState.selectedColors.filter { it.id != color.id }
-                    } else {
-                        uiState.selectedColors + color
-                    }
-                    viewModel.updateColors(newColors.map { it.id })
-                },
+                onColorToggle = viewModel::toggleColor,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -506,7 +499,7 @@ private fun ColorSelectionGrid(
     ) {
         items(allColors) { color ->
             val isSelected = selectedColors.any { it.id == color.id }
-            val hexColor = try { Color(android.graphics.Color.parseColor(color.hexCode)) } catch(_: Exception) { Color.Gray }
+            val hexColor = try { Color(android.graphics.Color.parseColor(color.hex)) } catch(_: Exception) { Color.Gray }
             
             Box(
                 modifier = Modifier
@@ -573,8 +566,16 @@ private fun DatePickerField(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(stringResource(R.string.wardrobe_date_cancel))
+                Row {
+                    TextButton(onClick = {
+                        onDateChange(null)
+                        showDatePicker = false
+                    }) {
+                        Text(stringResource(R.string.wardrobe_date_clear))
+                    }
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text(stringResource(R.string.wardrobe_date_cancel))
+                    }
                 }
             }
         ) {
