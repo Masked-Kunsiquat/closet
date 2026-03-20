@@ -116,13 +116,16 @@ class OutfitBuilderViewModel @Inject constructor(
     }
 
     fun save() {
-        if (_isSaving.value || _memberIds.value.isEmpty()) return
+        // Derive IDs from the resolved member list, not raw _memberIds, so any item that was
+        // deleted from the wardrobe while the builder was open is already absent here.
+        val resolvedIds = members.value.map { it.item.item.id }
+        if (_isSaving.value || resolvedIds.isEmpty()) return
         viewModelScope.launch {
             _isSaving.value = true
             val result = outfitRepository.createOutfit(
                 name = _name.value.trim().ifEmpty { null },
                 notes = null,
-                itemIds = _memberIds.value
+                itemIds = resolvedIds
             )
             _isSaving.value = false
             when (result) {

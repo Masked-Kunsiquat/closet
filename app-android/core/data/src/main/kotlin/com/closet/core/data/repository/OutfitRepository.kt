@@ -74,7 +74,9 @@ class OutfitRepository @Inject constructor(
     suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): DataResult<Long> = try {
         val outfitId = database.withTransaction {
             val id = outfitDao.insertOutfit(OutfitEntity(name = name, notes = notes))
-            val outfitItems = itemIds.map { OutfitItemEntity(outfitId = id, clothingItemId = it) }
+            val outfitItems = itemIds.mapIndexed { index, itemId ->
+                OutfitItemEntity(outfitId = id, clothingItemId = itemId, zIndex = index)
+            }
             outfitDao.insertOutfitItems(outfitItems)
             id
         }
