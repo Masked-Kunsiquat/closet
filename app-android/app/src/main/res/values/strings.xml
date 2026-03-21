@@ -2,6 +2,9 @@
 <resources>
     <string name="app_name">Closet</string>
     <string name="my_closet">My Closet</string>
+    <string name="nav_closet">Closet</string>
+    <string name="nav_outfits">Outfits</string>
+    <string name="nav_stats">Stats</string>
     <string name="worn_times">Worn %d times</string>
     <string name="empty_closet">Your closet is empty. Add some clothes!</string>
 </resources>

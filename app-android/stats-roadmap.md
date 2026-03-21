@@ -6,10 +6,10 @@
 |---|---|
 | `StatsDao` | ✅ 7 queries: `getStatsOverview`, `getMostWornItems`, `getBreakdownByCategory`, `getCostPerWear`, `getTotalOutfitsLogged`, `getWearFrequencyByCategory`, `getNeverWornItems` |
 | `StatsRepository` | ✅ Thin wrapper, `@Singleton`, injected via Hilt — all 7 queries exposed |
-| Feature module | ❌ Missing |
+| Feature module | ✅ `features/stats/` — build.gradle.kts, StatsNavigation.kt, placeholder StatsScreen.kt |
 | ViewModel | ❌ Missing |
-| Screen / nav entry | ❌ Missing |
-| Bottom bar tab | ❌ Missing |
+| Screen / nav entry | ✅ `StatsRoute` registered in `ClosetNavGraph` |
+| Bottom bar tab | ✅ Bottom nav bar added (Closet / Outfits / Stats) |
 
 ---
 
@@ -24,20 +24,16 @@ All four queries added to `StatsDao` and exposed via `StatsRepository`.
 
 ---
 
-## Phase 2 — Feature module scaffold
+## Phase 2 — Feature module scaffold ✅
 
-Mirrors the existing `features/outfits` and `features/wardrobe` structure.
-
-1. Create `features/stats/` module with `build.gradle.kts`
-   - Same deps as `features/outfits`: Compose BOM, Material3, Hilt, lifecycle,
-     Coil, Timber, `project(":core:data")`, `project(":core:ui")`
-2. `StatsNavigation.kt`
-   - `@Serializable object StatsRoute`
-   - `fun NavGraphBuilder.statsScreen()` extension
-3. Wire into `ClosetNavGraph`
-   - Add `StatsRoute` to `topLevelRoutes` with a chart icon and `nav_stats`
-     string resource
-   - Register `statsScreen()` in the `NavHost`
+1. `features/stats/build.gradle.kts` ✅ — mirrors `features/outfits` + Timber
+2. `StatsNavigation.kt` ✅ — `@Serializable object StatsRoute`, `navigateToStats()`, `statsScreen(onItemClick)`
+3. `StatsScreen.kt` ✅ — placeholder composable (full layout in Phase 4)
+4. Wired into `ClosetNavGraph` ✅
+   - `TopLevelRoute` data class + `topLevelRoutes` list (Closet / Outfits / Stats)
+   - `NavigationBar` added to `Scaffold`; hidden on sub-screens
+   - `statsScreen(onItemClick)` registered in `NavHost`
+   - `Scaffold` moved from `MainActivity` into `ClosetNavGraph`
 
 ---
 
