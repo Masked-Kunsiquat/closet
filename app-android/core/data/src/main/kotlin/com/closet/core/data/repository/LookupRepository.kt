@@ -72,9 +72,4 @@ class LookupRepository @Inject constructor(
     fun getSizeValues(systemId: Long): Flow<List<SizeValueEntity>> = 
         lookupDao.getSizeValues(systemId)
 
-    /**
-     * Retrieves a distinct list of brands used in existing wardrobe items for autocomplete.
-     * @return A list of unique brand names.
-     */
-    suspend fun getDistinctBrands(): List<String> = lookupDao.getDistinctBrands()
 }

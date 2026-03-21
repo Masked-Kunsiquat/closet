@@ -39,4 +39,8 @@ object DataModule {
     @Provides
     @Singleton
     fun provideStatsDao(db: ClothingDatabase): StatsDao = db.statsDao()
+
+    @Provides
+    @Singleton
+    fun provideBrandDao(db: ClothingDatabase): BrandDao = db.brandDao()
 }

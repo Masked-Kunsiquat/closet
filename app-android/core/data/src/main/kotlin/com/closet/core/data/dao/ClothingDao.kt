@@ -19,7 +19,7 @@ interface ClothingDao {
      */
     @Query("""
         SELECT
-            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
+            ci.id, ci.name, b.name AS brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
             (
@@ -31,6 +31,7 @@ interface ClothingDao {
         FROM clothing_items ci
         LEFT JOIN categories    c  ON ci.category_id    = c.id
         LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
+        LEFT JOIN brands        b  ON ci.brand_id       = b.id
         ORDER BY ci.created_at DESC
     """)
     fun getAllClothingItems(): Flow<List<ClothingItemWithMeta>>
@@ -42,7 +43,7 @@ interface ClothingDao {
      */
     @Query("""
         SELECT
-            ci.id, ci.name, ci.brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
+            ci.id, ci.name, b.name AS brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
             (
@@ -54,6 +55,7 @@ interface ClothingDao {
         FROM clothing_items ci
         LEFT JOIN categories    c  ON ci.category_id    = c.id
         LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
+        LEFT JOIN brands        b  ON ci.brand_id       = b.id
         WHERE ci.id = :id
     """)
     suspend fun getClothingItemById(id: Long): ClothingItemWithMeta?

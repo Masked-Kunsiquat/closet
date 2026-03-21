@@ -77,10 +77,4 @@ interface LookupDao {
     @Query("SELECT * FROM size_values WHERE size_system_id = :systemId ORDER BY sort_order")
     fun getSizeValues(systemId: Long): Flow<List<SizeValueEntity>>
 
-    /**
-     * Retrieves a distinct list of all brands currently in the wardrobe.
-     * @return A list of brand names.
-     */
-    @Query("SELECT DISTINCT brand FROM clothing_items WHERE brand IS NOT NULL AND brand != '' ORDER BY brand")
-    suspend fun getDistinctBrands(): List<String>
 }
