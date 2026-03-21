@@ -42,6 +42,7 @@
     <string name="wardrobe_brand">Brand</string>
     <string name="wardrobe_field_name">Name</string>
     <string name="wardrobe_field_brand">Brand</string>
+    <string name="wardrobe_brand_add">Add \"%1$s\" as new brand</string>
     <string name="wardrobe_field_category">Category</string>
     <string name="wardrobe_field_subcategory">Subcategory</string>
     <string name="wardrobe_field_price">Purchase Price</string>

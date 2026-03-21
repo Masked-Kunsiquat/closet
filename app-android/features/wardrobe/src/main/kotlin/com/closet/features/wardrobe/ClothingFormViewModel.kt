@@ -6,12 +6,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import androidx.palette.graphics.Palette
+import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
+import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
@@ -37,7 +39,9 @@ import javax.inject.Inject
 data class ClothingFormUiState(
     val isEditMode: Boolean = false,
     val name: String = "",
-    val brand: String = "",
+    val brandQuery: String = "",
+    val selectedBrandId: Long? = null,
+    val allBrands: List<BrandEntity> = emptyList(),
     val category: CategoryEntity? = null,
     val subcategory: SubcategoryEntity? = null,
     val price: String = "",
@@ -62,7 +66,8 @@ data class ClothingFormUiState(
 
 private data class FormBasic(
     val name: String,
-    val brand: String,
+    val brandQuery: String,
+    val selectedBrandId: Long?,
     val category: CategoryEntity?,
     val subcategory: SubcategoryEntity?,
     val price: String
@@ -91,6 +96,7 @@ private data class FormStatus(
 class ClothingFormViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val lookupRepository: LookupRepository,
+    private val brandRepository: BrandRepository,
     private val storageRepository: StorageRepository,
     private val clothingRepository: ClothingRepository
 ) : ViewModel() {
@@ -105,7 +111,8 @@ class ClothingFormViewModel @Inject constructor(
     private val isEditMode = itemId != null
 
     private val _name = MutableStateFlow("")
-    private val _brand = MutableStateFlow("")
+    private val _brandQuery = MutableStateFlow("")
+    private val _selectedBrandId = MutableStateFlow<Long?>(null)
     private val _selectedCategory = MutableStateFlow<CategoryEntity?>(null)
     private val _selectedSubcategory = MutableStateFlow<SubcategoryEntity?>(null)
     private val _price = MutableStateFlow("")
@@ -114,12 +121,12 @@ class ClothingFormViewModel @Inject constructor(
     private val _notes = MutableStateFlow("")
     private val _imagePath = MutableStateFlow<String?>(null)
     private val _selectedColors = MutableStateFlow<List<ColorEntity>>(emptyList())
-    
+
     private val _isNameError = MutableStateFlow(false)
     private val _isSaving = MutableStateFlow(false)
     private val _isLoading = MutableStateFlow(isEditMode)
     private val _errorMessage = MutableStateFlow<Int?>(null)
-    
+
     // To handle image replacement cleanup
     private var originalImagePath: String? = null
     private var originalEntity: ClothingItemEntity? = null
@@ -135,6 +142,9 @@ class ClothingFormViewModel @Inject constructor(
     val allColors: StateFlow<List<ColorEntity>> = lookupRepository.getColors()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allBrands: StateFlow<List<BrandEntity>> = brandRepository.getAllBrands()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val subcategories: StateFlow<List<SubcategoryEntity>> = _selectedCategory
         .flatMapLatest { category ->
@@ -144,9 +154,12 @@ class ClothingFormViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val basicFields = combine(
-        _name, _brand, _selectedCategory, _selectedSubcategory, _price
-    ) { name, brand, category, subcategory, price ->
-        FormBasic(name, brand, category, subcategory, price)
+        combine(_name, _brandQuery, _selectedBrandId) { name, query, id -> Triple(name, query, id) },
+        _selectedCategory,
+        _selectedSubcategory,
+        _price
+    ) { (name, query, id), category, subcategory, price ->
+        FormBasic(name, query, id, category, subcategory, price)
     }
 
     private val detailFields = combine(
@@ -165,16 +178,17 @@ class ClothingFormViewModel @Inject constructor(
         combine(basicFields, detailFields, statusFields) { b, d, s -> Triple(b, d, s) },
         categories,
         subcategories,
-        allColors
-    ) { (basic, details, status), cats, subcats, colors ->
+        allColors,
+        allBrands
+    ) { (basic, details, status), cats, subcats, colors, brands ->
         val isDirty = if (isEditMode && originalEntity != null) {
             val e = originalEntity!!
             val colorsChanged = details.selectedColors.size != originalColors.size ||
                     !details.selectedColors.containsAll(originalColors)
 
-            basic.name != e.name || 
-            basic.brand != (e.brand ?: "") || 
-            basic.category?.id != e.categoryId || 
+            basic.name != e.name ||
+            basic.selectedBrandId != e.brandId ||
+            basic.category?.id != e.categoryId ||
             basic.subcategory?.id != e.subcategoryId ||
             basic.price != (e.purchasePrice?.toString() ?: "") ||
             details.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE) != e.purchaseDate ||
@@ -183,7 +197,7 @@ class ClothingFormViewModel @Inject constructor(
             details.imagePath != e.imagePath ||
             colorsChanged
         } else {
-            basic.name.isNotBlank() || basic.brand.isNotBlank() || basic.category != null || 
+            basic.name.isNotBlank() || basic.selectedBrandId != null || basic.category != null ||
             basic.price.isNotBlank() || details.purchaseDate != null || details.purchaseLocation.isNotBlank() ||
             details.notes.isNotBlank() || details.imagePath != null || details.selectedColors.isNotEmpty()
         }
@@ -191,7 +205,9 @@ class ClothingFormViewModel @Inject constructor(
         ClothingFormUiState(
             isEditMode = isEditMode,
             name = basic.name,
-            brand = basic.brand,
+            brandQuery = basic.brandQuery,
+            selectedBrandId = basic.selectedBrandId,
+            allBrands = brands,
             category = basic.category,
             subcategory = basic.subcategory,
             price = basic.price,
@@ -227,28 +243,32 @@ class ClothingFormViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             val entityResult = clothingRepository.getItemEntityById(id)
-            
+
             if (entityResult is DataResult.Success) {
                 val entity = entityResult.data
                 originalEntity = entity
                 originalImagePath = entity.imagePath
-                
+
                 // Hydrate the fields
                 _name.value = entity.name
-                _brand.value = entity.brand ?: ""
+                _selectedBrandId.value = entity.brandId
+                if (entity.brandId != null) {
+                    val brands = brandRepository.getAllBrands().first()
+                    _brandQuery.value = brands.find { it.id == entity.brandId }?.name ?: ""
+                }
                 _price.value = entity.purchasePrice?.toString() ?: ""
-                _purchaseDate.value = entity.purchaseDate?.let { try { LocalDate.parse(it) } catch(_: Exception) { null } }
+                _purchaseDate.value = entity.purchaseDate?.let { try { LocalDate.parse(it) } catch (_: Exception) { null } }
                 _purchaseLocation.value = entity.purchaseLocation ?: ""
                 _notes.value = entity.notes ?: ""
                 _imagePath.value = entity.imagePath
-                
+
                 // Fetch Category and Subcategory entities for the selectors
                 val catId = entity.categoryId
                 if (catId != null) {
                     val cats = lookupRepository.getCategories().first()
                     val selectedCat = cats.find { it.id == catId }
                     _selectedCategory.value = selectedCat
-                    
+
                     val subId = entity.subcategoryId
                     if (subId != null) {
                         val subcats = lookupRepository.getSubcategories(catId).first()
@@ -272,8 +292,26 @@ class ClothingFormViewModel @Inject constructor(
         _isNameError.value = false
     }
 
-    fun updateBrand(newBrand: String) {
-        _brand.value = newBrand
+    fun onBrandQueryChange(text: String) {
+        _brandQuery.value = text
+        // Clear selection if the user edits the text away from the selected brand
+        if (_selectedBrandId.value != null) {
+            _selectedBrandId.value = null
+        }
+    }
+
+    fun onBrandSelect(brand: BrandEntity) {
+        _selectedBrandId.value = brand.id
+        _brandQuery.value = brand.name
+    }
+
+    fun onAddNewBrand(name: String) {
+        viewModelScope.launch {
+            val result = brandRepository.insertBrand(name)
+            if (result is DataResult.Success) {
+                onBrandSelect(BrandEntity(id = result.data, name = name))
+            }
+        }
     }
 
     fun selectCategory(category: CategoryEntity?) {
@@ -313,7 +351,7 @@ class ClothingFormViewModel @Inject constructor(
                 if (previousPath != null && previousPath != originalImagePath) {
                     storageRepository.deleteImage(previousPath)
                 }
-                
+
                 // Process colors from the new image
                 extractColors(uri)
             } catch (e: Exception) {
@@ -327,20 +365,20 @@ class ClothingFormViewModel @Inject constructor(
         try {
             val bitmap = storageRepository.getBitmap(uri) ?: return@withContext
             val palette = Palette.from(bitmap).generate()
-            
+
             val swatches = listOfNotNull(
                 palette.vibrantSwatch,
                 palette.mutedSwatch,
                 palette.dominantSwatch
             )
-            
+
             if (swatches.isNotEmpty()) {
                 val availableColors = lookupRepository.getColors().first()
                 if (availableColors.isNotEmpty()) {
                     val snappedColors = swatches.map { swatch ->
                         ColorMatcher.findNearestColor(swatch.rgb, availableColors)
                     }.distinctBy { it.id }
-                    
+
                     _selectedColors.value = snappedColors
                 }
             }
@@ -385,7 +423,7 @@ class ClothingFormViewModel @Inject constructor(
                 val item = ClothingItemEntity(
                     id = itemId ?: 0,
                     name = _name.value.trim(),
-                    brand = _brand.value.trim().takeIf { it.isNotBlank() },
+                    brandId = _selectedBrandId.value,
                     categoryId = _selectedCategory.value?.id,
                     subcategoryId = _selectedSubcategory.value?.id,
                     purchasePrice = _price.value.toDoubleOrNull(),

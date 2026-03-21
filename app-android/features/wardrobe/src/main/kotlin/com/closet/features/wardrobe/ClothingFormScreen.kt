@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
@@ -34,11 +35,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -70,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
@@ -164,7 +170,9 @@ fun ClothingFormScreen(
             ClothingFormContent(
                 uiState = uiState,
                 onNameChange = viewModel::updateName,
-                onBrandChange = viewModel::updateBrand,
+                onBrandQueryChange = viewModel::onBrandQueryChange,
+                onBrandSelect = viewModel::onBrandSelect,
+                onAddNewBrand = viewModel::onAddNewBrand,
                 onCategorySelect = viewModel::selectCategory,
                 onSubcategorySelect = viewModel::selectSubcategory,
                 onPriceChange = viewModel::updatePrice,
@@ -222,7 +230,9 @@ private fun ClothingFormTopBar(
 private fun ClothingFormContent(
     uiState: ClothingFormUiState,
     onNameChange: (String) -> Unit,
-    onBrandChange: (String) -> Unit,
+    onBrandQueryChange: (String) -> Unit,
+    onBrandSelect: (BrandEntity) -> Unit,
+    onAddNewBrand: (String) -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,
     onPriceChange: (String) -> Unit,
@@ -289,13 +299,12 @@ private fun ClothingFormContent(
         }
 
         item {
-            OutlinedTextField(
-                value = uiState.brand,
-                onValueChange = onBrandChange,
-                label = { Text(stringResource(R.string.wardrobe_field_brand)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            BrandAutocompleteField(
+                query = uiState.brandQuery,
+                allBrands = uiState.allBrands,
+                onQueryChange = onBrandQueryChange,
+                onBrandSelect = onBrandSelect,
+                onAddNewBrand = onAddNewBrand
             )
         }
 
@@ -604,6 +613,57 @@ private fun DatePickerField(
             }
         ) {
             DatePicker(state = datePickerState)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BrandAutocompleteField(
+    query: String,
+    allBrands: List<BrandEntity>,
+    onQueryChange: (String) -> Unit,
+    onBrandSelect: (BrandEntity) -> Unit,
+    onAddNewBrand: (String) -> Unit
+) {
+    val filteredBrands = allBrands.filter { it.name.contains(query, ignoreCase = true) }
+    val showAddOption = query.isNotBlank() && filteredBrands.none { it.name.equals(query, ignoreCase = true) }
+
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { onQueryChange(it); expanded = true },
+            label = { Text(stringResource(R.string.wardrobe_field_brand)) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryEditable)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded && (filteredBrands.isNotEmpty() || showAddOption),
+            onDismissRequest = { expanded = false }
+        ) {
+            filteredBrands.forEach { brand ->
+                DropdownMenuItem(
+                    text = { Text(brand.name) },
+                    onClick = { onBrandSelect(brand); expanded = false }
+                )
+            }
+            if (showAddOption) {
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.wardrobe_brand_add, query)) },
+                    leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    onClick = { onAddNewBrand(query); expanded = false }
+                )
+            }
         }
     }
 }
