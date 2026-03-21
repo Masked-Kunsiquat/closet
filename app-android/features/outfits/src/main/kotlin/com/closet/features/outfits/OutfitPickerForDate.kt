@@ -57,7 +57,8 @@ internal fun OutfitPickerForDate(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val headerLabel = remember(date) {
-        LocalDate.parse(date).format(DateTimeFormatter.ofPattern("MMMM d"))
+        runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("MMMM d")) }
+            .getOrElse { date }
     }
 
     ModalBottomSheet(

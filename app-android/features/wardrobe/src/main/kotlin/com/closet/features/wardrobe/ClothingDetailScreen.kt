@@ -409,7 +409,7 @@ private fun WearHistoryRow(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = log.outfitName ?: stringResource(R.string.wardrobe_wear_history_untitled),
+                text = if (log.outfitName.isNullOrBlank()) stringResource(R.string.wardrobe_wear_history_untitled) else log.outfitName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
