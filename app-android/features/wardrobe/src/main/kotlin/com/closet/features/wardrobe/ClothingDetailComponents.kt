@@ -112,7 +112,11 @@ internal fun ClothingAttributes(
                     AttributeEmptyHint()
                 } else {
                     item.patterns.forEach { pattern ->
-                        AttributeChip(label = pattern.name, onClick = onEditPatterns)
+                        AttributeChip(
+                            label = pattern.name,
+                            iconResId = IconMapper.getIconResource(pattern.icon),
+                            onClick = onEditPatterns
+                        )
                     }
                 }
             }

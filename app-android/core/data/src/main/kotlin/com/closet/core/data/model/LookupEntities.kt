@@ -77,11 +77,12 @@ data class MaterialEntity(
     val name: String
 )
 
-/** Visual pattern lookup value (e.g. Solid, Striped, Floral). */
+/** Visual pattern lookup value (e.g. Solid, Striped, Floral). Stored with a Phosphor icon name for display. */
 @Entity(tableName = "patterns")
 data class PatternEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String
+    val name: String,
+    val icon: String? = null
 )
 
 /** A named sizing system (e.g. Letter, Women's Numeric, Shoes (US Men's)). */

@@ -44,6 +44,24 @@ object IconMapper {
         "crown_simple", "ic_icon_crown_simple" -> R.drawable.ic_icon_crown_simple
         "person_simple_run", "ic_icon_person_simple_run" -> R.drawable.ic_icon_person_simple_run
         "person_simple_swim", "ic_icon_person_simple_swim" -> R.drawable.ic_icon_person_simple_swim
+        // Patterns
+        "solid", "ic_pattern_solid" -> R.drawable.ic_pattern_solid
+        "striped", "ic_pattern_striped" -> R.drawable.ic_pattern_striped
+        "plaid_tartan", "plaid/tartan", "ic_pattern_plaid_tartan" -> R.drawable.ic_pattern_plaid_tartan
+        "checkered", "ic_pattern_checkered" -> R.drawable.ic_pattern_checkered
+        "floral", "ic_pattern_floral" -> R.drawable.ic_pattern_floral
+        "geometric", "ic_pattern_geometric" -> R.drawable.ic_pattern_geometric
+        "animal_print", "ic_pattern_animal_print" -> R.drawable.ic_pattern_animal_print
+        "abstract", "ic_pattern_abstract" -> R.drawable.ic_pattern_abstract
+        "tie_dye", "tie-dye", "ic_pattern_tie_dye" -> R.drawable.ic_pattern_tie_dye
+        "camouflage", "ic_pattern_camouflage" -> R.drawable.ic_pattern_camouflage
+        "paisley", "ic_pattern_paisley" -> R.drawable.ic_pattern_paisley
+        "polka_dot", "ic_pattern_polka_dot" -> R.drawable.ic_pattern_polka_dot
+        "houndstooth", "ic_pattern_houndstooth" -> R.drawable.ic_pattern_houndstooth
+        "graphic", "ic_pattern_graphic" -> R.drawable.ic_pattern_graphic
+        "color_block", "ic_pattern_color_block" -> R.drawable.ic_pattern_color_block
+        "ombre", "ic_pattern_ombre" -> R.drawable.ic_pattern_ombre
+        "other", "ic_pattern_other" -> R.drawable.ic_pattern_other
         else -> null
     }
 
