@@ -26,9 +26,9 @@ Findings from codebase audit. Items ordered by priority.
 ## Phase 2 — ViewModel State (Short-term)
 
 ### `ClothingFormViewModel.kt` (468 lines, 13 `MutableStateFlow`s)
-- [ ] Consolidate 13 individual `MutableStateFlow` field properties into a single `ClothingFormUiState` data class exposed as one `StateFlow` — update via `copy()`
-- [ ] Extract the `isDirty` computation (currently ~20 lines of field comparisons) into a standalone function
-- [ ] Audit `loadItemForEditing` — it uses `.first()` blocking calls; replace with structured `collectLatest` or proper error handling
+- [x] Consolidate 13 individual `MutableStateFlow` field properties into a single `ClothingFormUiState` data class exposed as one `StateFlow` — update via `copy()`
+- [x] Extract the `isDirty` computation (currently ~20 lines of field comparisons) into a standalone function
+- [x] Audit `loadItemForEditing` — it uses `.first()` blocking calls; replace with structured `collectLatest` or proper error handling
 
 ### `ClothingDetailViewModel.kt`
 - [ ] Combine the 6 separate `StateFlow`s (categories, seasons, occasions, etc.) into a single `UiState` `StateFlow` to eliminate synchronization risk

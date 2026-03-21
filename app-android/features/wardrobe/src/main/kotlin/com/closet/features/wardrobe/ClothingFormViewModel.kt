@@ -65,28 +65,22 @@ data class ClothingFormUiState(
     val formattedDate: String? = purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
 }
 
-private data class FormBasic(
-    val name: String,
-    val brandQuery: String,
-    val selectedBrandId: Long?,
-    val category: CategoryEntity?,
-    val subcategory: SubcategoryEntity?,
-    val price: String
-)
-
-private data class FormDetails(
-    val purchaseDate: LocalDate?,
-    val purchaseLocation: String,
-    val notes: String,
-    val imagePath: String?,
-    val selectedColors: List<ColorEntity>
-)
-
-private data class FormStatus(
-    val isNameError: Boolean,
-    val isSaving: Boolean,
-    val isLoading: Boolean,
-    val errorMessage: Int?
+private data class FormState(
+    val name: String = "",
+    val brandQuery: String = "",
+    val selectedBrandId: Long? = null,
+    val category: CategoryEntity? = null,
+    val subcategory: SubcategoryEntity? = null,
+    val price: String = "",
+    val purchaseDate: LocalDate? = null,
+    val purchaseLocation: String = "",
+    val notes: String = "",
+    val imagePath: String? = null,
+    val selectedColors: List<ColorEntity> = emptyList(),
+    val isNameError: Boolean = false,
+    val isSaving: Boolean = false,
+    val isLoading: Boolean = false,
+    val errorMessage: Int? = null
 )
 
 /**
@@ -111,22 +105,7 @@ class ClothingFormViewModel @Inject constructor(
     private val itemId: Long? = editDestination?.itemId
     private val isEditMode = itemId != null
 
-    private val _name = MutableStateFlow("")
-    private val _brandQuery = MutableStateFlow("")
-    private val _selectedBrandId = MutableStateFlow<Long?>(null)
-    private val _selectedCategory = MutableStateFlow<CategoryEntity?>(null)
-    private val _selectedSubcategory = MutableStateFlow<SubcategoryEntity?>(null)
-    private val _price = MutableStateFlow("")
-    private val _purchaseDate = MutableStateFlow<LocalDate?>(null)
-    private val _purchaseLocation = MutableStateFlow("")
-    private val _notes = MutableStateFlow("")
-    private val _imagePath = MutableStateFlow<String?>(null)
-    private val _selectedColors = MutableStateFlow<List<ColorEntity>>(emptyList())
-
-    private val _isNameError = MutableStateFlow(false)
-    private val _isSaving = MutableStateFlow(false)
-    private val _isLoading = MutableStateFlow(isEditMode)
-    private val _errorMessage = MutableStateFlow<Int?>(null)
+    private val _form = MutableStateFlow(FormState(isLoading = isEditMode))
 
     // To handle image replacement cleanup
     private var originalImagePath: String? = null
@@ -147,87 +126,43 @@ class ClothingFormViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val subcategories: StateFlow<List<SubcategoryEntity>> = _selectedCategory
+    val subcategories: StateFlow<List<SubcategoryEntity>> = _form
+        .map { it.category }
+        .distinctUntilChanged()
         .flatMapLatest { category ->
             if (category == null) flowOf(emptyList())
             else lookupRepository.getSubcategories(category.id)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val basicFields = combine(
-        combine(_name, _brandQuery, _selectedBrandId) { name, query, id -> Triple(name, query, id) },
-        _selectedCategory,
-        _selectedSubcategory,
-        _price
-    ) { (name, query, id), category, subcategory, price ->
-        FormBasic(name, query, id, category, subcategory, price)
-    }
-
-    private val detailFields = combine(
-        _purchaseDate, _purchaseLocation, _notes, _imagePath, _selectedColors
-    ) { date, location, notes, path, colors ->
-        FormDetails(date, location, notes, path, colors)
-    }
-
-    private val statusFields = combine(
-        _isNameError, _isSaving, _isLoading, _errorMessage
-    ) { nameError, saving, loading, error ->
-        FormStatus(nameError, saving, loading, error)
-    }
-
     val uiState: StateFlow<ClothingFormUiState> = combine(
-        combine(basicFields, detailFields, statusFields) { b, d, s -> Triple(b, d, s) },
-        categories,
-        subcategories,
-        allColors,
-        allBrands
-    ) { (basic, details, status), cats, subcats, colors, brands ->
-        val isDirty = if (isEditMode && originalEntity != null) {
-            val e = originalEntity!!
-            val colorsChanged = details.selectedColors.size != originalColors.size ||
-                    !details.selectedColors.containsAll(originalColors)
-
-            basic.name != e.name ||
-            basic.selectedBrandId != e.brandId ||
-            basic.category?.id != e.categoryId ||
-            basic.subcategory?.id != e.subcategoryId ||
-            basic.price != (e.purchasePrice?.toString() ?: "") ||
-            details.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE) != e.purchaseDate ||
-            details.purchaseLocation != (e.purchaseLocation ?: "") ||
-            details.notes != (e.notes ?: "") ||
-            details.imagePath != e.imagePath ||
-            colorsChanged
-        } else {
-            basic.name.isNotBlank() || basic.brandQuery.isNotBlank() || basic.selectedBrandId != null || basic.category != null ||
-            basic.price.isNotBlank() || details.purchaseDate != null || details.purchaseLocation.isNotBlank() ||
-            details.notes.isNotBlank() || details.imagePath != null || details.selectedColors.isNotEmpty()
-        }
-
+        _form, categories, subcategories, allColors, allBrands
+    ) { form, cats, subcats, colors, brands ->
         ClothingFormUiState(
             isEditMode = isEditMode,
-            name = basic.name,
-            brandQuery = basic.brandQuery,
-            selectedBrandId = basic.selectedBrandId,
+            name = form.name,
+            brandQuery = form.brandQuery,
+            selectedBrandId = form.selectedBrandId,
             allBrands = brands,
-            category = basic.category,
-            subcategory = basic.subcategory,
-            price = basic.price,
-            purchaseDate = details.purchaseDate,
-            purchaseLocation = details.purchaseLocation,
-            notes = details.notes,
-            imagePath = details.imagePath,
-            imageFile = details.imagePath?.let { storageRepository.getFile(it) },
-            selectedColors = details.selectedColors,
-            isNameError = status.isNameError,
-            isSaving = status.isSaving,
-            isLoading = status.isLoading,
-            errorMessage = status.errorMessage,
+            category = form.category,
+            subcategory = form.subcategory,
+            price = form.price,
+            purchaseDate = form.purchaseDate,
+            purchaseLocation = form.purchaseLocation,
+            notes = form.notes,
+            imagePath = form.imagePath,
+            imageFile = form.imagePath?.let { storageRepository.getFile(it) },
+            selectedColors = form.selectedColors,
+            isNameError = form.isNameError,
+            isSaving = form.isSaving,
+            isLoading = form.isLoading,
+            errorMessage = form.errorMessage,
             categories = cats,
             subcategories = subcats,
             allColors = colors,
-            canSave = basic.name.isNotBlank() && !status.isSaving &&
-                    !(basic.brandQuery.isNotBlank() && basic.selectedBrandId == null),
-            isDirty = isDirty
+            canSave = form.name.isNotBlank() && !form.isSaving &&
+                    !(form.brandQuery.isNotBlank() && form.selectedBrandId == null),
+            isDirty = computeIsDirty(form)
         )
     }.stateIn(
         scope = viewModelScope,
@@ -241,70 +176,98 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    private fun computeIsDirty(form: FormState): Boolean {
+        val original = originalEntity
+        if (isEditMode && original != null) {
+            val colorsChanged = form.selectedColors.size != originalColors.size ||
+                    !form.selectedColors.containsAll(originalColors)
+            return form.name != original.name ||
+                    form.selectedBrandId != original.brandId ||
+                    form.category?.id != original.categoryId ||
+                    form.subcategory?.id != original.subcategoryId ||
+                    form.price != (original.purchasePrice?.toString() ?: "") ||
+                    form.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE) != original.purchaseDate ||
+                    form.purchaseLocation != (original.purchaseLocation ?: "") ||
+                    form.notes != (original.notes ?: "") ||
+                    form.imagePath != original.imagePath ||
+                    colorsChanged
+        }
+        return form.name.isNotBlank() || form.brandQuery.isNotBlank() || form.selectedBrandId != null ||
+                form.category != null || form.price.isNotBlank() || form.purchaseDate != null ||
+                form.purchaseLocation.isNotBlank() || form.notes.isNotBlank() ||
+                form.imagePath != null || form.selectedColors.isNotEmpty()
+    }
+
     private fun loadItemForEditing(id: Long) {
         viewModelScope.launch {
-            _isLoading.value = true
-            val entityResult = clothingRepository.getItemEntityById(id)
+            _form.update { it.copy(isLoading = true) }
+            try {
+                val entityResult = clothingRepository.getItemEntityById(id)
 
-            if (entityResult is DataResult.Success) {
-                val entity = entityResult.data
-                originalEntity = entity
-                originalImagePath = entity.imagePath
+                if (entityResult is DataResult.Success) {
+                    val entity = entityResult.data
+                    originalEntity = entity
+                    originalImagePath = entity.imagePath
 
-                // Hydrate the fields
-                _name.value = entity.name
-                _selectedBrandId.value = entity.brandId
-                if (entity.brandId != null) {
-                    val brands = brandRepository.getAllBrands().first()
-                    _brandQuery.value = brands.find { it.id == entity.brandId }?.name ?: ""
+                    // Hydrate the fields
+                    val brandName = if (entity.brandId != null) {
+                        brandRepository.getAllBrands().first().find { it.id == entity.brandId }?.name ?: ""
+                    } else ""
+
+                    val selectedCat = if (entity.categoryId != null) {
+                        lookupRepository.getCategories().first().find { it.id == entity.categoryId }
+                    } else null
+
+                    val selectedSub = if (selectedCat != null && entity.subcategoryId != null) {
+                        lookupRepository.getSubcategories(selectedCat.id).first()
+                            .find { it.id == entity.subcategoryId }
+                    } else null
+
+                    val colors = clothingRepository.getItemColors(id).first()
+                    originalColors = colors
+
+                    _form.update { it.copy(
+                        name = entity.name,
+                        selectedBrandId = entity.brandId,
+                        brandQuery = brandName,
+                        price = entity.purchasePrice?.toString() ?: "",
+                        purchaseDate = entity.purchaseDate?.let { d ->
+                            try { LocalDate.parse(d) } catch (_: Exception) { null }
+                        },
+                        purchaseLocation = entity.purchaseLocation ?: "",
+                        notes = entity.notes ?: "",
+                        imagePath = entity.imagePath,
+                        category = selectedCat,
+                        subcategory = selectedSub,
+                        selectedColors = colors,
+                        isLoading = false
+                    ) }
+                } else {
+                    _form.update { it.copy(
+                        errorMessage = R.string.wardrobe_error_load_failed,
+                        isLoading = false
+                    ) }
                 }
-                _price.value = entity.purchasePrice?.toString() ?: ""
-                _purchaseDate.value = entity.purchaseDate?.let { try { LocalDate.parse(it) } catch (_: Exception) { null } }
-                _purchaseLocation.value = entity.purchaseLocation ?: ""
-                _notes.value = entity.notes ?: ""
-                _imagePath.value = entity.imagePath
-
-                // Fetch Category and Subcategory entities for the selectors
-                val catId = entity.categoryId
-                if (catId != null) {
-                    val cats = lookupRepository.getCategories().first()
-                    val selectedCat = cats.find { it.id == catId }
-                    _selectedCategory.value = selectedCat
-
-                    val subId = entity.subcategoryId
-                    if (subId != null) {
-                        val subcats = lookupRepository.getSubcategories(catId).first()
-                        _selectedSubcategory.value = subcats.find { it.id == subId }
-                    }
-                }
-
-                // Hydrate colors
-                val colors = clothingRepository.getItemColors(id).first()
-                originalColors = colors
-                _selectedColors.value = colors
-            } else {
-                _errorMessage.value = R.string.wardrobe_error_load_failed
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                _form.update { it.copy(
+                    errorMessage = R.string.wardrobe_error_load_failed,
+                    isLoading = false
+                ) }
             }
-            _isLoading.value = false
         }
     }
 
     fun updateName(newName: String) {
-        _name.value = newName
-        _isNameError.value = false
+        _form.update { it.copy(name = newName, isNameError = false) }
     }
 
     fun onBrandQueryChange(text: String) {
-        _brandQuery.value = text
-        // Clear selection if the user edits the text away from the selected brand
-        if (_selectedBrandId.value != null) {
-            _selectedBrandId.value = null
-        }
+        _form.update { it.copy(brandQuery = text, selectedBrandId = null) }
     }
 
     fun onBrandSelect(brand: BrandEntity) {
-        _selectedBrandId.value = brand.id
-        _brandQuery.value = brand.name
+        _form.update { it.copy(selectedBrandId = brand.id, brandQuery = brand.name) }
     }
 
     fun onAddNewBrand(name: String) {
@@ -313,58 +276,57 @@ class ClothingFormViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = brandRepository.insertBrand(nameNormalized)) {
                 is DataResult.Success -> onBrandSelect(BrandEntity(id = result.data, name = nameNormalized))
-                is DataResult.Error -> _errorMessage.value = when (result.error) {
-                    is AppError.DatabaseError.ConstraintViolation -> R.string.wardrobe_error_brand_duplicate
-                    else -> R.string.wardrobe_error_brand_save_failed
-                }
+                is DataResult.Error -> _form.update { it.copy(
+                    errorMessage = when (result.error) {
+                        is AppError.DatabaseError.ConstraintViolation -> R.string.wardrobe_error_brand_duplicate
+                        else -> R.string.wardrobe_error_brand_save_failed
+                    }
+                ) }
                 else -> Unit
             }
         }
     }
 
     fun selectCategory(category: CategoryEntity?) {
-        _selectedCategory.value = category
-        _selectedSubcategory.value = null
+        _form.update { it.copy(category = category, subcategory = null) }
     }
 
     fun selectSubcategory(subcategory: SubcategoryEntity?) {
-        _selectedSubcategory.value = subcategory
+        _form.update { it.copy(subcategory = subcategory) }
     }
 
     fun updatePrice(newPrice: String) {
         if (newPrice.isEmpty() || newPrice.matches(Regex("""^\d*\.?\d{0,2}$"""))) {
-            _price.value = newPrice
+            _form.update { it.copy(price = newPrice) }
         }
     }
 
     fun updatePurchaseDate(date: LocalDate?) {
-        _purchaseDate.value = date
+        _form.update { it.copy(purchaseDate = date) }
     }
 
     fun updatePurchaseLocation(location: String) {
-        _purchaseLocation.value = location
+        _form.update { it.copy(purchaseLocation = location) }
     }
 
     fun updateNotes(newNotes: String) {
-        _notes.value = newNotes
+        _form.update { it.copy(notes = newNotes) }
     }
 
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
             try {
-                val previousPath = _imagePath.value
+                val previousPath = _form.value.imagePath
                 val relativePath = storageRepository.saveImage(uri)
-                _imagePath.value = relativePath
+                _form.update { it.copy(imagePath = relativePath) }
                 if (previousPath != null && previousPath != originalImagePath) {
                     storageRepository.deleteImage(previousPath)
                 }
-
-                // Process colors from the new image
                 extractColors(uri)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                _errorMessage.value = R.string.wardrobe_error_image_failed
+                _form.update { it.copy(errorMessage = R.string.wardrobe_error_image_failed) }
             }
         }
     }
@@ -387,7 +349,7 @@ class ClothingFormViewModel @Inject constructor(
                         ColorMatcher.findNearestColor(swatch.rgb, availableColors)
                     }.distinctBy { it.id }
 
-                    _selectedColors.value = snappedColors
+                    _form.update { it.copy(selectedColors = snappedColors) }
                 }
             }
         } catch (e: Exception) {
@@ -397,49 +359,52 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     fun toggleColor(color: ColorEntity) {
-        val current = _selectedColors.value
-        _selectedColors.value = if (current.any { it.id == color.id }) {
-            current.filter { it.id != color.id }
-        } else {
-            current + color
+        _form.update { current ->
+            val updated = if (current.selectedColors.any { it.id == color.id }) {
+                current.selectedColors.filter { it.id != color.id }
+            } else {
+                current.selectedColors + color
+            }
+            current.copy(selectedColors = updated)
         }
     }
 
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
             val colors = lookupRepository.getColors().first()
-            _selectedColors.value = colors.filter { it.id in colorIds }
+            _form.update { it.copy(selectedColors = colors.filter { c -> c.id in colorIds }) }
         }
     }
 
     fun onErrorConsumed() {
-        _errorMessage.value = null
+        _form.update { it.copy(errorMessage = null) }
     }
 
     fun save() {
-        if (_isSaving.value) return
-        if (_name.value.isBlank()) {
-            _isNameError.value = true
+        val currentForm = _form.value
+        if (currentForm.isSaving) return
+        if (currentForm.name.isBlank()) {
+            _form.update { it.copy(isNameError = true) }
             return
         }
-        if (_brandQuery.value.isNotBlank() && _selectedBrandId.value == null) return
+        if (currentForm.brandQuery.isNotBlank() && currentForm.selectedBrandId == null) return
 
-        _isSaving.value = true
-        _errorMessage.value = null
+        _form.update { it.copy(isSaving = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
+                val form = _form.value
                 val item = ClothingItemEntity(
                     id = itemId ?: 0,
-                    name = _name.value.trim(),
-                    brandId = _selectedBrandId.value,
-                    categoryId = _selectedCategory.value?.id,
-                    subcategoryId = _selectedSubcategory.value?.id,
-                    purchasePrice = _price.value.toDoubleOrNull(),
-                    purchaseDate = _purchaseDate.value?.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                    purchaseLocation = _purchaseLocation.value.trim().takeIf { it.isNotBlank() },
-                    notes = _notes.value.trim().takeIf { it.isNotBlank() },
-                    imagePath = _imagePath.value,
+                    name = form.name.trim(),
+                    brandId = form.selectedBrandId,
+                    categoryId = form.category?.id,
+                    subcategoryId = form.subcategory?.id,
+                    purchasePrice = form.price.toDoubleOrNull(),
+                    purchaseDate = form.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    purchaseLocation = form.purchaseLocation.trim().takeIf { it.isNotBlank() },
+                    notes = form.notes.trim().takeIf { it.isNotBlank() },
+                    imagePath = form.imagePath,
                     status = originalEntity?.status ?: ClothingStatus.Active,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
                     isFavorite = originalEntity?.isFavorite ?: 0,
@@ -448,25 +413,25 @@ class ClothingFormViewModel @Inject constructor(
                 )
 
                 val result = if (isEditMode) {
-                    clothingRepository.updateItemWithColors(item, _selectedColors.value)
+                    clothingRepository.updateItemWithColors(item, form.selectedColors)
                 } else {
-                    clothingRepository.insertItemWithColors(item, _selectedColors.value)
+                    clothingRepository.insertItemWithColors(item, form.selectedColors)
                 }
 
                 when (result) {
                     is DataResult.Success -> {
-                        if (isEditMode && _imagePath.value != originalImagePath) {
+                        if (isEditMode && form.imagePath != originalImagePath) {
                             originalImagePath?.let { storageRepository.deleteImage(it) }
                         }
                         _events.send(ClothingFormEvent.NavigateBack)
                     }
                     is DataResult.Error -> {
-                        _errorMessage.value = R.string.wardrobe_error_save_failed
+                        _form.update { it.copy(errorMessage = R.string.wardrobe_error_save_failed) }
                     }
                     else -> { /* No-op */ }
                 }
             } finally {
-                _isSaving.value = false
+                _form.update { it.copy(isSaving = false) }
             }
         }
     }
