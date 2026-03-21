@@ -13,9 +13,9 @@ Findings from codebase audit. Items ordered by priority.
 - [x] Ensure `ClothingFormScreen.kt` contains only the top-level screen composable and `ClothingFormTopBar`/`ClothingFormContent`
 
 ### `ClothingDetailScreen.kt` (731 lines)
-- [ ] Replace the 5 copy-pasted `MultiSelectSheet` blocks (seasons, occasions, colors, materials, patterns) with a data-driven loop or single generic helper composable
-- [ ] Extract `ClothingAttributes` and `AttributeSection`/`AttributeChip` into `ClothingDetailComponents.kt`
-- [ ] Move `@Preview` functions into `ClothingDetailPreviews.kt`
+- [x] Replace the 5 copy-pasted `MultiSelectSheet` blocks (seasons, occasions, colors, materials, patterns) with a data-driven loop or single generic helper composable
+- [x] Extract `ClothingAttributes` and `AttributeSection`/`AttributeChip` into `ClothingDetailComponents.kt`
+- [x] Move `@Preview` functions into `ClothingDetailPreviews.kt`
 
 ### `BrandManagementScreen.kt` (405 lines)
 - [ ] Extract dialog/edit state into a sealed class (`BrandDialogState`) instead of separate boolean flags

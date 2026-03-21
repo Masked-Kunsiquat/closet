@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,16 +12,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -30,8 +26,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.*
 import com.closet.core.ui.R as CoreR
-import com.closet.core.ui.theme.ClosetTheme
 import com.closet.core.ui.util.IconMapper
+
+private enum class AttributePicker { SEASONS, OCCASIONS, COLORS, MATERIALS, PATTERNS }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -61,11 +58,7 @@ fun ClothingDetailScreen(
         }
     }
 
-    var showSeasonPicker by remember { mutableStateOf(false) }
-    var showOccasionPicker by remember { mutableStateOf(false) }
-    var showColorPicker by remember { mutableStateOf(false) }
-    var showMaterialPicker by remember { mutableStateOf(false) }
-    var showPatternPicker by remember { mutableStateOf(false) }
+    var activePicker by remember { mutableStateOf<AttributePicker?>(null) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -285,11 +278,11 @@ fun ClothingDetailScreen(
                         // Attributes
                         ClothingAttributes(
                             item = detail,
-                            onEditSeasons = { showSeasonPicker = true },
-                            onEditOccasions = { showOccasionPicker = true },
-                            onEditColors = { showColorPicker = true },
-                            onEditMaterials = { showMaterialPicker = true },
-                            onEditPatterns = { showPatternPicker = true }
+                            onEditSeasons = { activePicker = AttributePicker.SEASONS },
+                            onEditOccasions = { activePicker = AttributePicker.OCCASIONS },
+                            onEditColors = { activePicker = AttributePicker.COLORS },
+                            onEditMaterials = { activePicker = AttributePicker.MATERIALS },
+                            onEditPatterns = { activePicker = AttributePicker.PATTERNS }
                         )
 
                         // Notes
@@ -314,418 +307,48 @@ fun ClothingDetailScreen(
         }
     }
 
-    // Multi-Select Sheets
-    if (showSeasonPicker) {
-        MultiSelectSheet(
-            title = stringResource(R.string.wardrobe_seasons),
-            items = allSeasons.map {
-                MultiSelectItem(
-                    it.id,
-                    it.name,
-                    it,
-                    iconResId = IconMapper.getIconResource(it.icon)
-                )
-            },
-            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.seasons?.map { it.id }
-                ?.toSet() ?: emptySet(),
-            onDismiss = { showSeasonPicker = false },
-            onConfirm = {
-                viewModel.updateSeasons(it)
-                showSeasonPicker = false
-            }
-        )
-    }
+    // Attribute picker sheet — driven by activePicker state
+    activePicker?.let { picker ->
+        val successItem = (uiState as? ClothingDetailUiState.Success)?.item
+        val title = stringResource(when (picker) {
+            AttributePicker.SEASONS   -> R.string.wardrobe_seasons
+            AttributePicker.OCCASIONS -> R.string.wardrobe_occasions
+            AttributePicker.COLORS    -> R.string.wardrobe_colors
+            AttributePicker.MATERIALS -> R.string.wardrobe_materials
+            AttributePicker.PATTERNS  -> R.string.wardrobe_patterns
+        })
+        val items = when (picker) {
+            AttributePicker.SEASONS   -> allSeasons.map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
+            AttributePicker.OCCASIONS -> allOccasions.map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
+            AttributePicker.COLORS    -> allColors.map { MultiSelectItem(it.id, it.name, it, colorHex = it.hex) }
+            AttributePicker.MATERIALS -> allMaterials.map { MultiSelectItem(it.id, it.name, it) }
+            AttributePicker.PATTERNS  -> allPatterns.map { MultiSelectItem(it.id, it.name, it) }
+        }
+        val selectedIds = when (picker) {
+            AttributePicker.SEASONS   -> successItem?.seasons?.map { it.id }?.toSet()
+            AttributePicker.OCCASIONS -> successItem?.occasions?.map { it.id }?.toSet()
+            AttributePicker.COLORS    -> successItem?.colors?.map { it.id }?.toSet()
+            AttributePicker.MATERIALS -> successItem?.materials?.map { it.id }?.toSet()
+            AttributePicker.PATTERNS  -> successItem?.patterns?.map { it.id }?.toSet()
+        } ?: emptySet()
 
-    if (showOccasionPicker) {
         MultiSelectSheet(
-            title = stringResource(R.string.wardrobe_occasions),
-            items = allOccasions.map {
-                MultiSelectItem(
-                    it.id,
-                    it.name,
-                    it,
-                    iconResId = IconMapper.getIconResource(it.icon)
-                )
-            },
-            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.occasions?.map { it.id }
-                ?.toSet() ?: emptySet(),
-            onDismiss = { showOccasionPicker = false },
-            onConfirm = {
-                viewModel.updateOccasions(it)
-                showOccasionPicker = false
-            }
-        )
-    }
-
-    if (showColorPicker) {
-        MultiSelectSheet(
-            title = stringResource(R.string.wardrobe_colors),
-            items = allColors.map { MultiSelectItem(it.id, it.name, it, colorHex = it.hex) },
-            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.colors?.map { it.id }
-                ?.toSet() ?: emptySet(),
-            onDismiss = { showColorPicker = false },
-            onConfirm = {
-                viewModel.updateColors(it)
-                showColorPicker = false
-            }
-        )
-    }
-
-    if (showMaterialPicker) {
-        MultiSelectSheet(
-            title = stringResource(R.string.wardrobe_materials),
-            items = allMaterials.map { MultiSelectItem(it.id, it.name, it) },
-            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.materials?.map { it.id }
-                ?.toSet() ?: emptySet(),
-            onDismiss = { showMaterialPicker = false },
-            onConfirm = {
-                viewModel.updateMaterials(it)
-                showMaterialPicker = false
-            }
-        )
-    }
-
-    if (showPatternPicker) {
-        MultiSelectSheet(
-            title = stringResource(R.string.wardrobe_patterns),
-            items = allPatterns.map { MultiSelectItem(it.id, it.name, it) },
-            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.patterns?.map { it.id }
-                ?.toSet() ?: emptySet(),
-            onDismiss = { showPatternPicker = false },
-            onConfirm = {
-                viewModel.updatePatterns(it)
-                showPatternPicker = false
+            title = title,
+            items = items,
+            selectedIds = selectedIds,
+            onDismiss = { activePicker = null },
+            onConfirm = { selected ->
+                when (picker) {
+                    AttributePicker.SEASONS   -> viewModel.updateSeasons(selected)
+                    AttributePicker.OCCASIONS -> viewModel.updateOccasions(selected)
+                    AttributePicker.COLORS    -> viewModel.updateColors(selected)
+                    AttributePicker.MATERIALS -> viewModel.updateMaterials(selected)
+                    AttributePicker.PATTERNS  -> viewModel.updatePatterns(selected)
+                }
+                activePicker = null
             }
         )
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ClothingAttributes(
-    item: ClothingItemDetail,
-    onEditSeasons: () -> Unit,
-    onEditOccasions: () -> Unit,
-    onEditColors: () -> Unit,
-    onEditMaterials: () -> Unit,
-    onEditPatterns: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Seasons
-        AttributeSection(
-            title = stringResource(R.string.wardrobe_seasons),
-            onEditClick = onEditSeasons
-        ) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (item.seasons.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.wardrobe_none_selected),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    item.seasons.forEach { season ->
-                        AttributeChip(
-                            label = season.name,
-                            iconResId = IconMapper.getIconResource(season.icon),
-                            onClick = onEditSeasons
-                        )
-                    }
-                }
-            }
-        }
 
-        // Colors
-        AttributeSection(
-            title = stringResource(R.string.wardrobe_colors),
-            onEditClick = onEditColors
-        ) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (item.colors.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.wardrobe_none_selected),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    item.colors.forEach { color ->
-                        AttributeChip(
-                            label = color.name,
-                            color = color.hex?.let {
-                                try {
-                                    Color(android.graphics.Color.parseColor(it))
-                                } catch (e: Exception) {
-                                    null
-                                }
-                            },
-                            onClick = onEditColors
-                        )
-                    }
-                }
-            }
-        }
-
-        // Materials
-        AttributeSection(
-            title = stringResource(R.string.wardrobe_materials),
-            onEditClick = onEditMaterials
-        ) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (item.materials.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.wardrobe_none_selected),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    item.materials.forEach { material ->
-                        AttributeChip(
-                            label = material.name,
-                            onClick = onEditMaterials
-                        )
-                    }
-                }
-            }
-        }
-
-        // Patterns
-        AttributeSection(
-            title = stringResource(R.string.wardrobe_patterns),
-            onEditClick = onEditPatterns
-        ) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (item.patterns.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.wardrobe_none_selected),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    item.patterns.forEach { pattern ->
-                        AttributeChip(
-                            label = pattern.name,
-                            onClick = onEditPatterns
-                        )
-                    }
-                }
-            }
-        }
-
-        AttributeSection(
-            title = stringResource(R.string.wardrobe_occasions),
-            onEditClick = onEditOccasions
-        ) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (item.occasions.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.wardrobe_none_selected),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                } else {
-                    item.occasions.forEach { occasion ->
-                        AttributeChip(
-                            label = occasion.name,
-                            iconResId = IconMapper.getIconResource(occasion.icon),
-                            onClick = onEditOccasions
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AttributeSection(
-    title: String,
-    onEditClick: () -> Unit,
-    content: @Composable () -> Unit
-) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            IconButton(onClick = onEditClick) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Edit $title",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        content()
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AttributeChip(
-    label: String,
-    iconResId: Int? = null,
-    color: Color? = null,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (color != null) {
-                Box(
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                )
-            } else if (iconResId != null) {
-                Icon(
-                    painter = painterResource(id = iconResId),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
-    }
-}
-
-// region Previews
-
-private val previewItem = ClothingItemDetail(
-    item = ClothingItemEntity(
-        id = 1L,
-        name = "Vintage Denim Jacket",
-        purchasePrice = 85.00,
-        status = ClothingStatus.Active,
-        washStatus = WashStatus.Clean,
-        isFavorite = 1,
-        notes = "Great for layering. Found at a thrift store in Brooklyn."
-    ),
-    wearCount = 12,
-    category = CategoryEntity(id = 1L, name = "Tops", sortOrder = 1),
-    subcategory = SubcategoryEntity(id = 2L, categoryId = 1L, name = "Jackets", sortOrder = 2),
-    brand = BrandEntity(id = 1L, name = "Levi's"),
-    sizeValue = null,
-    colors = listOf(
-        ColorEntity(id = 1L, name = "Blue", hex = "#3A6BAE"),
-        ColorEntity(id = 2L, name = "White", hex = "#FFFFFF"),
-    ),
-    materials = listOf(MaterialEntity(id = 1L, name = "Denim"), MaterialEntity(id = 2L, name = "Cotton")),
-    seasons = listOf(SeasonEntity(id = 1L, name = "Spring", icon = "flower"), SeasonEntity(id = 3L, name = "Fall", icon = "leaf")),
-    occasions = listOf(OccasionEntity(id = 1L, name = "Casual", icon = "couch"), OccasionEntity(id = 2L, name = "Weekend", icon = "coffee")),
-    patterns = emptyList()
-)
-
-private val previewItemMinimal = ClothingItemDetail(
-    item = ClothingItemEntity(
-        id = 2L,
-        name = "Plain White Tee",
-        status = ClothingStatus.Active,
-        washStatus = WashStatus.Dirty,
-        isFavorite = 0
-    ),
-    wearCount = 0,
-    category = CategoryEntity(id = 1L, name = "Tops", sortOrder = 1),
-    subcategory = null,
-    brand = null,
-    sizeValue = null,
-    colors = emptyList(),
-    materials = emptyList(),
-    seasons = emptyList(),
-    occasions = emptyList(),
-    patterns = emptyList()
-)
-
-@Preview(showBackground = true, name = "Attributes - Filled - Light")
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Attributes - Filled - Dark")
-@Composable
-private fun ClothingAttributesFilledPreview() {
-    ClosetTheme {
-        Surface {
-            Column(modifier = Modifier.padding(16.dp)) {
-                ClothingAttributes(
-                    item = previewItem,
-                    onEditSeasons = {},
-                    onEditOccasions = {},
-                    onEditColors = {},
-                    onEditMaterials = {},
-                    onEditPatterns = {}
-                )
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Attributes - Empty State")
-@Composable
-private fun ClothingAttributesEmptyPreview() {
-    ClosetTheme {
-        Surface {
-            Column(modifier = Modifier.padding(16.dp)) {
-                ClothingAttributes(
-                    item = previewItemMinimal,
-                    onEditSeasons = {},
-                    onEditOccasions = {},
-                    onEditColors = {},
-                    onEditMaterials = {},
-                    onEditPatterns = {}
-                )
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "AttributeChip - Text Only")
-@Preview(showBackground = true, name = "AttributeChip - With Color")
-@Composable
-private fun AttributeChipPreview() {
-    ClosetTheme {
-        Surface {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AttributeChip(label = "Casual", onClick = {})
-                AttributeChip(label = "Blue", color = Color(0xFF3A6BAE), onClick = {})
-                AttributeChip(label = "Fall", onClick = {})
-            }
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "AttributeSection - With Items")
-@Composable
-private fun AttributeSectionPreview() {
-    ClosetTheme {
-        Surface {
-            Column(modifier = Modifier.padding(16.dp)) {
-                AttributeSection(title = "Colors", onEditClick = {}) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AttributeChip(label = "Blue", color = Color(0xFF3A6BAE), onClick = {})
-                        AttributeChip(label = "White", color = Color(0xFFFFFFFF), onClick = {})
-                    }
-                }
-            }
-        }
-    }
-}
-
-// endregion
