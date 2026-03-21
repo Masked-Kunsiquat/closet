@@ -4,8 +4,8 @@
 
 | Layer | Status |
 |---|---|
-| `StatsDao` | ✅ 3 queries: `getStatsOverview`, `getMostWornItems`, `getBreakdownByCategory` |
-| `StatsRepository` | ✅ Thin wrapper, `@Singleton`, injected via Hilt |
+| `StatsDao` | ✅ 7 queries: `getStatsOverview`, `getMostWornItems`, `getBreakdownByCategory`, `getCostPerWear`, `getTotalOutfitsLogged`, `getWearFrequencyByCategory`, `getNeverWornItems` |
+| `StatsRepository` | ✅ Thin wrapper, `@Singleton`, injected via Hilt — all 7 queries exposed |
 | Feature module | ❌ Missing |
 | ViewModel | ❌ Missing |
 | Screen / nav entry | ❌ Missing |
@@ -13,20 +13,14 @@
 
 ---
 
-## Phase 1 — Data layer gaps
+## Phase 1 — Data layer gaps ✅
 
-Queries to add to `StatsDao` / `StatsRepository` before building the screen.
+All four queries added to `StatsDao` and exposed via `StatsRepository`.
 
-- **Cost-per-wear ranking** — items with a `purchase_price`, ordered by
-  `purchase_price / wear_count` ascending (cheapest per wear first); exclude
-  never-worn items
-- **Total outfits logged** — `COUNT(DISTINCT outfit_logs.id)` all-time, with
-  optional `fromDate` filter
-- **Wear frequency by category** — like `getBreakdownByCategory` but counting
-  wear log entries rather than item counts; join through `outfit_log_items`
-  (snapshot table) not `outfit_items`
-- **Never-worn items list** — `getStatsOverview` already counts them; add a
-  query that returns the actual `StatItem` rows so the screen can list them
+- **Cost-per-wear ranking** ✅ — `getCostPerWear(fromDate)` → `Flow<List<CostPerWearItem>>`; excludes never-worn and null-price items
+- **Total outfits logged** ✅ — `getTotalOutfitsLogged(fromDate)` → `Flow<Int>`
+- **Wear frequency by category** ✅ — `getWearFrequencyByCategory(fromDate)` → `Flow<List<BreakdownRow>>`; joins `outfit_items → outfit_logs` (no snapshot table in Android schema)
+- **Never-worn items list** ✅ — `getNeverWornItems()` → `Flow<List<StatItem>>`
 
 ---
 
