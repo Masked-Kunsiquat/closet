@@ -5,6 +5,10 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 
+/**
+ * Junction entity linking a clothing item to one or more [ColorEntity] values.
+ * Cascade-deletes when either side is removed.
+ */
 @Entity(
     tableName = "clothing_item_colors",
     primaryKeys = ["clothing_item_id", "color_id"],
@@ -19,6 +23,10 @@ data class ClothingItemColorEntity(
     @ColumnInfo(name = "color_id") val colorId: Long
 )
 
+/**
+ * Junction entity linking a clothing item to one or more [MaterialEntity] values.
+ * Cascade-deletes when either side is removed.
+ */
 @Entity(
     tableName = "clothing_item_materials",
     primaryKeys = ["clothing_item_id", "material_id"],
@@ -33,6 +41,10 @@ data class ClothingItemMaterialEntity(
     @ColumnInfo(name = "material_id") val materialId: Long
 )
 
+/**
+ * Junction entity linking a clothing item to one or more [SeasonEntity] values.
+ * Cascade-deletes when either side is removed.
+ */
 @Entity(
     tableName = "clothing_item_seasons",
     primaryKeys = ["clothing_item_id", "season_id"],
@@ -47,6 +59,10 @@ data class ClothingItemSeasonEntity(
     @ColumnInfo(name = "season_id") val seasonId: Long
 )
 
+/**
+ * Junction entity linking a clothing item to one or more [OccasionEntity] values.
+ * Cascade-deletes when either side is removed.
+ */
 @Entity(
     tableName = "clothing_item_occasions",
     primaryKeys = ["clothing_item_id", "occasion_id"],
@@ -61,6 +77,10 @@ data class ClothingItemOccasionEntity(
     @ColumnInfo(name = "occasion_id") val occasionId: Long
 )
 
+/**
+ * Junction entity linking a clothing item to one or more [PatternEntity] values.
+ * Cascade-deletes when either side is removed.
+ */
 @Entity(
     tableName = "clothing_item_patterns",
     primaryKeys = ["clothing_item_id", "pattern_id"],

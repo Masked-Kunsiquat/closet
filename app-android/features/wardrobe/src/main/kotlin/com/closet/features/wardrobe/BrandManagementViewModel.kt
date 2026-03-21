@@ -15,11 +15,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Dialog state shown on the Brand Management screen.
+ * Either prompts for confirmation to delete an unused brand, or informs
+ * the user that the brand is blocked because it is still assigned to items.
+ */
 sealed interface BrandManagementDialog {
+    /** Confirmation prompt shown when the brand has zero clothing items. */
     data class ConfirmDelete(val brand: BrandEntity) : BrandManagementDialog
+    /** Informational dialog shown when the brand is assigned to one or more items. */
     data class BlockedDelete(val brand: BrandEntity, val itemCount: Int) : BrandManagementDialog
 }
 
+/** UI state for the Brand Management screen. */
 data class BrandManagementUiState(
     val brands: List<BrandEntity> = emptyList(),
     val dialog: BrandManagementDialog? = null,
@@ -27,6 +35,13 @@ data class BrandManagementUiState(
     val errorMessage: String? = null
 )
 
+/**
+ * ViewModel for the Brand Management screen.
+ *
+ * Exposes a single [uiState] derived from the live brand list combined with
+ * transient loading/error/dialog state. All write operations dispatch to
+ * [BrandRepository] and surface errors via [uiState].
+ */
 @HiltViewModel
 class BrandManagementViewModel @Inject constructor(
     private val brandRepository: BrandRepository
@@ -66,6 +81,11 @@ class BrandManagementViewModel @Inject constructor(
         initialValue = BrandManagementUiState()
     )
 
+    /**
+     * Initiates a delete request for [brand].
+     * Shows [BrandManagementDialog.ConfirmDelete] if the brand is unused, or
+     * [BrandManagementDialog.BlockedDelete] if clothing items still reference it.
+     */
     fun requestDelete(brand: BrandEntity) {
         viewModelScope.launch {
             when (val result = brandRepository.getItemCountForBrand(brand.id)) {
@@ -82,6 +102,7 @@ class BrandManagementViewModel @Inject constructor(
         }
     }
 
+    /** Executes the delete for the brand with [id] and dismisses the dialog on completion. */
     fun confirmDelete(id: Long) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -100,6 +121,10 @@ class BrandManagementViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Inserts a new brand when [id] is null, or renames the existing brand when [id] is non-null.
+     * Blank names are silently ignored.
+     */
     fun saveBrand(id: Long?, name: String) {
         val trimmed = name.trim()
         if (trimmed.isBlank()) return
@@ -121,14 +146,17 @@ class BrandManagementViewModel @Inject constructor(
         }
     }
 
+    /** Clears the currently shown dialog. */
     fun dismissDialog() {
         _dialog.value = null
     }
 
+    /** Clears the transient error message once the UI has consumed it. */
     fun onErrorConsumed() {
         _errorMessage.value = null
     }
 
+    /** Maps an [AppError] (or any throwable) to a human-readable message for the UI. */
     private fun mapAppErrorToMessage(throwable: Throwable): String = when (throwable) {
         is AppError.DatabaseError.ConstraintViolation -> "A brand with that name already exists."
         is AppError.DatabaseError.NotFound -> "Brand not found."

@@ -32,6 +32,7 @@ class ClothingDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<ClothingDetailDestination>()
+    /** The ID of the item being displayed, extracted from the navigation destination. */
     val itemId = destination.itemId
 
     private val itemDetailFlow = clothingRepository.getItemDetail(itemId)
@@ -46,6 +47,7 @@ class ClothingDetailViewModel @Inject constructor(
         ClothingDetailLookup(colors, materials, seasons, occasions, patterns)
     }
 
+    /** UI state combining item detail and all lookup lists for inline editing chips. */
     val uiState: StateFlow<ClothingDetailUiState> = combine(
         itemDetailFlow, lookupFlow
     ) { detail, lookup ->
@@ -68,8 +70,10 @@ class ClothingDetailViewModel @Inject constructor(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+    /** One-shot error events emitted when a quick action (toggle, delete, update) fails. */
     val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
+    /** Toggles the favorite status of the current item. */
     fun toggleFavorite() {
         viewModelScope.launch {
             val currentState = uiState.value
@@ -84,6 +88,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Toggles the wash status between [WashStatus.Clean] and [WashStatus.Dirty]. */
     fun toggleWashStatus() {
         viewModelScope.launch {
             val currentState = uiState.value
@@ -102,6 +107,10 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Deletes the item and its associated image file, then calls [onDeleted] on success.
+     * Emits [actionError] if the delete fails.
+     */
     fun deleteItem(onDeleted: () -> Unit) {
         viewModelScope.launch {
             val currentState = uiState.value
@@ -119,6 +128,7 @@ class ClothingDetailViewModel @Inject constructor(
 
     // --- Junction Table Updates ---
 
+    /** Replaces the item's color associations with [colorIds] (delete-then-insert). */
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemColors(itemId, colorIds).fold(
@@ -129,6 +139,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's material associations with [materialIds] (delete-then-insert). */
     fun updateMaterials(materialIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemMaterials(itemId, materialIds).fold(
@@ -139,6 +150,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's season associations with [seasonIds] (delete-then-insert). */
     fun updateSeasons(seasonIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemSeasons(itemId, seasonIds).fold(
@@ -149,6 +161,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's occasion associations with [occasionIds] (delete-then-insert). */
     fun updateOccasions(occasionIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemOccasions(itemId, occasionIds).fold(
@@ -159,6 +172,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's pattern associations with [patternIds] (delete-then-insert). */
     fun updatePatterns(patternIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemPatterns(itemId, patternIds).fold(
@@ -169,6 +183,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Resolves a stored relative image [path] to a [File], or null if [path] is null. */
     fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
 
     private fun handleActionError(throwable: Throwable) {

@@ -19,11 +19,23 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
+/**
+ * One-time events emitted by [OutfitsViewModel] after a wear-log operation completes.
+ */
 sealed interface OutfitsEvent {
+    /** Emitted when the outfit was successfully logged as worn today. */
     data object WearSuccess : OutfitsEvent
+    /** Emitted when the wear-log operation failed. */
     data object WearError : OutfitsEvent
 }
 
+/**
+ * ViewModel for the Outfits gallery screen.
+ *
+ * Exposes the full list of saved outfits as a live [outfits] flow and handles
+ * the "Wear Today" action via [wearOutfit]. Only one wear operation is allowed
+ * in flight at a time; [wearingOutfitId] tracks which card shows a loading state.
+ */
 @HiltViewModel
 class OutfitsViewModel @Inject constructor(
     private val outfitRepository: OutfitRepository,
@@ -31,6 +43,7 @@ class OutfitsViewModel @Inject constructor(
     private val storageRepository: StorageRepository
 ) : ViewModel() {
 
+    /** Live list of all saved outfits with their member items. */
     val outfits: StateFlow<List<OutfitWithItems>> = outfitRepository.getAllOutfitsWithItems()
         .stateIn(
             scope = viewModelScope,
@@ -41,11 +54,14 @@ class OutfitsViewModel @Inject constructor(
     // ID of the outfit currently being logged; null when idle.
     // Drives per-card button loading/disabled state.
     private val _wearingOutfitId = MutableStateFlow<Long?>(null)
+    /** ID of the outfit currently being logged as worn; null when idle. Drives per-card loading state. */
     val wearingOutfitId: StateFlow<Long?> = _wearingOutfitId.asStateFlow()
 
     private val _events = Channel<OutfitsEvent>(Channel.BUFFERED)
+    /** One-time [OutfitsEvent] emissions for the screen to collect. */
     val events = _events.receiveAsFlow()
 
+    /** Resolves a stored relative image [path] to a [File], or null if [path] is null. */
     fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
 
     /**

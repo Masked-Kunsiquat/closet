@@ -3,11 +3,19 @@ package com.closet.core.data
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * Mirror of seed files in hangr/db/seeds.
- * Canonical values sourced from closet-migrations skills and reference.md.
+ * Seeds all static lookup tables (categories, subcategories, seasons, occasions, colors,
+ * materials, patterns, size systems) on first database creation.
+ *
+ * Mirror of seed files in hangr/db/seeds. Canonical values sourced from the
+ * closet-migrations skill. All inserts use `INSERT OR IGNORE` so seeds are idempotent
+ * and safe to re-run without duplicating rows.
  */
 object DatabaseSeeder {
 
+    /**
+     * Runs all seed functions inside a single transaction.
+     * Called by [com.closet.core.data.ClothingDatabase] from [androidx.room.RoomDatabase.Callback.onCreate].
+     */
     fun seedAll(db: SupportSQLiteDatabase) {
         db.beginTransaction()
         try {
@@ -25,6 +33,7 @@ object DatabaseSeeder {
         }
     }
 
+    /** Seeds the 10 top-level clothing categories with stable IDs (1–10). */
     private fun seedCategories(db: SupportSQLiteDatabase) {
         val categories = listOf(
             Triple("Tops", "t-shirt", 1),
@@ -46,6 +55,7 @@ object DatabaseSeeder {
         }
     }
 
+    /** Seeds subcategories mapped to their parent category IDs (1–10). */
     private fun seedSubcategories(db: SupportSQLiteDatabase) {
         val mapping = mapOf(
             1L to listOf("T-Shirt", "Tank Top", "Blouse", "Shirt", "Polo", "Sweater", "Hoodie", "Sweatshirt", "Cardigan", "Bodysuit"),
@@ -69,6 +79,7 @@ object DatabaseSeeder {
         }
     }
 
+    /** Seeds the 5 seasons (Spring, Summer, Fall, Winter, All Season) with Phosphor icons. */
     private fun seedSeasons(db: SupportSQLiteDatabase) {
         val seasons = listOf(
             "Spring" to "flower",
@@ -85,6 +96,7 @@ object DatabaseSeeder {
         }
     }
 
+    /** Seeds the 9 occasion types (Casual, Work/Business, Formal, etc.) with Phosphor icons. */
     private fun seedOccasions(db: SupportSQLiteDatabase) {
         val occasions = listOf(
             "Casual" to "coffee",
@@ -105,6 +117,10 @@ object DatabaseSeeder {
         }
     }
 
+    /**
+     * Seeds 18 named colors with hex codes.
+     * Public so it can be called independently in migrations that backfill color data.
+     */
     fun seedColors(db: SupportSQLiteDatabase) {
         val colors = listOf(
             "Black" to "#000000",
@@ -134,6 +150,7 @@ object DatabaseSeeder {
         }
     }
 
+    /** Seeds 23 fabric/material types including natural fibers, synthetics, and "Other". */
     private fun seedMaterials(db: SupportSQLiteDatabase) {
         val materials = listOf(
             "Cotton", "Polyester", "Wool", "Linen", "Silk", "Denim", "Leather",
@@ -146,6 +163,7 @@ object DatabaseSeeder {
         }
     }
 
+    /** Seeds 17 visual patterns (Solid, Striped, Floral, etc.) including "Other". */
     private fun seedPatterns(db: SupportSQLiteDatabase) {
         val patterns = listOf(
             "Solid", "Striped", "Plaid/Tartan", "Checkered", "Floral", "Geometric",
@@ -168,6 +186,10 @@ object DatabaseSeeder {
         }
     }
 
+    /**
+     * Seeds 4 size systems (Letter, Women's Numeric, Shoes (US Men's), One Size) with
+     * their associated size values. System IDs are hardcoded starting at 1.
+     */
     private fun seedSizeSystems(db: SupportSQLiteDatabase) {
         val systems = mapOf(
             "Letter" to listOf("XS", "S", "M", "L", "XL", "XXL", "XXXL"),

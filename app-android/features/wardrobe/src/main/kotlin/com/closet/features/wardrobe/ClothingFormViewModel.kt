@@ -36,6 +36,12 @@ import javax.inject.Inject
 
 /**
  * UI state for the Clothing Form (Add/Edit).
+ *
+ * @property isEditMode True when editing an existing item; false for a new item.
+ * @property canSave True when the form is valid and no save is in progress.
+ * @property isDirty True when the form has unsaved changes relative to the original item (edit)
+ *   or has any filled field (add).
+ * @property errorMessage String resource ID for the current error, or null if none.
  */
 data class ClothingFormUiState(
     val isEditMode: Boolean = false,
@@ -113,18 +119,23 @@ class ClothingFormViewModel @Inject constructor(
 
     // One-time events for navigation
     private val _events = Channel<ClothingFormEvent>()
+    /** One-time navigation events (e.g. [ClothingFormEvent.NavigateBack]) for the screen to collect. */
     val events = _events.receiveAsFlow()
 
+    /** All top-level categories, used to populate the category picker. */
     val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** All available colors, used to populate the color chip selector. */
     val allColors: StateFlow<List<ColorEntity>> = lookupRepository.getColors()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** All brands for the autocomplete dropdown. */
     val allBrands: StateFlow<List<BrandEntity>> = brandRepository.getAllBrands()
         .map { result -> if (result is DataResult.Success) result.data else emptyList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Subcategories filtered by the currently selected category; resets to empty when no category is chosen. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val subcategories: StateFlow<List<SubcategoryEntity>> = _form
         .map { it.category }
@@ -135,6 +146,7 @@ class ClothingFormViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Consolidated UI state combining the form fields with all lookup lists. */
     val uiState: StateFlow<ClothingFormUiState> = combine(
         _form, categories, subcategories, allColors, allBrands
     ) { form, cats, subs, colors, brands ->
@@ -259,18 +271,25 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    /** Updates the item name field and clears any name validation error. */
     fun updateName(newName: String) {
         _form.update { it.copy(name = newName, isNameError = false) }
     }
 
+    /** Updates the brand search text and clears any previously confirmed brand selection. */
     fun onBrandQueryChange(text: String) {
         _form.update { it.copy(brandQuery = text, selectedBrandId = null) }
     }
 
+    /** Confirms a brand selection from the autocomplete dropdown. */
     fun onBrandSelect(brand: BrandEntity) {
         _form.update { it.copy(selectedBrandId = brand.id, brandQuery = brand.name) }
     }
 
+    /**
+     * Inserts a new brand with [name] and immediately selects it.
+     * Surfaces an error in [uiState] if the name is a duplicate or the insert fails.
+     */
     fun onAddNewBrand(name: String) {
         val nameNormalized = name.trim()
         if (nameNormalized.isBlank()) return
@@ -288,32 +307,43 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    /** Selects [category] and clears the subcategory since it belongs to the old category. */
     fun selectCategory(category: CategoryEntity?) {
         _form.update { it.copy(category = category, subcategory = null) }
     }
 
+    /** Selects [subcategory] within the currently chosen category. */
     fun selectSubcategory(subcategory: SubcategoryEntity?) {
         _form.update { it.copy(subcategory = subcategory) }
     }
 
+    /** Updates the price field, accepting only valid decimal strings (up to 2 decimal places). */
     fun updatePrice(newPrice: String) {
         if (newPrice.isEmpty() || newPrice.matches(Regex("""^\d*\.?\d{0,2}$"""))) {
             _form.update { it.copy(price = newPrice) }
         }
     }
 
+    /** Updates the purchase date field. */
     fun updatePurchaseDate(date: LocalDate?) {
         _form.update { it.copy(purchaseDate = date) }
     }
 
+    /** Updates the purchase location text field. */
     fun updatePurchaseLocation(location: String) {
         _form.update { it.copy(purchaseLocation = location) }
     }
 
+    /** Updates the notes text field. */
     fun updateNotes(newNotes: String) {
         _form.update { it.copy(notes = newNotes) }
     }
 
+    /**
+     * Copies the image at [uri] into app-owned storage, stores its relative path, and
+     * auto-suggests colors from the image palette. Deletes any previously staged (unsaved)
+     * replacement image. No-ops if [uri] is null.
+     */
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
         viewModelScope.launch {
@@ -359,6 +389,7 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    /** Adds [color] to the selection if not present, or removes it if already selected. */
     fun toggleColor(color: ColorEntity) {
         _form.update { current ->
             val updated = if (current.selectedColors.any { it.id == color.id }) {
@@ -370,10 +401,17 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    /** Clears the transient error message once the UI has consumed it. */
     fun onErrorConsumed() {
         _form.update { it.copy(errorMessage = null) }
     }
 
+    /**
+     * Validates the form and persists the item (insert on add, update on edit).
+     * Emits [ClothingFormEvent.NavigateBack] on success.
+     * Sets [ClothingFormUiState.isNameError] if the name is blank, or surfaces a save error
+     * via [ClothingFormUiState.errorMessage] if the repository call fails.
+     */
     fun save() {
         val currentForm = _form.value
         if (currentForm.isSaving) return
@@ -431,6 +469,8 @@ class ClothingFormViewModel @Inject constructor(
     }
 }
 
+/** One-time navigation events emitted by [ClothingFormViewModel]. */
 sealed class ClothingFormEvent {
+    /** Emitted when the item was saved successfully; the screen should navigate back. */
     data object NavigateBack : ClothingFormEvent()
 }

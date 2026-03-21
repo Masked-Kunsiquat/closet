@@ -14,6 +14,13 @@ import com.closet.core.ui.theme.ClosetTheme
 import com.closet.navigation.ClosetNavGraph
 import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * Single-activity entry point for the app.
+ *
+ * Enables edge-to-edge display and hosts [ClosetNavGraph] inside a [ClosetTheme]-wrapped
+ * [androidx.compose.material3.Scaffold]. Hilt dependency injection is provided via
+ * [@AndroidEntryPoint][dagger.hilt.android.AndroidEntryPoint].
+ */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

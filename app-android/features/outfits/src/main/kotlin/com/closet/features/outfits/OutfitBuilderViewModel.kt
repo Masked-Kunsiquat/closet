@@ -22,6 +22,14 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
+/**
+ * UI state for the Outfit Builder screen.
+ *
+ * @property name Optional outfit name entered by the user.
+ * @property members Clothing items currently added to the outfit, ordered by selection time.
+ * @property isSaving True while the save operation is in flight.
+ * @property canSave Derived flag — true when there is at least one member and no save is pending.
+ */
 data class OutfitBuilderUiState(
     val name: String = "",
     val members: List<OutfitMember> = emptyList(),
@@ -30,11 +38,23 @@ data class OutfitBuilderUiState(
     val canSave: Boolean get() = members.isNotEmpty() && !isSaving
 }
 
+/**
+ * One-time events emitted by [OutfitBuilderViewModel] for the screen to handle via a channel.
+ */
 sealed interface OutfitBuilderEvent {
+    /** Emitted when the outfit was saved successfully. */
     data object SaveSuccess : OutfitBuilderEvent
+    /** Emitted when the save operation failed. */
     data object SaveError : OutfitBuilderEvent
 }
 
+/**
+ * ViewModel for the Outfit Builder screen.
+ *
+ * Manages the in-progress outfit name and the ordered list of selected clothing items.
+ * Reads picker results deposited by [WardrobePickerScreen] via [SavedStateHandle]
+ * under [PICKER_RESULT_KEY], then persists the finished outfit through [OutfitRepository].
+ */
 @HiltViewModel
 class OutfitBuilderViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
@@ -52,6 +72,7 @@ class OutfitBuilderViewModel @Inject constructor(
     private val _isSaving = MutableStateFlow(false)
 
     private val _events = Channel<OutfitBuilderEvent>(Channel.BUFFERED)
+    /** One-time [OutfitBuilderEvent] emissions for the screen to collect. */
     val events = _events.receiveAsFlow()
 
     // Unfiltered item list used to resolve member IDs → ClothingItemDetail.
@@ -75,6 +96,7 @@ class OutfitBuilderViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    /** Consolidated UI state combining name, member list, and saving flag. */
     val uiState: StateFlow<OutfitBuilderUiState> = combine(
         _name, members, _isSaving
     ) { name, members, isSaving ->
@@ -98,6 +120,7 @@ class OutfitBuilderViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /** Updates the outfit name as the user types. */
     fun updateName(value: String) {
         _name.value = value
     }
@@ -111,10 +134,17 @@ class OutfitBuilderViewModel @Inject constructor(
         _memberIds.value = current
     }
 
+    /** Removes the item with [itemId] from the outfit member list. */
     fun removeMember(itemId: Long) {
         _memberIds.value = _memberIds.value.filter { it != itemId }
     }
 
+    /**
+     * Saves the current outfit via [OutfitRepository].
+     * Uses the resolved [members] list (not raw IDs) so items deleted from the
+     * wardrobe while the builder was open are already absent. Emits [OutfitBuilderEvent]
+     * on completion.
+     */
     fun save() {
         // Derive IDs from the resolved member list, not raw _memberIds, so any item that was
         // deleted from the wardrobe while the builder was open is already absent here.
@@ -136,5 +166,6 @@ class OutfitBuilderViewModel @Inject constructor(
         }
     }
 
+    /** Resolves a stored relative image [path] to a [File], or null if [path] is null. */
     fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
 }
