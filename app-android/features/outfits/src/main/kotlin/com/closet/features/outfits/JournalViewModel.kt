@@ -143,7 +143,13 @@ class JournalViewModel @Inject constructor(
      * Used when deep-linking from the item wear history section.
      */
     fun navigateToDate(date: String) {
-        val localDate = LocalDate.parse(date)
+        val localDate = try {
+            LocalDate.parse(date)
+        } catch (e: Exception) {
+            Timber.w(e, "navigateToDate: invalid date '$date', ignoring")
+            return
+        }
+        if (localDate.isAfter(LocalDate.now())) return
         _currentYearMonth.value = YearMonth.from(localDate)
         _showOutfitPicker.value = false
         _editingLog.value = null
@@ -250,6 +256,8 @@ class JournalViewModel @Inject constructor(
     fun logOutfitOnDate(outfitId: Long) {
         viewModelScope.launch {
             val date = _selectedDate.value ?: return@launch
+            val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return@launch
+            if (parsedDate.isAfter(LocalDate.now())) return@launch
             when (val result = logRepository.wearOutfitOnDate(outfitId, date)) {
                 is DataResult.Success -> _showOutfitPicker.value = false
                 is DataResult.Error -> {

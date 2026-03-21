@@ -37,6 +37,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -315,11 +318,23 @@ private fun DayCell(
 ) {
     val primary = MaterialTheme.colorScheme.primary
 
+    val cellDescription = buildString {
+        append(day)
+        if (isToday) append(", today")
+        if (isSelected) append(", selected")
+        if (hasLog) append(", has log")
+        if (isOotd) append(", outfit of the day")
+    }
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .padding(3.dp)
             .clip(CircleShape)
+            .semantics {
+                contentDescription = cellDescription
+                selected = isSelected
+            }
             .background(
                 when {
                     isSelected -> primary.copy(alpha = 0.2f)
