@@ -4,23 +4,14 @@ import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -57,17 +48,35 @@ internal fun BrandManagementContent(
     onErrorConsumed: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-
-    var isAddingBrand by remember { mutableStateOf(false) }
-    var newBrandText by remember { mutableStateOf("") }
-    var editingBrandId by remember { mutableStateOf<Long?>(null) }
-    var editText by remember { mutableStateOf("") }
+    var editorState by remember { mutableStateOf<BrandEditorState>(BrandEditorState.Idle) }
 
     val errorMessage = uiState.errorMessage
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
             snackbarHostState.showSnackbar(errorMessage)
             onErrorConsumed()
+        }
+    }
+
+    // Close the active row only when a pending save completes successfully.
+    // On error the row stays open so the user can correct the input.
+    LaunchedEffect(uiState.isLoading) {
+        val state = editorState
+        val isSaving = when (state) {
+            is BrandEditorState.Adding -> state.saving
+            is BrandEditorState.Editing -> state.saving
+            BrandEditorState.Idle -> false
+        }
+        if (isSaving && !uiState.isLoading) {
+            editorState = if (uiState.errorMessage == null) {
+                BrandEditorState.Idle
+            } else {
+                when (state) {
+                    is BrandEditorState.Adding -> state.copy(saving = false)
+                    is BrandEditorState.Editing -> state.copy(saving = false)
+                    BrandEditorState.Idle -> BrandEditorState.Idle
+                }
+            }
         }
     }
 
@@ -85,11 +94,9 @@ internal fun BrandManagementContent(
             )
         },
         floatingActionButton = {
-            if (!isAddingBrand) {
+            if (editorState == BrandEditorState.Idle) {
                 FloatingActionButton(onClick = {
-                    isAddingBrand = true
-                    newBrandText = ""
-                    editingBrandId = null
+                    editorState = BrandEditorState.Adding()
                 }) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.brand_management_add_brand))
                 }
@@ -102,28 +109,26 @@ internal fun BrandManagementContent(
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 88.dp)
         ) {
-            if (isAddingBrand) {
+            if (editorState is BrandEditorState.Adding) {
+                val addState = editorState as BrandEditorState.Adding
                 item {
                     AddBrandRow(
-                        text = newBrandText,
-                        onTextChange = { newBrandText = it },
+                        text = addState.text,
+                        onTextChange = { editorState = addState.copy(text = it) },
+                        isSaving = addState.saving,
                         onConfirm = {
-                            if (newBrandText.isNotBlank()) {
-                                onSaveBrand(null, newBrandText)
-                                isAddingBrand = false
-                                newBrandText = ""
+                            if (addState.text.isNotBlank()) {
+                                editorState = addState.copy(saving = true)
+                                onSaveBrand(null, addState.text)
                             }
                         },
-                        onCancel = {
-                            isAddingBrand = false
-                            newBrandText = ""
-                        }
+                        onCancel = { editorState = BrandEditorState.Idle }
                     )
                     HorizontalDivider()
                 }
             }
 
-            if (uiState.brands.isEmpty() && !isAddingBrand) {
+            if (uiState.brands.isEmpty() && editorState !is BrandEditorState.Adding) {
                 item {
                     Box(
                         modifier = Modifier
@@ -141,25 +146,25 @@ internal fun BrandManagementContent(
             }
 
             items(uiState.brands, key = { it.id }) { brand ->
-                if (editingBrandId == brand.id) {
+                val editState = editorState as? BrandEditorState.Editing
+                if (editState != null && editState.brandId == brand.id) {
                     EditBrandRow(
-                        text = editText,
-                        onTextChange = { editText = it },
+                        text = editState.text,
+                        onTextChange = { editorState = editState.copy(text = it) },
+                        isSaving = editState.saving,
                         onConfirm = {
-                            if (editText.isNotBlank()) {
-                                onSaveBrand(brand.id, editText)
-                                editingBrandId = null
+                            if (editState.text.isNotBlank()) {
+                                editorState = editState.copy(saving = true)
+                                onSaveBrand(brand.id, editState.text)
                             }
                         },
-                        onCancel = { editingBrandId = null }
+                        onCancel = { editorState = BrandEditorState.Idle }
                     )
                 } else {
                     BrandRow(
                         brand = brand,
                         onEditClick = {
-                            editingBrandId = brand.id
-                            editText = brand.name
-                            isAddingBrand = false
+                            editorState = BrandEditorState.Editing(brandId = brand.id, text = brand.name)
                         },
                         onDeleteClick = { onRequestDelete(brand) }
                     )
@@ -213,105 +218,6 @@ internal fun BrandManagementContent(
             )
         }
         null -> Unit
-    }
-}
-
-@Composable
-private fun BrandRow(
-    brand: BrandEntity,
-    onEditClick: () -> Unit,
-    onDeleteClick: () -> Unit
-) {
-    ListItem(
-        headlineContent = { Text(brand.name) },
-        trailingContent = {
-            Row {
-                IconButton(onClick = onEditClick) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.wardrobe_edit))
-                }
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.wardrobe_delete),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    )
-}
-
-@Composable
-private fun AddBrandRow(
-    text: String,
-    onTextChange: (String) -> Unit,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit
-) {
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = onTextChange,
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester),
-            label = { Text(stringResource(R.string.brand_management_new_brand_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onConfirm() })
-        )
-        IconButton(onClick = onConfirm, enabled = text.isNotBlank()) {
-            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.wardrobe_save))
-        }
-        IconButton(onClick = onCancel) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.wardrobe_cancel))
-        }
-    }
-}
-
-@Composable
-private fun EditBrandRow(
-    text: String,
-    onTextChange: (String) -> Unit,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit
-) {
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = onTextChange,
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester),
-            label = { Text(stringResource(R.string.brand_management_edit_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onConfirm() })
-        )
-        IconButton(onClick = onConfirm, enabled = text.isNotBlank()) {
-            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.wardrobe_save))
-        }
-        IconButton(onClick = onCancel) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.wardrobe_cancel))
-        }
     }
 }
 

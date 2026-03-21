@@ -18,8 +18,8 @@ Findings from codebase audit. Items ordered by priority.
 - [x] Move `@Preview` functions into `ClothingDetailPreviews.kt`
 
 ### `BrandManagementScreen.kt` (405 lines)
-- [ ] Extract dialog/edit state into a sealed class (`BrandDialogState`) instead of separate boolean flags
-- [ ] Extract dialog composables (`AddBrandRow`, `EditBrandRow`) into `BrandComponents.kt`
+- [x] Extract dialog/edit state into a sealed class (`BrandDialogState`) instead of separate boolean flags
+- [x] Extract dialog composables (`AddBrandRow`, `EditBrandRow`) into `BrandComponents.kt`
 
 ---
 
