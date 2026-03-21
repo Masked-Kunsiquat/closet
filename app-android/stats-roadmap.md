@@ -7,7 +7,7 @@
 | `StatsDao` | ✅ 7 queries: `getStatsOverview`, `getMostWornItems`, `getBreakdownByCategory`, `getCostPerWear`, `getTotalOutfitsLogged`, `getWearFrequencyByCategory`, `getNeverWornItems` |
 | `StatsRepository` | ✅ Thin wrapper, `@Singleton`, injected via Hilt — all 7 queries exposed |
 | Feature module | ✅ `features/stats/` — build.gradle.kts, StatsNavigation.kt, placeholder StatsScreen.kt |
-| ViewModel | ❌ Missing |
+| ViewModel | ✅ `StatsViewModel` — `StatPeriod` enum, `StatsUiState`, `flatMapLatest` on period |
 | Screen / nav entry | ✅ `StatsRoute` registered in `ClosetNavGraph` |
 | Bottom bar tab | ✅ Bottom nav bar added (Closet / Outfits / Stats) |
 
@@ -37,9 +37,10 @@ All four queries added to `StatsDao` and exposed via `StatsRepository`.
 
 ---
 
-## Phase 3 — ViewModel
+## Phase 3 — ViewModel ✅
 
-`StatsViewModel` combining all stat flows via `combine`.
+`StatsViewModel` + `StatPeriod` + `StatsUiState` in `StatsViewModel.kt`.
+`StatsScreen` wired to collect `uiState` via `collectAsStateWithLifecycle`.
 
 ```
 UiState fields:
@@ -53,8 +54,9 @@ UiState fields:
   selectedPeriod  : StatPeriod              — ALL_TIME | LAST_30 | LAST_90 | THIS_YEAR
 ```
 
-`selectedPeriod` drives the `fromDate` passed to all filterable queries via
-`flatMapLatest`. Changing the period chip re-subscribes all flows at once.
+`_selectedPeriod` (MutableStateFlow) drives `flatMapLatest` over the five
+period-sensitive queries. `getCategoryBreakdown` and `getNeverWornItems` are
+period-independent and folded in by the outer `combine`.
 
 ---
 
