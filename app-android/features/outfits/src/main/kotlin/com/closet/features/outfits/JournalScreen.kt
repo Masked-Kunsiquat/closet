@@ -120,7 +120,7 @@ internal fun JournalContent(
     resolveImage: (String?) -> File?,
     modifier: Modifier = Modifier,
 ) {
-    val today = remember { LocalDate.now() }
+    val today = remember(uiState.currentYearMonth) { LocalDate.now() }
     val logsByDate = remember(uiState.calendarDays) {
         uiState.calendarDays.associateBy { it.date }
     }
