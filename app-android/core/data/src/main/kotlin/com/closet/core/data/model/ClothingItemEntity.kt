@@ -27,12 +27,19 @@ import java.time.Instant
             parentColumns = ["id"],
             childColumns = ["size_value_id"],
             onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = BrandEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["brand_id"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index(value = ["category_id"]),
         Index(value = ["subcategory_id"]),
-        Index(value = ["size_value_id"])
+        Index(value = ["size_value_id"]),
+        Index(value = ["brand_id"])
     ]
 )
 data class ClothingItemEntity(
@@ -40,7 +47,12 @@ data class ClothingItemEntity(
     val id: Long = 0,
     
     val name: String,
+
+    /** Deprecated: free-text brand column kept for migration backfill. Read brand via [brandId] join instead. */
     val brand: String? = null,
+
+    @ColumnInfo(name = "brand_id")
+    val brandId: Long? = null,
     
     @ColumnInfo(name = "category_id")
     val categoryId: Long? = null,

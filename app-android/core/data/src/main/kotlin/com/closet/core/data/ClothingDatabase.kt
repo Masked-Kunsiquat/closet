@@ -18,6 +18,7 @@ import com.closet.core.data.model.*
 @Database(
     entities = [
         ClothingItemEntity::class,
+        BrandEntity::class,
         CategoryEntity::class,
         SubcategoryEntity::class,
         SeasonEntity::class,
@@ -36,7 +37,7 @@ import com.closet.core.data.model.*
         ClothingItemOccasionEntity::class,
         ClothingItemPatternEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -92,6 +93,56 @@ abstract class ClothingDatabase : RoomDatabase() {
         }
 
         /**
+         * Migration 3→4: introduce the brands lookup table and migrate the free-text brand column
+         * to a proper FK relationship.
+         *
+         * Steps:
+         *   1. Create brands table with unique index on name.
+         *   2. Backfill brands from distinct values in clothing_items.brand (user data first).
+         *   3. Add brand_id FK column to clothing_items.
+         *   4. Populate brand_id by matching the backfilled names.
+         *   5. Seed common brands (INSERT OR IGNORE — backfilled rows are not overwritten).
+         *
+         * Note: The old `brand` TEXT column is kept in place. SQLite cannot drop columns before
+         * API 35, and a table recreation is not worth the risk here. The column is no longer
+         * written to by new code; reads go through the brand_id join.
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create brands table
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `brands` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`name` TEXT NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_brands_name` ON `brands` (`name`)"
+                )
+
+                // 2. Backfill brands from existing free-text data
+                db.execSQL(
+                    "INSERT OR IGNORE INTO brands (name) " +
+                    "SELECT DISTINCT brand FROM clothing_items " +
+                    "WHERE brand IS NOT NULL AND brand != ''"
+                )
+
+                // 3. Add brand_id FK column
+                db.execSQL("ALTER TABLE clothing_items ADD COLUMN brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_clothing_items_brand_id` ON `clothing_items` (`brand_id`)")
+
+                // 4. Populate brand_id from backfilled rows (exact string match; case differences are accepted)
+                db.execSQL(
+                    "UPDATE clothing_items " +
+                    "SET brand_id = (SELECT id FROM brands WHERE brands.name = clothing_items.brand) " +
+                    "WHERE brand IS NOT NULL AND brand != ''"
+                )
+
+                // 5. Seed common starter brands (user backfill takes priority via INSERT OR IGNORE above)
+                DatabaseSeeder.seedBrands(db)
+            }
+        }
+
+        /**
          * Migration 2→3: enforce one wear-log per outfit per day.
          * The unique index mirrors the OutfitLogEntity annotation added in the same change;
          * the app-level check in LogRepository.wearOutfitToday is the primary guard,
@@ -118,7 +169,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                     ClothingDatabase::class.java,
                     DATABASE_NAME
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

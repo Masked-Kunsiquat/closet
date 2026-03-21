@@ -157,6 +157,17 @@ object DatabaseSeeder {
         }
     }
 
+    /**
+     * Seeds a starter set of common brands. Called only from MIGRATION_3_4 — not from seedAll.
+     * Uses INSERT OR IGNORE so user-backfilled data from the migration takes priority.
+     */
+    internal fun seedBrands(db: SupportSQLiteDatabase) {
+        val brands = listOf("Adidas", "Gap", "H&M", "Levi's", "Mango", "Nike", "Uniqlo", "Zara")
+        brands.forEach { name ->
+            db.execSQL("INSERT OR IGNORE INTO brands (name) VALUES (?)", arrayOf<Any>(name))
+        }
+    }
+
     private fun seedSizeSystems(db: SupportSQLiteDatabase) {
         val systems = mapOf(
             "Letter" to listOf("XS", "S", "M", "L", "XL", "XXL", "XXXL"),
