@@ -5,10 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.closet.core.ui.theme.ClosetTheme
 import com.closet.navigation.ClosetNavGraph
@@ -17,8 +13,8 @@ import dagger.hilt.android.AndroidEntryPoint
 /**
  * Single-activity entry point for the app.
  *
- * Enables edge-to-edge display and hosts [ClosetNavGraph] inside a [ClosetTheme]-wrapped
- * [androidx.compose.material3.Scaffold]. Hilt dependency injection is provided via
+ * Enables edge-to-edge display and hosts [ClosetNavGraph], which owns the root [Scaffold]
+ * and bottom navigation bar. Hilt dependency injection is provided via
  * [@AndroidEntryPoint][dagger.hilt.android.AndroidEntryPoint].
  */
 @AndroidEntryPoint
@@ -31,17 +27,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             ClosetTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // A surface container using the 'background' color from the theme
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        ClosetNavGraph()
-                    }
-                }
+                ClosetNavGraph(modifier = Modifier.fillMaxSize())
             }
         }
     }

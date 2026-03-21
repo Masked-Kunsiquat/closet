@@ -69,6 +69,33 @@ data class OutfitLogEntity(
 )
 
 /**
+ * Snapshot of which clothing items were part of an outfit at the moment a log was written.
+ * Prevents retroactive outfit edits from altering historical wear records.
+ *
+ * Rows are inserted alongside [OutfitLogEntity] in [LogDao.insertLogAndSnapshot].
+ * Cascade-deletes when the parent log is deleted.
+ */
+@Entity(
+    tableName = "outfit_log_items",
+    primaryKeys = ["outfit_log_id", "clothing_item_id"],
+    foreignKeys = [
+        ForeignKey(
+            entity = OutfitLogEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["outfit_log_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["clothing_item_id"])]
+)
+data class OutfitLogItemEntity(
+    @ColumnInfo(name = "outfit_log_id") val outfitLogId: Long,
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    /** Snapshot of the outfit name at log time — survives renames and outfit deletion. */
+    @ColumnInfo(name = "outfit_name") val outfitName: String? = null
+)
+
+/**
  * Mirror of OutfitWithItems from types.ts.
  * Leverage: Fetches the Outfit along with its items and their layout metadata.
  */

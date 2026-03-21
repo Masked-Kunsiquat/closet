@@ -166,12 +166,26 @@ object DatabaseSeeder {
     /** Seeds 17 visual patterns (Solid, Striped, Floral, etc.) including "Other". */
     private fun seedPatterns(db: SupportSQLiteDatabase) {
         val patterns = listOf(
-            "Solid", "Striped", "Plaid/Tartan", "Checkered", "Floral", "Geometric",
-            "Animal Print", "Abstract", "Tie-Dye", "Camouflage", "Paisley", "Polka Dot",
-            "Houndstooth", "Graphic", "Color Block", "Ombre", "Other"
+            "Solid" to "solid",
+            "Striped" to "striped",
+            "Plaid/Tartan" to "plaid_tartan",
+            "Checkered" to "checkered",
+            "Floral" to "floral",
+            "Geometric" to "geometric",
+            "Animal Print" to "animal_print",
+            "Abstract" to "abstract",
+            "Tie-Dye" to "tie_dye",
+            "Camouflage" to "camouflage",
+            "Paisley" to "paisley",
+            "Polka Dot" to "polka_dot",
+            "Houndstooth" to "houndstooth",
+            "Graphic" to "graphic",
+            "Color Block" to "color_block",
+            "Ombré" to "ombre",
+            "Other" to "other"
         )
-        patterns.forEach { name ->
-            db.execSQL("INSERT OR IGNORE INTO patterns (name) VALUES (?)", arrayOf<Any>(name))
+        patterns.forEach { (name, icon) ->
+            db.execSQL("INSERT OR IGNORE INTO patterns (name, icon) VALUES (?, ?)", arrayOf<Any>(name, icon))
         }
     }
 

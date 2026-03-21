@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.AppError
@@ -28,6 +30,7 @@ class ClothingDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val clothingRepository: ClothingRepository,
     private val lookupRepository: LookupRepository,
+    private val logRepository: LogRepository,
     private val storageRepository: StorageRepository
 ) : ViewModel() {
 
@@ -47,10 +50,12 @@ class ClothingDetailViewModel @Inject constructor(
         ClothingDetailLookup(colors, materials, seasons, occasions, patterns)
     }
 
-    /** UI state combining item detail and all lookup lists for inline editing chips. */
+    private val wearHistoryFlow = logRepository.getLogsForItem(itemId)
+
+    /** UI state combining item detail, lookup lists, and wear history. */
     val uiState: StateFlow<ClothingDetailUiState> = combine(
-        itemDetailFlow, lookupFlow
-    ) { detail, lookup ->
+        itemDetailFlow, lookupFlow, wearHistoryFlow
+    ) { detail, lookup, history ->
         if (detail != null) {
             ClothingDetailUiState.Success(
                 item = detail,
@@ -58,7 +63,8 @@ class ClothingDetailViewModel @Inject constructor(
                 materials = lookup.materials,
                 seasons = lookup.seasons,
                 occasions = lookup.occasions,
-                patterns = lookup.patterns
+                patterns = lookup.patterns,
+                wearHistory = history,
             )
         } else {
             ClothingDetailUiState.Error(AppError.DatabaseError.NotFound().asUserMessage())
@@ -213,7 +219,8 @@ sealed interface ClothingDetailUiState {
         val materials: List<MaterialEntity> = emptyList(),
         val seasons: List<SeasonEntity> = emptyList(),
         val occasions: List<OccasionEntity> = emptyList(),
-        val patterns: List<PatternEntity> = emptyList()
+        val patterns: List<PatternEntity> = emptyList(),
+        val wearHistory: List<ItemWearLog> = emptyList(),
     ) : ClothingDetailUiState
     data class Error(val userMessage: UserMessage) : ClothingDetailUiState
 }
