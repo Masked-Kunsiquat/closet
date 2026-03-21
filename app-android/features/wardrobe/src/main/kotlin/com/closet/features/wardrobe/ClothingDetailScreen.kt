@@ -1,445 +1,604 @@
 package com.closet.features.wardrobe
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
+import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.closet.core.data.model.ClothingItemWithMeta
-import com.closet.core.data.model.ClothingStatus
-import com.closet.core.data.model.WashStatus
-import com.closet.core.ui.theme.ClosetTheme
-import kotlinx.coroutines.flow.collectLatest
-import java.text.NumberFormat
-import java.util.Locale
+import com.closet.core.data.model.*
+import com.closet.core.ui.R as CoreR
+import com.closet.core.ui.util.IconMapper
 
-/**
- * Screen for viewing the details of a specific clothing item.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ClothingDetailScreen(
-    onBackClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    onBack: () -> Unit,
+    onEdit: (Long) -> Unit,
     viewModel: ClothingDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    val allSeasons by viewModel.seasons.collectAsStateWithLifecycle()
+    val allOccasions by viewModel.occasions.collectAsStateWithLifecycle()
+    val allColors by viewModel.colors.collectAsStateWithLifecycle()
+    val allMaterials by viewModel.materials.collectAsStateWithLifecycle()
+    val allPatterns by viewModel.patterns.collectAsStateWithLifecycle()
+
+    val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
-
     LaunchedEffect(Unit) {
-        viewModel.actionError.collectLatest { userMessage ->
-            snackbarHostState.showSnackbar(
-                message = context.getString(userMessage.resId, *userMessage.args)
-            )
+        viewModel.actionError.collect { message ->
+            val text = if (message.args.isEmpty()) {
+                context.getString(message.resId)
+            } else {
+                context.getString(message.resId, *message.args)
+            }
+            snackbarHostState.showSnackbar(text)
         }
     }
 
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.wardrobe_delete_item_title)) },
-            text = { Text(stringResource(R.string.wardrobe_delete_item_confirmation)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteItem(onDeleted = {
-                            showDeleteDialog = false
-                            onBackClick()
-                        })
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(stringResource(R.string.wardrobe_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(stringResource(R.string.wardrobe_cancel))
-                }
-            }
-        )
-    }
+    var showSeasonPicker by remember { mutableStateOf(false) }
+    var showOccasionPicker by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showMaterialPicker by remember { mutableStateOf(false) }
+    var showPatternPicker by remember { mutableStateOf(false) }
 
     Scaffold(
-        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
-                    val title = when (val state = uiState) {
-                        is ClothingDetailUiState.Success -> state.item.name
-                        else -> ""
-                    }
-                    Text(title)
+                    val name = (uiState as? ClothingDetailUiState.Success)?.item?.item?.name ?: ""
+                    Text(name)
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.wardrobe_back)
-                        )
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    val state = uiState
-                    if (state is ClothingDetailUiState.Success) {
-                        IconButton(onClick = { viewModel.toggleFavorite() }) {
-                            Icon(
-                                imageVector = if (state.item.isFavorite == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = stringResource(R.string.wardrobe_favorite),
-                                tint = if (state.item.isFavorite == 1) Color.Red else LocalContentColor.current
-                            )
+                    (uiState as? ClothingDetailUiState.Success)?.item?.let { detail ->
+                        IconButton(onClick = { onEdit(detail.item.id) }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit")
                         }
-                        IconButton(onClick = { /* Placeholder for Edit */ }) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.wardrobe_edit)
-                            )
-                        }
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.wardrobe_delete)
-                            )
+                        IconButton(onClick = { viewModel.deleteItem(onBack) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete")
                         }
                     }
                 }
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when (val state = uiState) {
-                is ClothingDetailUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        when (val state = uiState) {
+            is ClothingDetailUiState.Loading -> {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding), contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
-                is ClothingDetailUiState.Error -> {
-                    ErrorContent(
-                        userMessage = stringResource(state.userMessage.resId, *state.userMessage.args),
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+            }
+            is ClothingDetailUiState.Error -> {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding), contentAlignment = Alignment.Center
+                ) {
+                    Text(stringResource(R.string.wardrobe_error_load_failed))
                 }
-                is ClothingDetailUiState.Success -> {
-                    ClothingDetailContent(
-                        item = state.item,
-                        onWashStatusToggle = { viewModel.toggleWashStatus() }
-                    )
+            }
+            is ClothingDetailUiState.Success -> {
+                val detail = state.item
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(scrollState)
+                ) {
+                    // Main Image
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        detail.item.imagePath?.let { path ->
+                            AsyncImage(
+                                model = viewModel.getAbsoluteFile(path),
+                                contentDescription = detail.item.name,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } ?: run {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .align(Alignment.Center),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+
+                        // Favorite Toggle
+                        FilledTonalIconButton(
+                            onClick = { viewModel.toggleFavorite() },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (detail.item.isFavorite == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = if (detail.item.isFavorite == 1) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        // Header Info
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = detail.item.name,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                detail.item.brand?.let {
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            // Status Badge
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ) {
+                                Text(
+                                    text = detail.item.status.label,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Category/Subcategory
+                        Text(
+                            text = "${detail.category?.name ?: ""} • ${detail.subcategory?.name ?: ""}",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Quick Actions
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            OutlinedCard(
+                                onClick = { viewModel.toggleWashStatus() },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = CoreR.drawable.ic_icon_washing_machine),
+                                        contentDescription = null,
+                                        tint = if (detail.item.washStatus == WashStatus.Dirty) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = detail.item.washStatus.label,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
+
+                            OutlinedCard(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Numbers,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = pluralStringResource(
+                                            R.plurals.wardrobe_worn_times,
+                                            detail.wearCount,
+                                            detail.wearCount
+                                        ),
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
+
+                            detail.item.purchasePrice?.let { price ->
+                                OutlinedCard(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AttachMoney,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "$${String.format(Locale.getDefault(), "%.2f", price)}",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Attributes
+                        ClothingAttributes(
+                            item = detail,
+                            onEditSeasons = { showSeasonPicker = true },
+                            onEditOccasions = { showOccasionPicker = true },
+                            onEditColors = { showColorPicker = true },
+                            onEditMaterials = { showMaterialPicker = true },
+                            onEditPatterns = { showPatternPicker = true }
+                        )
+
+                        // Notes
+                        detail.item.notes?.let { notes ->
+                            if (notes.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Text(
+                                    text = stringResource(R.string.wardrobe_notes),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = notes,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
-}
 
-/**
- * Displays an error message when the item detail fails to load.
- */
-@Composable
-private fun ErrorContent(
-    userMessage: String,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = userMessage,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error
-        )
-    }
-}
-
-/**
- * Displays the successful content of the clothing item details.
- */
-@Composable
-private fun ClothingDetailContent(
-    item: ClothingItemWithMeta,
-    onWashStatusToggle: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        // Hero Image Section
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            shape = MaterialTheme.shapes.medium
-        ) {
-            AsyncImage(
-                model = item.imagePath,
-                contentDescription = item.name,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(MaterialTheme.shapes.medium),
-                contentScale = ContentScale.Crop
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Header Info Section
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = item.name,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            
-            item.brand?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.secondary
+    // Multi-Select Sheets
+    if (showSeasonPicker) {
+        MultiSelectSheet(
+            title = stringResource(R.string.wardrobe_seasons),
+            items = allSeasons.map {
+                MultiSelectItem(
+                    it.id,
+                    it.name,
+                    it,
+                    iconResId = IconMapper.getIconResource(it.icon)
                 )
+            },
+            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.seasons?.map { it.id }
+                ?.toSet() ?: emptySet(),
+            onDismiss = { showSeasonPicker = false },
+            onConfirm = {
+                viewModel.updateSeasons(it)
+                showSeasonPicker = false
+            }
+        )
+    }
+
+    if (showOccasionPicker) {
+        MultiSelectSheet(
+            title = stringResource(R.string.wardrobe_occasions),
+            items = allOccasions.map {
+                MultiSelectItem(
+                    it.id,
+                    it.name,
+                    it,
+                    iconResId = IconMapper.getIconResource(it.icon)
+                )
+            },
+            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.occasions?.map { it.id }
+                ?.toSet() ?: emptySet(),
+            onDismiss = { showOccasionPicker = false },
+            onConfirm = {
+                viewModel.updateOccasions(it)
+                showOccasionPicker = false
+            }
+        )
+    }
+
+    if (showColorPicker) {
+        MultiSelectSheet(
+            title = stringResource(R.string.wardrobe_colors),
+            items = allColors.map { MultiSelectItem(it.id, it.name, it, colorHex = it.hex) },
+            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.colors?.map { it.id }
+                ?.toSet() ?: emptySet(),
+            onDismiss = { showColorPicker = false },
+            onConfirm = {
+                viewModel.updateColors(it)
+                showColorPicker = false
+            }
+        )
+    }
+
+    if (showMaterialPicker) {
+        MultiSelectSheet(
+            title = stringResource(R.string.wardrobe_materials),
+            items = allMaterials.map { MultiSelectItem(it.id, it.name, it) },
+            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.materials?.map { it.id }
+                ?.toSet() ?: emptySet(),
+            onDismiss = { showMaterialPicker = false },
+            onConfirm = {
+                viewModel.updateMaterials(it)
+                showMaterialPicker = false
+            }
+        )
+    }
+
+    if (showPatternPicker) {
+        MultiSelectSheet(
+            title = stringResource(R.string.wardrobe_patterns),
+            items = allPatterns.map { MultiSelectItem(it.id, it.name, it) },
+            selectedIds = (uiState as? ClothingDetailUiState.Success)?.item?.patterns?.map { it.id }
+                ?.toSet() ?: emptySet(),
+            onDismiss = { showPatternPicker = false },
+            onConfirm = {
+                viewModel.updatePatterns(it)
+                showPatternPicker = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ClothingAttributes(
+    item: ClothingItemDetail,
+    onEditSeasons: () -> Unit,
+    onEditOccasions: () -> Unit,
+    onEditColors: () -> Unit,
+    onEditMaterials: () -> Unit,
+    onEditPatterns: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Seasons
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_seasons),
+            onEditClick = onEditSeasons
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.seasons.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.seasons.forEach { season ->
+                        AttributeChip(
+                            label = season.name,
+                            iconResId = IconMapper.getIconResource(season.icon),
+                            onClick = onEditSeasons
+                        )
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Colors
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_colors),
+            onEditClick = onEditColors
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.colors.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.colors.forEach { color ->
+                        AttributeChip(
+                            label = color.name,
+                            color = color.hex?.let {
+                                try {
+                                    Color(android.graphics.Color.parseColor(it))
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            },
+                            onClick = onEditColors
+                        )
+                    }
+                }
+            }
+        }
 
-        // Stats Group Card
-        StatsGroup(
-            wearCount = item.wearCount,
-            costPerWear = item.costPerWear
-        )
+        // Materials
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_materials),
+            onEditClick = onEditMaterials
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.materials.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.materials.forEach { material ->
+                        AttributeChip(
+                            label = material.name,
+                            onClick = onEditMaterials
+                        )
+                    }
+                }
+            }
+        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Patterns
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_patterns),
+            onEditClick = onEditPatterns
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.patterns.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.patterns.forEach { pattern ->
+                        AttributeChip(
+                            label = pattern.name,
+                            onClick = onEditPatterns
+                        )
+                    }
+                }
+            }
+        }
 
-        // Details Group Card
-        DetailGroup(
-            category = item.categoryName,
-            subcategory = item.subcategoryName
-        )
+        AttributeSection(
+            title = stringResource(R.string.wardrobe_occasions),
+            onEditClick = onEditOccasions
+        ) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (item.occasions.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_none_selected),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    item.occasions.forEach { occasion ->
+                        AttributeChip(
+                            label = occasion.name,
+                            iconResId = IconMapper.getIconResource(occasion.icon),
+                            onClick = onEditOccasions
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Appearance Group (Chips)
+@Composable
+private fun AttributeSection(
+    title: String,
+    onEditClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            SuggestionChip(
-                onClick = { /* Status change handled in next phase */ },
-                label = { Text(item.status.label) }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
             )
-            
-            AssistChip(
-                onClick = onWashStatusToggle,
-                label = { Text(item.washStatus.label) }
-            )
+            IconButton(onClick = onEditClick) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Edit $title",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        content()
     }
 }
 
-/**
- * Card displaying usage statistics like wear count and cost per wear.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StatsGroup(
-    wearCount: Int,
-    costPerWear: Double?,
-    modifier: Modifier = Modifier
+private fun AttributeChip(
+    label: String,
+    iconResId: Int? = null,
+    color: Color? = null,
+    onClick: () -> Unit
 ) {
-    val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale.getDefault()) }
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        )
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = stringResource(R.string.wardrobe_usage),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+            if (color != null) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(color)
                 )
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.wardrobe_worn_times,
-                        wearCount,
-                        wearCount
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-
-            VerticalDivider(
-                modifier = Modifier.height(40.dp),
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f)
-            )
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = stringResource(R.string.wardrobe_cost_per_wear),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-                Text(
-                    text = if (costPerWear != null) currencyFormatter.format(costPerWear) else "—",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+            } else if (iconResId != null) {
+                Icon(
+                    painter = painterResource(id = iconResId),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
-        }
-    }
-}
-
-/**
- * Card displaying primary metadata like Category and Subcategory.
- */
-@Composable
-private fun DetailGroup(
-    category: String?,
-    subcategory: String?,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            DetailRow(
-                label = stringResource(R.string.wardrobe_category),
-                value = category ?: stringResource(R.string.wardrobe_uncategorized)
-            )
-            if (subcategory != null) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-                DetailRow(
-                    label = stringResource(R.string.wardrobe_subcategory),
-                    value = subcategory
-                )
-            }
-        }
-    }
-}
-
-/**
- * A single row within a detail group.
- */
-@Composable
-private fun DetailRow(
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Light Mode")
-@Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
-@Composable
-private fun ClothingDetailContentPreview() {
-    ClosetTheme {
-        Surface {
-            ClothingDetailContent(
-                item = ClothingItemWithMeta(
-                    id = 1L,
-                    name = "Vintage Denim Jacket",
-                    brand = "Levi's",
-                    categoryName = "Outerwear",
-                    subcategoryName = "Jackets",
-                    imagePath = null,
-                    wearCount = 12,
-                    purchasePrice = 89.99,
-                    status = ClothingStatus.Active,
-                    isFavorite = 1,
-                    washStatus = WashStatus.Clean
-                ),
-                onWashStatusToggle = {}
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge
             )
         }
     }

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Wardrobe Picker -->
+    <string name="outfits_picker_title">Add Items</string>
+    <string name="outfits_picker_done">Done</string>
+    <string name="outfits_picker_done_count">Done (%d)</string>
+    <string name="outfits_picker_all_categories">All</string>
+    <string name="outfits_picker_all_seasons">All seasons</string>
+    <string name="outfits_picker_empty">No items in your wardrobe</string>
+    <string name="outfits_picker_selected">Selected</string>
+    <string name="outfits_picker_back">Back</string>
+
+    <!-- Wear Tracking -->
+    <string name="outfits_wear_today">Wear today</string>
+    <string name="outfits_wear_success">Outfit logged — wear count updated!</string>
+    <string name="outfits_wear_error">Failed to log outfit. Please try again.</string>
+
+    <!-- Outfit Gallery -->
+    <string name="outfits_gallery_title">Outfits</string>
+    <string name="outfits_gallery_create">Create Outfit</string>
+    <string name="outfits_gallery_empty">No outfits yet. Create your first one!</string>
+    <string name="outfits_gallery_untitled">Untitled outfit</string>
+    <string name="outfits_gallery_item_count">%d items</string>
+
+    <!-- Outfit Builder -->
+    <string name="outfits_builder_title">New Outfit</string>
+    <string name="outfits_builder_save">Save</string>
+    <string name="outfits_builder_back">Back</string>
+    <string name="outfits_builder_add_items">Add Items</string>
+    <string name="outfits_builder_name_hint">Outfit name (optional)</string>
+    <string name="outfits_builder_empty_hint">Tap "Add Items" to start building your outfit</string>
+    <string name="outfits_builder_remove_item">Remove item</string>
+    <string name="outfits_builder_save_error">Failed to save outfit. Please try again.</string>
+</resources>

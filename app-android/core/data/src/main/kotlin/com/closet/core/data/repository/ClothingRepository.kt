@@ -33,7 +33,13 @@ class ClothingRepository @Inject constructor(
     fun getAllItems(): Flow<List<ClothingItemWithMeta>> = clothingDao.getAllClothingItems()
 
     /**
-     * Retrieves a single clothing item by its unique ID.
+     * Retrieves all clothing items with full associations for advanced filtering and listing.
+     * @return A [Flow] emitting a list of [ClothingItemDetail].
+     */
+    fun getAllItemDetails(): Flow<List<ClothingItemDetail>> = clothingDao.getAllClothingItemDetails()
+
+    /**
+     * Retrieves a single clothing item with meta by its unique ID.
      * @param id The ID of the clothing item.
      * @return A [DataResult] containing the item or an error if not found.
      */
@@ -51,35 +57,92 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
-     * Inserts a new clothing item.
-     * @param item The item entity to insert.
-     * @return A [DataResult] containing the new row ID.
+     * Retrieves the detailed clothing item with all associations by its unique ID.
+     * @param id The ID of the clothing item.
+     * @return A [Flow] emitting the [ClothingItemDetail] if found.
      */
-    suspend fun insertItem(item: ClothingItemEntity): DataResult<Long> = try {
-        val id = clothingDao.insertClothingItem(item)
-        DataResult.Success(id)
-    } catch (e: android.database.sqlite.SQLiteConstraintException) {
-        Timber.e(e, "Constraint violation inserting item")
-        DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
+    fun getItemDetail(id: Long): Flow<ClothingItemDetail?> = clothingDao.getClothingItemDetail(id)
+
+    /**
+     * Retrieves the raw clothing item entity by its unique ID.
+     * @param id The ID of the clothing item.
+     * @return A [DataResult] containing the entity or an error if not found.
+     */
+    suspend fun getItemEntityById(id: Long): DataResult<ClothingItemEntity> = try {
+        val item = clothingDao.getClothingItemEntityById(id)
+        if (item != null) {
+            DataResult.Success(item)
+        } else {
+            DataResult.Error(AppError.DatabaseError.NotFound())
+        }
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Unexpected error inserting item")
-        DataResult.Error(AppError.Unexpected(e))
+        Timber.e(e, "Error fetching entity by ID: $id")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
     /**
-     * Updates an existing clothing item.
-     * @param item The item entity with updated values.
-     * @return A [DataResult] indicating success or failure.
+     * Retrieves the colors associated with a clothing item.
      */
-    suspend fun updateItem(item: ClothingItemEntity): DataResult<Unit> = try {
-        clothingDao.updateClothingItem(item)
-        DataResult.Success(Unit)
-    } catch (e: Exception) {
-        if (e is CancellationException) throw e
-        Timber.e(e, "Error updating item: ${item.id}")
-        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    fun getItemColors(itemId: Long): Flow<List<ColorEntity>> = clothingDao.getItemColors(itemId)
+
+    /**
+     * Inserts a new clothing item along with its associations.
+     * @param item The item entity to insert.
+     * @param colorIds Optional list of color IDs to associate.
+     * @return A [DataResult] containing the new row ID.
+     */
+    suspend fun insertItem(
+        item: ClothingItemEntity,
+        colorIds: List<Long> = emptyList()
+    ): DataResult<Long> = wrapInTransaction {
+        val id = clothingDao.insertClothingItem(item)
+        if (colorIds.isNotEmpty()) {
+            clothingDao.updateItemColors(id, colorIds)
+        }
+        id
     }
+
+    /**
+     * Inserts a new clothing item along with its associated colors.
+     */
+    suspend fun insertItemWithColors(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>
+    ): DataResult<Long> = insertItem(item, colors.map { it.id })
+
+    /**
+     * Updates an existing clothing item and its associations.
+     * @param item The item entity with updated values.
+     * @param colorIds Optional list of color IDs to associate.
+     * @return A [DataResult] containing the number of rows updated.
+     */
+    suspend fun updateItem(
+        item: ClothingItemEntity,
+        colorIds: List<Long>? = null
+    ): DataResult<Int> {
+        val result = wrapInTransaction {
+            val rowsAffected = clothingDao.updateClothingItem(item)
+            if (rowsAffected == 0) return@wrapInTransaction 0
+            if (colorIds != null) {
+                clothingDao.updateItemColors(item.id, colorIds)
+            }
+            rowsAffected
+        }
+        return if (result is DataResult.Success && result.data == 0) {
+            DataResult.Error(AppError.DatabaseError.NotFound())
+        } else {
+            result
+        }
+    }
+
+    /**
+     * Updates an existing clothing item and its associated colors.
+     */
+    suspend fun updateItemWithColors(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>
+    ): DataResult<Int> = updateItem(item, colors.map { it.id })
 
     /**
      * Deletes a clothing item by its ID.
@@ -136,8 +199,7 @@ class ClothingRepository @Inject constructor(
      * @param colorIds The list of new color IDs.
      */
     suspend fun updateItemColors(itemId: Long, colorIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemColors(itemId)
-        clothingDao.insertItemColors(colorIds.map { ClothingItemColorEntity(itemId, it) })
+        clothingDao.updateItemColors(itemId, colorIds)
     }
 
     /**
@@ -146,8 +208,7 @@ class ClothingRepository @Inject constructor(
      * @param materialIds The list of new material IDs.
      */
     suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemMaterials(itemId)
-        clothingDao.insertItemMaterials(materialIds.map { ClothingItemMaterialEntity(itemId, it) })
+        clothingDao.updateItemMaterials(itemId, materialIds)
     }
 
     /**
@@ -156,8 +217,7 @@ class ClothingRepository @Inject constructor(
      * @param seasonIds The list of new season IDs.
      */
     suspend fun updateItemSeasons(itemId: Long, seasonIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemSeasons(itemId)
-        clothingDao.insertItemSeasons(seasonIds.map { ClothingItemSeasonEntity(itemId, it) })
+        clothingDao.updateItemSeasons(itemId, seasonIds)
     }
 
     /**
@@ -166,8 +226,7 @@ class ClothingRepository @Inject constructor(
      * @param occasionIds The list of new occasion IDs.
      */
     suspend fun updateItemOccasions(itemId: Long, occasionIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemOccasions(itemId)
-        clothingDao.insertItemOccasions(occasionIds.map { ClothingItemOccasionEntity(itemId, it) })
+        clothingDao.updateItemOccasions(itemId, occasionIds)
     }
 
     /**
@@ -176,8 +235,7 @@ class ClothingRepository @Inject constructor(
      * @param patternIds The list of new pattern IDs.
      */
     suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.deleteItemPatterns(itemId)
-        clothingDao.insertItemPatterns(patternIds.map { ClothingItemPatternEntity(itemId, it) })
+        clothingDao.updateItemPatterns(itemId, patternIds)
     }
 
     /**

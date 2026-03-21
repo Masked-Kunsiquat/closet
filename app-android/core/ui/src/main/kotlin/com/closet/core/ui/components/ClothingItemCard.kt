@@ -11,11 +11,17 @@ import coil.compose.AsyncImage
 /**
  * A reusable card for displaying clothing items.
  * Parity: This is the native equivalent of components/ClothingCard.tsx.
+ * 
+ * @param name The name of the clothing item.
+ * @param imageModel The image model to load (String, Uri, File, etc.).
+ * @param subtitle The subtitle text to display below the name.
+ * @param modifier The [Modifier] to be applied to the card.
+ * @param onClick Optional click listener.
  */
 @Composable
 fun ClothingItemCard(
     name: String,
-    imagePath: String?,
+    imageModel: Any?,
     subtitle: String,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
@@ -28,7 +34,7 @@ fun ClothingItemCard(
     ) {
         Column {
             AsyncImage(
-                model = imagePath,
+                model = imageModel,
                 contentDescription = name,
                 modifier = Modifier
                     .fillMaxWidth()

@@ -3,9 +3,10 @@ package com.closet.features.wardrobe
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.CategoryEntity
-import com.closet.core.data.model.ClothingItemWithMeta
+import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
+import com.closet.core.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -23,7 +25,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ClosetViewModel @Inject constructor(
     private val clothingRepository: ClothingRepository,
-    private val lookupRepository: LookupRepository
+    private val lookupRepository: LookupRepository,
+    private val storageRepository: StorageRepository
 ) : ViewModel() {
 
     companion object {
@@ -44,31 +47,27 @@ class ClosetViewModel @Inject constructor(
         )
 
     /**
-     * The list of clothing items to display in the grid.
-     * Items are provided with metadata like category names and wear counts.
-     * Logic: Filters items based on the selected category if one is set.
-     * Refined: Includes categories flow in combine to trigger recomputation on category updates.
+     * The list of clothing items to display in the grid, filtered by the selected category.
      */
-    val items: StateFlow<List<ClothingItemWithMeta>> = combine(
-        clothingRepository.getAllItems(),
-        _selectedCategoryId,
-        categories
-    ) { allItems, selectedId, categoriesList ->
-        if (selectedId == null) {
-            allItems
-        } else {
-            val selectedCategoryName = categoriesList.find { it.id == selectedId }?.name
-            if (selectedCategoryName != null) {
-                allItems.filter { it.categoryName == selectedCategoryName }
-            } else {
-                allItems
-            }
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
-        initialValue = emptyList()
-    )
+    val items: StateFlow<List<ClothingItemDetail>> = combine(
+        clothingRepository.getAllItemDetails(),
+        _selectedCategoryId
+    ) { allItems, categoryId ->
+        if (categoryId == null) allItems
+        else allItems.filter { it.item.categoryId == categoryId }
+    }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SHARED_SUBSCRIPTION_TIMEOUT_MS),
+            initialValue = emptyList()
+        )
+
+    /**
+     * Resolves a relative image path to an absolute File for UI display.
+     */
+    fun resolveImagePath(path: String?): File? {
+        return path?.let { storageRepository.getFile(it) }
+    }
 
     /**
      * Updates the currently selected category filter.

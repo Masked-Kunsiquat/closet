@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "410f8e21e62b47f3e42081b20979bf3d",
+    "identityHash": "59aecba65cdbdc7ed0dc111272a0667a",
     "entities": [
       {
         "tableName": "clothing_items",
@@ -23,68 +23,57 @@
           {
             "fieldPath": "brand",
             "columnName": "brand",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "categoryId",
             "columnName": "category_id",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "subcategoryId",
             "columnName": "subcategory_id",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "sizeValueId",
             "columnName": "size_value_id",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "waist",
             "columnName": "waist",
-            "affinity": "REAL",
-            "notNull": false
+            "affinity": "REAL"
           },
           {
             "fieldPath": "inseam",
             "columnName": "inseam",
-            "affinity": "REAL",
-            "notNull": false
+            "affinity": "REAL"
           },
           {
             "fieldPath": "purchasePrice",
             "columnName": "purchase_price",
-            "affinity": "REAL",
-            "notNull": false
+            "affinity": "REAL"
           },
           {
             "fieldPath": "purchaseDate",
             "columnName": "purchase_date",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "purchaseLocation",
             "columnName": "purchase_location",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "imagePath",
             "columnName": "image_path",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "notes",
             "columnName": "notes",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "status",
@@ -209,8 +198,7 @@
           {
             "fieldPath": "icon",
             "columnName": "icon",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "sortOrder",
@@ -224,9 +212,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "subcategories",
@@ -307,8 +293,7 @@
           {
             "fieldPath": "icon",
             "columnName": "icon",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -316,9 +301,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "occasions",
@@ -339,8 +322,7 @@
           {
             "fieldPath": "icon",
             "columnName": "icon",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -348,9 +330,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "colors",
@@ -371,8 +351,7 @@
           {
             "fieldPath": "hex",
             "columnName": "hex",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -380,9 +359,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "materials",
@@ -406,9 +383,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "patterns",
@@ -432,9 +407,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "size_systems",
@@ -458,9 +431,7 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "size_values",
@@ -535,14 +506,12 @@
           {
             "fieldPath": "name",
             "columnName": "name",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "notes",
             "columnName": "notes",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -562,13 +531,11 @@
           "columnNames": [
             "id"
           ]
-        },
-        "indices": [],
-        "foreignKeys": []
+        }
       },
       {
         "tableName": "outfit_items",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`outfit_id` INTEGER NOT NULL, `clothing_item_id` INTEGER NOT NULL, PRIMARY KEY(`outfit_id`, `clothing_item_id`), FOREIGN KEY(`outfit_id`) REFERENCES `outfits`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`clothing_item_id`) REFERENCES `clothing_items`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`outfit_id` INTEGER NOT NULL, `clothing_item_id` INTEGER NOT NULL, `pos_x` REAL, `pos_y` REAL, `scale` REAL, `z_index` INTEGER, PRIMARY KEY(`outfit_id`, `clothing_item_id`), FOREIGN KEY(`outfit_id`) REFERENCES `outfits`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`clothing_item_id`) REFERENCES `clothing_items`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "outfitId",
@@ -581,6 +548,26 @@
             "columnName": "clothing_item_id",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "posX",
+            "columnName": "pos_x",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "posY",
+            "columnName": "pos_y",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "scale",
+            "columnName": "scale",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "zIndex",
+            "columnName": "z_index",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -639,8 +626,7 @@
           {
             "fieldPath": "outfitId",
             "columnName": "outfit_id",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "date",
@@ -657,26 +643,22 @@
           {
             "fieldPath": "notes",
             "columnName": "notes",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "temperatureLow",
             "columnName": "temperature_low",
-            "affinity": "REAL",
-            "notNull": false
+            "affinity": "REAL"
           },
           {
             "fieldPath": "temperatureHigh",
             "columnName": "temperature_high",
-            "affinity": "REAL",
-            "notNull": false
+            "affinity": "REAL"
           },
           {
             "fieldPath": "weatherCondition",
             "columnName": "weather_condition",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -1073,10 +1055,9 @@
         ]
       }
     ],
-    "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '410f8e21e62b47f3e42081b20979bf3d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '59aecba65cdbdc7ed0dc111272a0667a')"
     ]
   }
 }

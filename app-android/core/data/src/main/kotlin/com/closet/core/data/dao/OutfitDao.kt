@@ -3,6 +3,7 @@ package com.closet.core.data.dao
 import androidx.room.*
 import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 /**
  * Data Access Object for managing outfits and their constituent items.
@@ -34,6 +35,21 @@ interface OutfitDao {
     fun getAllOutfits(): Flow<List<OutfitWithMeta>>
 
     /**
+     * Retrieves a full outfit by its unique ID.
+     */
+    @Transaction
+    @Query("SELECT * FROM outfits WHERE id = :id")
+    fun getOutfitWithItems(id: Long): Flow<OutfitWithItems?>
+
+    /**
+     * Retrieves all outfits with their full item and layout data.
+     * Used by the gallery to drive [OutfitPreview]'s collage-or-grid logic.
+     */
+    @Transaction
+    @Query("SELECT * FROM outfits ORDER BY created_at DESC")
+    fun getAllOutfitsWithItems(): Flow<List<OutfitWithItems>>
+
+    /**
      * Inserts a new outfit entry.
      * @param outfit The [OutfitEntity] to insert.
      * @return The row ID of the newly inserted outfit.
@@ -45,7 +61,7 @@ interface OutfitDao {
      * Inserts multiple clothing items into an outfit.
      * @param items The list of [OutfitItemEntity] objects to insert.
      */
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOutfitItems(items: List<OutfitItemEntity>)
 
     /**
@@ -54,6 +70,13 @@ interface OutfitDao {
      */
     @Update
     suspend fun updateOutfit(outfit: OutfitEntity)
+
+    /**
+     * Updates specific fields of an outfit to preserve fields like createdAt.
+     * @return The number of affected rows.
+     */
+    @Query("UPDATE outfits SET name = :name, notes = :notes, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateOutfitFields(id: Long, name: String?, notes: String?, updatedAt: Instant): Int
 
     /**
      * Removes all clothing item associations for a specific outfit.
@@ -102,17 +125,3 @@ interface OutfitDao {
     """)
     fun getOutfitsForItem(itemId: Long): Flow<List<OutfitWithMeta>>
 }
-
-/**
- * Representation of an outfit with aggregated metadata for display.
- * Parity: This is the native equivalent of OutfitWithMeta from types.ts.
- */
-data class OutfitWithMeta(
-    val id: Long,
-    val name: String?,
-    val notes: String?,
-    @ColumnInfo(name = "created_at") val createdAt: String,
-    @ColumnInfo(name = "updated_at") val updatedAt: String,
-    @ColumnInfo(name = "item_count") val itemCount: Int,
-    @ColumnInfo(name = "cover_image") val coverImage: String?
-)

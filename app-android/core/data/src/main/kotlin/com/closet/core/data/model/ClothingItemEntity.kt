@@ -1,10 +1,6 @@
 package com.closet.core.data.model
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
+import androidx.room.*
 import java.time.Instant
 
 /**
@@ -119,4 +115,81 @@ data class ClothingItemWithMeta(
      */
     val costPerWear: Double?
         get() = if (wearCount > 0) (purchasePrice ?: 0.0) / wearCount else purchasePrice
+}
+
+/**
+ * Detailed view of a clothing item including all many-to-many associations.
+ */
+data class ClothingItemDetail(
+    @Embedded val item: ClothingItemEntity,
+
+    @ColumnInfo(name = "wear_count")
+    val wearCount: Int,
+
+    @Relation(parentColumn = "category_id", entityColumn = "id")
+    val category: CategoryEntity?,
+
+    @Relation(parentColumn = "subcategory_id", entityColumn = "id")
+    val subcategory: SubcategoryEntity?,
+
+    @Relation(parentColumn = "size_value_id", entityColumn = "id")
+    val sizeValue: SizeValueEntity?,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = ClothingItemColorEntity::class,
+            parentColumn = "clothing_item_id",
+            entityColumn = "color_id"
+        )
+    )
+    val colors: List<ColorEntity>,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = ClothingItemMaterialEntity::class,
+            parentColumn = "clothing_item_id",
+            entityColumn = "material_id"
+        )
+    )
+    val materials: List<MaterialEntity>,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = ClothingItemSeasonEntity::class,
+            parentColumn = "clothing_item_id",
+            entityColumn = "season_id"
+        )
+    )
+    val seasons: List<SeasonEntity>,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = ClothingItemOccasionEntity::class,
+            parentColumn = "clothing_item_id",
+            entityColumn = "occasion_id"
+        )
+    )
+    val occasions: List<OccasionEntity>,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = ClothingItemPatternEntity::class,
+            parentColumn = "clothing_item_id",
+            entityColumn = "pattern_id"
+        )
+    )
+    val patterns: List<PatternEntity>
+) {
+    val costPerWear: Double?
+        get() = if (wearCount > 0) (item.purchasePrice ?: 0.0) / wearCount else item.purchasePrice
 }

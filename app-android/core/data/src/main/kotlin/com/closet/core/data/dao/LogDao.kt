@@ -36,6 +36,13 @@ interface LogDao {
     fun getLogsByDate(date: String): Flow<List<OutfitLogWithMeta>>
 
     /**
+     * Returns the row ID of an existing log for [outfitId] on [date], or null if none exists.
+     * Used by [LogRepository.wearOutfitToday] to keep wear logging idempotent.
+     */
+    @Query("SELECT id FROM outfit_logs WHERE outfit_id = :outfitId AND date = :date LIMIT 1")
+    suspend fun getLogIdByOutfitAndDate(outfitId: Long, date: String): Long?
+
+    /**
      * Inserts a new outfit log entry.
      * @param log The [OutfitLogEntity] to insert.
      * @return The row ID of the newly inserted log.

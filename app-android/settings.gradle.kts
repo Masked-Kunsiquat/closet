@@ -8,6 +8,8 @@ pluginManagement {
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
+
+@Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -21,3 +23,4 @@ include(":app")
 include(":core:data")
 include(":core:ui")
 include(":features:wardrobe")
+include(":features:outfits")

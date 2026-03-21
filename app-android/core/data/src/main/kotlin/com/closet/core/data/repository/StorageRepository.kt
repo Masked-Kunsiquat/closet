@@ -1,10 +1,13 @@
 package com.closet.core.data.repository
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
 import java.util.UUID
 import javax.inject.Inject
@@ -16,7 +19,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class StorageRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private val imagesDir = File(context.filesDir, "closet_images").apply {
         if (!exists()) mkdirs()
@@ -62,7 +65,22 @@ class StorageRepository @Inject constructor(
     /**
      * Checks if a file exists for a given relative path.
      */
+    @Suppress("unused")
     fun exists(relativePath: String): Boolean {
         return File(imagesDir, relativePath).exists()
+    }
+
+    /**
+     * Loads a Bitmap from a Uri.
+     */
+    suspend fun getBitmap(uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                BitmapFactory.decodeStream(input)
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to load bitmap from Uri: $uri")
+            null
+        }
     }
 }

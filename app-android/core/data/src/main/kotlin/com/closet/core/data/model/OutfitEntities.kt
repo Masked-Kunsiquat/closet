@@ -33,7 +33,11 @@ data class OutfitEntity(
 )
 data class OutfitItemEntity(
     @ColumnInfo(name = "outfit_id") val outfitId: Long,
-    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "pos_x") val posX: Float? = null,
+    @ColumnInfo(name = "pos_y") val posY: Float? = null,
+    val scale: Float? = null,
+    @ColumnInfo(name = "z_index") val zIndex: Int? = null
 )
 
 @Entity(
@@ -48,7 +52,8 @@ data class OutfitItemEntity(
     ],
     indices = [
         Index(value = ["outfit_id"]),
-        Index(value = ["date"], unique = false, orders = [Index.Order.ASC])
+        Index(value = ["date"], unique = false, orders = [Index.Order.ASC]),
+        Index(value = ["outfit_id", "date"], unique = true) // prevents duplicate same-day logs per outfit
     ]
 )
 data class OutfitLogEntity(
@@ -65,19 +70,41 @@ data class OutfitLogEntity(
 
 /**
  * Mirror of OutfitWithItems from types.ts.
- * Leverage: Uses Room's @Junction for high-performance relationship mapping.
+ * Leverage: Fetches the Outfit along with its items and their layout metadata.
  */
-@Suppress("unused")
 data class OutfitWithItems(
     @Embedded val outfit: OutfitEntity,
     @Relation(
+        entity = OutfitItemEntity::class,
         parentColumn = "id",
-        entityColumn = "id",
-        associateBy = Junction(
-            value = OutfitItemEntity::class,
-            parentColumn = "outfit_id",
-            entityColumn = "clothing_item_id"
-        )
+        entityColumn = "outfit_id"
     )
-    val items: List<ClothingItemEntity>
+    val items: List<OutfitItemWithClothing>
+)
+
+/**
+ * Intermediate data class to pair an OutfitItemEntity with its ClothingItemEntity.
+ */
+data class OutfitItemWithClothing(
+    @Embedded val outfitItem: OutfitItemEntity,
+    @Relation(
+        entity = ClothingItemEntity::class,
+        parentColumn = "clothing_item_id",
+        entityColumn = "id"
+    )
+    val clothingItem: ClothingItemEntity
+)
+
+/**
+ * Representation of an outfit with aggregated metadata for display.
+ * Parity: This is the native equivalent of OutfitWithMeta from types.ts.
+ */
+data class OutfitWithMeta(
+    val id: Long,
+    val name: String?,
+    val notes: String?,
+    @ColumnInfo(name = "created_at") val createdAt: Instant,
+    @ColumnInfo(name = "updated_at") val updatedAt: Instant,
+    @ColumnInfo(name = "item_count") val itemCount: Int,
+    @ColumnInfo(name = "cover_image") val coverImage: String?
 )

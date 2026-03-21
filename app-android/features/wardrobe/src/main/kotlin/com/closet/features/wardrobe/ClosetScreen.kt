@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -15,23 +17,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.closet.core.data.model.CategoryEntity
-import com.closet.core.data.model.ClothingItemWithMeta
-import com.closet.core.data.model.ClothingStatus
-import com.closet.core.data.model.WashStatus
+import com.closet.core.data.model.*
 import com.closet.core.ui.components.ClothingItemCard
 import com.closet.core.ui.theme.ClosetTheme
+import java.io.File
 
 /**
  * The main screen for browsing the wardrobe (Closet).
  * Displays a grid of clothing items with their wear counts and category metadata.
  * 
  * @param modifier The [Modifier] to be applied to the screen.
+ * @param onAddItemClick Callback invoked when the add button is tapped.
  * @param onItemClick Callback invoked when a clothing item is tapped, passing its ID.
  * @param viewModel The [ClosetViewModel] providing state for this screen.
  */
 @Composable
 fun ClosetScreen(
+    onAddItemClick: () -> Unit,
     modifier: Modifier = Modifier,
     onItemClick: (Long) -> Unit = {},
     viewModel: ClosetViewModel = hiltViewModel()
@@ -45,6 +47,8 @@ fun ClosetScreen(
         categories = categories,
         selectedCategoryId = selectedCategoryId,
         onCategorySelect = viewModel::selectCategory,
+        resolveImagePath = viewModel::resolveImagePath,
+        onAddItemClick = onAddItemClick,
         onItemClick = onItemClick,
         modifier = modifier
     )
@@ -56,10 +60,12 @@ fun ClosetScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ClosetContent(
-    items: List<ClothingItemWithMeta>,
+    items: List<ClothingItemDetail>,
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     onCategorySelect: (Long?) -> Unit,
+    resolveImagePath: (String?) -> File?,
+    onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -69,6 +75,14 @@ internal fun ClosetContent(
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.wardrobe_my_closet)) }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddItemClick) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = stringResource(R.string.wardrobe_add_item)
+                )
+            }
         }
     ) { padding ->
         Column(
@@ -88,6 +102,7 @@ internal fun ClosetContent(
                 ClosetGrid(
                     items = items,
                     onItemClick = onItemClick,
+                    resolveImagePath = resolveImagePath,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -132,12 +147,14 @@ private fun CategoryFilterRow(
  * 
  * @param items The list of clothing items to display.
  * @param onItemClick Callback for item interaction.
+ * @param resolveImagePath Function to resolve relative paths to absolute files.
  * @param modifier The [Modifier] to be applied to the grid.
  */
 @Composable
 private fun ClosetGrid(
-    items: List<ClothingItemWithMeta>,
+    items: List<ClothingItemDetail>,
     onItemClick: (Long) -> Unit,
+    resolveImagePath: (String?) -> File?,
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
@@ -147,16 +164,16 @@ private fun ClosetGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxSize()
     ) {
-        items(items, key = { it.id }) { itemWithMeta ->
+        items(items, key = { it.item.id }) { itemDetail ->
             ClothingItemCard(
-                name = itemWithMeta.name,
-                imagePath = itemWithMeta.imagePath,
+                name = itemDetail.item.name,
+                imageModel = resolveImagePath(itemDetail.item.imagePath),
                 subtitle = pluralStringResource(
                     R.plurals.wardrobe_worn_times,
-                    itemWithMeta.wearCount,
-                    itemWithMeta.wearCount
+                    itemDetail.wearCount,
+                    itemDetail.wearCount
                 ),
-                onClick = { onItemClick(itemWithMeta.id) }
+                onClick = { onItemClick(itemDetail.item.id) }
             )
         }
     }
@@ -183,31 +200,25 @@ private fun ClosetScreenPreview() {
         Surface {
             ClosetContent(
                 items = listOf(
-                    ClothingItemWithMeta(
-                        id = 1,
-                        name = "Vintage Denim Jacket",
-                        brand = "Levi's",
-                        categoryName = "Outerwear",
-                        subcategoryName = "Jackets",
-                        imagePath = null,
+                    ClothingItemDetail(
+                        item = ClothingItemEntity(
+                            id = 1,
+                            name = "Vintage Denim Jacket",
+                            brand = "Levi's",
+                            categoryId = 1,
+                            status = ClothingStatus.Active,
+                            isFavorite = 1,
+                            washStatus = WashStatus.Clean
+                        ),
                         wearCount = 12,
-                        purchasePrice = 89.99,
-                        status = ClothingStatus.Active,
-                        isFavorite = 1,
-                        washStatus = WashStatus.Clean
-                    ),
-                    ClothingItemWithMeta(
-                        id = 2,
-                        name = "White Linen Shirt",
-                        brand = "Uniqlo",
-                        categoryName = "Tops",
-                        subcategoryName = "Shirts",
-                        imagePath = null,
-                        wearCount = 5,
-                        purchasePrice = 29.90,
-                        status = ClothingStatus.Active,
-                        isFavorite = 0,
-                        washStatus = WashStatus.Dirty
+                        category = CategoryEntity(id = 1, name = "Outerwear", sortOrder = 3),
+                        subcategory = null,
+                        sizeValue = null,
+                        colors = emptyList(),
+                        materials = emptyList(),
+                        seasons = emptyList(),
+                        occasions = emptyList(),
+                        patterns = emptyList()
                     )
                 ),
                 categories = listOf(
@@ -217,6 +228,8 @@ private fun ClosetScreenPreview() {
                 ),
                 selectedCategoryId = null,
                 onCategorySelect = {},
+                resolveImagePath = { null },
+                onAddItemClick = {},
                 onItemClick = {}
             )
         }
@@ -233,6 +246,8 @@ private fun ClosetScreenEmptyPreview() {
                 categories = emptyList(),
                 selectedCategoryId = null,
                 onCategorySelect = {},
+                resolveImagePath = { null },
+                onAddItemClick = {},
                 onItemClick = {}
             )
         }

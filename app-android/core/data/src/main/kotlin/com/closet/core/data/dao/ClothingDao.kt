@@ -36,7 +36,7 @@ interface ClothingDao {
     fun getAllClothingItems(): Flow<List<ClothingItemWithMeta>>
 
     /**
-     * Retrieves a single clothing item by its unique ID.
+     * Retrieves a single clothing item with meta by its unique ID.
      * @param id The ID of the clothing item to retrieve.
      * @return The [ClothingItemWithMeta] if found, null otherwise.
      */
@@ -59,6 +59,61 @@ interface ClothingDao {
     suspend fun getClothingItemById(id: Long): ClothingItemWithMeta?
 
     /**
+     * Retrieves all clothing items with full associations for filtering and listing.
+     * @return A [Flow] emitting a list of [ClothingItemDetail].
+     */
+    @Transaction
+    @Query("""
+        SELECT ci.*,
+            (
+                SELECT COUNT(DISTINCT ol.id)
+                FROM outfit_logs ol
+                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
+                WHERE oi.clothing_item_id = ci.id
+            ) AS wear_count
+        FROM clothing_items ci
+        ORDER BY ci.created_at DESC
+    """)
+    fun getAllClothingItemDetails(): Flow<List<ClothingItemDetail>>
+
+    /**
+     * Retrieves the detailed clothing item with all associations by its unique ID.
+     * @param id The ID of the clothing item to retrieve.
+     * @return A [Flow] emitting the [ClothingItemDetail] if found.
+     */
+    @Transaction
+    @Query("""
+        SELECT ci.*,
+            (
+                SELECT COUNT(DISTINCT ol.id)
+                FROM outfit_logs ol
+                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
+                WHERE oi.clothing_item_id = ci.id
+            ) AS wear_count
+        FROM clothing_items ci
+        WHERE ci.id = :id
+    """)
+    fun getClothingItemDetail(id: Long): Flow<ClothingItemDetail?>
+
+    /**
+     * Retrieves the raw clothing item entity by its unique ID.
+     * @param id The ID of the clothing item to retrieve.
+     * @return The [ClothingItemEntity] if found, null otherwise.
+     */
+    @Query("SELECT * FROM clothing_items WHERE id = :id")
+    suspend fun getClothingItemEntityById(id: Long): ClothingItemEntity?
+
+    /**
+     * Retrieves the colors associated with a clothing item.
+     */
+    @Query("""
+        SELECT c.* FROM colors c
+        JOIN clothing_item_colors cic ON c.id = cic.color_id
+        WHERE cic.clothing_item_id = :itemId
+    """)
+    fun getItemColors(itemId: Long): Flow<List<ColorEntity>>
+
+    /**
      * Inserts a new clothing item into the database.
      * @param item The [ClothingItemEntity] to insert.
      * @return The row ID of the newly inserted item.
@@ -69,29 +124,25 @@ interface ClothingDao {
     /**
      * Updates an existing clothing item in the database.
      * @param item The [ClothingItemEntity] with updated values.
+     * @return The number of rows affected.
      */
     @Update
-    suspend fun updateClothingItem(item: ClothingItemEntity)
+    suspend fun updateClothingItem(item: ClothingItemEntity): Int
 
     /**
      * Deletes a clothing item from the database by its ID.
-     * @param id The ID of the clothing item to delete.
      */
     @Query("DELETE FROM clothing_items WHERE id = :id")
     suspend fun deleteClothingItem(id: Long)
     
     /**
      * Updates the wash status and modification timestamp for a specific clothing item.
-     * @param id The ID of the clothing item.
-     * @param washStatus The new wash status label.
      */
     @Query("UPDATE clothing_items SET wash_status = :washStatus, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateWashStatus(id: Long, washStatus: String, updatedAt: String)
 
     /**
      * Updates the favorite status and modification timestamp for a specific clothing item.
-     * @param id The ID of the clothing item.
-     * @param isFavorite 1 if favorite, 0 otherwise.
      */
     @Query("UPDATE clothing_items SET is_favorite = :isFavorite, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateFavoriteStatus(id: Long, isFavorite: Int, updatedAt: String)
@@ -100,9 +151,6 @@ interface ClothingDao {
 
     /**
      * Updates the color associations for a specific clothing item.
-     * Replaces all existing color associations with the provided list.
-     * @param itemId The ID of the clothing item.
-     * @param colorIds The list of color IDs to associate with the item.
      */
     @Transaction
     suspend fun updateItemColors(itemId: Long, colorIds: List<Long>) {
@@ -110,24 +158,14 @@ interface ClothingDao {
         insertItemColors(colorIds.map { ClothingItemColorEntity(itemId, it) })
     }
 
-    /**
-     * Removes all color associations for a specific clothing item.
-     * @param itemId The ID of the clothing item.
-     */
     @Query("DELETE FROM clothing_item_colors WHERE clothing_item_id = :itemId")
     suspend fun deleteItemColors(itemId: Long)
 
-    /**
-     * Inserts a list of color associations for a clothing item.
-     * @param items The list of [ClothingItemColorEntity] objects to insert.
-     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemColors(items: List<ClothingItemColorEntity>)
 
     /**
      * Updates the material associations for a specific clothing item.
-     * @param itemId The ID of the clothing item.
-     * @param materialIds The list of material IDs to associate.
      */
     @Transaction
     suspend fun updateItemMaterials(itemId: Long, materialIds: List<Long>) {
@@ -135,15 +173,9 @@ interface ClothingDao {
         insertItemMaterials(materialIds.map { ClothingItemMaterialEntity(itemId, it) })
     }
 
-    /**
-     * Removes all material associations for a specific clothing item.
-     */
     @Query("DELETE FROM clothing_item_materials WHERE clothing_item_id = :itemId")
     suspend fun deleteItemMaterials(itemId: Long)
 
-    /**
-     * Inserts a list of material associations for a clothing item.
-     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemMaterials(items: List<ClothingItemMaterialEntity>)
 
@@ -156,15 +188,9 @@ interface ClothingDao {
         insertItemSeasons(seasonIds.map { ClothingItemSeasonEntity(itemId, it) })
     }
 
-    /**
-     * Removes all season associations for a specific clothing item.
-     */
     @Query("DELETE FROM clothing_item_seasons WHERE clothing_item_id = :itemId")
     suspend fun deleteItemSeasons(itemId: Long)
 
-    /**
-     * Inserts a list of season associations for a clothing item.
-     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemSeasons(items: List<ClothingItemSeasonEntity>)
 
@@ -177,15 +203,9 @@ interface ClothingDao {
         insertItemOccasions(occasionIds.map { ClothingItemOccasionEntity(itemId, it) })
     }
 
-    /**
-     * Removes all occasion associations for a specific clothing item.
-     */
     @Query("DELETE FROM clothing_item_occasions WHERE clothing_item_id = :itemId")
     suspend fun deleteItemOccasions(itemId: Long)
 
-    /**
-     * Inserts a list of occasion associations for a clothing item.
-     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemOccasions(items: List<ClothingItemOccasionEntity>)
 
@@ -198,15 +218,9 @@ interface ClothingDao {
         insertItemPatterns(patternIds.map { ClothingItemPatternEntity(itemId, it) })
     }
 
-    /**
-     * Removes all pattern associations for a specific clothing item.
-     */
     @Query("DELETE FROM clothing_item_patterns WHERE clothing_item_id = :itemId")
     suspend fun deleteItemPatterns(itemId: Long)
 
-    /**
-     * Inserts a list of pattern associations for a clothing item.
-     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemPatterns(items: List<ClothingItemPatternEntity>)
 }

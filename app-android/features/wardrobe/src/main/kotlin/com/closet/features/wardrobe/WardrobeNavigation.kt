@@ -10,3 +10,9 @@ object ClosetDestination
 
 @Serializable
 data class ClothingDetailDestination(val itemId: Long)
+
+@Serializable
+object AddClothingDestination
+
+@Serializable
+data class EditClothingDestination(val itemId: Long)

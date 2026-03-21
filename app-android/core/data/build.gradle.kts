@@ -41,6 +41,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Palette
+    implementation(libs.androidx.palette.ktx)
+
     // Logging
     implementation(libs.timber)
 

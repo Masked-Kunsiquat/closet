@@ -6,10 +6,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.closet.features.wardrobe.ClosetDestination
-import com.closet.features.wardrobe.ClosetScreen
-import com.closet.features.wardrobe.ClothingDetailDestination
-import com.closet.features.wardrobe.ClothingDetailScreen
+import com.closet.features.wardrobe.*
+import com.closet.features.outfits.outfitsScreen
+import com.closet.features.outfits.outfitBuilderScreen
+import com.closet.features.outfits.wardrobePickerScreen
+import com.closet.features.outfits.OutfitsRoute
 
 @Composable
 fun ClosetNavGraph(
@@ -23,6 +24,9 @@ fun ClosetNavGraph(
     ) {
         composable<ClosetDestination> {
             ClosetScreen(
+                onAddItemClick = {
+                    navController.navigate(AddClothingDestination)
+                },
                 onItemClick = { itemId ->
                     navController.navigate(ClothingDetailDestination(itemId))
                 }
@@ -31,8 +35,27 @@ fun ClosetNavGraph(
         
         composable<ClothingDetailDestination> { 
             ClothingDetailScreen(
+                onBack = { navController.popBackStack() },
+                onEdit = { itemId ->
+                    navController.navigate(EditClothingDestination(itemId))
+                }
+            )
+        }
+
+        composable<AddClothingDestination> {
+            ClothingFormScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }
+
+        composable<EditClothingDestination> {
+            ClothingFormScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        outfitsScreen(navController)
+        outfitBuilderScreen(navController)
+        wardrobePickerScreen(navController)
     }
 }
