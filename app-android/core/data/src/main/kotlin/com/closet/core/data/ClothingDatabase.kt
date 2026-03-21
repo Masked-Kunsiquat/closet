@@ -44,6 +44,8 @@ import com.closet.core.data.model.*
 abstract class ClothingDatabase : RoomDatabase() {
     /** @return [ClothingDao] for clothing item operations. */
     abstract fun clothingDao(): ClothingDao
+    /** @return [BrandDao] for brand management. */
+    abstract fun brandDao(): BrandDao
     /** @return [LookupDao] for lookup table queries. */
     abstract fun lookupDao(): LookupDao
     /** @return [OutfitDao] for outfit management. */

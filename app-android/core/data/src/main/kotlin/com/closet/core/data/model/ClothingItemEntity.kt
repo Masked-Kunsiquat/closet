@@ -48,7 +48,7 @@ data class ClothingItemEntity(
     
     val name: String,
 
-    /** Deprecated: free-text brand column kept for migration backfill. Read brand via [brandId] join instead. */
+    @Deprecated("Replaced by brandId FK. Do not write to this field. Retained for schema compatibility — SQLite cannot drop columns before API 35.")
     val brand: String? = null,
 
     @ColumnInfo(name = "brand_id")
