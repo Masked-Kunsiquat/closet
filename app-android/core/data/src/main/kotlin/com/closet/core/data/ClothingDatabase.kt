@@ -12,6 +12,7 @@ import com.closet.core.data.migrations.MIGRATION_2_3
 import com.closet.core.data.migrations.MIGRATION_3_4
 import com.closet.core.data.migrations.MIGRATION_4_5
 import com.closet.core.data.migrations.MIGRATION_5_6
+import com.closet.core.data.migrations.MIGRATION_6_7
 import com.closet.core.data.model.*
 
 /**
@@ -35,13 +36,14 @@ import com.closet.core.data.model.*
         OutfitEntity::class,
         OutfitItemEntity::class,
         OutfitLogEntity::class,
+        OutfitLogItemEntity::class,
         ClothingItemColorEntity::class,
         ClothingItemMaterialEntity::class,
         ClothingItemSeasonEntity::class,
         ClothingItemOccasionEntity::class,
         ClothingItemPatternEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -76,7 +78,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                     ClothingDatabase::class.java,
                     DATABASE_NAME
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

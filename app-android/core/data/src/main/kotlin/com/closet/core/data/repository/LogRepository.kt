@@ -32,12 +32,12 @@ class LogRepository @Inject constructor(
         logDao.getLogsByDate(date)
 
     /**
-     * Creates a new outfit log entry.
+     * Creates a new outfit log entry and snapshots its item membership.
      * @param log The [OutfitLogEntity] to insert.
      * @return The row ID of the newly created log.
      */
     suspend fun insertLog(log: OutfitLogEntity): Long =
-        logDao.insertLog(log)
+        logDao.insertLogAndSnapshot(log)
 
     /**
      * Logs an outfit as worn on today's date (device local time, YYYY-MM-DD).
@@ -63,7 +63,7 @@ class LogRepository @Inject constructor(
     suspend fun wearOutfitOnDate(outfitId: Long, date: String): DataResult<Long> = try {
         val existingId = logDao.getLogIdByOutfitAndDate(outfitId, date)
         if (existingId != null) return DataResult.Success(existingId)
-        val logId = logDao.insertLog(OutfitLogEntity(outfitId = outfitId, date = date))
+        val logId = logDao.insertLogAndSnapshot(OutfitLogEntity(outfitId = outfitId, date = date))
         DataResult.Success(logId)
     } catch (e: Exception) {
         if (e is CancellationException) throw e

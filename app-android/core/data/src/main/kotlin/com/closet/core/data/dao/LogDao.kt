@@ -118,7 +118,8 @@ interface LogDao {
 
     /**
      * Retrieves all logs in which a specific clothing item was worn, most recent first.
-     * Joins outfit_logs → outfit_items (filtered by item) → outfits for the outfit name.
+     * Joins outfit_logs → outfit_log_items snapshot (instead of the live outfit_items table)
+     * so that retroactive outfit edits do not alter historical wear records.
      * @param clothingItemId The ID of the clothing item.
      * @return A [Flow] emitting a list of [ItemWearLog].
      */
@@ -127,14 +128,41 @@ interface LogDao {
             ol.id,
             ol.date,
             ol.is_ootd,
-            o.name AS outfit_name
+            oli.outfit_name
         FROM outfit_logs ol
-        JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
-                             AND oi.clothing_item_id = :clothingItemId
-        LEFT JOIN outfits o ON o.id = ol.outfit_id
+        JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
+                                 AND oli.clothing_item_id = :clothingItemId
         ORDER BY ol.date DESC
     """)
     fun getLogsForItem(clothingItemId: Long): Flow<List<ItemWearLog>>
+
+    /**
+     * Inserts snapshot rows for all items currently in an outfit into [outfit_log_items].
+     * Snapshots the outfit name at call time so renames don't affect history.
+     * Uses INSERT OR IGNORE to be idempotent (safe for the idempotency re-check path).
+     */
+    @Query("""
+        INSERT OR IGNORE INTO outfit_log_items (outfit_log_id, clothing_item_id, outfit_name)
+        SELECT :logId, oi.clothing_item_id, o.name
+        FROM outfit_items oi
+        LEFT JOIN outfits o ON o.id = oi.outfit_id
+        WHERE oi.outfit_id = :outfitId
+    """)
+    suspend fun insertSnapshotRows(logId: Long, outfitId: Long)
+
+    /**
+     * Atomically inserts an outfit log and immediately snapshots its item membership.
+     * If [log.outfitId] is null (free-form log) no snapshot rows are written.
+     * @return The row ID of the newly inserted log.
+     */
+    @Transaction
+    suspend fun insertLogAndSnapshot(log: OutfitLogEntity): Long {
+        val logId = insertLog(log)
+        if (log.outfitId != null) {
+            insertSnapshotRows(logId, log.outfitId)
+        }
+        return logId
+    }
 }
 
 /**
