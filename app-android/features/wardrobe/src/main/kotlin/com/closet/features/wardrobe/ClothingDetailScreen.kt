@@ -394,7 +394,8 @@ private fun WearHistoryRow(
     modifier: Modifier = Modifier,
 ) {
     val formattedDate = remember(log.date) {
-        LocalDate.parse(log.date).format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+        runCatching { LocalDate.parse(log.date).format(DateTimeFormatter.ofPattern("MMMM d, yyyy")) }
+            .getOrElse { log.date }
     }
     Row(
         modifier = modifier
@@ -419,10 +420,9 @@ private fun WearHistoryRow(
                 imageVector = Icons.Filled.Star,
                 contentDescription = stringResource(R.string.wardrobe_wear_history_ootd),
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .size(16.dp)
-                    .padding(end = 4.dp),
+                modifier = Modifier.size(16.dp),
             )
+            Spacer(Modifier.width(4.dp))
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,

@@ -242,8 +242,8 @@ private fun MonthNavHeader(
 @Composable
 private fun WeekDayRow(modifier: Modifier = Modifier) {
     val dayNames = remember {
-        // Monday-start week (DayOfWeek.values() starts at MONDAY = index 0)
-        DayOfWeek.values().map { it.getDisplayName(TextStyle.NARROW, Locale.getDefault()) }
+        // Monday-start week (DayOfWeek.entries starts at MONDAY = index 0)
+        DayOfWeek.entries.map { it.getDisplayName(TextStyle.NARROW, Locale.getDefault()) }
     }
     Row(modifier = modifier.fillMaxWidth()) {
         dayNames.forEach { name ->

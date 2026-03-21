@@ -11,6 +11,7 @@ import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.AppError
+import com.closet.core.data.util.DataResult
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import java.time.Instant
@@ -219,18 +220,26 @@ class JournalViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            logRepository.updateLog(
-                OutfitLogEntity(
-                    id = log.id,
-                    outfitId = log.outfitId,
-                    date = log.date,
-                    isOotd = log.isOotd,
-                    notes = notes?.trim()?.ifEmpty { null },
-                    weatherCondition = weatherCondition,
-                    createdAt = createdAt,
+            try {
+                logRepository.updateLog(
+                    OutfitLogEntity(
+                        id = log.id,
+                        outfitId = log.outfitId,
+                        date = log.date,
+                        isOotd = log.isOotd,
+                        notes = notes?.trim()?.ifEmpty { null },
+                        weatherCondition = weatherCondition,
+                        createdAt = createdAt,
+                    )
                 )
-            )
-            _editingLog.value = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "saveLogEdit: failed to update log ${log.id}")
+                handleActionError(e)
+            } finally {
+                _editingLog.value = null
+            }
         }
     }
 
@@ -241,8 +250,14 @@ class JournalViewModel @Inject constructor(
     fun logOutfitOnDate(outfitId: Long) {
         viewModelScope.launch {
             val date = _selectedDate.value ?: return@launch
-            logRepository.wearOutfitOnDate(outfitId, date)
-            _showOutfitPicker.value = false
+            when (val result = logRepository.wearOutfitOnDate(outfitId, date)) {
+                is DataResult.Success -> _showOutfitPicker.value = false
+                is DataResult.Error -> {
+                    Timber.e(result.throwable, "logOutfitOnDate: failed to log outfit $outfitId on $date")
+                    handleActionError(result.throwable)
+                }
+                DataResult.Loading -> Unit
+            }
         }
     }
 
