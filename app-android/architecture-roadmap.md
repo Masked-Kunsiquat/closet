@@ -45,9 +45,9 @@ Findings from codebase audit. Items ordered by priority.
 
 ## Phase 4 — Database & Migrations (Medium-term)
 
-- [ ] Move inline `MIGRATION_1_2`, `MIGRATION_3_4` objects out of `ClothingDatabase.kt` into a `migrations/` package (e.g. `Migration1To2.kt`) — standard multi-module convention
-- [ ] Extract column-existence raw query in migrations into a reusable helper (e.g. `columnExists(db, table, column): Boolean`)
-- [ ] Evaluate whether `DatabaseSeeder` hard-coded seed entries should be loaded from a bundled JSON/CSV resource file to reduce maintenance burden on code changes
+- [x] Move inline `MIGRATION_1_2`, `MIGRATION_3_4` objects out of `ClothingDatabase.kt` into a `migrations/` package (e.g. `Migration1To2.kt`) — standard multi-module convention
+- [x] Extract column-existence raw query in migrations into a reusable helper (e.g. `columnExists(db, table, column): Boolean`)
+- [x] Evaluate whether `DatabaseSeeder` hard-coded seed entries should be loaded from a bundled JSON/CSV resource file to reduce maintenance burden on code changes — **decision: keep in Kotlin.** Data is small (~150 rows) and stable; JSON/CSV would require threading `Context` into `SupportSQLiteDatabase` callbacks, add a parser + error handling path, and lose compile-time safety for no meaningful gain.
 
 ---
 

@@ -5,9 +5,11 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.closet.core.data.dao.*
+import com.closet.core.data.migrations.MIGRATION_1_2
+import com.closet.core.data.migrations.MIGRATION_2_3
+import com.closet.core.data.migrations.MIGRATION_3_4
 import com.closet.core.data.model.*
 
 /**
@@ -60,109 +62,6 @@ abstract class ClothingDatabase : RoomDatabase() {
 
         @Volatile
         private var INSTANCE: ClothingDatabase? = null
-
-        /**
-         * Migration from version 1 to 2: Add layout columns to outfit_items and populate colors.
-         * Note: Columns are checked before adding to avoid errors if they already exist in some v1 versions.
-         */
-        private val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                val cursor = db.query("PRAGMA table_info(outfit_items)")
-                val existingColumns = mutableSetOf<String>()
-                while (cursor.moveToNext()) {
-                    val nameIndex = cursor.getColumnIndex("name")
-                    if (nameIndex != -1) {
-                        existingColumns.add(cursor.getString(nameIndex))
-                    }
-                }
-                cursor.close()
-
-                if (!existingColumns.contains("pos_x")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_x REAL")
-                }
-                if (!existingColumns.contains("pos_y")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_y REAL")
-                }
-                if (!existingColumns.contains("scale")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN scale REAL")
-                }
-                if (!existingColumns.contains("z_index")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN z_index INTEGER")
-                }
-
-                DatabaseSeeder.seedColors(db)
-            }
-        }
-
-        /**
-         * Migration 3→4: introduce the brands lookup table and migrate the free-text brand column
-         * to a proper FK relationship.
-         *
-         * Steps:
-         *   1. Create brands table with unique index on name.
-         *   2. Backfill brands from distinct values in clothing_items.brand (user data first).
-         *   3. Add brand_id FK column to clothing_items.
-         *   4. Populate brand_id by matching the backfilled names.
-         *   5. Seed common brands (INSERT OR IGNORE — backfilled rows are not overwritten).
-         *
-         * Note: The old `brand` TEXT column is kept in place. SQLite cannot drop columns before
-         * API 35, and a table recreation is not worth the risk here. The column is no longer
-         * written to by new code; reads go through the brand_id join.
-         */
-        private val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                // 1. Create brands table
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `brands` (" +
-                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                    "`name` TEXT NOT NULL)"
-                )
-                db.execSQL(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_brands_name` ON `brands` (`name`)"
-                )
-
-                // 2. Backfill brands from existing free-text data
-                db.execSQL(
-                    "INSERT OR IGNORE INTO brands (name) " +
-                    "SELECT DISTINCT brand FROM clothing_items " +
-                    "WHERE brand IS NOT NULL AND brand != ''"
-                )
-
-                // 3. Add brand_id FK column
-                db.execSQL("ALTER TABLE clothing_items ADD COLUMN brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_clothing_items_brand_id` ON `clothing_items` (`brand_id`)")
-
-                // 4. Populate brand_id from backfilled rows (exact string match; case differences are accepted)
-                db.execSQL(
-                    "UPDATE clothing_items " +
-                    "SET brand_id = (SELECT id FROM brands WHERE brands.name = clothing_items.brand) " +
-                    "WHERE brand IS NOT NULL AND brand != ''"
-                )
-
-                // 5. Seed common starter brands (user backfill takes priority via INSERT OR IGNORE above)
-                DatabaseSeeder.seedBrands(db)
-
-                // 6. Ensure the one-OOTD-per-day partial index exists on upgraded databases.
-                //    Fresh installs get this via the onCreate callback; migrations must add it explicitly.
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
-            }
-        }
-
-        /**
-         * Migration 2→3: enforce one wear-log per outfit per day.
-         * The unique index mirrors the OutfitLogEntity annotation added in the same change;
-         * the app-level check in LogRepository.wearOutfitToday is the primary guard,
-         * but the index acts as a hard safety net at the schema level.
-         * Note: SQLite treats NULL as distinct, so rows with outfit_id = NULL are unaffected.
-         */
-        private val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_outfit_logs_outfit_id_date` " +
-                    "ON `outfit_logs` (`outfit_id`, `date`)"
-                )
-            }
-        }
 
         /**
          * Returns a singleton instance of the database.
