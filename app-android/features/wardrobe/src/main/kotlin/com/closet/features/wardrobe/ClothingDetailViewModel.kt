@@ -4,13 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import androidx.palette.graphics.Palette
 import com.closet.core.data.model.*
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.AppError
-import com.closet.core.data.util.PaletteUtil
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
@@ -18,7 +16,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 
@@ -35,59 +32,51 @@ class ClothingDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val destination = savedStateHandle.toRoute<ClothingDetailDestination>()
+    /** The ID of the item being displayed, extracted from the navigation destination. */
     val itemId = destination.itemId
 
-    // Detailed item flow
     private val itemDetailFlow = clothingRepository.getItemDetail(itemId)
 
-    // Lookup data flows
-    val colors = lookupRepository.getColors().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val materials = lookupRepository.getMaterials().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val seasons = lookupRepository.getSeasons().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val occasions = lookupRepository.getOccasions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val patterns = lookupRepository.getPatterns().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val lookupFlow = combine(
+        lookupRepository.getColors(),
+        lookupRepository.getMaterials(),
+        lookupRepository.getSeasons(),
+        lookupRepository.getOccasions(),
+        lookupRepository.getPatterns()
+    ) { colors, materials, seasons, occasions, patterns ->
+        ClothingDetailLookup(colors, materials, seasons, occasions, patterns)
+    }
 
-    private val _uiState = MutableStateFlow<ClothingDetailUiState>(ClothingDetailUiState.Loading)
-    val uiState: StateFlow<ClothingDetailUiState> = _uiState.asStateFlow()
+    /** UI state combining item detail and all lookup lists for inline editing chips. */
+    val uiState: StateFlow<ClothingDetailUiState> = combine(
+        itemDetailFlow, lookupFlow
+    ) { detail, lookup ->
+        if (detail != null) {
+            ClothingDetailUiState.Success(
+                item = detail,
+                colors = lookup.colors,
+                materials = lookup.materials,
+                seasons = lookup.seasons,
+                occasions = lookup.occasions,
+                patterns = lookup.patterns
+            )
+        } else {
+            ClothingDetailUiState.Error(AppError.DatabaseError.NotFound().asUserMessage())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ClothingDetailUiState.Loading)
 
     private val _actionError = MutableSharedFlow<UserMessage>(
         replay = 0,
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+    /** One-shot error events emitted when a quick action (toggle, delete, update) fails. */
     val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
-    private val _palette = MutableStateFlow<Palette?>(null)
-    val palette: StateFlow<Palette?> = _palette.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            itemDetailFlow.collect { detail ->
-                if (detail != null) {
-                    _uiState.value = ClothingDetailUiState.Success(detail)
-                    extractPalette(detail.item.imagePath)
-                } else {
-                    _uiState.value = ClothingDetailUiState.Error(AppError.DatabaseError.NotFound().asUserMessage())
-                }
-            }
-        }
-    }
-
-    private fun extractPalette(imagePath: String?) {
-        if (imagePath == null) return
-        viewModelScope.launch {
-            try {
-                val file = storageRepository.getFile(imagePath)
-                _palette.value = PaletteUtil.extractPalette(file)
-            } catch (e: Throwable) {
-                Timber.e(e, "Failed to extract palette for image path: $imagePath")
-            }
-        }
-    }
-
+    /** Toggles the favorite status of the current item. */
     fun toggleFavorite() {
         viewModelScope.launch {
-            val currentState = _uiState.value
+            val currentState = uiState.value
             if (currentState is ClothingDetailUiState.Success) {
                 val newFavorite = currentState.item.item.isFavorite == 0
                 clothingRepository.updateFavoriteStatus(itemId, newFavorite).fold(
@@ -99,9 +88,10 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Toggles the wash status between [WashStatus.Clean] and [WashStatus.Dirty]. */
     fun toggleWashStatus() {
         viewModelScope.launch {
-            val currentState = _uiState.value
+            val currentState = uiState.value
             if (currentState is ClothingDetailUiState.Success) {
                 val newStatus = if (currentState.item.item.washStatus == WashStatus.Clean) {
                     WashStatus.Dirty
@@ -117,9 +107,13 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Deletes the item and its associated image file, then calls [onDeleted] on success.
+     * Emits [actionError] if the delete fails.
+     */
     fun deleteItem(onDeleted: () -> Unit) {
         viewModelScope.launch {
-            val currentState = _uiState.value
+            val currentState = uiState.value
             if (currentState is ClothingDetailUiState.Success) {
                 currentState.item.item.imagePath?.let { storageRepository.deleteImage(it) }
             }
@@ -134,6 +128,7 @@ class ClothingDetailViewModel @Inject constructor(
 
     // --- Junction Table Updates ---
 
+    /** Replaces the item's color associations with [colorIds] (delete-then-insert). */
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemColors(itemId, colorIds).fold(
@@ -144,6 +139,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's material associations with [materialIds] (delete-then-insert). */
     fun updateMaterials(materialIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemMaterials(itemId, materialIds).fold(
@@ -154,6 +150,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's season associations with [seasonIds] (delete-then-insert). */
     fun updateSeasons(seasonIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemSeasons(itemId, seasonIds).fold(
@@ -164,6 +161,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's occasion associations with [occasionIds] (delete-then-insert). */
     fun updateOccasions(occasionIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemOccasions(itemId, occasionIds).fold(
@@ -174,6 +172,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Replaces the item's pattern associations with [patternIds] (delete-then-insert). */
     fun updatePatterns(patternIds: List<Long>) {
         viewModelScope.launch {
             clothingRepository.updateItemPatterns(itemId, patternIds).fold(
@@ -184,9 +183,8 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
-    fun getAbsoluteFile(relativePath: String): File {
-        return storageRepository.getFile(relativePath)
-    }
+    /** Resolves a stored relative image [path] to a [File], or null if [path] is null. */
+    fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
 
     private fun handleActionError(throwable: Throwable) {
         val error = throwable as? AppError ?: AppError.Unexpected(throwable)
@@ -196,11 +194,26 @@ class ClothingDetailViewModel @Inject constructor(
     }
 }
 
+private data class ClothingDetailLookup(
+    val colors: List<ColorEntity>,
+    val materials: List<MaterialEntity>,
+    val seasons: List<SeasonEntity>,
+    val occasions: List<OccasionEntity>,
+    val patterns: List<PatternEntity>
+)
+
 /**
  * UI state for the Clothing Detail screen.
  */
 sealed interface ClothingDetailUiState {
     data object Loading : ClothingDetailUiState
-    data class Success(val item: ClothingItemDetail) : ClothingDetailUiState
+    data class Success(
+        val item: ClothingItemDetail,
+        val colors: List<ColorEntity> = emptyList(),
+        val materials: List<MaterialEntity> = emptyList(),
+        val seasons: List<SeasonEntity> = emptyList(),
+        val occasions: List<OccasionEntity> = emptyList(),
+        val patterns: List<PatternEntity> = emptyList()
+    ) : ClothingDetailUiState
     data class Error(val userMessage: UserMessage) : ClothingDetailUiState
 }

@@ -27,12 +27,19 @@ import java.time.Instant
             parentColumns = ["id"],
             childColumns = ["size_value_id"],
             onDelete = ForeignKey.SET_NULL
+        ),
+        ForeignKey(
+            entity = BrandEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["brand_id"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index(value = ["category_id"]),
         Index(value = ["subcategory_id"]),
-        Index(value = ["size_value_id"])
+        Index(value = ["size_value_id"]),
+        Index(value = ["brand_id"])
     ]
 )
 data class ClothingItemEntity(
@@ -40,7 +47,12 @@ data class ClothingItemEntity(
     val id: Long = 0,
     
     val name: String,
+
+    @Deprecated("Replaced by brandId FK. Do not write to this field. Retained for schema compatibility — SQLite cannot drop columns before API 35.")
     val brand: String? = null,
+
+    @ColumnInfo(name = "brand_id")
+    val brandId: Long? = null,
     
     @ColumnInfo(name = "category_id")
     val categoryId: Long? = null,
@@ -188,7 +200,10 @@ data class ClothingItemDetail(
             entityColumn = "pattern_id"
         )
     )
-    val patterns: List<PatternEntity>
+    val patterns: List<PatternEntity>,
+
+    @Relation(parentColumn = "brand_id", entityColumn = "id")
+    val brand: BrandEntity?
 ) {
     val costPerWear: Double?
         get() = if (wearCount > 0) (item.purchasePrice ?: 0.0) / wearCount else item.purchasePrice

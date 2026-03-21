@@ -5,9 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
-import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.closet.core.data.dao.*
+import com.closet.core.data.migrations.MIGRATION_1_2
+import com.closet.core.data.migrations.MIGRATION_2_3
+import com.closet.core.data.migrations.MIGRATION_3_4
+import com.closet.core.data.migrations.MIGRATION_4_5
 import com.closet.core.data.model.*
 
 /**
@@ -18,6 +21,7 @@ import com.closet.core.data.model.*
 @Database(
     entities = [
         ClothingItemEntity::class,
+        BrandEntity::class,
         CategoryEntity::class,
         SubcategoryEntity::class,
         SeasonEntity::class,
@@ -36,13 +40,15 @@ import com.closet.core.data.model.*
         ClothingItemOccasionEntity::class,
         ClothingItemPatternEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class ClothingDatabase : RoomDatabase() {
     /** @return [ClothingDao] for clothing item operations. */
     abstract fun clothingDao(): ClothingDao
+    /** @return [BrandDao] for brand management. */
+    abstract fun brandDao(): BrandDao
     /** @return [LookupDao] for lookup table queries. */
     abstract fun lookupDao(): LookupDao
     /** @return [OutfitDao] for outfit management. */
@@ -59,55 +65,6 @@ abstract class ClothingDatabase : RoomDatabase() {
         private var INSTANCE: ClothingDatabase? = null
 
         /**
-         * Migration from version 1 to 2: Add layout columns to outfit_items and populate colors.
-         * Note: Columns are checked before adding to avoid errors if they already exist in some v1 versions.
-         */
-        private val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                val cursor = db.query("PRAGMA table_info(outfit_items)")
-                val existingColumns = mutableSetOf<String>()
-                while (cursor.moveToNext()) {
-                    val nameIndex = cursor.getColumnIndex("name")
-                    if (nameIndex != -1) {
-                        existingColumns.add(cursor.getString(nameIndex))
-                    }
-                }
-                cursor.close()
-
-                if (!existingColumns.contains("pos_x")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_x REAL")
-                }
-                if (!existingColumns.contains("pos_y")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN pos_y REAL")
-                }
-                if (!existingColumns.contains("scale")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN scale REAL")
-                }
-                if (!existingColumns.contains("z_index")) {
-                    db.execSQL("ALTER TABLE outfit_items ADD COLUMN z_index INTEGER")
-                }
-
-                DatabaseSeeder.seedColors(db)
-            }
-        }
-
-        /**
-         * Migration 2→3: enforce one wear-log per outfit per day.
-         * The unique index mirrors the OutfitLogEntity annotation added in the same change;
-         * the app-level check in LogRepository.wearOutfitToday is the primary guard,
-         * but the index acts as a hard safety net at the schema level.
-         * Note: SQLite treats NULL as distinct, so rows with outfit_id = NULL are unaffected.
-         */
-        private val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_outfit_logs_outfit_id_date` " +
-                    "ON `outfit_logs` (`outfit_id`, `date`)"
-                )
-            }
-        }
-
-        /**
          * Returns a singleton instance of the database.
          * Initializes the database with seeding, unique indices, and triggers on first creation.
          */
@@ -118,7 +75,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                     ClothingDatabase::class.java,
                     DATABASE_NAME
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

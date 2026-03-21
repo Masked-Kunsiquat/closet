@@ -17,6 +17,17 @@ import kotlinx.coroutines.flow.stateIn
 import java.io.File
 import javax.inject.Inject
 
+/**
+ * UI state for the Wardrobe Picker screen.
+ *
+ * @property items Filtered clothing items visible in the list.
+ * @property categories All categories available as filter chips.
+ * @property seasons All seasons available as filter chips.
+ * @property selectedCategoryId Active category filter, or null for no filter.
+ * @property selectedSeasonId Active season filter, or null for no filter.
+ * @property selectedItemIds IDs of items the user has tapped to include in the outfit.
+ * @property isLoading True until the initial item list has loaded.
+ */
 data class WardrobePickerUiState(
     val items: List<ClothingItemDetail> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -27,6 +38,13 @@ data class WardrobePickerUiState(
     val isLoading: Boolean = true
 )
 
+/**
+ * ViewModel for the Wardrobe Picker screen.
+ *
+ * Applies optional category and season filters over the full wardrobe and tracks
+ * which items the user has selected. Selections survive filter changes because
+ * [selectedMembers] draws from the unfiltered item list.
+ */
 @HiltViewModel
 class WardrobePickerViewModel @Inject constructor(
     private val clothingRepository: ClothingRepository,
@@ -52,6 +70,7 @@ class WardrobePickerViewModel @Inject constructor(
 
     private val _filters = combine(_categoryFilter, _seasonFilter) { cat, season -> cat to season }
 
+    /** Filtered UI state combining items, lookups, active filters, and selection. */
     val uiState: StateFlow<WardrobePickerUiState> = combine(
         _allItems,
         lookupRepository.getCategories(),
@@ -94,19 +113,23 @@ class WardrobePickerViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    /** Sets the active category filter to [id], or clears it when [id] is null. */
     fun selectCategory(id: Long?) {
         _categoryFilter.value = id
     }
 
+    /** Sets the active season filter to [id], or clears it when [id] is null. */
     fun selectSeason(id: Long?) {
         _seasonFilter.value = id
     }
 
+    /** Adds the item with [id] to the selection if not present, or removes it if already selected. */
     fun toggleItem(id: Long) {
         _selectedItemIds.value = _selectedItemIds.value.toMutableSet().apply {
             if (contains(id)) remove(id) else add(id)
         }
     }
 
+    /** Resolves a stored relative image [path] to a [File], or null if [path] is null. */
     fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
 }

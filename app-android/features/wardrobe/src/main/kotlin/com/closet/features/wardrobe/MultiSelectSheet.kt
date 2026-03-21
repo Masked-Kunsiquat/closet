@@ -1,5 +1,6 @@
 package com.closet.features.wardrobe
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,13 +16,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
+import com.closet.core.ui.theme.ClosetTheme
 
 /**
  * Generic multi-select item for the bottom sheet.
  */
-data class MultiSelectItem<T>(
+data class MultiSelectItem<out T>(
     val id: Long,
     val label: String,
     val original: T,
@@ -142,3 +145,92 @@ private fun MultiSelectRow(
         }
     )
 }
+
+// region Previews
+
+private val previewColorItems = listOf(
+    MultiSelectItem(1L, "Black", Unit, colorHex = "#000000"),
+    MultiSelectItem(2L, "White", Unit, colorHex = "#FFFFFF"),
+    MultiSelectItem(3L, "Navy", Unit, colorHex = "#001F5B"),
+    MultiSelectItem(4L, "Red", Unit, colorHex = "#CC0000"),
+    MultiSelectItem(5L, "Olive", Unit, colorHex = "#708238"),
+)
+
+private val previewLabelItems = listOf(
+    MultiSelectItem(1L, "Spring", Unit),
+    MultiSelectItem(2L, "Summer", Unit),
+    MultiSelectItem(3L, "Fall", Unit),
+    MultiSelectItem(4L, "Winter", Unit),
+)
+
+@Composable
+private fun MultiSelectSheetContentPreview(
+    title: String,
+    items: List<MultiSelectItem<Unit>>,
+    selectedIds: Set<Long>
+) {
+    // Render the inner sheet content directly (ModalBottomSheet not renderable in preview)
+    Surface(color = MaterialTheme.colorScheme.surface) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                TextButton(onClick = {}) { Text("Save") }
+            }
+            HorizontalDivider()
+            items.forEach { item ->
+                MultiSelectRow(
+                    label = item.label,
+                    colorHex = item.colorHex,
+                    iconResId = item.iconResId,
+                    isSelected = item.id in selectedIds,
+                    onToggle = {}
+                )
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Color Picker - Light")
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Color Picker - Dark")
+@Composable
+private fun MultiSelectSheetColorsPreview() {
+    ClosetTheme {
+        MultiSelectSheetContentPreview(
+            title = "Colors",
+            items = previewColorItems,
+            selectedIds = setOf(1L, 3L)
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Label Picker - Partial Selection")
+@Composable
+private fun MultiSelectSheetLabelsPreview() {
+    ClosetTheme {
+        MultiSelectSheetContentPreview(
+            title = "Seasons",
+            items = previewLabelItems,
+            selectedIds = setOf(2L)
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Empty State")
+@Composable
+private fun MultiSelectSheetEmptyPreview() {
+    ClosetTheme {
+        MultiSelectSheetContentPreview(
+            title = "Materials",
+            items = emptyList(),
+            selectedIds = emptySet()
+        )
+    }
+}
+
+// endregion

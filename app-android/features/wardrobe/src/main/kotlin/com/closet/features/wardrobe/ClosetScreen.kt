@@ -204,13 +204,14 @@ private fun ClosetScreenPreview() {
                         item = ClothingItemEntity(
                             id = 1,
                             name = "Vintage Denim Jacket",
-                            brand = "Levi's",
+                            brandId = 1,
                             categoryId = 1,
                             status = ClothingStatus.Active,
                             isFavorite = 1,
                             washStatus = WashStatus.Clean
                         ),
                         wearCount = 12,
+                        brand = com.closet.core.data.model.BrandEntity(id = 1, name = "Levi's"),
                         category = CategoryEntity(id = 1, name = "Outerwear", sortOrder = 3),
                         subcategory = null,
                         sizeValue = null,

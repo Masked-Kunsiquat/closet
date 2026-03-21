@@ -12,6 +12,15 @@ import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.wardrobePickerScreen
 import com.closet.features.outfits.OutfitsRoute
 
+/**
+ * Root [NavHost] for the app, wiring all feature destinations into a single navigation graph.
+ *
+ * Start destination is [ClosetDestination] (the main closet screen). Wardrobe routes are
+ * registered inline; outfits routes are registered via feature-module extension functions.
+ *
+ * @param modifier Modifier applied to the [NavHost].
+ * @param navController The [NavHostController] managing back-stack state.
+ */
 @Composable
 fun ClosetNavGraph(
     modifier: Modifier = Modifier,
@@ -44,13 +53,21 @@ fun ClosetNavGraph(
 
         composable<AddClothingDestination> {
             ClothingFormScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onManageBrands = { navController.navigate(BrandManagementDestination) }
             )
         }
 
         composable<EditClothingDestination> {
             ClothingFormScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onManageBrands = { navController.navigate(BrandManagementDestination) }
+            )
+        }
+
+        composable<BrandManagementDestination> {
+            BrandManagementScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 
