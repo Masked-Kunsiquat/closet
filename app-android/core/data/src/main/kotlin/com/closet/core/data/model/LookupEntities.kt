@@ -14,7 +14,7 @@ import androidx.room.PrimaryKey
 data class BrandEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    @ColumnInfo(name = "normalized_name") val normalizedName: String
+    @ColumnInfo(name = "normalized_name") val normalizedName: String = name.lowercase()
 )
 
 /** Top-level clothing category (e.g. Tops, Bottoms). Seeded with a Phosphor icon name and display order. */
