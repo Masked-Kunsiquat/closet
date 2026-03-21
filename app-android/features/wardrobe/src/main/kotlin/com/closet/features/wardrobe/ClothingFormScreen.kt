@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.closet.core.ui.components.ResErrorSnackbarEffect
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ColorEntity
@@ -85,13 +86,7 @@ fun ClothingFormScreen(
         }
     }
 
-    uiState.errorMessage?.let { messageRes ->
-        val message = stringResource(messageRes)
-        LaunchedEffect(messageRes) {
-            snackbarHostState.showSnackbar(message)
-            viewModel.onErrorConsumed()
-        }
-    }
+    ResErrorSnackbarEffect(uiState.errorMessage, snackbarHostState, viewModel::onErrorConsumed)
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),

@@ -5,6 +5,17 @@ import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
 
 /**
+ * Correlated subquery that counts distinct outfit log entries for a clothing item.
+ * Requires the `ci` alias to be in scope (clothing_items). Alias `wear_count` is included.
+ */
+private const val WEAR_COUNT_SUBQUERY = """(
+        SELECT COUNT(DISTINCT ol.id)
+        FROM outfit_logs ol
+        JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
+        WHERE oi.clothing_item_id = ci.id
+    ) AS wear_count"""
+
+/**
  * Data Access Object for clothing items and their associated metadata.
  * Provides methods for querying, inserting, updating, and deleting items.
  * Parity: This is the native equivalent of queries.ts from the Expo project.
@@ -22,12 +33,7 @@ interface ClothingDao {
             ci.id, ci.name, b.name AS brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
-            (
-                SELECT COUNT(DISTINCT ol.id)
-                FROM outfit_logs ol
-                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-                WHERE oi.clothing_item_id = ci.id
-            ) AS wear_count
+            """ + WEAR_COUNT_SUBQUERY + """
         FROM clothing_items ci
         LEFT JOIN categories    c  ON ci.category_id    = c.id
         LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
@@ -46,12 +52,7 @@ interface ClothingDao {
             ci.id, ci.name, b.name AS brand, ci.image_path, ci.purchase_price, ci.status, ci.is_favorite, ci.wash_status,
             c.name  AS category_name,
             sc.name AS subcategory_name,
-            (
-                SELECT COUNT(DISTINCT ol.id)
-                FROM outfit_logs ol
-                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-                WHERE oi.clothing_item_id = ci.id
-            ) AS wear_count
+            """ + WEAR_COUNT_SUBQUERY + """
         FROM clothing_items ci
         LEFT JOIN categories    c  ON ci.category_id    = c.id
         LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
@@ -65,14 +66,7 @@ interface ClothingDao {
      * @return A [Flow] emitting a list of [ClothingItemDetail].
      */
     @Transaction
-    @Query("""
-        SELECT ci.*,
-            (
-                SELECT COUNT(DISTINCT ol.id)
-                FROM outfit_logs ol
-                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-                WHERE oi.clothing_item_id = ci.id
-            ) AS wear_count
+    @Query("SELECT ci.*, " + WEAR_COUNT_SUBQUERY + """
         FROM clothing_items ci
         ORDER BY ci.created_at DESC
     """)
@@ -84,14 +78,7 @@ interface ClothingDao {
      * @return A [Flow] emitting the [ClothingItemDetail] if found.
      */
     @Transaction
-    @Query("""
-        SELECT ci.*,
-            (
-                SELECT COUNT(DISTINCT ol.id)
-                FROM outfit_logs ol
-                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-                WHERE oi.clothing_item_id = ci.id
-            ) AS wear_count
+    @Query("SELECT ci.*, " + WEAR_COUNT_SUBQUERY + """
         FROM clothing_items ci
         WHERE ci.id = :id
     """)

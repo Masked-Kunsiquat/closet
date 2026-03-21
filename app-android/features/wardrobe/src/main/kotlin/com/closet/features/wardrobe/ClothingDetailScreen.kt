@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -26,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.model.*
 import com.closet.core.ui.R as CoreR
+import com.closet.core.ui.components.UserMessageSnackbarEffect
 import com.closet.core.ui.util.IconMapper
 
 private enum class AttributePicker { SEASONS, OCCASIONS, COLORS, MATERIALS, PATTERNS }
@@ -41,17 +41,7 @@ fun ClothingDetailScreen(
 
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        viewModel.actionError.collect { message ->
-            val text = if (message.args.isEmpty()) {
-                context.getString(message.resId)
-            } else {
-                context.getString(message.resId, *message.args)
-            }
-            snackbarHostState.showSnackbar(text)
-        }
-    }
+    UserMessageSnackbarEffect(viewModel.actionError, snackbarHostState)
 
     var activePicker by remember { mutableStateOf<AttributePicker?>(null) }
 
@@ -117,7 +107,7 @@ fun ClothingDetailScreen(
                     ) {
                         detail.item.imagePath?.let { path ->
                             AsyncImage(
-                                model = viewModel.getAbsoluteFile(path),
+                                model = viewModel.resolveImagePath(path),
                                 contentDescription = detail.item.name,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Fit

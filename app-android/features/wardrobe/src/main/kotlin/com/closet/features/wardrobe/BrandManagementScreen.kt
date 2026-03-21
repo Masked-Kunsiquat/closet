@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.BrandEntity
+import com.closet.core.ui.components.StringErrorSnackbarEffect
 import com.closet.core.ui.theme.ClosetTheme
 
 @Composable
@@ -51,13 +52,7 @@ internal fun BrandManagementContent(
     val snackbarHostState = remember { SnackbarHostState() }
     var editorState by remember { mutableStateOf<BrandEditorState>(BrandEditorState.Idle) }
 
-    val errorMessage = uiState.errorMessage
-    LaunchedEffect(errorMessage) {
-        if (errorMessage != null) {
-            snackbarHostState.showSnackbar(errorMessage)
-            onErrorConsumed()
-        }
-    }
+    StringErrorSnackbarEffect(uiState.errorMessage, snackbarHostState, onErrorConsumed)
 
     // Close the active row only when a pending save completes successfully.
     // On error the row stays open so the user can correct the input.

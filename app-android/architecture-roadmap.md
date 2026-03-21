@@ -37,9 +37,9 @@ Findings from codebase audit. Items ordered by priority.
 
 ## Phase 3 — Shared Utilities (Short-term)
 
-- [ ] Create a shared `ErrorSnackbar` / error-handling composable in `core/ui/components/` — currently duplicated across 4 screens
-- [ ] Extract `wear_count` SQL subquery in `ClothingDao.kt` to a named Kotlin constant — currently copy-pasted in `getAllClothingItems` and `getClothingItemById`
-- [ ] Confirm `resolveImagePath` usage is consistent across `ClosetScreen`, `ClothingDetailScreen`, `WardrobePickerScreen` — extract to a shared util in `core/ui/` if not already
+- [x] Create a shared `ErrorSnackbar` / error-handling composable in `core/ui/components/` — currently duplicated across 4 screens
+- [x] Extract `wear_count` SQL subquery in `ClothingDao.kt` to a named Kotlin constant — currently copy-pasted in `getAllClothingItems` and `getClothingItemById`
+- [x] Confirm `resolveImagePath` usage is consistent across `ClosetScreen`, `ClothingDetailScreen`, `WardrobePickerScreen` — extract to a shared util in `core/ui/` if not already
 
 ---
 

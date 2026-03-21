@@ -195,9 +195,7 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
-    fun getAbsoluteFile(relativePath: String): File {
-        return storageRepository.getFile(relativePath)
-    }
+    fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
 
     private fun handleActionError(throwable: Throwable) {
         val error = throwable as? AppError ?: AppError.Unexpected(throwable)
