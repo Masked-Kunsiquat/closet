@@ -80,19 +80,17 @@ abstract class ClothingDatabase : RoomDatabase() {
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
-                        // Seed data on first creation
                         DatabaseSeeder.seedAll(db)
-                        
-                        // Enforce one-OOTD-per-day via partial unique index
-                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
-                        
                         createCategoryConsistencyTriggers(db)
                     }
 
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)
-                        // Parity: PRAGMA foreign_keys = ON at DB open time, always
                         db.execSQL("PRAGMA foreign_keys = ON")
+                        // Partial index — Room cannot represent this in entity annotations so it is
+                        // created here (runs for every open) rather than in onCreate. Migration 5→6
+                        // drops any pre-existing copy so Room's post-migration validation passes clean.
+                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
                     }
                 })
                 .build()
