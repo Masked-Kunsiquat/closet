@@ -62,7 +62,6 @@ data class ClothingFormUiState(
     val canSave: Boolean = false,
     val isDirty: Boolean = false
 ) {
-    val formattedDate: String? = purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
 }
 
 private data class FormState(
@@ -138,7 +137,7 @@ class ClothingFormViewModel @Inject constructor(
 
     val uiState: StateFlow<ClothingFormUiState> = combine(
         _form, categories, subcategories, allColors, allBrands
-    ) { form, cats, subcats, colors, brands ->
+    ) { form, cats, subs, colors, brands ->
         ClothingFormUiState(
             isEditMode = isEditMode,
             name = form.name,
@@ -159,7 +158,7 @@ class ClothingFormViewModel @Inject constructor(
             isLoading = form.isLoading,
             errorMessage = form.errorMessage,
             categories = cats,
-            subcategories = subcats,
+            subcategories = subs,
             allColors = colors,
             canSave = form.name.isNotBlank() && !form.isSaving &&
                     !(form.brandQuery.isNotBlank() && form.selectedBrandId == null),
@@ -279,7 +278,7 @@ class ClothingFormViewModel @Inject constructor(
             when (val result = brandRepository.insertBrand(nameNormalized)) {
                 is DataResult.Success -> onBrandSelect(BrandEntity(id = result.data, name = nameNormalized))
                 is DataResult.Error -> _form.update { it.copy(
-                    errorMessage = when (result.error) {
+                    errorMessage = when (result.throwable) {
                         is AppError.DatabaseError.ConstraintViolation -> R.string.wardrobe_error_brand_duplicate
                         else -> R.string.wardrobe_error_brand_save_failed
                     }
@@ -368,13 +367,6 @@ class ClothingFormViewModel @Inject constructor(
                 current.selectedColors + color
             }
             current.copy(selectedColors = updated)
-        }
-    }
-
-    fun updateColors(colorIds: List<Long>) {
-        viewModelScope.launch {
-            val colors = lookupRepository.getColors().first()
-            _form.update { it.copy(selectedColors = colors.filter { c -> c.id in colorIds }) }
         }
     }
 

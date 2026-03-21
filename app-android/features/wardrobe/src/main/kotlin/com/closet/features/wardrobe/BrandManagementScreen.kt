@@ -220,7 +220,7 @@ internal fun BrandManagementContent(
 
 // --- Previews ---
 
-private val previewBrands = listOf(
+private val previewBrandsList = listOf(
     BrandEntity(id = 1, name = "Nike"),
     BrandEntity(id = 2, name = "Adidas"),
     BrandEntity(id = 3, name = "Levi's"),
@@ -235,7 +235,7 @@ private fun BrandManagementContentPreview() {
     ClosetTheme {
         Surface {
             BrandManagementContent(
-                uiState = BrandManagementUiState(brands = previewBrands),
+                uiState = BrandManagementUiState(brands = previewBrandsList),
                 onBack = {},
                 onSaveBrand = { _, _ -> },
                 onRequestDelete = {},
@@ -272,8 +272,8 @@ private fun BrandManagementConfirmDeletePreview() {
         Surface {
             BrandManagementContent(
                 uiState = BrandManagementUiState(
-                    brands = previewBrands,
-                    dialog = BrandManagementDialog.ConfirmDelete(previewBrands[0])
+                    brands = previewBrandsList,
+                    dialog = BrandManagementDialog.ConfirmDelete(previewBrandsList[0])
                 ),
                 onBack = {},
                 onSaveBrand = { _, _ -> },
@@ -293,8 +293,8 @@ private fun BrandManagementBlockedDeletePreview() {
         Surface {
             BrandManagementContent(
                 uiState = BrandManagementUiState(
-                    brands = previewBrands,
-                    dialog = BrandManagementDialog.BlockedDelete(previewBrands[1], itemCount = 7)
+                    brands = previewBrandsList,
+                    dialog = BrandManagementDialog.BlockedDelete(previewBrandsList[1], itemCount = 7)
                 ),
                 onBack = {},
                 onSaveBrand = { _, _ -> },

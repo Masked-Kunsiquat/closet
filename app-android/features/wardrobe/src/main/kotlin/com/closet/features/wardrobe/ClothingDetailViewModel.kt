@@ -4,13 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import androidx.palette.graphics.Palette
 import com.closet.core.data.model.*
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.AppError
-import com.closet.core.data.util.PaletteUtil
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
@@ -18,7 +16,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 
@@ -73,32 +70,9 @@ class ClothingDetailViewModel @Inject constructor(
     )
     val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
-    private val _palette = MutableStateFlow<Palette?>(null)
-    val palette: StateFlow<Palette?> = _palette.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            itemDetailFlow.collect { detail ->
-                extractPalette(detail?.item?.imagePath)
-            }
-        }
-    }
-
-    private fun extractPalette(imagePath: String?) {
-        if (imagePath == null) return
-        viewModelScope.launch {
-            try {
-                val file = storageRepository.getFile(imagePath)
-                _palette.value = PaletteUtil.extractPalette(file)
-            } catch (e: Throwable) {
-                Timber.e(e, "Failed to extract palette for image path: $imagePath")
-            }
-        }
-    }
-
     fun toggleFavorite() {
         viewModelScope.launch {
-            val currentState = _uiState.value
+            val currentState = uiState.value
             if (currentState is ClothingDetailUiState.Success) {
                 val newFavorite = currentState.item.item.isFavorite == 0
                 clothingRepository.updateFavoriteStatus(itemId, newFavorite).fold(
@@ -112,7 +86,7 @@ class ClothingDetailViewModel @Inject constructor(
 
     fun toggleWashStatus() {
         viewModelScope.launch {
-            val currentState = _uiState.value
+            val currentState = uiState.value
             if (currentState is ClothingDetailUiState.Success) {
                 val newStatus = if (currentState.item.item.washStatus == WashStatus.Clean) {
                     WashStatus.Dirty
@@ -130,7 +104,7 @@ class ClothingDetailViewModel @Inject constructor(
 
     fun deleteItem(onDeleted: () -> Unit) {
         viewModelScope.launch {
-            val currentState = _uiState.value
+            val currentState = uiState.value
             if (currentState is ClothingDetailUiState.Success) {
                 currentState.item.item.imagePath?.let { storageRepository.deleteImage(it) }
             }

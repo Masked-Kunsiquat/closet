@@ -24,7 +24,7 @@ import com.closet.core.ui.theme.ClosetTheme
 /**
  * Generic multi-select item for the bottom sheet.
  */
-data class MultiSelectItem<T>(
+data class MultiSelectItem<out T>(
     val id: Long,
     val label: String,
     val original: T,

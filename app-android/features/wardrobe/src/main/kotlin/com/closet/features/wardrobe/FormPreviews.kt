@@ -188,7 +188,7 @@ private fun DropdownSelectorSubcategoryPreview() {
                 )
                 DropdownSelector(
                     selectedItem = null,
-                    items = emptyList(),
+                    items = emptyList<SubcategoryEntity>(),
                     onItemSelect = {},
                     label = "Subcategory",
                     itemLabel = { it.name },
