@@ -10,18 +10,27 @@ import com.closet.core.data.model.WeatherCondition
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.AppError
+import com.closet.core.ui.util.UserMessage
+import com.closet.core.ui.util.asUserMessage
 import java.time.Instant
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.io.File
 import java.time.LocalDate
 import java.time.YearMonth
@@ -65,6 +74,14 @@ class JournalViewModel @Inject constructor(
     private val _selectedDate = MutableStateFlow<String?>(null)
     private val _showOutfitPicker = MutableStateFlow(false)
     private val _editingLog = MutableStateFlow<OutfitLogWithMeta?>(null)
+
+    private val _actionError = MutableSharedFlow<UserMessage>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    /** One-shot error events emitted when a quick action (toggleOotd, deleteLog) fails. */
+    val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
     // Switches to the new month's flow whenever _currentYearMonth changes.
     private val calendarDays = _currentYearMonth
@@ -138,16 +155,30 @@ class JournalViewModel @Inject constructor(
      */
     fun toggleOotd(logId: Long, currentIsOotd: Boolean) {
         viewModelScope.launch {
-            val date = _selectedDate.value ?: return@launch
-            if (currentIsOotd) logRepository.clearOotd(date)
-            else logRepository.setOotd(logId, date)
+            try {
+                val date = _selectedDate.value ?: return@launch
+                if (currentIsOotd) logRepository.clearOotd(date)
+                else logRepository.setOotd(logId, date)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to toggle OOTD for log $logId")
+                handleActionError(e)
+            }
         }
     }
 
     /** Deletes a log entry by ID. */
     fun deleteLog(logId: Long) {
         viewModelScope.launch {
-            logRepository.deleteLog(logId)
+            try {
+                logRepository.deleteLog(logId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to delete log $logId")
+                handleActionError(e)
+            }
         }
     }
 
@@ -174,9 +205,19 @@ class JournalViewModel @Inject constructor(
     /**
      * Saves edits to the current [editingLog]. Preserves all fields not exposed by the editor
      * (outfitId, date, isOotd, createdAt) so only notes and weatherCondition change.
+     *
+     * Parses [OutfitLogWithMeta.createdAt] before launching the coroutine so a malformed
+     * timestamp aborts early without touching the repository or clearing [_editingLog].
      */
     fun saveLogEdit(notes: String?, weatherCondition: WeatherCondition?) {
         val log = _editingLog.value ?: return
+        val createdAt = try {
+            Instant.parse(log.createdAt)
+        } catch (e: Exception) {
+            Timber.e(e, "saveLogEdit: unparseable createdAt '${log.createdAt}' for log ${log.id}")
+            handleActionError(e)
+            return
+        }
         viewModelScope.launch {
             logRepository.updateLog(
                 OutfitLogEntity(
@@ -186,7 +227,7 @@ class JournalViewModel @Inject constructor(
                     isOotd = log.isOotd,
                     notes = notes?.trim()?.ifEmpty { null },
                     weatherCondition = weatherCondition,
-                    createdAt = Instant.parse(log.createdAt),
+                    createdAt = createdAt,
                 )
             )
             _editingLog.value = null
@@ -207,4 +248,11 @@ class JournalViewModel @Inject constructor(
 
     /** Resolves a relative image path to an absolute [File] for Coil. */
     fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
+
+    private fun handleActionError(throwable: Throwable) {
+        val error = throwable as? AppError ?: AppError.Unexpected(throwable)
+        viewModelScope.launch {
+            _actionError.emit(error.asUserMessage())
+        }
+    }
 }

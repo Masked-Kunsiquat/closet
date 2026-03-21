@@ -25,7 +25,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import com.closet.core.ui.components.UserMessageSnackbarEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,9 +74,12 @@ fun JournalScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val outfits by viewModel.outfits.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    UserMessageSnackbarEffect(viewModel.actionError, snackbarHostState)
     JournalContent(
         uiState = uiState,
         outfits = outfits,
+        snackbarHostState = snackbarHostState,
         onPreviousMonth = viewModel::previousMonth,
         onNextMonth = viewModel::nextMonth,
         onDayClick = viewModel::selectDate,
@@ -98,6 +104,7 @@ fun JournalScreen(
 internal fun JournalContent(
     uiState: JournalUiState,
     outfits: List<OutfitWithItems>,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onDayClick: (String) -> Unit,
@@ -120,6 +127,7 @@ internal fun JournalContent(
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.journal_title)) }
