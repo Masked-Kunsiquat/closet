@@ -31,7 +31,7 @@ Findings from codebase audit. Items ordered by priority.
 - [x] Audit `loadItemForEditing` — it uses `.first()` blocking calls; replace with structured `collectLatest` or proper error handling
 
 ### `ClothingDetailViewModel.kt`
-- [ ] Combine the 6 separate `StateFlow`s (categories, seasons, occasions, etc.) into a single `UiState` `StateFlow` to eliminate synchronization risk
+- [x] Combine the 6 separate `StateFlow`s (categories, seasons, occasions, etc.) into a single `UiState` `StateFlow` to eliminate synchronization risk
 
 ---
 

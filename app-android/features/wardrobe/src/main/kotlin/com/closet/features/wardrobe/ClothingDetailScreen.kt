@@ -38,11 +38,6 @@ fun ClothingDetailScreen(
     viewModel: ClothingDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val allSeasons by viewModel.seasons.collectAsStateWithLifecycle()
-    val allOccasions by viewModel.occasions.collectAsStateWithLifecycle()
-    val allColors by viewModel.colors.collectAsStateWithLifecycle()
-    val allMaterials by viewModel.materials.collectAsStateWithLifecycle()
-    val allPatterns by viewModel.patterns.collectAsStateWithLifecycle()
 
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -309,7 +304,8 @@ fun ClothingDetailScreen(
 
     // Attribute picker sheet — driven by activePicker state
     activePicker?.let { picker ->
-        val successItem = (uiState as? ClothingDetailUiState.Success)?.item
+        val successState = uiState as? ClothingDetailUiState.Success
+        val successItem = successState?.item
         val title = stringResource(when (picker) {
             AttributePicker.SEASONS   -> R.string.wardrobe_seasons
             AttributePicker.OCCASIONS -> R.string.wardrobe_occasions
@@ -318,11 +314,11 @@ fun ClothingDetailScreen(
             AttributePicker.PATTERNS  -> R.string.wardrobe_patterns
         })
         val items = when (picker) {
-            AttributePicker.SEASONS   -> allSeasons.map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
-            AttributePicker.OCCASIONS -> allOccasions.map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
-            AttributePicker.COLORS    -> allColors.map { MultiSelectItem(it.id, it.name, it, colorHex = it.hex) }
-            AttributePicker.MATERIALS -> allMaterials.map { MultiSelectItem(it.id, it.name, it) }
-            AttributePicker.PATTERNS  -> allPatterns.map { MultiSelectItem(it.id, it.name, it) }
+            AttributePicker.SEASONS   -> successState?.seasons.orEmpty().map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
+            AttributePicker.OCCASIONS -> successState?.occasions.orEmpty().map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
+            AttributePicker.COLORS    -> successState?.colors.orEmpty().map { MultiSelectItem(it.id, it.name, it, colorHex = it.hex) }
+            AttributePicker.MATERIALS -> successState?.materials.orEmpty().map { MultiSelectItem(it.id, it.name, it) }
+            AttributePicker.PATTERNS  -> successState?.patterns.orEmpty().map { MultiSelectItem(it.id, it.name, it) }
         }
         val selectedIds = when (picker) {
             AttributePicker.SEASONS   -> successItem?.seasons?.map { it.id }?.toSet()

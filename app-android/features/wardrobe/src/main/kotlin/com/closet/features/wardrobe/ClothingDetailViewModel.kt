@@ -37,18 +37,34 @@ class ClothingDetailViewModel @Inject constructor(
     private val destination = savedStateHandle.toRoute<ClothingDetailDestination>()
     val itemId = destination.itemId
 
-    // Detailed item flow
     private val itemDetailFlow = clothingRepository.getItemDetail(itemId)
 
-    // Lookup data flows
-    val colors = lookupRepository.getColors().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val materials = lookupRepository.getMaterials().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val seasons = lookupRepository.getSeasons().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val occasions = lookupRepository.getOccasions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    val patterns = lookupRepository.getPatterns().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val lookupFlow = combine(
+        lookupRepository.getColors(),
+        lookupRepository.getMaterials(),
+        lookupRepository.getSeasons(),
+        lookupRepository.getOccasions(),
+        lookupRepository.getPatterns()
+    ) { colors, materials, seasons, occasions, patterns ->
+        ClothingDetailLookup(colors, materials, seasons, occasions, patterns)
+    }
 
-    private val _uiState = MutableStateFlow<ClothingDetailUiState>(ClothingDetailUiState.Loading)
-    val uiState: StateFlow<ClothingDetailUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<ClothingDetailUiState> = combine(
+        itemDetailFlow, lookupFlow
+    ) { detail, lookup ->
+        if (detail != null) {
+            ClothingDetailUiState.Success(
+                item = detail,
+                colors = lookup.colors,
+                materials = lookup.materials,
+                seasons = lookup.seasons,
+                occasions = lookup.occasions,
+                patterns = lookup.patterns
+            )
+        } else {
+            ClothingDetailUiState.Error(AppError.DatabaseError.NotFound().asUserMessage())
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ClothingDetailUiState.Loading)
 
     private val _actionError = MutableSharedFlow<UserMessage>(
         replay = 0,
@@ -63,12 +79,7 @@ class ClothingDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             itemDetailFlow.collect { detail ->
-                if (detail != null) {
-                    _uiState.value = ClothingDetailUiState.Success(detail)
-                    extractPalette(detail.item.imagePath)
-                } else {
-                    _uiState.value = ClothingDetailUiState.Error(AppError.DatabaseError.NotFound().asUserMessage())
-                }
+                extractPalette(detail?.item?.imagePath)
             }
         }
     }
@@ -196,11 +207,26 @@ class ClothingDetailViewModel @Inject constructor(
     }
 }
 
+private data class ClothingDetailLookup(
+    val colors: List<ColorEntity>,
+    val materials: List<MaterialEntity>,
+    val seasons: List<SeasonEntity>,
+    val occasions: List<OccasionEntity>,
+    val patterns: List<PatternEntity>
+)
+
 /**
  * UI state for the Clothing Detail screen.
  */
 sealed interface ClothingDetailUiState {
     data object Loading : ClothingDetailUiState
-    data class Success(val item: ClothingItemDetail) : ClothingDetailUiState
+    data class Success(
+        val item: ClothingItemDetail,
+        val colors: List<ColorEntity> = emptyList(),
+        val materials: List<MaterialEntity> = emptyList(),
+        val seasons: List<SeasonEntity> = emptyList(),
+        val occasions: List<OccasionEntity> = emptyList(),
+        val patterns: List<PatternEntity> = emptyList()
+    ) : ClothingDetailUiState
     data class Error(val userMessage: UserMessage) : ClothingDetailUiState
 }
