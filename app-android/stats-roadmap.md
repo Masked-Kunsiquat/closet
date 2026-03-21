@@ -8,7 +8,7 @@
 | `StatsRepository` | ✅ Thin wrapper, `@Singleton`, injected via Hilt — all 7 queries exposed |
 | Feature module | ✅ `features/stats/` — build.gradle.kts, StatsNavigation.kt, placeholder StatsScreen.kt |
 | ViewModel | ✅ `StatsViewModel` — `StatPeriod` enum, `StatsUiState`, `flatMapLatest` on period |
-| Screen / nav entry | ✅ `StatsRoute` registered in `ClosetNavGraph` |
+| Screen / nav entry | ✅ `StatsRoute` registered in `ClosetNavGraph`; full Phase 4 layout |
 | Bottom bar tab | ✅ Bottom nav bar added (Closet / Outfits / Stats) |
 
 ---
@@ -60,20 +60,18 @@ period-independent and folded in by the outer `combine`.
 
 ---
 
-## Phase 4 — Screen layout
+## Phase 4 — Screen layout ✅
 
-Single `verticalScroll` column with distinct sections (no nested lazy lists —
-wear history is bounded in practice and the screen already scrolls).
+`StatsScreen.kt` (thin shell) + `StatsComponents.kt` (all section composables).
+Single `verticalScroll` Column inside a `Scaffold` with `CenterAlignedTopAppBar`.
 
-1. **Period selector** — chip row: All time / 30 days / 90 days / This year
-2. **Headline cards** — 3-up grid: total items · worn % · total wardrobe value
-3. **Most worn** — horizontal lazy row of item thumbnails with wear count badge;
-   taps navigate to item detail
-4. **Cost per wear** — ranked list: item thumbnail + name + formatted
-   cost-per-wear; null purchase price shown as `—`
-5. **Total logs** — single stat callout: "You've logged N outfits"
-6. **Wear by category** — ranked label + count list (or simple bar chart)
-7. **Never worn** — collapsible section; taps navigate to item detail
+1. **Period selector** ✅ — horizontally scrollable `FilterChip` row
+2. **Headline cards** ✅ — 3-up `ElevatedCard` row: items · worn % · total value
+3. **Most worn** ✅ — `LazyRow` of 88dp thumbnails with wear-count badge overlay; taps → item detail
+4. **Cost per wear** ✅ — ranked `Column` rows: thumbnail + name + `getCurrencyInstance()` / wear; hidden when empty
+5. **Total logs** ✅ — `ElevatedCard` callout with plural string
+6. **Wear by category** ✅ — `LinearProgressIndicator` bar chart per category; hidden when empty
+7. **Never worn** ✅ — collapsible section with `AnimatedVisibility`; taps → item detail
 
 ---
 

@@ -1,4 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Screen title -->
     <string name="stats_title">Stats</string>
+
+    <!-- Period selector chips -->
+    <string name="stats_period_all_time">All time</string>
+    <string name="stats_period_30_days">30 days</string>
+    <string name="stats_period_90_days">90 days</string>
+    <string name="stats_period_this_year">This year</string>
+
+    <!-- Headline cards -->
+    <string name="stats_headline_items">Items</string>
+    <string name="stats_headline_worn">Worn</string>
+    <string name="stats_headline_value">Value</string>
+
+    <!-- Section headers -->
+    <string name="stats_section_most_worn">Most Worn</string>
+    <string name="stats_section_cost_per_wear">Cost Per Wear</string>
+    <string name="stats_section_wear_by_category">Wear by Category</string>
+    <string name="stats_section_never_worn">Never Worn</string>
+
+    <!-- Never worn collapsible -->
+    <string name="stats_never_worn_expand">Expand never worn section</string>
+    <string name="stats_never_worn_collapse">Collapse never worn section</string>
+    <string name="stats_never_worn_empty">Every item has been worn at least once</string>
+
+    <!-- Cost per wear suffix -->
+    <string name="stats_cost_per_wear_suffix">/ wear</string>
+
+    <!-- Plurals -->
+    <plurals name="stats_total_logs">
+        <item quantity="one">You\'ve logged 1 outfit</item>
+        <item quantity="other">You\'ve logged %d outfits</item>
+    </plurals>
+    <plurals name="stats_wear_badge">
+        <item quantity="one">1 wear</item>
+        <item quantity="other">%d wears</item>
+    </plurals>
 </resources>
