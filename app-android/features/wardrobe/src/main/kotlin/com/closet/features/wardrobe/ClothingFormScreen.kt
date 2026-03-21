@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Palette
@@ -89,6 +90,7 @@ import java.time.ZoneId
 @Composable
 fun ClothingFormScreen(
     onBackClick: () -> Unit,
+    onManageBrands: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ClothingFormViewModel = hiltViewModel()
 ) {
@@ -173,6 +175,7 @@ fun ClothingFormScreen(
                 onBrandQueryChange = viewModel::onBrandQueryChange,
                 onBrandSelect = viewModel::onBrandSelect,
                 onAddNewBrand = viewModel::onAddNewBrand,
+                onManageBrands = onManageBrands,
                 onCategorySelect = viewModel::selectCategory,
                 onSubcategorySelect = viewModel::selectSubcategory,
                 onPriceChange = viewModel::updatePrice,
@@ -233,6 +236,7 @@ private fun ClothingFormContent(
     onBrandQueryChange: (String) -> Unit,
     onBrandSelect: (BrandEntity) -> Unit,
     onAddNewBrand: (String) -> Unit,
+    onManageBrands: () -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,
     onPriceChange: (String) -> Unit,
@@ -299,13 +303,27 @@ private fun ClothingFormContent(
         }
 
         item {
-            BrandAutocompleteField(
-                query = uiState.brandQuery,
-                allBrands = uiState.allBrands,
-                onQueryChange = onBrandQueryChange,
-                onBrandSelect = onBrandSelect,
-                onAddNewBrand = onAddNewBrand
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    BrandAutocompleteField(
+                        query = uiState.brandQuery,
+                        allBrands = uiState.allBrands,
+                        onQueryChange = onBrandQueryChange,
+                        onBrandSelect = onBrandSelect,
+                        onAddNewBrand = onAddNewBrand
+                    )
+                }
+                IconButton(onClick = onManageBrands) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = stringResource(R.string.brand_management_manage_brands),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
 
         // Category & Subcategory

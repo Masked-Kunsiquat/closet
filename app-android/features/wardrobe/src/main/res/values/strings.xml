@@ -73,4 +73,33 @@
     <string name="wardrobe_date_confirm">OK</string>
     <string name="wardrobe_date_cancel">Cancel</string>
     <string name="wardrobe_date_clear">Clear</string>
+
+    <!-- Brand Management — screen for viewing, adding, editing, and deleting clothing brands -->
+    <!-- Title shown in the top app bar of the brand management screen -->
+    <string name="brand_management_title">Manage Brands</string>
+    <!-- Floating label on the text field used to enter a new brand name -->
+    <string name="brand_management_new_brand_hint">New brand name</string>
+    <!-- Floating label on the inline text field when editing an existing brand name -->
+    <string name="brand_management_edit_hint">Brand name</string>
+    <!-- Shown in the centre of the screen when no brands have been added yet -->
+    <string name="brand_management_empty">No brands yet. Tap + to add one.</string>
+    <!-- Title of the confirmation dialog before deleting a brand that has no items assigned to it -->
+    <string name="brand_management_delete_confirm_title">Delete Brand</string>
+    <!-- Body of the confirmation dialog. %1$s is the brand name. -->
+    <string name="brand_management_delete_confirm_message">Delete \"%1$s\"? This cannot be undone.</string>
+    <!-- Title of the dialog shown when the user tries to delete a brand that is still in use -->
+    <string name="brand_management_delete_blocked_title">Cannot Delete Brand</string>
+    <!-- Body of the blocked-delete dialog. %1$s is the brand name; %2$d is the number of items still assigned to it. -->
+    <string name="brand_management_delete_blocked_message">\"%1$s\" is used by %2$d item(s). Reassign them before deleting.</string>
+    <!-- Destructive action button label in the delete-confirmation dialog -->
+    <string name="brand_management_confirm_delete">Delete</string>
+    <!-- Content description for the FAB that opens the add-brand inline row -->
+    <string name="brand_management_add_brand">Add brand</string>
+    <!-- Content description for the icon button next to the brand field that opens the brand management screen -->
+    <string name="brand_management_manage_brands">Manage brands</string>
+    <!-- Number of clothing items assigned to a brand. %d is the count. -->
+    <plurals name="brand_item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
 </resources>

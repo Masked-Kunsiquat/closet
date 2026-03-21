@@ -16,3 +16,6 @@ object AddClothingDestination
 
 @Serializable
 data class EditClothingDestination(val itemId: Long)
+
+@Serializable
+object BrandManagementDestination
