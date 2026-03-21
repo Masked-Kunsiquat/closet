@@ -4,6 +4,7 @@ import com.closet.core.data.dao.BrandDao
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
+import com.closet.core.data.util.asDataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
@@ -15,7 +16,7 @@ class BrandRepository @Inject constructor(
     private val brandDao: BrandDao
 ) {
 
-    fun getAllBrands(): Flow<List<BrandEntity>> = brandDao.getAllBrands()
+    fun getAllBrands(): Flow<DataResult<List<BrandEntity>>> = brandDao.getAllBrands().asDataResult()
 
     suspend fun insertBrand(name: String): DataResult<Long> = try {
         val id = brandDao.insertBrand(name)
@@ -36,8 +37,12 @@ class BrandRepository @Inject constructor(
     }
 
     suspend fun deleteBrand(id: Long): DataResult<Unit> = try {
-        brandDao.deleteBrand(id)
-        DataResult.Success(Unit)
+        val deleted = brandDao.deleteBrandIfUnused(id)
+        if (deleted == 0) {
+            DataResult.Error(AppError.ValidationError.InvalidInput("Brand is still assigned to one or more items and cannot be deleted."))
+        } else {
+            DataResult.Success(Unit)
+        }
     } catch (e: Exception) {
         if (e is CancellationException) throw e
         Timber.e(e, "Error deleting brand id=$id")

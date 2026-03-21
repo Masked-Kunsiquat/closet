@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.repository.BrandRepository
+import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,13 +41,25 @@ class BrandManagementViewModel @Inject constructor(
         _dialog,
         _isLoading,
         _errorMessage
-    ) { brands, dialog, loading, error ->
-        BrandManagementUiState(
-            brands = brands,
-            dialog = dialog,
-            isLoading = loading,
-            errorMessage = error
-        )
+    ) { brandsResult, dialog, loading, error ->
+        when (brandsResult) {
+            is DataResult.Loading -> BrandManagementUiState(
+                dialog = dialog,
+                isLoading = true,
+                errorMessage = error
+            )
+            is DataResult.Success -> BrandManagementUiState(
+                brands = brandsResult.data,
+                dialog = dialog,
+                isLoading = loading,
+                errorMessage = error
+            )
+            is DataResult.Error -> BrandManagementUiState(
+                dialog = dialog,
+                isLoading = false,
+                errorMessage = mapAppErrorToMessage(brandsResult.throwable)
+            )
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -63,7 +76,7 @@ class BrandManagementViewModel @Inject constructor(
                         BrandManagementDialog.ConfirmDelete(brand)
                     }
                 }
-                is DataResult.Error -> _errorMessage.value = "Could not check item count."
+                is DataResult.Error -> _errorMessage.value = mapAppErrorToMessage(result.throwable)
                 else -> Unit
             }
         }
@@ -72,15 +85,18 @@ class BrandManagementViewModel @Inject constructor(
     fun confirmDelete(id: Long) {
         viewModelScope.launch {
             _isLoading.value = true
-            when (val result = brandRepository.deleteBrand(id)) {
-                is DataResult.Success -> dismissDialog()
-                is DataResult.Error -> {
-                    _errorMessage.value = "Failed to delete brand."
-                    dismissDialog()
+            try {
+                when (val result = brandRepository.deleteBrand(id)) {
+                    is DataResult.Success -> dismissDialog()
+                    is DataResult.Error -> {
+                        _errorMessage.value = mapAppErrorToMessage(result.throwable)
+                        dismissDialog()
+                    }
+                    else -> Unit
                 }
-                else -> Unit
+            } finally {
+                _isLoading.value = false
             }
-            _isLoading.value = false
         }
     }
 
@@ -90,15 +106,18 @@ class BrandManagementViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoading.value = true
-            val result = if (id == null) {
-                brandRepository.insertBrand(trimmed)
-            } else {
-                brandRepository.updateBrand(id, trimmed)
+            try {
+                val result = if (id == null) {
+                    brandRepository.insertBrand(trimmed)
+                } else {
+                    brandRepository.updateBrand(id, trimmed)
+                }
+                if (result is DataResult.Error) {
+                    _errorMessage.value = mapAppErrorToMessage(result.throwable)
+                }
+            } finally {
+                _isLoading.value = false
             }
-            if (result is DataResult.Error) {
-                _errorMessage.value = "Failed to save brand."
-            }
-            _isLoading.value = false
         }
     }
 
@@ -108,5 +127,15 @@ class BrandManagementViewModel @Inject constructor(
 
     fun onErrorConsumed() {
         _errorMessage.value = null
+    }
+
+    private fun mapAppErrorToMessage(throwable: Throwable): String = when (throwable) {
+        is AppError.DatabaseError.ConstraintViolation -> "A brand with that name already exists."
+        is AppError.DatabaseError.NotFound -> "Brand not found."
+        is AppError.DatabaseError.QueryError -> "A database error occurred."
+        is AppError.ValidationError.InvalidInput -> throwable.message ?: "Invalid input."
+        is AppError.ValidationError.MissingField -> "Missing required field: ${throwable.fieldName}."
+        is AppError.Unexpected -> "An unexpected error occurred."
+        else -> "Something went wrong."
     }
 }

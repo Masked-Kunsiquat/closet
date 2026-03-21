@@ -21,8 +21,8 @@ interface BrandDao {
     @Update
     suspend fun updateBrand(brand: BrandEntity)
 
-    @Query("DELETE FROM brands WHERE id = :id")
-    suspend fun deleteBrand(id: Long)
+    @Query("DELETE FROM brands WHERE id = :id AND NOT EXISTS (SELECT 1 FROM clothing_items WHERE brand_id = :id)")
+    suspend fun deleteBrandIfUnused(id: Long): Int
 
     @Query("SELECT COUNT(*) FROM clothing_items WHERE brand_id = :brandId")
     suspend fun getItemCountForBrand(brandId: Long): Int

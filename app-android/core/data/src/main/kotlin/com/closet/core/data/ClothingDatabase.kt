@@ -141,6 +141,10 @@ abstract class ClothingDatabase : RoomDatabase() {
 
                 // 5. Seed common starter brands (user backfill takes priority via INSERT OR IGNORE above)
                 DatabaseSeeder.seedBrands(db)
+
+                // 6. Ensure the one-OOTD-per-day partial index exists on upgraded databases.
+                //    Fresh installs get this via the onCreate callback; migrations must add it explicitly.
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
             }
         }
 

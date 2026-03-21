@@ -123,6 +123,7 @@ class ClothingFormViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allBrands: StateFlow<List<BrandEntity>> = brandRepository.getAllBrands()
+        .map { result -> if (result is DataResult.Success) result.data else emptyList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -211,7 +212,8 @@ class ClothingFormViewModel @Inject constructor(
 
                     // Hydrate the fields
                     val brandName = if (entity.brandId != null) {
-                        brandRepository.getAllBrands().first().find { it.id == entity.brandId }?.name ?: ""
+                        (brandRepository.getAllBrands().first { it is DataResult.Success } as DataResult.Success).data
+                            .find { it.id == entity.brandId }?.name ?: ""
                     } else ""
 
                     val selectedCat = if (entity.categoryId != null) {
