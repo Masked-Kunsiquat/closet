@@ -47,34 +47,35 @@ class BrandManagementViewModel @Inject constructor(
     private val brandRepository: BrandRepository
 ) : ViewModel() {
 
+    private val _brands = MutableStateFlow<List<BrandEntity>>(emptyList())
     private val _dialog = MutableStateFlow<BrandManagementDialog?>(null)
     private val _isLoading = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
 
+    init {
+        viewModelScope.launch {
+            brandRepository.getAllBrands().collect { result ->
+                when (result) {
+                    is DataResult.Loading -> Unit
+                    is DataResult.Success -> _brands.value = result.data
+                    is DataResult.Error -> _errorMessage.value = mapAppErrorToMessage(result.throwable)
+                }
+            }
+        }
+    }
+
     val uiState: StateFlow<BrandManagementUiState> = combine(
-        brandRepository.getAllBrands(),
+        _brands,
         _dialog,
         _isLoading,
         _errorMessage
-    ) { brandsResult, dialog, loading, error ->
-        when (brandsResult) {
-            is DataResult.Loading -> BrandManagementUiState(
-                dialog = dialog,
-                isLoading = true,
-                errorMessage = error
-            )
-            is DataResult.Success -> BrandManagementUiState(
-                brands = brandsResult.data,
-                dialog = dialog,
-                isLoading = loading,
-                errorMessage = error
-            )
-            is DataResult.Error -> BrandManagementUiState(
-                dialog = dialog,
-                isLoading = false,
-                errorMessage = mapAppErrorToMessage(brandsResult.throwable)
-            )
-        }
+    ) { brands, dialog, loading, error ->
+        BrandManagementUiState(
+            brands = brands,
+            dialog = dialog,
+            isLoading = loading,
+            errorMessage = error
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

@@ -22,16 +22,19 @@ interface BrandDao {
     suspend fun getBrandById(id: Long): BrandEntity?
 
     /**
-     * Inserts a new brand with the given [name].
+     * Inserts a new brand with the given [name] and its lowercase [normalizedName].
      * @return The row ID of the newly inserted brand.
-     * @throws android.database.sqlite.SQLiteConstraintException if a brand with [name] already exists.
+     * @throws android.database.sqlite.SQLiteConstraintException if a brand with [normalizedName] already exists.
      */
-    @Query("INSERT INTO brands (name) VALUES (:name)")
-    suspend fun insertBrand(name: String): Long
+    @Query("INSERT INTO brands (name, normalized_name) VALUES (:name, :normalizedName)")
+    suspend fun insertBrand(name: String, normalizedName: String): Long
 
-    /** Updates the brand record (name change). */
+    /**
+     * Updates the brand record (name change).
+     * @return The number of rows updated (0 if the brand ID was not found).
+     */
     @Update
-    suspend fun updateBrand(brand: BrandEntity)
+    suspend fun updateBrand(brand: BrandEntity): Int
 
     /**
      * Deletes the brand only if no clothing items reference it.

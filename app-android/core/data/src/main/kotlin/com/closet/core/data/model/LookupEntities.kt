@@ -9,11 +9,12 @@ import androidx.room.PrimaryKey
 /** Clothing brand (e.g. Nike, Zara). Name must be unique. Seeded by [com.closet.core.data.DatabaseSeeder.seedBrands]. */
 @Entity(
     tableName = "brands",
-    indices = [Index(value = ["name"], unique = true)]
+    indices = [Index(value = ["normalized_name"], unique = true)]
 )
 data class BrandEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String
+    val name: String,
+    @ColumnInfo(name = "normalized_name") val normalizedName: String
 )
 
 /** Top-level clothing category (e.g. Tops, Bottoms). Seeded with a Phosphor icon name and display order. */
