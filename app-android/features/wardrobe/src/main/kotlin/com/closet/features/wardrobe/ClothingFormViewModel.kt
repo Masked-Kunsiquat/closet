@@ -17,6 +17,7 @@ import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.AppError
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -197,7 +198,7 @@ class ClothingFormViewModel @Inject constructor(
             details.imagePath != e.imagePath ||
             colorsChanged
         } else {
-            basic.name.isNotBlank() || basic.selectedBrandId != null || basic.category != null ||
+            basic.name.isNotBlank() || basic.brandQuery.isNotBlank() || basic.selectedBrandId != null || basic.category != null ||
             basic.price.isNotBlank() || details.purchaseDate != null || details.purchaseLocation.isNotBlank() ||
             details.notes.isNotBlank() || details.imagePath != null || details.selectedColors.isNotEmpty()
         }
@@ -224,7 +225,8 @@ class ClothingFormViewModel @Inject constructor(
             categories = cats,
             subcategories = subcats,
             allColors = colors,
-            canSave = basic.name.isNotBlank() && !status.isSaving,
+            canSave = basic.name.isNotBlank() && !status.isSaving &&
+                    !(basic.brandQuery.isNotBlank() && basic.selectedBrandId == null),
             isDirty = isDirty
         )
     }.stateIn(
@@ -306,10 +308,16 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     fun onAddNewBrand(name: String) {
+        val nameNormalized = name.trim()
+        if (nameNormalized.isBlank()) return
         viewModelScope.launch {
-            val result = brandRepository.insertBrand(name)
-            if (result is DataResult.Success) {
-                onBrandSelect(BrandEntity(id = result.data, name = name))
+            when (val result = brandRepository.insertBrand(nameNormalized)) {
+                is DataResult.Success -> onBrandSelect(BrandEntity(id = result.data, name = nameNormalized))
+                is DataResult.Error -> _errorMessage.value = when (result.error) {
+                    is AppError.DatabaseError.ConstraintViolation -> R.string.wardrobe_error_brand_duplicate
+                    else -> R.string.wardrobe_error_brand_save_failed
+                }
+                else -> Unit
             }
         }
     }
@@ -414,6 +422,7 @@ class ClothingFormViewModel @Inject constructor(
             _isNameError.value = true
             return
         }
+        if (_brandQuery.value.isNotBlank() && _selectedBrandId.value == null) return
 
         _isSaving.value = true
         _errorMessage.value = null
