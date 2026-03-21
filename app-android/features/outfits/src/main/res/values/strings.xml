@@ -22,6 +22,12 @@
     <string name="outfits_gallery_untitled">Untitled outfit</string>
     <string name="outfits_gallery_item_count">%d items</string>
 
+    <!-- Journal -->
+    <string name="journal_title">Journal</string>
+    <string name="journal_prev_month">Previous month</string>
+    <string name="journal_next_month">Next month</string>
+    <string name="journal_empty_month">Wear an outfit to start your journal</string>
+
     <!-- Outfit Builder -->
     <string name="outfits_builder_title">New Outfit</string>
     <string name="outfits_builder_save">Save</string>

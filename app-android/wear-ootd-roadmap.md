@@ -19,20 +19,11 @@
 
 ---
 
-## Phase 2 — Journal Screen (Calendar View)
+## Phase 2 — Journal Screen (Calendar View) ✅
 
-`LogRepository.getCalendarDaysForMonth()` is already written. This phase wires it to UI.
-
-- [ ] **2.1** Create `JournalViewModel` in `features/outfits/` (or new `features/journal/`)
-  - State: `currentYearMonth`, `calendarDays: List<CalendarDay>`, `selectedDate`
-  - Collects `logRepository.getCalendarDaysForMonth(yearMonth)` reactively
-  - Actions: `previousMonth()`, `nextMonth()`, `selectDate(date)`
-- [ ] **2.2** Build `JournalScreen` composable
-  - Month header with prev/next nav arrows
-  - 7-column `LazyVerticalGrid` calendar grid (Mon–Sun headers)
-  - Day cell: date number + dot if `logCount > 0` + accent highlight if `hasOotd = 1`
-  - Tap a day sets `selectedDate`, triggers Day Detail (Phase 3)
-- [ ] **2.3** Empty month state — prompt to "wear an outfit to start your journal"
+- [x] **2.1** `JournalViewModel` — `currentYearMonth`, `calendarDays`, `selectedDate` state; `flatMapLatest` switches month flow reactively; `nextMonth()` blocked at current month
+- [x] **2.2** `JournalScreen` — month nav header, Mon–Sun day labels, calendar grid with day cells (dot for logged days, accent color + bold for OOTD, today highlight, selection ring)
+- [x] **2.3** Empty month state — "Wear an outfit to start your journal"
 
 ---
 
