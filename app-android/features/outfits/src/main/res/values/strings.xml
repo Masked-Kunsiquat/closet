@@ -27,6 +27,20 @@
     <string name="journal_prev_month">Previous month</string>
     <string name="journal_next_month">Next month</string>
     <string name="journal_empty_month">Wear an outfit to start your journal</string>
+    <string name="journal_day_no_logs">No outfits logged for this day</string>
+    <string name="journal_ootd_set">Set as outfit of the day</string>
+    <string name="journal_ootd_unset">Remove outfit of the day</string>
+    <string name="journal_delete_log">Delete log entry</string>
+    <string name="journal_log_outfit">Log outfit</string>
+    <string name="journal_picker_title">Log an outfit</string>
+    <string name="journal_picker_back">Back to day detail</string>
+    <string name="journal_picker_empty">No outfits yet — create one from the Outfits tab</string>
+    <string name="journal_edit_title">Edit log</string>
+    <string name="journal_edit_notes_label">Notes</string>
+    <string name="journal_edit_notes_hint">How did this outfit make you feel?</string>
+    <string name="journal_edit_weather_label">Weather</string>
+    <string name="journal_edit_save">Save</string>
+    <string name="journal_edit_cancel">Cancel</string>
 
     <!-- Outfit Builder -->
     <string name="outfits_builder_title">New Outfit</string>

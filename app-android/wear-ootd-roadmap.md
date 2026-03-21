@@ -27,55 +27,57 @@
 
 ---
 
-## Phase 3 — Day Detail Bottom Sheet
+## Phase 3 — Day Detail Bottom Sheet ✅
 
 `LogDao.getLogsByDate()` returns `OutfitLogWithMeta` with cover image, outfit name, item count — ready to display.
 
-- [ ] **3.1** `DayDetailSheet` — `ModalBottomSheet` triggered by calendar day tap
+- [x] **3.1** `DayDetailSheet` — `ModalBottomSheet` triggered by calendar day tap
   - Header: formatted date (e.g. "Saturday, March 21")
   - List of `OutfitLogWithMeta` cards (cover image thumbnail, outfit name, item count)
-  - OOTD star/crown toggle per log entry (calls `logRepository.setOotd(logId, date)`)
-  - Delete log swipe or button (calls `logRepository.deleteLog(logId)`)
-  - FAB or button to log a new outfit for that date (Phase 4)
-- [ ] **3.2** `DayDetailViewModel`
-  - Takes `date: String` param
-  - Collects `logRepository.getLogsByDate(date)` as `StateFlow`
-  - Actions: `setOotd(logId)`, `deleteLog(logId)`
+  - OOTD star toggle per log entry — tap to crown, tap again to clear (calls `logRepository.setOotd` / `clearOotd`)
+  - Delete button per log entry (calls `logRepository.deleteLog(logId)`)
+- [x] **3.2** Day detail state lives in `JournalViewModel` (not a separate VM)
+  - `logsForSelectedDate` derived via `flatMapLatest` on `_selectedDate`
+  - `toggleOotd(logId, currentIsOotd)`, `deleteLog(logId)` actions added
+  - `resolveImagePath(path)` helper added (delegates to `StorageRepository`)
 
 ---
 
-## Phase 4 — Log a Past Outfit (Retroactive Logging)
+## Phase 4 — Log a Past Outfit (Retroactive Logging) ✅
 
 Currently "Wear Today" only works for today. Users need to log outfits for past dates.
 
-- [ ] **4.1** Add `LogRepository.wearOutfitOnDate(outfitId, date)` — same as `wearOutfitToday` but accepts an explicit date
-- [ ] **4.2** Build `OutfitPickerForDate` sheet — lists saved outfits, tap to log on the selected date
-- [ ] **4.3** Wire into `DayDetailSheet` FAB: opens outfit picker → confirms → logs and refreshes the sheet
+- [x] **4.1** `LogRepository.wearOutfitOnDate(outfitId, date)` — added; `wearOutfitToday` now delegates to it
+- [x] **4.2** `OutfitPickerForDate` sheet — lists all saved outfits with `OutfitPreview` thumbnail; tap to log on the selected date
+- [x] **4.3** "Log outfit" button in `DayDetailSheet` header opens `OutfitPickerForDate`; selecting an outfit calls `wearOutfitOnDate` and closes the picker; back arrow / dismiss returns to day detail sheet
 
 ---
 
-## Phase 5 — Log Entry Edit (Notes + Weather)
+## Phase 5 — Log Entry Edit (Notes + Weather) ✅
 
 The schema supports `notes`, `temperature_low`, `temperature_high`, `weather_condition` but the current write path only sets `outfitId` and `date`.
 
-- [ ] **5.1** `LogEditSheet` — sheet for editing an existing log entry
-  - Notes text field
-  - Weather condition chip selector (Sunny / Partly Cloudy / Cloudy / Rainy / Snowy / Windy — enum already defined)
-  - Optional: low/high temp fields (can defer)
-  - Save calls `logRepository.updateLog(...)`
-- [ ] **5.2** Surface "Edit log" action from `DayDetailSheet` entry cards
+- [x] **5.1** `LogEditSheet` — sheet for editing an existing log entry
+  - Notes `OutlinedTextField` (multi-line, blank saves as null)
+  - Weather condition `FilterChip` selector with icons (Sunny/PartlyCloudy/Cloudy/Rainy/Snowy/Windy) using `FlowRow`; tap selected chip to deselect
+  - Low/high temp fields deferred
+  - Save constructs `OutfitLogEntity` from `OutfitLogWithMeta` (preserves outfitId, date, isOotd, createdAt) and calls `logRepository.updateLog(...)`
+- [x] **5.2** Tapping any `LogCard` in `DayDetailSheet` opens the edit sheet; notes/weather summary shown on card when set
 
 ---
 
-## Phase 6 — Item Wear History (Item Detail integration)
+## Phase 6 — Item Wear History (Item Detail integration) ✅
 
 Close the loop from the item's perspective — see when and in what outfits an item was worn.
 
-- [ ] **6.1** Add `LogDao` query: `getLogsForItem(clothingItemId)` — join `outfit_logs → outfit_items → clothing_items`
-- [ ] **6.2** Add `LogRepository.getLogsForItem(itemId)` wrapping the above
-- [ ] **6.3** Add "Wear history" section to `ClothingDetailScreen`
-  - Chronological list (or count + most recent date for v1)
-  - Tap entry navigates to that day in the Journal (deep link to `JournalRoute` with date param)
+- [x] **6.1** `LogDao.getLogsForItem(clothingItemId)` — joins `outfit_logs → outfit_items` (filtered by item) → `outfits`; returns `ItemWearLog` (id, date, isOotd, outfitName) ordered DESC
+- [x] **6.2** `LogRepository.getLogsForItem(itemId)` wrapping the DAO query
+- [x] **6.3** `WearHistorySection` added to `ClothingDetailScreen`
+  - Full chronological list (most-recent first), OOTD star indicator per row
+  - "Never worn yet" empty state
+  - Tapping a row navigates to Journal via `JournalRoute(initialDate = date)`
+  - `JournalRoute` changed from `object` → `data class JournalRoute(val initialDate: String? = null)`
+  - `JournalViewModel.navigateToDate(date)` jumps calendar to the correct month and opens the day detail sheet immediately
 
 ---
 

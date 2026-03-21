@@ -52,7 +52,7 @@ private data class TopLevelRoute(
 private val topLevelRoutes = listOf(
     TopLevelRoute(ClosetDestination, ClosetDestination::class, R.string.nav_closet, CoreUiR.drawable.ic_icon_coat_hanger),
     TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, CoreUiR.drawable.ic_icon_t_shirt),
-    TopLevelRoute(JournalRoute, JournalRoute::class, R.string.nav_journal, CoreUiR.drawable.ic_icon_calendar_dots),
+    TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, CoreUiR.drawable.ic_icon_calendar_dots),
 )
 
 private fun NavDestination?.isTopLevel() =
@@ -111,7 +111,14 @@ fun ClosetNavGraph(
             composable<ClothingDetailDestination> {
                 ClothingDetailScreen(
                     onBack = { navController.popBackStack() },
-                    onEdit = { itemId -> navController.navigate(EditClothingDestination(itemId)) }
+                    onEdit = { itemId -> navController.navigate(EditClothingDestination(itemId)) },
+                    onNavigateToJournal = { date ->
+                        navController.navigate(JournalRoute(initialDate = date)) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
+                    },
                 )
             }
 

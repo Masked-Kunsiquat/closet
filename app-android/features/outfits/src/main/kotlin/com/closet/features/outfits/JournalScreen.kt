@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -40,6 +41,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.dao.CalendarDay
+import com.closet.core.data.dao.OutfitLogWithMeta
+import com.closet.core.data.model.OutfitWithItems
+import com.closet.core.data.model.WeatherCondition
+import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -52,24 +57,36 @@ import java.util.Locale
 /**
  * Journal screen: a monthly calendar showing days with wear logs.
  *
- * [onDayClick] is called when the user taps a logged day. In Phase 3 this will
- * open the DayDetailSheet; for now the ViewModel tracks [JournalUiState.selectedDate].
+ * Tapping a logged day opens [DayDetailSheet] for that date.
  */
 @Composable
 fun JournalScreen(
-    onDayClick: (String) -> Unit = {},
+    initialDate: String? = null,
     modifier: Modifier = Modifier,
-    viewModel: JournalViewModel = hiltViewModel()
+    viewModel: JournalViewModel = hiltViewModel(),
 ) {
+    LaunchedEffect(initialDate) {
+        if (initialDate != null) viewModel.navigateToDate(initialDate)
+    }
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val outfits by viewModel.outfits.collectAsStateWithLifecycle()
     JournalContent(
         uiState = uiState,
+        outfits = outfits,
         onPreviousMonth = viewModel::previousMonth,
         onNextMonth = viewModel::nextMonth,
-        onDayClick = { date ->
-            viewModel.selectDate(date)
-            onDayClick(date)
-        },
+        onDayClick = viewModel::selectDate,
+        onDismissSheet = { viewModel.selectDate(null) },
+        onOotdToggle = viewModel::toggleOotd,
+        onDeleteLog = viewModel::deleteLog,
+        onAddLog = viewModel::openOutfitPicker,
+        onDismissPicker = viewModel::dismissOutfitPicker,
+        onOutfitSelected = viewModel::logOutfitOnDate,
+        onEditLog = viewModel::openLogEdit,
+        onDismissEdit = viewModel::dismissLogEdit,
+        onSaveEdit = viewModel::saveLogEdit,
+        resolveImage = viewModel::resolveImagePath,
         modifier = modifier,
     )
 }
@@ -80,9 +97,20 @@ fun JournalScreen(
 @Composable
 internal fun JournalContent(
     uiState: JournalUiState,
+    outfits: List<OutfitWithItems>,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onDayClick: (String) -> Unit,
+    onDismissSheet: () -> Unit,
+    onOotdToggle: (logId: Long, currentIsOotd: Boolean) -> Unit,
+    onDeleteLog: (logId: Long) -> Unit,
+    onAddLog: () -> Unit,
+    onDismissPicker: () -> Unit,
+    onOutfitSelected: (outfitId: Long) -> Unit,
+    onEditLog: (OutfitLogWithMeta) -> Unit,
+    onDismissEdit: () -> Unit,
+    onSaveEdit: (notes: String?, weatherCondition: WeatherCondition?) -> Unit,
+    resolveImage: (String?) -> File?,
     modifier: Modifier = Modifier,
 ) {
     val today = remember { LocalDate.now() }
@@ -126,6 +154,34 @@ internal fun JournalContent(
             if (uiState.calendarDays.isEmpty()) {
                 JournalEmptyState()
             }
+        }
+    }
+
+    val selectedDate = uiState.selectedDate
+    if (selectedDate != null) {
+        when {
+            uiState.showOutfitPicker -> OutfitPickerForDate(
+                date = selectedDate,
+                outfits = outfits,
+                onDismiss = onDismissPicker,
+                onOutfitSelected = onOutfitSelected,
+                resolveImage = resolveImage,
+            )
+            uiState.editingLog != null -> LogEditSheet(
+                log = uiState.editingLog,
+                onDismiss = onDismissEdit,
+                onSave = onSaveEdit,
+            )
+            else -> DayDetailSheet(
+                date = selectedDate,
+                logs = uiState.logsForSelectedDate,
+                onDismiss = onDismissSheet,
+                onAddLog = onAddLog,
+                onEditLog = onEditLog,
+                onOotdToggle = onOotdToggle,
+                onDeleteLog = onDeleteLog,
+                resolveImage = resolveImage,
+            )
         }
     }
 }

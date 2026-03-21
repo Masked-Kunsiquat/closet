@@ -1,12 +1,14 @@
 package com.closet.features.wardrobe
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,11 +20,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
 import com.closet.core.ui.R as CoreR
 import com.closet.core.ui.components.UserMessageSnackbarEffect
@@ -35,6 +40,7 @@ private enum class AttributePicker { SEASONS, OCCASIONS, COLORS, MATERIALS, PATT
 fun ClothingDetailScreen(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
+    onNavigateToJournal: (date: String) -> Unit = {},
     viewModel: ClothingDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -286,6 +292,15 @@ fun ClothingDetailScreen(
                                 )
                             }
                         }
+
+                        // Wear history
+                        Spacer(modifier = Modifier.height(24.dp))
+                        WearHistorySection(
+                            history = state.wearHistory,
+                            onEntryClick = onNavigateToJournal,
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -337,4 +352,82 @@ fun ClothingDetailScreen(
     }
 }
 
+// ─── Wear history section ─────────────────────────────────────────────────────
 
+@Composable
+private fun WearHistorySection(
+    history: List<ItemWearLog>,
+    onEntryClick: (date: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.wardrobe_wear_history),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        if (history.isEmpty()) {
+            Text(
+                text = stringResource(R.string.wardrobe_wear_history_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            history.forEachIndexed { index, log ->
+                WearHistoryRow(
+                    log = log,
+                    onClick = { onEntryClick(log.date) },
+                )
+                if (index < history.lastIndex) {
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WearHistoryRow(
+    log: ItemWearLog,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val formattedDate = remember(log.date) {
+        LocalDate.parse(log.date).format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+    }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = formattedDate,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = log.outfitName ?: stringResource(R.string.wardrobe_wear_history_untitled),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (log.isOotd == 1) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = stringResource(R.string.wardrobe_wear_history_ootd),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(16.dp)
+                    .padding(end = 4.dp),
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}

@@ -115,6 +115,26 @@ interface LogDao {
         ORDER BY date
     """)
     fun getCalendarDaysInRange(startDate: String, endDate: String): Flow<List<CalendarDay>>
+
+    /**
+     * Retrieves all logs in which a specific clothing item was worn, most recent first.
+     * Joins outfit_logs → outfit_items (filtered by item) → outfits for the outfit name.
+     * @param clothingItemId The ID of the clothing item.
+     * @return A [Flow] emitting a list of [ItemWearLog].
+     */
+    @Query("""
+        SELECT
+            ol.id,
+            ol.date,
+            ol.is_ootd,
+            o.name AS outfit_name
+        FROM outfit_logs ol
+        JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+                             AND oi.clothing_item_id = :clothingItemId
+        LEFT JOIN outfits o ON o.id = ol.outfit_id
+        ORDER BY ol.date DESC
+    """)
+    fun getLogsForItem(clothingItemId: Long): Flow<List<ItemWearLog>>
 }
 
 /**
@@ -144,4 +164,15 @@ data class CalendarDay(
     val date: String,
     @ColumnInfo(name = "log_count") val logCount: Int,
     @ColumnInfo(name = "has_ootd") val hasOotd: Int
+)
+
+/**
+ * A single wear-history entry for a clothing item — shows when and in which outfit it was worn.
+ * Returned by [LogDao.getLogsForItem].
+ */
+data class ItemWearLog(
+    val id: Long,
+    val date: String,
+    @ColumnInfo(name = "is_ootd") val isOotd: Int,
+    @ColumnInfo(name = "outfit_name") val outfitName: String?,
 )
