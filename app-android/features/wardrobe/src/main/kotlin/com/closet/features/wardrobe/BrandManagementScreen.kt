@@ -108,7 +108,8 @@ internal fun BrandManagementContent(
             if (editorState is BrandEditorState.Adding) {
                 val addState = editorState as BrandEditorState.Adding
                 item {
-                    AddBrandRow(
+                    BrandInputRow(
+                        label = stringResource(R.string.brand_management_new_brand_hint),
                         text = addState.text,
                         onTextChange = { editorState = addState.copy(text = it) },
                         isSaving = addState.saving,
@@ -144,7 +145,8 @@ internal fun BrandManagementContent(
             items(uiState.brands, key = { it.id }) { brand ->
                 val editState = editorState as? BrandEditorState.Editing
                 if (editState != null && editState.brandId == brand.id) {
-                    EditBrandRow(
+                    BrandInputRow(
+                        label = stringResource(R.string.brand_management_edit_hint),
                         text = editState.text,
                         onTextChange = { editorState = editState.copy(text = it) },
                         isSaving = editState.saving,

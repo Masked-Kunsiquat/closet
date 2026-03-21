@@ -24,7 +24,7 @@ fun UserMessageSnackbarEffect(
     snackbarHostState: SnackbarHostState
 ) {
     val context = LocalContext.current
-    LaunchedEffect(Unit) {
+    LaunchedEffect(messages) {
         messages.collect { message ->
             val text = if (message.args.isEmpty()) {
                 context.getString(message.resId)

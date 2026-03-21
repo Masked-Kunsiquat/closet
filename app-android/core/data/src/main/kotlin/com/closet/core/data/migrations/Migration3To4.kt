@@ -31,22 +31,24 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
             "CREATE UNIQUE INDEX IF NOT EXISTS `index_brands_name` ON `brands` (`name`)"
         )
 
-        // 2. Backfill brands from existing free-text data
+        // 2. Backfill brands from existing free-text data (trim to avoid inserting whitespace-only values)
         db.execSQL(
             "INSERT OR IGNORE INTO brands (name) " +
-            "SELECT DISTINCT brand FROM clothing_items " +
-            "WHERE brand IS NOT NULL AND brand != ''"
+            "SELECT DISTINCT TRIM(brand) FROM clothing_items " +
+            "WHERE TRIM(brand) IS NOT NULL AND TRIM(brand) != ''"
         )
 
-        // 3. Add brand_id FK column
-        db.execSQL("ALTER TABLE clothing_items ADD COLUMN brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL")
+        // 3. Add brand_id FK column (guard against schemas that already have the column)
+        if (!columnExists(db, "clothing_items", "brand_id")) {
+            db.execSQL("ALTER TABLE clothing_items ADD COLUMN brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL")
+        }
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_clothing_items_brand_id` ON `clothing_items` (`brand_id`)")
 
-        // 4. Populate brand_id from backfilled rows (exact string match; case differences are accepted)
+        // 4. Populate brand_id from backfilled rows (match on trimmed value)
         db.execSQL(
             "UPDATE clothing_items " +
-            "SET brand_id = (SELECT id FROM brands WHERE brands.name = clothing_items.brand) " +
-            "WHERE brand IS NOT NULL AND brand != ''"
+            "SET brand_id = (SELECT id FROM brands WHERE brands.name = TRIM(clothing_items.brand)) " +
+            "WHERE TRIM(brand) IS NOT NULL AND TRIM(brand) != ''"
         )
 
         // 5. Seed common starter brands (user backfill takes priority via INSERT OR IGNORE above)

@@ -145,7 +145,7 @@ internal fun ColorSelectionGrid(
             val hexColor = try {
                 Color(android.graphics.Color.parseColor(color.hex))
             } catch (_: Exception) {
-                Color.Gray
+                MaterialTheme.colorScheme.outlineVariant
             }
             val label = color.name.ifBlank { color.hex ?: "" }
 

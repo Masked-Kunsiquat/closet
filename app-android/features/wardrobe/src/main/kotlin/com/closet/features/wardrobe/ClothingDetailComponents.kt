@@ -161,7 +161,7 @@ internal fun AttributeSection(
             IconButton(onClick = onEditClick) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Edit $title",
+                    contentDescription = stringResource(R.string.wardrobe_edit_with_section, title),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }

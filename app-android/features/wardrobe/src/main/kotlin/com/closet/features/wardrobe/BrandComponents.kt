@@ -64,10 +64,11 @@ internal fun BrandRow(
     )
 }
 
-// ─── AddBrandRow ──────────────────────────────────────────────────────────────
+// ─── BrandInputRow ────────────────────────────────────────────────────────────
 
 @Composable
-internal fun AddBrandRow(
+internal fun BrandInputRow(
+    label: String,
     text: String,
     onTextChange: (String) -> Unit,
     isSaving: Boolean = false,
@@ -90,50 +91,10 @@ internal fun AddBrandRow(
             modifier = Modifier
                 .weight(1f)
                 .focusRequester(focusRequester),
-            label = { Text(stringResource(R.string.brand_management_new_brand_hint)) },
+            label = { Text(label) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onConfirm() })
-        )
-        IconButton(onClick = onConfirm, enabled = text.isNotBlank() && !isSaving) {
-            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.wardrobe_save))
-        }
-        IconButton(onClick = onCancel, enabled = !isSaving) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.wardrobe_cancel))
-        }
-    }
-}
-
-// ─── EditBrandRow ─────────────────────────────────────────────────────────────
-
-@Composable
-internal fun EditBrandRow(
-    text: String,
-    onTextChange: (String) -> Unit,
-    isSaving: Boolean = false,
-    onConfirm: () -> Unit,
-    onCancel: () -> Unit
-) {
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = onTextChange,
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester),
-            label = { Text(stringResource(R.string.brand_management_edit_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { onConfirm() })
+            keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank() && !isSaving) onConfirm() })
         )
         IconButton(onClick = onConfirm, enabled = text.isNotBlank() && !isSaving) {
             Icon(Icons.Default.Check, contentDescription = stringResource(R.string.wardrobe_save))
