@@ -164,7 +164,7 @@ private fun OutfitWithItems.toDomain(): Outfit {
         id = outfit.id,
         name = outfit.name,
         notes = outfit.notes,
-        items = items.map { 
+        items = items.sortedBy { it.outfitItem.zIndex }.map {
             OutfitItem(
                 clothingItem = it.clothingItem,
                 posX = it.outfitItem.posX,

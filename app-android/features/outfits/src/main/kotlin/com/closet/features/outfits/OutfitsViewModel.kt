@@ -61,7 +61,7 @@ class OutfitsViewModel @Inject constructor(
             when (result) {
                 is DataResult.Success -> _events.send(OutfitsEvent.WearSuccess)
                 is DataResult.Error -> _events.send(OutfitsEvent.WearError)
-                DataResult.Loading -> Unit
+                else -> Unit
             }
         }
     }
