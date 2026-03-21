@@ -6,18 +6,16 @@
 - `LogRepository` — `wearOutfitToday`, `getCalendarDaysForMonth`, `setOotd`, `deleteLog`
 - `OutfitLogWithMeta` — joined query with outfit name, item count, cover image
 - `CalendarDay` — monthly summary with dot/OOTD indicators
-- No bottom navigation bar — app has no tab structure at all
+- Bottom navigation bar with 3 tabs: Closet, Outfits, Journal
 
 ---
 
-## Phase 1 — Bottom Navigation (blocker for everything else)
+## Phase 1 — Bottom Navigation ✅
 
-The app has no tab bar. Without this, there is no home for the Journal screen.
-
-- [ ] **1.1** Add `NavigationBar` to `MainActivity` / root scaffold with 3 tabs: Closet, Outfits, Journal
-- [ ] **1.2** Add `JournalRoute` `@Serializable` destination to `OutfitsNavigation.kt` (or new `JournalNavigation.kt`)
-- [ ] **1.3** Register `journalScreen()` extension in `ClosetNavGraph.kt`
-- [ ] **1.4** Wire bottom nav selection to `NavController` using `saveState`/`restoreState` so tab switches do not re-compose
+- [x] **1.1** Add `NavigationBar` to root scaffold with 3 tabs: Closet, Outfits, Journal
+- [x] **1.2** Add `JournalRoute` `@Serializable` destination (`JournalNavigation.kt` in outfits module)
+- [x] **1.3** Register `journalScreen()` extension in `ClosetNavGraph.kt`
+- [x] **1.4** Wire bottom nav selection to `NavController` using `saveState`/`restoreState` so tab switches do not re-compose
 
 ---
 
