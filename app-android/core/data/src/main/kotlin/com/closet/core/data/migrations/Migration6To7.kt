@@ -37,7 +37,7 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         )
 
         db.execSQL(
-            "CREATE INDEX IF NOT EXISTS idx_outfit_log_items_clothing_item_id " +
+            "CREATE INDEX IF NOT EXISTS index_outfit_log_items_clothing_item_id " +
             "ON outfit_log_items(clothing_item_id)"
         )
 
