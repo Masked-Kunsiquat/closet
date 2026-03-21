@@ -200,7 +200,10 @@ data class ClothingItemDetail(
             entityColumn = "pattern_id"
         )
     )
-    val patterns: List<PatternEntity>
+    val patterns: List<PatternEntity>,
+
+    @Relation(parentColumn = "brand_id", entityColumn = "id")
+    val brand: BrandEntity?
 ) {
     val costPerWear: Double?
         get() = if (wearCount > 0) (item.purchasePrice ?: 0.0) / wearCount else item.purchasePrice

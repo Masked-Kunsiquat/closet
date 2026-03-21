@@ -170,7 +170,7 @@ fun ClothingDetailScreen(
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold
                                 )
-                                detail.item.brand?.let {
+                                detail.brand?.name?.let {
                                     Text(
                                         text = it,
                                         style = MaterialTheme.typography.titleMedium,

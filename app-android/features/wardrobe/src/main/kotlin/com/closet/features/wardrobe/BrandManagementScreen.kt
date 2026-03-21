@@ -1,5 +1,6 @@
 package com.closet.features.wardrobe
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,21 +19,43 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.BrandEntity
+import com.closet.core.ui.theme.ClosetTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrandManagementScreen(
     onBack: () -> Unit,
     viewModel: BrandManagementViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    BrandManagementContent(
+        uiState = uiState,
+        onBack = onBack,
+        onSaveBrand = viewModel::saveBrand,
+        onRequestDelete = viewModel::requestDelete,
+        onConfirmDelete = viewModel::confirmDelete,
+        onDismissDialog = viewModel::dismissDialog,
+        onErrorConsumed = viewModel::onErrorConsumed
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun BrandManagementContent(
+    uiState: BrandManagementUiState,
+    onBack: () -> Unit,
+    onSaveBrand: (id: Long?, name: String) -> Unit,
+    onRequestDelete: (BrandEntity) -> Unit,
+    onConfirmDelete: (Long) -> Unit,
+    onDismissDialog: () -> Unit,
+    onErrorConsumed: () -> Unit
+) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     var isAddingBrand by remember { mutableStateOf(false) }
@@ -44,7 +67,7 @@ fun BrandManagementScreen(
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
             snackbarHostState.showSnackbar(errorMessage)
-            viewModel.onErrorConsumed()
+            onErrorConsumed()
         }
     }
 
@@ -85,7 +108,7 @@ fun BrandManagementScreen(
                         onTextChange = { newBrandText = it },
                         onConfirm = {
                             if (newBrandText.isNotBlank()) {
-                                viewModel.saveBrand(null, newBrandText)
+                                onSaveBrand(null, newBrandText)
                                 isAddingBrand = false
                                 newBrandText = ""
                             }
@@ -123,7 +146,7 @@ fun BrandManagementScreen(
                         onTextChange = { editText = it },
                         onConfirm = {
                             if (editText.isNotBlank()) {
-                                viewModel.saveBrand(brand.id, editText)
+                                onSaveBrand(brand.id, editText)
                                 editingBrandId = null
                             }
                         },
@@ -137,7 +160,7 @@ fun BrandManagementScreen(
                             editText = brand.name
                             isAddingBrand = false
                         },
-                        onDeleteClick = { viewModel.requestDelete(brand) }
+                        onDeleteClick = { onRequestDelete(brand) }
                     )
                 }
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -148,21 +171,21 @@ fun BrandManagementScreen(
     when (val dialog = uiState.dialog) {
         is BrandManagementDialog.ConfirmDelete -> {
             AlertDialog(
-                onDismissRequest = viewModel::dismissDialog,
+                onDismissRequest = onDismissDialog,
                 title = { Text(stringResource(R.string.brand_management_delete_confirm_title)) },
                 text = {
                     Text(stringResource(R.string.brand_management_delete_confirm_message, dialog.brand.name))
                 },
                 confirmButton = {
                     TextButton(
-                        onClick = { viewModel.confirmDelete(dialog.brand.id) },
+                        onClick = { onConfirmDelete(dialog.brand.id) },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     ) {
                         Text(stringResource(R.string.brand_management_confirm_delete))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = viewModel::dismissDialog) {
+                    TextButton(onClick = onDismissDialog) {
                         Text(stringResource(R.string.wardrobe_cancel))
                     }
                 }
@@ -170,7 +193,7 @@ fun BrandManagementScreen(
         }
         is BrandManagementDialog.BlockedDelete -> {
             AlertDialog(
-                onDismissRequest = viewModel::dismissDialog,
+                onDismissRequest = onDismissDialog,
                 title = { Text(stringResource(R.string.brand_management_delete_blocked_title)) },
                 text = {
                     Text(
@@ -182,7 +205,7 @@ fun BrandManagementScreen(
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = viewModel::dismissDialog) {
+                    TextButton(onClick = onDismissDialog) {
                         Text(stringResource(R.string.wardrobe_cancel))
                     }
                 }
@@ -287,6 +310,95 @@ private fun EditBrandRow(
         }
         IconButton(onClick = onCancel) {
             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.wardrobe_cancel))
+        }
+    }
+}
+
+// --- Previews ---
+
+private val previewBrands = listOf(
+    BrandEntity(id = 1, name = "Nike"),
+    BrandEntity(id = 2, name = "Adidas"),
+    BrandEntity(id = 3, name = "Levi's"),
+    BrandEntity(id = 4, name = "Uniqlo"),
+    BrandEntity(id = 5, name = "Zara"),
+)
+
+@Preview(showBackground = true, name = "Brand List - Light")
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Brand List - Dark")
+@Composable
+private fun BrandManagementContentPreview() {
+    ClosetTheme {
+        Surface {
+            BrandManagementContent(
+                uiState = BrandManagementUiState(brands = previewBrands),
+                onBack = {},
+                onSaveBrand = { _, _ -> },
+                onRequestDelete = {},
+                onConfirmDelete = {},
+                onDismissDialog = {},
+                onErrorConsumed = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Empty State")
+@Composable
+private fun BrandManagementEmptyPreview() {
+    ClosetTheme {
+        Surface {
+            BrandManagementContent(
+                uiState = BrandManagementUiState(brands = emptyList()),
+                onBack = {},
+                onSaveBrand = { _, _ -> },
+                onRequestDelete = {},
+                onConfirmDelete = {},
+                onDismissDialog = {},
+                onErrorConsumed = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Confirm Delete Dialog")
+@Composable
+private fun BrandManagementConfirmDeletePreview() {
+    ClosetTheme {
+        Surface {
+            BrandManagementContent(
+                uiState = BrandManagementUiState(
+                    brands = previewBrands,
+                    dialog = BrandManagementDialog.ConfirmDelete(previewBrands[0])
+                ),
+                onBack = {},
+                onSaveBrand = { _, _ -> },
+                onRequestDelete = {},
+                onConfirmDelete = {},
+                onDismissDialog = {},
+                onErrorConsumed = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Blocked Delete Dialog")
+@Composable
+private fun BrandManagementBlockedDeletePreview() {
+    ClosetTheme {
+        Surface {
+            BrandManagementContent(
+                uiState = BrandManagementUiState(
+                    brands = previewBrands,
+                    dialog = BrandManagementDialog.BlockedDelete(previewBrands[1], itemCount = 7)
+                ),
+                onBack = {},
+                onSaveBrand = { _, _ -> },
+                onRequestDelete = {},
+                onConfirmDelete = {},
+                onDismissDialog = {},
+                onErrorConsumed = {}
+            )
         }
     }
 }
