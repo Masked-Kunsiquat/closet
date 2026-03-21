@@ -629,8 +629,8 @@ private val previewItem = ClothingItemDetail(
         ColorEntity(id = 2L, name = "White", hex = "#FFFFFF"),
     ),
     materials = listOf(MaterialEntity(id = 1L, name = "Denim"), MaterialEntity(id = 2L, name = "Cotton")),
-    seasons = listOf(SeasonEntity(id = 1L, name = "Spring"), SeasonEntity(id = 3L, name = "Fall")),
-    occasions = listOf(OccasionEntity(id = 1L, name = "Casual"), OccasionEntity(id = 2L, name = "Weekend")),
+    seasons = listOf(SeasonEntity(id = 1L, name = "Spring", icon = "flower"), SeasonEntity(id = 3L, name = "Fall", icon = "leaf")),
+    occasions = listOf(OccasionEntity(id = 1L, name = "Casual", icon = "couch"), OccasionEntity(id = 2L, name = "Weekend", icon = "coffee")),
     patterns = emptyList()
 )
 
