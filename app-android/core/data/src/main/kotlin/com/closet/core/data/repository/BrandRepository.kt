@@ -78,6 +78,8 @@ class BrandRepository @Inject constructor(
      *   if the brand is still in use, otherwise [DataResult.Success].
      */
     suspend fun deleteBrand(id: Long): DataResult<Unit> = try {
+        brandDao.getBrandById(id)
+            ?: return DataResult.Error(AppError.DatabaseError.NotFound())
         val deleted = brandDao.deleteBrandIfUnused(id)
         if (deleted == 0) {
             DataResult.Error(AppError.ValidationError.InvalidInput("Brand is still assigned to one or more items and cannot be deleted."))

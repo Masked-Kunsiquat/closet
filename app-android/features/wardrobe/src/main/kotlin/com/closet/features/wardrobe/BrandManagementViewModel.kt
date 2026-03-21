@@ -56,9 +56,15 @@ class BrandManagementViewModel @Inject constructor(
         viewModelScope.launch {
             brandRepository.getAllBrands().collect { result ->
                 when (result) {
-                    is DataResult.Loading -> Unit
-                    is DataResult.Success -> _brands.value = result.data
-                    is DataResult.Error -> _errorMessage.value = mapAppErrorToMessage(result.throwable)
+                    is DataResult.Loading -> _isLoading.value = true
+                    is DataResult.Success -> {
+                        _isLoading.value = false
+                        _brands.value = result.data
+                    }
+                    is DataResult.Error -> {
+                        _isLoading.value = false
+                        _errorMessage.value = mapAppErrorToMessage(result.throwable)
+                    }
                 }
             }
         }
