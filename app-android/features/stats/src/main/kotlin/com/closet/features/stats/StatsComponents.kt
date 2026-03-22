@@ -378,6 +378,19 @@ internal fun CategoryCountSection(
     )
 }
 
+/** Item count per subcategory. Hidden automatically when no items have a subcategory assigned. */
+@Composable
+internal fun SubcategoryBreakdownSection(
+    rows: List<BreakdownRow>,
+    modifier: Modifier = Modifier
+) {
+    BreakdownSection(
+        title = stringResource(R.string.stats_section_subcategory),
+        rows = rows,
+        modifier = modifier
+    )
+}
+
 /**
  * Shared "label + count + progress bar" layout used by category count, subcategory,
  * and occasion breakdown sections.
