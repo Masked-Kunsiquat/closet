@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -48,6 +49,7 @@ import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -59,6 +61,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.closet.core.data.dao.BreakdownRow
+import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.dao.CostPerWearItem
 import com.closet.core.data.dao.StatItem
 import com.closet.core.data.dao.StatsOverview
@@ -389,6 +392,67 @@ internal fun SubcategoryBreakdownSection(
         rows = rows,
         modifier = modifier
     )
+}
+
+/** Item count per color with a color swatch next to each label. */
+@Composable
+internal fun ColorBreakdownSection(
+    rows: List<ColorBreakdownRow>,
+    modifier: Modifier = Modifier
+) {
+    if (rows.isEmpty()) return
+    val maxCount = rows.maxOf { it.count }.takeIf { it > 0 } ?: 1
+    SectionHeader(stringResource(R.string.stats_section_color))
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        rows.forEach { row ->
+            ColorBreakdownBar(row = row, maxCount = maxCount)
+        }
+        Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun ColorBreakdownBar(row: ColorBreakdownRow, maxCount: Int) {
+    val swatchColor = remember(row.hex) {
+        runCatching { Color(android.graphics.Color.parseColor(row.hex)) }
+            .getOrNull()
+    }
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(swatchColor ?: MaterialTheme.colorScheme.primary)
+                )
+                Text(text = row.label, style = MaterialTheme.typography.bodyMedium)
+            }
+            Text(
+                text = row.count.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { row.count.toFloat() / maxCount },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+        )
+    }
 }
 
 /**
