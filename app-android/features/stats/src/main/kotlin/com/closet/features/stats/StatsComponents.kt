@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -703,6 +705,47 @@ internal fun NoLogsInfoCard(modifier: Modifier = Modifier) {
 }
 
 // ─── Shared ───────────────────────────────────────────────────────────────────
+
+/**
+ * A two-layer horizontal progress bar for displaying two related metrics on the same scale.
+ *
+ * Renders [secondaryProgress] as a muted background fill behind [primaryProgress], making
+ * the relationship between the two values immediately visible — e.g. items owned (secondary)
+ * vs items worn (primary) for a given category.
+ *
+ * Both values should be pre-normalized to [0f, 1f] against the same max
+ * (e.g. `max(maxItemCount, maxWearCount)`).
+ */
+@Composable
+internal fun MultipleLinearProgressIndicator(
+    primaryProgress: Float,
+    secondaryProgress: Float,
+    modifier: Modifier = Modifier,
+    primaryColor: Color = MaterialTheme.colorScheme.primary,
+    secondaryColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    clipShape: Shape = RoundedCornerShape(3.dp)
+) {
+    Box(
+        modifier = modifier
+            .clip(clipShape)
+            .background(backgroundColor)
+            .height(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(secondaryColor)
+                .fillMaxHeight()
+                .fillMaxWidth(secondaryProgress)
+        )
+        Box(
+            modifier = Modifier
+                .background(primaryColor)
+                .fillMaxHeight()
+                .fillMaxWidth(primaryProgress)
+        )
+    }
+}
 
 @Composable
 private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
