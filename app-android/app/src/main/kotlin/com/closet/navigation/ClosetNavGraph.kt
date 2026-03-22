@@ -61,21 +61,21 @@ private val topLevelRoutes = listOf(
         selectedIcon = Icons.Filled.Checkroom,
         unselectedIcon = Icons.Outlined.Checkroom,
         labelRes = R.string.nav_closet,
-        isSelected = { dest -> dest?.hasRoute(ClosetDestination::class) == true },
+        isSelected = { dest -> dest?.route == ClosetDestination::class.qualifiedName },
         navigate = { nav, opts -> nav.navigate(ClosetDestination, opts) }
     ),
     TopLevelRoute(
         selectedIcon = Icons.Filled.Style,
         unselectedIcon = Icons.Outlined.Style,
         labelRes = R.string.nav_outfits,
-        isSelected = { dest -> dest?.hasRoute(OutfitsRoute::class) == true },
+        isSelected = { dest -> dest?.route == OutfitsRoute::class.qualifiedName },
         navigate = { nav, opts -> nav.navigateToOutfits(opts) }
     ),
     TopLevelRoute(
         selectedIcon = Icons.Filled.BarChart,
         unselectedIcon = Icons.Outlined.BarChart,
         labelRes = R.string.nav_stats,
-        isSelected = { dest -> dest?.hasRoute(StatsRoute::class) == true },
+        isSelected = { dest -> dest?.route == StatsRoute::class.qualifiedName },
         navigate = { nav, opts -> nav.navigateToStats(opts) }
     )
 )

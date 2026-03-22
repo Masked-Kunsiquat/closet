@@ -38,9 +38,9 @@ internal val previewColors = listOf(
 )
 
 internal val previewBrands = listOf(
-    BrandEntity(id = 1L, name = "Nike"),
-    BrandEntity(id = 2L, name = "Levi's"),
-    BrandEntity(id = 3L, name = "Uniqlo"),
+    BrandEntity(id = 1L, name = "Nike", normalizedName = "nike"),
+    BrandEntity(id = 2L, name = "Levi's", normalizedName = "levi's"),
+    BrandEntity(id = 3L, name = "Uniqlo", normalizedName = "uniqlo"),
 )
 
 // ─── ClothingFormTopBar previews ──────────────────────────────────────────────
