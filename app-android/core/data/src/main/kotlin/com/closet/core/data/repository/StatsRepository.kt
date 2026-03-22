@@ -1,6 +1,7 @@
 package com.closet.core.data.repository
 
 import com.closet.core.data.dao.BreakdownRow
+import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.dao.CostPerWearItem
 import com.closet.core.data.dao.StatItem
 import com.closet.core.data.dao.StatsDao
@@ -74,4 +75,32 @@ class StatsRepository @Inject constructor(
      */
     fun getNeverWornItems(): Flow<List<StatItem>> =
         statsDao.getNeverWornItems()
+
+    /**
+     * Retrieves item count per subcategory. Items without a subcategory are excluded.
+     * @return A [Flow] emitting a list of [BreakdownRow] ordered by count descending.
+     */
+    fun getSubcategoryBreakdown(): Flow<List<BreakdownRow>> =
+        statsDao.getBreakdownBySubcategory()
+
+    /**
+     * Retrieves item count per color. Carries the hex value for swatch rendering.
+     * @return A [Flow] emitting a list of [ColorBreakdownRow] ordered by count descending.
+     */
+    fun getColorBreakdown(): Flow<List<ColorBreakdownRow>> =
+        statsDao.getBreakdownByColor()
+
+    /**
+     * Retrieves item count per occasion.
+     * @return A [Flow] emitting a list of [BreakdownRow] ordered by count descending.
+     */
+    fun getOccasionBreakdown(): Flow<List<BreakdownRow>> =
+        statsDao.getBreakdownByOccasion()
+
+    /**
+     * Retrieves clean vs dirty item counts. Returns at most 2 rows labelled 'Clean' / 'Dirty'.
+     * @return A [Flow] emitting a list of [BreakdownRow].
+     */
+    fun getWashStatusBreakdown(): Flow<List<BreakdownRow>> =
+        statsDao.getWashStatusBreakdown()
 }
