@@ -363,6 +363,70 @@ internal fun CategoryWearSection(
     )
 }
 
+// ─── Wardrobe composition ─────────────────────────────────────────────────────
+
+/** Item count per category. */
+@Composable
+internal fun CategoryCountSection(
+    rows: List<BreakdownRow>,
+    modifier: Modifier = Modifier
+) {
+    BreakdownSection(
+        title = stringResource(R.string.stats_section_category_count),
+        rows = rows,
+        modifier = modifier
+    )
+}
+
+/**
+ * Shared "label + count + progress bar" layout used by category count, subcategory,
+ * and occasion breakdown sections.
+ */
+@Composable
+internal fun BreakdownSection(
+    title: String,
+    rows: List<BreakdownRow>,
+    modifier: Modifier = Modifier
+) {
+    if (rows.isEmpty()) return
+    val maxCount = rows.maxOf { it.count }.takeIf { it > 0 } ?: 1
+    SectionHeader(title)
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        rows.forEach { row ->
+            BreakdownBar(row = row, maxCount = maxCount)
+        }
+        Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun BreakdownBar(row: BreakdownRow, maxCount: Int) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = row.label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = row.count.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { row.count.toFloat() / maxCount },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+        )
+    }
+}
+
 // ─── Never worn ───────────────────────────────────────────────────────────────
 
 @Composable
