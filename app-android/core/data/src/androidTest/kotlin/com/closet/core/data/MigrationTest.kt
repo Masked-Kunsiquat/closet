@@ -8,6 +8,7 @@ import com.closet.core.data.migrations.MIGRATION_2_3
 import com.closet.core.data.migrations.MIGRATION_3_4
 import com.closet.core.data.migrations.MIGRATION_4_5
 import com.closet.core.data.migrations.MIGRATION_5_6
+import com.closet.core.data.migrations.MIGRATION_6_7
 import com.closet.core.data.migrations.columnExists
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -177,26 +178,75 @@ class MigrationTest {
         db.close()
     }
 
+    /**
+     * 6→7: Adds outfit_log_items snapshot table and backfills from existing logs.
+     * Seeds an outfit, a clothing item, an outfit_item link, and a log, then verifies
+     * the backfill wrote a snapshot row with the correct outfit name.
+     */
+    @Test
+    fun migrate6To7() {
+        val db6 = helper.createDatabase(TEST_DB, 6)
+
+        // Seed prerequisite rows
+        db6.execSQL("INSERT INTO categories (id, name, sort_order) VALUES (1, 'Tops', 1)")
+        db6.execSQL(
+            "INSERT INTO clothing_items (id, name, category_id, status, wash_status, created_at, updated_at) " +
+            "VALUES (1, 'Blue Tee', 1, 'Active', 'Clean', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')"
+        )
+        db6.execSQL(
+            "INSERT INTO outfits (id, name, created_at, updated_at) " +
+            "VALUES (1, 'Casual Friday', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')"
+        )
+        db6.execSQL(
+            "INSERT INTO outfit_items (outfit_id, clothing_item_id) VALUES (1, 1)"
+        )
+        db6.execSQL(
+            "INSERT INTO outfit_logs (id, outfit_id, date, is_ootd, created_at) " +
+            "VALUES (1, 1, '2024-01-01', 0, '2024-01-01T00:00:00Z')"
+        )
+        db6.close()
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, 7, true, MIGRATION_6_7)
+
+        // Table should exist
+        val tableExists = db.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='outfit_log_items'"
+        ).use { it.moveToFirst() }
+        assertTrue("outfit_log_items table should exist after migration 6→7", tableExists)
+
+        // Backfill should have written a snapshot row
+        val snapshotRow = db.query(
+            "SELECT outfit_name FROM outfit_log_items WHERE outfit_log_id = 1 AND clothing_item_id = 1"
+        ).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        assertEquals("Casual Friday", snapshotRow)
+
+        db.close()
+    }
+
     // ─── Full upgrade path ─────────────────────────────────────────────────────
 
     /**
-     * Full path 1→6: simulates a user who has never updated the app.
+     * Full path 1→7: simulates a user who has never updated the app.
      * Validates the schema at every step and confirms the final state is correct.
      */
     @Test
-    fun migrateFullPath1To6() {
+    fun migrateFullPath1To7() {
         helper.createDatabase(TEST_DB, 1).close()
 
         val db = helper.runMigrationsAndValidate(
-            TEST_DB, 6, true,
-            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6
+            TEST_DB, 7, true,
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
         )
 
-        // Spot-check a few columns that were added across the full migration chain
+        // Spot-check columns added across the full migration chain
         assertTrue(columnExists(db, "outfit_items", "pos_x"))
         assertTrue(columnExists(db, "clothing_items", "brand_id"))
         assertTrue(columnExists(db, "brands", "normalized_name"))
         assertTrue(columnExists(db, "patterns", "icon"))
+        val outfitLogItemsExists = db.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='outfit_log_items'"
+        ).use { it.moveToFirst() }
+        assertTrue(outfitLogItemsExists)
 
         db.close()
     }
