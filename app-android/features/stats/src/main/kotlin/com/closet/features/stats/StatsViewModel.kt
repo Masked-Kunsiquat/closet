@@ -3,6 +3,7 @@ package com.closet.features.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.dao.BreakdownRow
+import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.dao.CostPerWearItem
 import com.closet.core.data.dao.StatItem
 import com.closet.core.data.dao.StatsOverview
@@ -49,7 +50,11 @@ data class StatsUiState(
     val categoryWear: List<BreakdownRow> = emptyList(),
     val totalLogsCount: Int = 0,
     val neverWorn: List<StatItem> = emptyList(),
-    val selectedPeriod: StatPeriod = StatPeriod.ALL_TIME
+    val selectedPeriod: StatPeriod = StatPeriod.ALL_TIME,
+    val subcategoryBreakdown: List<BreakdownRow> = emptyList(),
+    val colorBreakdown: List<ColorBreakdownRow> = emptyList(),
+    val occasionBreakdown: List<BreakdownRow> = emptyList(),
+    val washStatus: List<BreakdownRow> = emptyList(),
 )
 
 /**
