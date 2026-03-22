@@ -394,6 +394,19 @@ internal fun SubcategoryBreakdownSection(
     )
 }
 
+/** Item count per occasion. */
+@Composable
+internal fun OccasionBreakdownSection(
+    rows: List<BreakdownRow>,
+    modifier: Modifier = Modifier
+) {
+    BreakdownSection(
+        title = stringResource(R.string.stats_section_occasion),
+        rows = rows,
+        modifier = modifier
+    )
+}
+
 /** Item count per color with a color swatch next to each label. */
 @Composable
 internal fun ColorBreakdownSection(
