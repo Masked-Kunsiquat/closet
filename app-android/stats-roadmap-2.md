@@ -334,7 +334,309 @@ internal fun WashStatusSection(rows: List<BreakdownRow>, modifier: Modifier = Mo
 Note: `StatHeadlineCard` is currently `private` in `StatsComponents.kt` — make it
 `internal` so `WashStatusSection` can use it.
 
-### 3f. Shared `BreakdownSection` helper
+### 3f. `MultipleLinearProgressIndicator` — dual-layer progress bar
+
+For sections where two related metrics share the same scale, use a stacked two-layer bar:
+
+```kotlin
+@Composable
+fun MultipleLinearProgressIndicator(
+    primaryProgress: Float,    // foreground — accent color
+    secondaryProgress: Float,  // background fill — muted color
+    modifier: Modifier = Modifier,
+    primaryColor: Color = MaterialTheme.colorScheme.primary,
+    secondaryColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    backgroundColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    clipShape: Shape = RoundedCornerShape(3.dp)
+) {
+    Box(
+        modifier = modifier
+            .clip(clipShape)
+            .background(backgroundColor)
+            .height(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(secondaryColor)
+                .fillMaxHeight()
+                .fillMaxWidth(secondaryProgress)
+        )
+        Box(
+            modifier = Modifier
+                .background(primaryColor)
+                .fillMaxHeight()
+                .fillMaxWidth(primaryProgress)
+        )
+    }
+}
+```
+
+**Where to use it:** The Category section is the prime candidate. Each category bar shows:
+- **Secondary (muted)**: item count proportion — how much of your wardrobe is this category
+- **Primary (accent)**: wear count proportion — how often you actually wear it
+
+This makes "I own a lot of Bottoms but barely wear them" immediately visible without
+reading numbers. Normalize both against the same max (e.g. `max(maxItemCount, maxWearCount)`).
+
+For all other breakdown sections (subcategory, occasion, color), a single-layer bar is
+sufficient — they show one metric only.
+
+### 3g. `SegmentedBar` — N-segment horizontal bar (pie chart alternative)
+
+Vico has no pie chart. A horizontal segmented bar built from `Row` + `Modifier.weight()` gives
+the same at-a-glance proportional read without a third-party dependency.
+
+`Modifier.weight(value)` distributes space proportionally to each segment's raw count — no
+manual normalization to `[0, 1]` required. The layout engine does it automatically.
+
+#### Data model
+
+```kotlin
+/** A single named segment in the bar. */
+data class BarSegment(
+    val label: String,
+    val count: Int,
+    val color: Color
+)
+```
+
+#### "Other" grouping logic
+
+Cap the bar at **8 visible segments** (beyond that, slivers are unreadable). Sort descending
+by count, take the top 7, group the remainder into a synthetic "Other" segment:
+
+```kotlin
+fun List<BarSegment>.withOtherGroup(
+    maxVisible: Int = 8,
+    otherColor: Color
+): Pair<List<BarSegment>, List<BarSegment>> {   // visible, hidden
+    if (size <= maxVisible) return this to emptyList()
+    val sorted = sortedByDescending { it.count }
+    val visible = sorted.take(maxVisible - 1).toMutableList()
+    val hidden = sorted.drop(maxVisible - 1)
+    val otherCount = hidden.sumOf { it.count }
+    visible += BarSegment(label = "Other", count = otherCount, color = otherColor)
+    return visible to hidden
+}
+```
+
+`hidden` is kept in state so the tooltip can surface the top items from it.
+
+#### Composable
+
+```kotlin
+@Composable
+internal fun SegmentedBar(
+    segments: List<BarSegment>,
+    hiddenSegments: List<BarSegment> = emptyList(),   // "Other" detail
+    modifier: Modifier = Modifier,
+    barHeight: Dp = 20.dp,
+    cornerRadius: Dp = 4.dp
+) {
+    if (segments.isEmpty()) return
+
+    var barWidthPx by remember { mutableStateOf(0) }
+    var activeTooltip by remember { mutableStateOf<TooltipContent?>(null) }
+
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(barHeight)
+                .clip(RoundedCornerShape(cornerRadius))
+                .onSizeChanged { barWidthPx = it.width }
+                .pointerInput(segments) {
+                    detectTapGestures { offset ->
+                        activeTooltip = resolveTooltip(
+                            tapX = offset.x,
+                            barWidthPx = barWidthPx,
+                            segments = segments,
+                            hiddenSegments = hiddenSegments,
+                            totalCount = segments.sumOf { it.count }
+                        )
+                    }
+                }
+        ) {
+            segments.forEach { seg ->
+                Box(
+                    modifier = Modifier
+                        .weight(seg.count.toFloat())
+                        .fillMaxHeight()
+                        .background(seg.color)
+                )
+            }
+        }
+
+        activeTooltip?.let { tooltip ->
+            // Dismiss on tap anywhere outside
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) { detectTapGestures { activeTooltip = null } }
+            )
+            SegmentTooltip(
+                tooltip = tooltip,
+                onDismiss = { activeTooltip = null }
+            )
+        }
+    }
+}
+```
+
+#### Tap hit detection
+
+Map the tap X coordinate to a segment using cumulative fraction math:
+
+```kotlin
+private fun resolveTooltip(
+    tapX: Float,
+    barWidthPx: Int,
+    segments: List<BarSegment>,
+    hiddenSegments: List<BarSegment>,
+    totalCount: Int
+): TooltipContent? {
+    if (barWidthPx == 0 || totalCount == 0) return null
+    val fraction = tapX / barWidthPx
+    var cumulative = 0f
+    for (seg in segments) {
+        cumulative += seg.count.toFloat() / totalCount
+        if (fraction <= cumulative) {
+            return if (seg.label == "Other") {
+                TooltipContent.OtherDetail(
+                    totalPercent = seg.count * 100 / totalCount,
+                    topItems = hiddenSegments.take(3),
+                    remaining = (hiddenSegments.size - 3).coerceAtLeast(0)
+                )
+            } else {
+                TooltipContent.SingleSegment(
+                    label = seg.label,
+                    percent = seg.count * 100 / totalCount
+                )
+            }
+        }
+    }
+    return null
+}
+```
+
+#### Tooltip content model
+
+```kotlin
+sealed interface TooltipContent {
+    data class SingleSegment(val label: String, val percent: Int) : TooltipContent
+    data class OtherDetail(
+        val totalPercent: Int,
+        val topItems: List<BarSegment>,
+        val remaining: Int
+    ) : TooltipContent
+}
+```
+
+#### Tooltip display
+
+Use a simple `Surface` + `Column` card positioned near the tap. A `Popup` is the cleanest
+approach — it floats above all content without disrupting layout:
+
+```kotlin
+@Composable
+private fun SegmentTooltip(tooltip: TooltipContent, onDismiss: () -> Unit) {
+    Popup(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            tonalElevation = 4.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                when (tooltip) {
+                    is TooltipContent.SingleSegment -> {
+                        Text(
+                            text = "${tooltip.label} · ${tooltip.percent}%",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    is TooltipContent.OtherDetail -> {
+                        Text(
+                            text = "Other · ${tooltip.totalPercent}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        tooltip.topItems.forEach { item ->
+                            Text(
+                                text = "• ${item.label}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (tooltip.remaining > 0) {
+                            Text(
+                                text = "+ ${tooltip.remaining} more",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+#### Where each pattern applies
+
+| Section | Component | Why |
+|---------|-----------|-----|
+| Wear by Category | Vico `CartesianChart` | Frequency comparison — axis labels and animation add real value |
+| Category item count vs wear (dual metric) | `MultipleLinearProgressIndicator` | Two metrics on one scale; wear vs owned |
+| Color Breakdown | `SegmentedBar` | Many colors; proportional share at a glance; color swatches as segment fills |
+| Occasion Breakdown | `SegmentedBar` | 5–10 occasions; tap tooltip replaces clutter |
+| Subcategory Breakdown | `BreakdownSection` (progress bars) | Often only 2–4 entries; bar list is clearer than segment |
+| Wash Status | `WashStatusSection` (two cards) | Binary; a bar is unnecessary |
+
+#### Color assignment for `SegmentedBar`
+
+Don't hardcode colors. Map each segment to a color from a fixed palette derived from
+`MaterialTheme.colorScheme` extended tokens, cycling if needed:
+
+```kotlin
+private val segmentPalette: List<Color>
+    @Composable get() = listOf(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+        MaterialTheme.colorScheme.inversePrimary,
+        MaterialTheme.colorScheme.outline,
+    )
+
+// Usage when building segments from BreakdownRow:
+val palette = segmentPalette
+val otherColor = MaterialTheme.colorScheme.surfaceVariant
+val allSegments = rows.mapIndexed { i, row ->
+    BarSegment(label = row.label, count = row.count, color = palette[i % palette.size])
+}
+val (visible, hidden) = allSegments.withOtherGroup(otherColor = otherColor)
+```
+
+For `ColorBreakdownSection` specifically, use the actual hex value from `ColorBreakdownRow`
+as the segment fill — the swatch IS the bar:
+
+```kotlin
+val allSegments = colorRows.map { row ->
+    val color = runCatching {
+        Color(android.graphics.Color.parseColor(row.hex))
+    }.getOrElse { MaterialTheme.colorScheme.primary }
+    BarSegment(label = row.label, count = row.count, color = color)
+}
+```
+
+---
+
+### 3g. Shared `BreakdownSection` helper
 
 Extract the repeated "label + count + progress bar" pattern into one reusable composable
 rather than duplicating it for category count, subcategory, and occasion:
@@ -433,3 +735,12 @@ data but not on each other). Phase 5 can be done alongside Phase 3.
   not `compose`). Do not use v2.
 - **`StatHeadlineCard` visibility**: Currently `private`. Make `internal` before reusing it
   in `WashStatusSection`.
+- **`SegmentedBar` zero count**: A segment with `count = 0` gets `weight(0f)` — Compose
+  renders it as zero width, which is safe. Guard `withOtherGroup` against an all-zero list
+  (return early) to avoid division by zero in the tooltip percent calculation.
+- **Tooltip `Popup` positioning**: `Popup` renders at the top of the screen by default.
+  Pass `alignment = Alignment.Center` or use `offset` to anchor it near the tap point.
+  Keep it simple — centered is fine for MVP.
+- **Tap area accuracy**: `onSizeChanged` gives the bar's pixel width at layout time. If the
+  bar width changes (e.g. orientation change), the state updates automatically on next
+  recomposition. No special handling needed.
