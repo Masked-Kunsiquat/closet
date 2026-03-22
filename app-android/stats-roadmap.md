@@ -75,13 +75,17 @@ Single `verticalScroll` Column inside a `Scaffold` with `CenterAlignedTopAppBar`
 
 ---
 
-## Phase 5 — Polish
+## Phase 5 — Polish ✅
 
-- Empty state when the wardrobe has no items or no logs yet
-- Image resolution via `StorageRepository.getFile()` (same pattern as other
-  screens) passed into Coil for Most Worn and Cost Per Wear thumbnails
-- Accessibility: `contentDescription` on stat values so screen readers can
-  announce them meaningfully
+- **Empty states** ✅ — `StatsEmptyState` (wardrobe empty) + `NoLogsInfoCard` (items but no
+  logs yet); `StatsContent` branches on `totalItems == 0` → empty state,
+  `totalLogsCount == 0` → no-logs card replacing wear sections
+- **Image fallbacks** ✅ — all three thumbnail containers (MostWorn 88dp,
+  CostPerWear 48dp, NeverWorn 48dp) backed by `surfaceVariant` so
+  null/unresolved images show a neutral placeholder
+- **Accessibility** ✅ — `semantics(mergeDescendants = true) { contentDescription }`
+  on each `StatHeadlineCard`; labels announce full context
+  ("X items in your wardrobe", "X of Y items worn", "Wardrobe value: $Z")
 
 ---
 

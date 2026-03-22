@@ -1,6 +1,7 @@
 package com.closet.features.stats
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -39,6 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -99,6 +104,14 @@ internal fun HeadlineCardsRow(
         ?.let { NumberFormat.getCurrencyInstance().format(it) }
         ?: "—"
 
+    val cdItems = stringResource(R.string.stats_cd_total_items, overview.totalItems)
+    val cdWorn = stringResource(R.string.stats_cd_worn_pct, overview.wornItems, overview.totalItems)
+    val cdValue = if (overview.totalValue != null) {
+        stringResource(R.string.stats_cd_total_value, formattedValue)
+    } else {
+        stringResource(R.string.stats_cd_total_value_unknown)
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -108,16 +121,19 @@ internal fun HeadlineCardsRow(
         StatHeadlineCard(
             value = overview.totalItems.toString(),
             label = stringResource(R.string.stats_headline_items),
+            accessibilityLabel = cdItems,
             modifier = Modifier.weight(1f)
         )
         StatHeadlineCard(
             value = wornPct,
             label = stringResource(R.string.stats_headline_worn),
+            accessibilityLabel = cdWorn,
             modifier = Modifier.weight(1f)
         )
         StatHeadlineCard(
             value = formattedValue,
             label = stringResource(R.string.stats_headline_value),
+            accessibilityLabel = cdValue,
             modifier = Modifier.weight(1f)
         )
     }
@@ -127,9 +143,14 @@ internal fun HeadlineCardsRow(
 private fun StatHeadlineCard(
     value: String,
     label: String,
+    accessibilityLabel: String,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(modifier = modifier) {
+    ElevatedCard(
+        modifier = modifier.semantics(mergeDescendants = true) {
+            contentDescription = accessibilityLabel
+        }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -182,6 +203,7 @@ private fun MostWornThumbnail(
         modifier = Modifier
             .size(88.dp)
             .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onItemClick(item.id) }
     ) {
         AsyncImage(
@@ -241,14 +263,19 @@ private fun CostPerWearRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = resolveImagePath(item.imagePath),
-            contentDescription = item.name,
+        Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(6.dp)),
-            contentScale = ContentScale.Crop
-        )
+                .clip(RoundedCornerShape(6.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            AsyncImage(
+                model = resolveImagePath(item.imagePath),
+                contentDescription = item.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
         Spacer(Modifier.width(12.dp))
         Text(
             text = item.name,
@@ -399,14 +426,19 @@ private fun NeverWornRow(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = resolveImagePath(item.imagePath),
-            contentDescription = item.name,
+        Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(6.dp)),
-            contentScale = ContentScale.Crop
-        )
+                .clip(RoundedCornerShape(6.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            AsyncImage(
+                model = resolveImagePath(item.imagePath),
+                contentDescription = item.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
         Spacer(Modifier.width(12.dp))
         Text(
             text = item.name,
@@ -415,6 +447,76 @@ private fun NeverWornRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+// ─── Empty states ─────────────────────────────────────────────────────────────
+
+/**
+ * Full-column empty state shown when the wardrobe has no items at all.
+ */
+@Composable
+internal fun StatsEmptyState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 64.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Outlined.Checkroom,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.stats_empty_no_items_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.stats_empty_no_items_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/**
+ * Informational card shown when items exist but no outfits have been logged yet.
+ * Replaces the wear-based sections (most worn, cost per wear, category wear).
+ */
+@Composable
+internal fun NoLogsInfoCard(modifier: Modifier = Modifier) {
+    ElevatedCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = stringResource(R.string.stats_no_logs_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.stats_no_logs_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

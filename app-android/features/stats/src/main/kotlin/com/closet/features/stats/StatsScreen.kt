@@ -86,35 +86,42 @@ internal fun StatsContent(
                 onSelectPeriod = onSelectPeriod
             )
 
-            HeadlineCardsRow(overview = uiState.overview)
+            if (uiState.overview.totalItems == 0) {
+                // Wardrobe is empty — nothing useful to show beyond the empty state.
+                StatsEmptyState()
+            } else {
+                HeadlineCardsRow(overview = uiState.overview)
 
-            if (uiState.mostWorn.isNotEmpty()) {
-                MostWornSection(
-                    items = uiState.mostWorn,
+                if (uiState.totalLogsCount == 0) {
+                    // Items exist but no outfits have been logged yet.
+                    NoLogsInfoCard()
+                } else {
+                    if (uiState.mostWorn.isNotEmpty()) {
+                        MostWornSection(
+                            items = uiState.mostWorn,
+                            resolveImagePath = resolveImagePath,
+                            onItemClick = onItemClick
+                        )
+                    }
+                    if (uiState.costPerWear.isNotEmpty()) {
+                        CostPerWearSection(
+                            items = uiState.costPerWear,
+                            resolveImagePath = resolveImagePath,
+                            onItemClick = onItemClick
+                        )
+                    }
+                    TotalLogsCallout(count = uiState.totalLogsCount)
+                    if (uiState.categoryWear.isNotEmpty()) {
+                        CategoryWearSection(rows = uiState.categoryWear)
+                    }
+                }
+
+                NeverWornSection(
+                    items = uiState.neverWorn,
                     resolveImagePath = resolveImagePath,
                     onItemClick = onItemClick
                 )
             }
-
-            if (uiState.costPerWear.isNotEmpty()) {
-                CostPerWearSection(
-                    items = uiState.costPerWear,
-                    resolveImagePath = resolveImagePath,
-                    onItemClick = onItemClick
-                )
-            }
-
-            TotalLogsCallout(count = uiState.totalLogsCount)
-
-            if (uiState.categoryWear.isNotEmpty()) {
-                CategoryWearSection(rows = uiState.categoryWear)
-            }
-
-            NeverWornSection(
-                items = uiState.neverWorn,
-                resolveImagePath = resolveImagePath,
-                onItemClick = onItemClick
-            )
 
             Spacer(Modifier.height(32.dp))
         }

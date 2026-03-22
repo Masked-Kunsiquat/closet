@@ -28,6 +28,18 @@
     <!-- Cost per wear suffix -->
     <string name="stats_cost_per_wear_suffix">/ wear</string>
 
+    <!-- Empty states -->
+    <string name="stats_empty_no_items_title">Your wardrobe is empty</string>
+    <string name="stats_empty_no_items_subtitle">Add some items to see your wardrobe stats</string>
+    <string name="stats_no_logs_title">No outfits logged yet</string>
+    <string name="stats_no_logs_subtitle">Log an outfit to start seeing wear stats here</string>
+
+    <!-- Accessibility content descriptions for headline cards -->
+    <string name="stats_cd_total_items">%d items in your wardrobe</string>
+    <string name="stats_cd_worn_pct">%d of %d items worn</string>
+    <string name="stats_cd_total_value">Total wardrobe value: %s</string>
+    <string name="stats_cd_total_value_unknown">Total wardrobe value unknown</string>
+
     <!-- Plurals -->
     <plurals name="stats_total_logs">
         <item quantity="one">You\'ve logged 1 outfit</item>
