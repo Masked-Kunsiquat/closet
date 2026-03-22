@@ -85,8 +85,8 @@ class MigrationTest {
 
         // Insert a clothing item with a free-text brand
         db3.execSQL(
-            "INSERT INTO clothing_items (name, brand, category_id, status, wash_status, created_at, updated_at) " +
-            "VALUES ('Test Jacket', 'Patagonia', 1, 'Active', 'Clean', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')"
+            "INSERT INTO clothing_items (name, brand, category_id, status, wash_status, is_favorite, created_at, updated_at) " +
+            "VALUES ('Test Jacket', 'Patagonia', 1, 'Active', 'Clean', 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')"
         )
         db3.close()
 
@@ -190,8 +190,8 @@ class MigrationTest {
         // Seed prerequisite rows
         db6.execSQL("INSERT INTO categories (id, name, sort_order) VALUES (1, 'Tops', 1)")
         db6.execSQL(
-            "INSERT INTO clothing_items (id, name, category_id, status, wash_status, created_at, updated_at) " +
-            "VALUES (1, 'Blue Tee', 1, 'Active', 'Clean', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')"
+            "INSERT INTO clothing_items (id, name, category_id, status, wash_status, is_favorite, created_at, updated_at) " +
+            "VALUES (1, 'Blue Tee', 1, 'Active', 'Clean', 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')"
         )
         db6.execSQL(
             "INSERT INTO outfits (id, name, created_at, updated_at) " +
