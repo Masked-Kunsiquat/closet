@@ -74,6 +74,14 @@ internal fun List<BarSegment>.withOtherGroup(
 
 // ─── Hit detection ────────────────────────────────────────────────────────────
 
+/**
+ * Maps a tap position to a [TooltipContent] by walking the segment list and accumulating
+ * fractional widths until the cumulative fraction covers [tapX] / [barWidthPx].
+ *
+ * Returns [TooltipContent.SingleSegment] for normal segments or [TooltipContent.OtherDetail]
+ * for the synthetic "Other" segment (capped at the top 3 [hiddenSegments] with a remainder count).
+ * Returns `null` if [barWidthPx] or [totalCount] is zero.
+ */
 internal fun resolveTooltip(
     tapX: Float,
     barWidthPx: Int,

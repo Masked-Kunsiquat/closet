@@ -54,6 +54,10 @@ import java.text.NumberFormat
 
 // ─── Period selector ──────────────────────────────────────────────────────────
 
+/**
+ * Horizontally scrollable row of [FilterChip]s, one per [StatPeriod].
+ * The chip matching [selectedPeriod] renders in the selected state.
+ */
 @Composable
 internal fun PeriodSelectorRow(
     selectedPeriod: StatPeriod,
@@ -87,6 +91,10 @@ private val StatPeriod.label: String
 
 // ─── Headline cards ───────────────────────────────────────────────────────────
 
+/**
+ * Three side-by-side [StatHeadlineCard]s showing total items, worn percentage, and total wardrobe
+ * value. All three values are derived from [overview] and formatted for display.
+ */
 @Composable
 internal fun HeadlineCardsRow(
     overview: StatsOverview,
@@ -136,6 +144,11 @@ internal fun HeadlineCardsRow(
 
 // ─── Most worn ────────────────────────────────────────────────────────────────
 
+/**
+ * Horizontally scrollable row of thumbnail cards for the most-worn items.
+ * Each card shows the item's image with a wear-count badge overlaid in the bottom-right corner.
+ * Tapping a card calls [onItemClick] with the item's ID.
+ */
 @Composable
 internal fun MostWornSection(
     items: List<StatItem>,
@@ -197,6 +210,11 @@ private fun MostWornThumbnail(
 
 // ─── Cost per wear ────────────────────────────────────────────────────────────
 
+/**
+ * Vertical list of items ranked by cost-per-wear (cheapest per wear first).
+ * Each row shows a thumbnail, item name, and the formatted cost-per-wear value.
+ * Only items with a purchase price and at least one wear are included.
+ */
 @Composable
 internal fun CostPerWearSection(
     items: List<CostPerWearItem>,
@@ -257,6 +275,11 @@ private fun CostPerWearRow(
 
 // ─── Total logs callout ───────────────────────────────────────────────────────
 
+/**
+ * Elevated card displaying the total number of outfit logs for the selected period as a
+ * centred, bold headline — e.g. "47 outfits logged". Uses a plural string resource so
+ * the singular "1 outfit logged" is handled automatically.
+ */
 @Composable
 internal fun TotalLogsCallout(
     count: Int,
