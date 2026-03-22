@@ -33,10 +33,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -327,42 +335,32 @@ internal fun CategoryWearSection(
     rows: List<BreakdownRow>,
     modifier: Modifier = Modifier
 ) {
-    val maxCount = rows.maxOfOrNull { it.count }?.takeIf { it > 0 } ?: 1
+    if (rows.isEmpty()) return
     SectionHeader(stringResource(R.string.stats_section_wear_by_category))
-    Column(
-        modifier = modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        rows.forEach { row ->
-            CategoryWearBar(row = row, maxCount = maxCount)
-        }
-        Spacer(Modifier.height(4.dp))
-    }
-}
 
-@Composable
-private fun CategoryWearBar(row: BreakdownRow, maxCount: Int) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = row.label, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                text = row.count.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    val modelProducer = remember { CartesianChartModelProducer() }
+    LaunchedEffect(rows) {
+        modelProducer.runTransaction {
+            columnSeries { series(rows.map { it.count }) }
         }
-        Spacer(Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = { row.count.toFloat() / maxCount },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-        )
     }
+
+    CartesianChartHost(
+        chart = rememberCartesianChart(
+            rememberColumnCartesianLayer(),
+            startAxis = rememberStartAxis(),
+            bottomAxis = rememberBottomAxis(
+                valueFormatter = { _, x, _ ->
+                    rows.getOrNull(x.toInt())?.label ?: ""
+                }
+            )
+        ),
+        modelProducer = modelProducer,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .padding(horizontal = 16.dp)
+    )
 }
 
 // ─── Never worn ───────────────────────────────────────────────────────────────
