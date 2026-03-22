@@ -48,13 +48,17 @@ fun StatsScreen(
  * Stateless rendering of the Stats screen.
  *
  * Layout (single vertically scrollable column):
- * 1. Period selector — chip row (All time / 30 days / 90 days / This year)
- * 2. Headline cards — 3-up: total items · worn % · total wardrobe value
- * 3. Most Worn — horizontal lazy row of thumbnails with wear-count badge
- * 4. Cost Per Wear — ranked list (cheapest per wear first)
- * 5. Total logs callout — "You've logged N outfits"
- * 6. Wear by Category — labelled bar chart
- * 7. Never Worn — collapsible list
+ *
+ * Period selector
+ * Headline cards (items · worn % · value)
+ *
+ * ── Activity (only when totalLogsCount > 0) ──────────────────────────────────
+ *   Most Worn · Cost Per Wear · Total Logs Callout · Wear by Category (Vico)
+ *
+ * ── Wardrobe Composition (always when totalItems > 0) ────────────────────────
+ *   Wash Status · Category Breakdown · Subcategory · Color · Occasion
+ *
+ * ── Never Worn (collapsible, always when totalItems > 0) ─────────────────────
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,13 +91,12 @@ internal fun StatsContent(
             )
 
             if (uiState.overview.totalItems == 0) {
-                // Wardrobe is empty — nothing useful to show beyond the empty state.
                 StatsEmptyState()
             } else {
                 HeadlineCardsRow(overview = uiState.overview)
 
+                // ── Activity ─────────────────────────────────────────────────
                 if (uiState.totalLogsCount == 0) {
-                    // Items exist but no outfits have been logged yet.
                     NoLogsInfoCard()
                 } else {
                     if (uiState.mostWorn.isNotEmpty()) {
@@ -111,11 +114,17 @@ internal fun StatsContent(
                         )
                     }
                     TotalLogsCallout(count = uiState.totalLogsCount)
-                    if (uiState.categoryWear.isNotEmpty()) {
-                        CategoryWearSection(rows = uiState.categoryWear)
-                    }
+                    CategoryWearSection(rows = uiState.categoryWear)
                 }
 
+                // ── Wardrobe Composition ──────────────────────────────────────
+                WashStatusSection(rows = uiState.washStatus)
+                CategoryCountSection(rows = uiState.categoryCount)
+                SubcategoryBreakdownSection(rows = uiState.subcategoryBreakdown)
+                ColorBreakdownSection(rows = uiState.colorBreakdown)
+                OccasionBreakdownSection(rows = uiState.occasionBreakdown)
+
+                // ── Never Worn ────────────────────────────────────────────────
                 NeverWornSection(
                     items = uiState.neverWorn,
                     resolveImagePath = resolveImagePath,
