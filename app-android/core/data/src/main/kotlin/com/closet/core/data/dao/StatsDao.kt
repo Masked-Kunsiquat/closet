@@ -202,4 +202,61 @@ interface StatsDao {
         ORDER BY ci.name ASC
     """)
     fun getNeverWornItems(): Flow<List<StatItem>>
+
+    /**
+     * Item count per subcategory. Only items that have a subcategory assigned are included
+     * (uses INNER JOIN, not LEFT JOIN).
+     * @return A [Flow] emitting a list of [BreakdownRow] ordered by count descending.
+     */
+    @Query("""
+        SELECT s.name AS label, COUNT(DISTINCT ci.id) AS count
+        FROM clothing_items ci
+        JOIN subcategories s ON s.id = ci.subcategory_id
+        WHERE ci.status = 'Active'
+        GROUP BY s.id
+        ORDER BY count DESC
+    """)
+    fun getBreakdownBySubcategory(): Flow<List<BreakdownRow>>
+
+    /**
+     * Item count per color via the junction table. Carries the hex value for swatch rendering.
+     * @return A [Flow] emitting a list of [ColorBreakdownRow] ordered by count descending.
+     */
+    @Query("""
+        SELECT co.name AS label, co.hex, COUNT(DISTINCT ci.id) AS count
+        FROM clothing_items ci
+        JOIN clothing_item_colors cic ON cic.clothing_item_id = ci.id
+        JOIN colors co ON co.id = cic.color_id
+        WHERE ci.status = 'Active'
+        GROUP BY co.id
+        ORDER BY count DESC
+    """)
+    fun getBreakdownByColor(): Flow<List<ColorBreakdownRow>>
+
+    /**
+     * Item count per occasion via the junction table.
+     * @return A [Flow] emitting a list of [BreakdownRow] ordered by count descending.
+     */
+    @Query("""
+        SELECT o.name AS label, COUNT(DISTINCT ci.id) AS count
+        FROM clothing_items ci
+        JOIN clothing_item_occasions cio ON cio.clothing_item_id = ci.id
+        JOIN occasions o ON o.id = cio.occasion_id
+        WHERE ci.status = 'Active'
+        GROUP BY o.id
+        ORDER BY count DESC
+    """)
+    fun getBreakdownByOccasion(): Flow<List<BreakdownRow>>
+
+    /**
+     * Clean vs Dirty count. Returns at most 2 rows with label = 'Clean' or 'Dirty'.
+     * @return A [Flow] emitting a list of [BreakdownRow].
+     */
+    @Query("""
+        SELECT wash_status AS label, COUNT(*) AS count
+        FROM clothing_items
+        WHERE status = 'Active'
+        GROUP BY wash_status
+    """)
+    fun getWashStatusBreakdown(): Flow<List<BreakdownRow>>
 }
