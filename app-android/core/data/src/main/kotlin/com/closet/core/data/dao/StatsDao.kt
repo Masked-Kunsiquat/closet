@@ -33,6 +33,16 @@ data class BreakdownRow(
 )
 
 /**
+ * Represents a row in a color breakdown. Carries the hex value so the UI can render
+ * a color swatch alongside the label — [BreakdownRow] cannot hold the extra field.
+ */
+data class ColorBreakdownRow(
+    val label: String,
+    val hex: String,
+    val count: Int
+)
+
+/**
  * Represents a clothing item ranked by cost-per-wear (cheapest per wear first).
  * Only items with a known purchase price and at least one wear are included.
  */
