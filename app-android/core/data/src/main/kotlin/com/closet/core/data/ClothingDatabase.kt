@@ -11,6 +11,8 @@ import com.closet.core.data.migrations.MIGRATION_1_2
 import com.closet.core.data.migrations.MIGRATION_2_3
 import com.closet.core.data.migrations.MIGRATION_3_4
 import com.closet.core.data.migrations.MIGRATION_4_5
+import com.closet.core.data.migrations.MIGRATION_5_6
+import com.closet.core.data.migrations.MIGRATION_6_7
 import com.closet.core.data.model.*
 
 /**
@@ -34,13 +36,14 @@ import com.closet.core.data.model.*
         OutfitEntity::class,
         OutfitItemEntity::class,
         OutfitLogEntity::class,
+        OutfitLogItemEntity::class,
         ClothingItemColorEntity::class,
         ClothingItemMaterialEntity::class,
         ClothingItemSeasonEntity::class,
         ClothingItemOccasionEntity::class,
         ClothingItemPatternEntity::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -75,23 +78,21 @@ abstract class ClothingDatabase : RoomDatabase() {
                     ClothingDatabase::class.java,
                     DATABASE_NAME
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
-                        // Seed data on first creation
                         DatabaseSeeder.seedAll(db)
-                        
-                        // Enforce one-OOTD-per-day via partial unique index
-                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
-                        
                         createCategoryConsistencyTriggers(db)
                     }
 
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)
-                        // Parity: PRAGMA foreign_keys = ON at DB open time, always
                         db.execSQL("PRAGMA foreign_keys = ON")
+                        // Partial index — Room cannot represent this in entity annotations so it is
+                        // created here (runs for every open) rather than in onCreate. Migration 5→6
+                        // drops any pre-existing copy so Room's post-migration validation passes clean.
+                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
                     }
                 })
                 .build()

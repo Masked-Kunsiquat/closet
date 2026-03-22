@@ -1,6 +1,7 @@
 package com.closet.core.data.repository
 
 import com.closet.core.data.dao.CalendarDay
+import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.dao.LogDao
 import com.closet.core.data.dao.OutfitLogWithMeta
 import com.closet.core.data.model.OutfitLogEntity
@@ -31,12 +32,12 @@ class LogRepository @Inject constructor(
         logDao.getLogsByDate(date)
 
     /**
-     * Creates a new outfit log entry.
+     * Creates a new outfit log entry and snapshots its item membership.
      * @param log The [OutfitLogEntity] to insert.
      * @return The row ID of the newly created log.
      */
     suspend fun insertLog(log: OutfitLogEntity): Long =
-        logDao.insertLog(log)
+        logDao.insertLogAndSnapshot(log)
 
     /**
      * Logs an outfit as worn on today's date (device local time, YYYY-MM-DD).
@@ -48,18 +49,25 @@ class LogRepository @Inject constructor(
      * @param outfitId The ID of the outfit that was worn.
      * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
      */
-    suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> = try {
-        val today = LocalDate.now().toString()
-        // Idempotent: return existing log if already worn today (unique index enforces this at DB level too).
-        val existingId = logDao.getLogIdByOutfitAndDate(outfitId, today)
+    suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> =
+        wearOutfitOnDate(outfitId, LocalDate.now().toString())
+
+    /**
+     * Logs an outfit as worn on [date] (YYYY-MM-DD). Idempotent — returns the existing
+     * log ID if the outfit was already logged for that date.
+     *
+     * @param outfitId The ID of the outfit that was worn.
+     * @param date The date to log, in YYYY-MM-DD format.
+     * @return The log row ID in [DataResult.Success], or [DataResult.Error].
+     */
+    suspend fun wearOutfitOnDate(outfitId: Long, date: String): DataResult<Long> = try {
+        val existingId = logDao.getLogIdByOutfitAndDate(outfitId, date)
         if (existingId != null) return DataResult.Success(existingId)
-        val logId = logDao.insertLog(
-            OutfitLogEntity(outfitId = outfitId, date = today)
-        )
+        val logId = logDao.insertLogAndSnapshot(OutfitLogEntity(outfitId = outfitId, date = date))
         DataResult.Success(logId)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error logging wear for outfit $outfitId")
+        Timber.e(e, "Error logging wear for outfit $outfitId on $date")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -93,6 +101,14 @@ class LogRepository @Inject constructor(
      */
     suspend fun clearOotd(date: String) = 
         logDao.clearOotdForDate(date)
+
+    /**
+     * Returns a chronological (most-recent-first) list of every log in which [itemId] was worn.
+     * @param itemId The ID of the clothing item.
+     * @return A [Flow] emitting a list of [ItemWearLog].
+     */
+    fun getLogsForItem(itemId: Long): Flow<List<ItemWearLog>> =
+        logDao.getLogsForItem(itemId)
 
     /**
      * Retrieves a monthly summary of logged days for the calendar view.

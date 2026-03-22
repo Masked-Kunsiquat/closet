@@ -1,14 +1,9 @@
 package com.closet.navigation
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Checkroom
-import androidx.compose.material.icons.filled.Style
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Checkroom
-import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -17,120 +12,97 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavController
 import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
-import androidx.navigation.NavOptions
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navOptions
 import com.closet.R
+import com.closet.core.ui.R as CoreUiR
+import com.closet.features.outfits.JournalRoute
 import com.closet.features.outfits.OutfitsRoute
-import com.closet.features.outfits.navigateToOutfits
+import com.closet.features.outfits.journalScreen
 import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.outfitsScreen
 import com.closet.features.outfits.wardrobePickerScreen
 import com.closet.features.stats.StatsRoute
-import com.closet.features.stats.navigateToStats
 import com.closet.features.stats.statsScreen
-import com.closet.features.wardrobe.*
+import com.closet.features.wardrobe.AddClothingDestination
+import com.closet.features.wardrobe.BrandManagementDestination
+import com.closet.features.wardrobe.BrandManagementScreen
+import com.closet.features.wardrobe.ClothingDetailDestination
+import com.closet.features.wardrobe.ClothingDetailScreen
+import com.closet.features.wardrobe.ClothingFormScreen
+import com.closet.features.wardrobe.ClosetDestination
+import com.closet.features.wardrobe.ClosetScreen
+import com.closet.features.wardrobe.EditClothingDestination
+import kotlin.reflect.KClass
 
-/**
- * A top-level navigation destination shown in the bottom navigation bar.
- *
- * @param selectedIcon Icon to show when this tab is active.
- * @param unselectedIcon Icon to show when this tab is inactive.
- * @param labelRes String resource for the tab label.
- * @param isSelected Returns true when the given [NavDestination] matches this route.
- * @param navigate Navigates to this tab's root destination with the provided [NavOptions].
- */
-data class TopLevelRoute(
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector,
+// ─── Bottom nav items ─────────────────────────────────────────────────────────
+
+private data class TopLevelRoute(
+    val destination: Any,
+    val routeClass: KClass<*>,
     @StringRes val labelRes: Int,
-    val isSelected: (NavDestination?) -> Boolean,
-    val navigate: (NavController, NavOptions?) -> Unit
+    @DrawableRes val iconRes: Int,
 )
 
 private val topLevelRoutes = listOf(
-    TopLevelRoute(
-        selectedIcon = Icons.Filled.Checkroom,
-        unselectedIcon = Icons.Outlined.Checkroom,
-        labelRes = R.string.nav_closet,
-        isSelected = { dest -> dest?.route == ClosetDestination::class.qualifiedName },
-        navigate = { nav, opts -> nav.navigate(ClosetDestination, opts) }
-    ),
-    TopLevelRoute(
-        selectedIcon = Icons.Filled.Style,
-        unselectedIcon = Icons.Outlined.Style,
-        labelRes = R.string.nav_outfits,
-        isSelected = { dest -> dest?.route == OutfitsRoute::class.qualifiedName },
-        navigate = { nav, opts -> nav.navigateToOutfits(opts) }
-    ),
-    TopLevelRoute(
-        selectedIcon = Icons.Filled.BarChart,
-        unselectedIcon = Icons.Outlined.BarChart,
-        labelRes = R.string.nav_stats,
-        isSelected = { dest -> dest?.route == StatsRoute::class.qualifiedName },
-        navigate = { nav, opts -> nav.navigateToStats(opts) }
-    )
+    TopLevelRoute(ClosetDestination, ClosetDestination::class, R.string.nav_closet, CoreUiR.drawable.ic_icon_coat_hanger),
+    TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, CoreUiR.drawable.ic_icon_t_shirt),
+    TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, CoreUiR.drawable.ic_icon_calendar_dots),
+    TopLevelRoute(StatsRoute, StatsRoute::class, R.string.nav_stats, CoreUiR.drawable.ic_icon_chart_bar),
 )
+
+private fun NavDestination?.isTopLevel() =
+    topLevelRoutes.any { this?.hasRoute(it.routeClass) == true }
+
+// ─── Nav graph ────────────────────────────────────────────────────────────────
 
 /**
  * Root [NavHost] for the app, wiring all feature destinations into a single navigation graph.
- * Hosts a [NavigationBar] for the three top-level tabs: Closet, Outfits, and Stats.
- * The bottom bar is hidden on sub-screens (detail, form, builder, picker).
+ * Owns the root [Scaffold] so the bottom [NavigationBar] can be conditionally shown based on
+ * the current destination — visible only on the top-level tabs, hidden on detail screens.
  *
- * @param modifier Modifier applied to the [NavHost].
- * @param navController The [NavHostController] managing back-stack state.
+ * Tab switches use [saveState]/[restoreState] so each tab preserves its own back stack state.
  */
 @Composable
 fun ClosetNavGraph(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController()
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
-    val topLevelNavOptions = navOptions {
-        popUpTo<ClosetDestination> {
-            saveState = true
-        }
-        launchSingleTop = true
-        restoreState = true
-    }
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = currentBackStackEntry?.destination
 
     Scaffold(
+        modifier = modifier,
         bottomBar = {
-            val showBottomBar = topLevelRoutes.any { it.isSelected(currentDestination) }
-            if (showBottomBar) {
-                NavigationBar {
-                    topLevelRoutes.forEach { topLevel ->
-                        val selected = topLevel.isSelected(currentDestination)
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { topLevel.navigate(navController, topLevelNavOptions) },
-                            icon = {
-                                Icon(
-                                    imageVector = if (selected) topLevel.selectedIcon else topLevel.unselectedIcon,
-                                    contentDescription = stringResource(topLevel.labelRes)
-                                )
-                            },
-                            label = { Text(stringResource(topLevel.labelRes)) }
-                        )
+            if (currentDestination.isTopLevel()) {
+                ClosetBottomBar(
+                    currentDestination = currentDestination,
+                    onNavigate = { destination ->
+                        navController.navigate(destination) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = ClosetDestination,
-            modifier = modifier.padding(innerPadding)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             composable<ClosetDestination> {
                 ClosetScreen(
@@ -142,7 +114,14 @@ fun ClosetNavGraph(
             composable<ClothingDetailDestination> {
                 ClothingDetailScreen(
                     onBack = { navController.popBackStack() },
-                    onEdit = { itemId -> navController.navigate(EditClothingDestination(itemId)) }
+                    onEdit = { itemId -> navController.navigate(EditClothingDestination(itemId)) },
+                    onNavigateToJournal = { date ->
+                        navController.navigate(JournalRoute(initialDate = date)) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
+                    },
                 )
             }
 
@@ -161,17 +140,41 @@ fun ClosetNavGraph(
             }
 
             composable<BrandManagementDestination> {
-                BrandManagementScreen(
-                    onBack = { navController.popBackStack() }
-                )
+                BrandManagementScreen(onBack = { navController.popBackStack() })
             }
 
             outfitsScreen(navController)
             outfitBuilderScreen(navController)
             wardrobePickerScreen(navController)
+            journalScreen()
 
             statsScreen(
                 onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) }
+            )
+        }
+    }
+}
+
+// ─── Bottom bar ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun ClosetBottomBar(
+    currentDestination: NavDestination?,
+    onNavigate: (Any) -> Unit
+) {
+    NavigationBar {
+        topLevelRoutes.forEach { topLevel ->
+            val selected = currentDestination?.hasRoute(topLevel.routeClass) == true
+            NavigationBarItem(
+                selected = selected,
+                onClick = { onNavigate(topLevel.destination) },
+                icon = {
+                    Icon(
+                        painter = painterResource(topLevel.iconRes),
+                        contentDescription = stringResource(topLevel.labelRes)
+                    )
+                },
+                label = { Text(stringResource(topLevel.labelRes)) }
             )
         }
     }
