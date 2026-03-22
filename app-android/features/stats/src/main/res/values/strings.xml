@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Screen title -->
+    <string name="stats_title">Stats</string>
+
+    <!-- Period selector chips -->
+    <string name="stats_period_all_time">All time</string>
+    <string name="stats_period_30_days">30 days</string>
+    <string name="stats_period_90_days">90 days</string>
+    <string name="stats_period_this_year">This year</string>
+
+    <!-- Headline cards -->
+    <string name="stats_headline_items">Items</string>
+    <string name="stats_headline_worn">Worn</string>
+    <string name="stats_headline_value">Value</string>
+
+    <!-- Section headers — activity (wear-based, period-filtered) -->
+    <string name="stats_section_most_worn">Most Worn</string>
+    <string name="stats_section_cost_per_wear">Cost Per Wear</string>
+    <string name="stats_section_wear_by_category">Wear by Category</string>
+
+    <!-- Section headers — wardrobe composition (period-independent) -->
+    <string name="stats_section_wash_status">Clean vs Dirty</string>
+    <string name="stats_section_category_count">Wardrobe by Category</string>
+    <string name="stats_section_subcategory">Wardrobe by Subcategory</string>
+    <string name="stats_section_color">Wardrobe by Color</string>
+    <string name="stats_section_occasion">Wardrobe by Occasion</string>
+
+    <!-- Section headers — never worn (always shown, collapsible) -->
+    <string name="stats_section_never_worn">Never Worn</string>
+
+    <!-- Wash status card labels shown inside WashStatusSection -->
+    <string name="stats_wash_clean">Clean</string>
+    <string name="stats_wash_dirty">Dirty</string>
+
+    <!-- Never worn collapsible -->
+    <string name="stats_never_worn_expand">Expand never worn section</string>
+    <string name="stats_never_worn_collapse">Collapse never worn section</string>
+    <string name="stats_never_worn_empty">Every item has been worn at least once</string>
+
+    <!-- Cost per wear suffix -->
+    <string name="stats_cost_per_wear_suffix">/ wear</string>
+
+    <!-- Empty states -->
+    <string name="stats_empty_no_items_title">Your wardrobe is empty</string>
+    <string name="stats_empty_no_items_subtitle">Add some items to see your wardrobe stats</string>
+    <string name="stats_no_logs_title">No outfits logged yet</string>
+    <string name="stats_no_logs_subtitle">Log an outfit to start seeing wear stats here</string>
+
+    <!-- Accessibility content descriptions — headline cards (items / worn % / value) -->
+    <string name="stats_cd_total_items">%d items in your wardrobe</string>
+    <string name="stats_cd_worn_pct">%d of %d items worn</string>
+    <string name="stats_cd_total_value">Total wardrobe value: %s</string>
+    <string name="stats_cd_total_value_unknown">Total wardrobe value unknown</string>
+
+    <!-- Accessibility content descriptions — wash status cards -->
+    <string name="stats_cd_wash_clean">%d items clean</string>
+    <string name="stats_cd_wash_dirty">%d items need washing</string>
+
+    <!-- Plurals -->
+    <plurals name="stats_total_logs">
+        <item quantity="one">You\'ve logged 1 outfit</item>
+        <item quantity="other">You\'ve logged %d outfits</item>
+    </plurals>
+    <plurals name="stats_wear_badge">
+        <item quantity="one">1 wear</item>
+        <item quantity="other">%d wears</item>
+    </plurals>
+</resources>

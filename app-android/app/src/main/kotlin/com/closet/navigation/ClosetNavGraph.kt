@@ -29,6 +29,8 @@ import com.closet.features.outfits.journalScreen
 import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.outfitsScreen
 import com.closet.features.outfits.wardrobePickerScreen
+import com.closet.features.stats.StatsRoute
+import com.closet.features.stats.statsScreen
 import com.closet.features.wardrobe.AddClothingDestination
 import com.closet.features.wardrobe.BrandManagementDestination
 import com.closet.features.wardrobe.BrandManagementScreen
@@ -53,6 +55,7 @@ private val topLevelRoutes = listOf(
     TopLevelRoute(ClosetDestination, ClosetDestination::class, R.string.nav_closet, CoreUiR.drawable.ic_icon_coat_hanger),
     TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, CoreUiR.drawable.ic_icon_t_shirt),
     TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, CoreUiR.drawable.ic_icon_calendar_dots),
+    TopLevelRoute(StatsRoute, StatsRoute::class, R.string.nav_stats, CoreUiR.drawable.ic_icon_chart_bar),
 )
 
 private fun NavDestination?.isTopLevel() =
@@ -63,7 +66,7 @@ private fun NavDestination?.isTopLevel() =
 /**
  * Root [NavHost] for the app, wiring all feature destinations into a single navigation graph.
  * Owns the root [Scaffold] so the bottom [NavigationBar] can be conditionally shown based on
- * the current destination — visible only on the three top-level tabs, hidden on detail screens.
+ * the current destination — visible only on the top-level tabs, hidden on detail screens.
  *
  * Tab switches use [saveState]/[restoreState] so each tab preserves its own back stack state.
  */
@@ -144,6 +147,10 @@ fun ClosetNavGraph(
             outfitBuilderScreen(navController)
             wardrobePickerScreen(navController)
             journalScreen()
+
+            statsScreen(
+                onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) }
+            )
         }
     }
 }

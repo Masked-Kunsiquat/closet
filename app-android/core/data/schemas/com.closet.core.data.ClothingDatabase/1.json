@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "59aecba65cdbdc7ed0dc111272a0667a",
+    "identityHash": "4661a204038c3ead7bff90e1993136d4",
     "entities": [
       {
         "tableName": "clothing_items",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL DEFAULT 'Active', `wash_status` TEXT NOT NULL DEFAULT 'Clean', `is_favorite` INTEGER NOT NULL, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `brand_id` INTEGER, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL DEFAULT 'Active', `wash_status` TEXT NOT NULL DEFAULT 'Clean', `is_favorite` INTEGER NOT NULL, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`brand_id`) REFERENCES `brands`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -24,6 +24,11 @@
             "fieldPath": "brand",
             "columnName": "brand",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "brandId",
+            "columnName": "brand_id",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "categoryId",
@@ -141,6 +146,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_clothing_items_size_value_id` ON `${TABLE_NAME}` (`size_value_id`)"
+          },
+          {
+            "name": "index_clothing_items_brand_id",
+            "unique": false,
+            "columnNames": [
+              "brand_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_clothing_items_brand_id` ON `${TABLE_NAME}` (`brand_id`)"
           }
         ],
         "foreignKeys": [
@@ -176,6 +190,58 @@
             "referencedColumns": [
               "id"
             ]
+          },
+          {
+            "table": "brands",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "brand_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "brands",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `normalized_name` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedName",
+            "columnName": "normalized_name",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_brands_normalized_name",
+            "unique": true,
+            "columnNames": [
+              "normalized_name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_brands_normalized_name` ON `${TABLE_NAME}` (`normalized_name`)"
           }
         ]
       },
@@ -387,7 +453,7 @@
       },
       {
         "tableName": "patterns",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -400,6 +466,11 @@
             "columnName": "name",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "icon",
+            "columnName": "icon",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -693,6 +764,16 @@
               "ASC"
             ],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_outfit_logs_date` ON `${TABLE_NAME}` (`date` ASC)"
+          },
+          {
+            "name": "index_outfit_logs_outfit_id_date",
+            "unique": true,
+            "columnNames": [
+              "outfit_id",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_outfit_logs_outfit_id_date` ON `${TABLE_NAME}` (`outfit_id`, `date`)"
           }
         ],
         "foreignKeys": [
@@ -702,6 +783,60 @@
             "onUpdate": "NO ACTION",
             "columns": [
               "outfit_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "outfit_log_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`outfit_log_id` INTEGER NOT NULL, `clothing_item_id` INTEGER NOT NULL, `outfit_name` TEXT, PRIMARY KEY(`outfit_log_id`, `clothing_item_id`), FOREIGN KEY(`outfit_log_id`) REFERENCES `outfit_logs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "outfitLogId",
+            "columnName": "outfit_log_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clothingItemId",
+            "columnName": "clothing_item_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outfitName",
+            "columnName": "outfit_name",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "outfit_log_id",
+            "clothing_item_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_outfit_log_items_clothing_item_id",
+            "unique": false,
+            "columnNames": [
+              "clothing_item_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_outfit_log_items_clothing_item_id` ON `${TABLE_NAME}` (`clothing_item_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "outfit_logs",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "outfit_log_id"
             ],
             "referencedColumns": [
               "id"
@@ -1057,7 +1192,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '59aecba65cdbdc7ed0dc111272a0667a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4661a204038c3ead7bff90e1993136d4')"
     ]
   }
 }

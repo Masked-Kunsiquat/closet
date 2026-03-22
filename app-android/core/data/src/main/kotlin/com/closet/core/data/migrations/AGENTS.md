@@ -8,7 +8,7 @@ Reference: https://developer.android.com/training/data-storage/room/migrating-db
 ## The rules
 
 **Never edit an applied migration.**
-Once a migration file is committed and could be on a real device, it is permanent.
+Once a migration file is committed and shipped, it is permanent.
 Add a new migration instead.
 
 **Always bump `@Database(version = N)` in `ClothingDatabase.kt`.**
@@ -42,31 +42,49 @@ This silently wipes all user data when a migration path is missing. It is never 
 ## Partial indexes and `onOpen`
 
 Room cannot represent SQLite partial indexes (e.g. `WHERE is_ootd = 1`) in `@Entity`
-annotations. If a partial index is placed in `onCreate` it will appear in the actual DB
-but not in Room's expected schema, causing a crash on the first migration validation after.
+annotations. If they live in `onCreate` they appear in the actual DB but not in Room's
+expected schema, causing a crash on the first migration validation.
 
 Rule: **all partial indexes belong in `ClothingDatabase.onOpen()`** using `CREATE ... IF NOT EXISTS`.
-Any migration that touches a table with a partial index must `DROP` the index first
-so Room's post-migration schema check passes clean. `onOpen` recreates it immediately after.
+
+**Every migration must `DROP INDEX IF EXISTS <name>` for any partial index at the top of
+`migrate()` — even if the migration doesn't touch that table.**
+
+Why "even if": `MigrationTestHelper` calls `onOpen()` on the pre-migration DB during
+`createDatabase()`, which creates the partial index. If the migration doesn't drop it,
+Room's post-migration validator sees an unexpected index and fails.
+`onOpen()` recreates it immediately after migration completes, so runtime behaviour is unchanged.
 
 Current partial index managed this way: `one_ootd_per_day` on `outfit_logs`.
+
+**In migration tests**, also drop the partial index on the pre-migration DB before closing it:
+```kotlin
+val dbN = helper.createDatabase(TEST_DB, N)
+dbN.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+// seed data...
+dbN.close()
+```
+This prevents the index (written by `onOpen()` during `createDatabase`) from being present
+when `runMigrationsAndValidate` opens the same file and runs validation.
 
 ---
 
 ## Writing a new migration — checklist
 
 1. Create `MigrationNToN+1.kt` in this package.
-2. Write an `val MIGRATION_N_N1 = object : Migration(N, N+1) { ... }`.
-3. If any table has a partial index, `DROP INDEX IF EXISTS <name>` at the top of `migrate()`.
-4. Use literal SQL strings. No Kotlin string interpolation of variable values.
+2. Write `val MIGRATION_N_N1 = object : Migration(N, N+1) { ... }`.
+3. At the top of `migrate()`, add `DROP INDEX IF EXISTS one_ootd_per_day` (always, unconditionally).
+4. Use literal SQL strings — no Kotlin string interpolation of variable values.
 5. Add `MIGRATION_N_N1` to `ClothingDatabase.addMigrations(...)`.
 6. Bump `@Database(version = N+1)`.
 7. Run `./gradlew kspDebugKotlin` — commit the generated schema JSON.
 8. Add a test case in `MigrationTest.kt`:
-   - `helper.createDatabase(TEST_DB, N)` — optionally seed realistic data
+   - `val dbN = helper.createDatabase(TEST_DB, N)`
+   - `dbN.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")` ← always
+   - Seed any realistic data needed, then `dbN.close()`
    - `helper.runMigrationsAndValidate(TEST_DB, N+1, true, MIGRATION_N_N1)`
    - Assert the schema change and any data transformations
-   - Update `migrateFullPath1To6` to include the new migration
+   - Update the full-path test to include the new migration
 
 ---
 
@@ -81,9 +99,9 @@ Current partial index managed this way: `one_ootd_per_day` on `outfit_logs`.
 | Backfill data, create indexes, split tables | Manual `Migration` class |
 | Anything involving a partial index | Manual `Migration` class (see above) |
 
-This project has used manual migrations exclusively so far. AutoMigration is fine for future
-additive changes — just add `autoMigrations = [AutoMigration(from = N, to = N+1)]` to the
-`@Database` annotation and skip writing a migration file.
+AutoMigration is preferred for simple additive changes — add
+`autoMigrations = [AutoMigration(from = N, to = N+1)]` to the `@Database` annotation
+and skip writing a migration file. Still run KSP and commit the schema JSON.
 
 ---
 
@@ -102,3 +120,23 @@ on Gradle sync or during a normal build.
 
 Tests live in `core/data/src/androidTest/kotlin/com/closet/core/data/MigrationTest.kt`.
 Run them before opening any PR that touches the database schema.
+
+---
+
+## Resetting the migration chain (solo dev only)
+
+During rapid early iteration it can make sense to consolidate the migration history rather
+than carry a long chain of incrementally-authored migrations. This is only safe when:
+
+- You are the sole user (no shipped installs to protect)
+- You can uninstall the app on every device before reinstalling
+
+**How to reset:**
+1. Delete all `MigrationNToN+1.kt` files in this package.
+2. Delete all schema JSONs in `core/data/schemas/…/`.
+3. Set `@Database(version = 1)` and remove `.addMigrations(...)` from `ClothingDatabase`.
+4. Run `./gradlew kspDebugKotlin` to regenerate `1.json` from the current entity definitions.
+5. Replace the migration test suite with a single `freshInstallCreatesCorrectSchema` test.
+6. **Uninstall the app from every device** before reinstalling — Room cannot downgrade.
+
+Once real users exist, this option is gone. From that point on the chain is permanent.
