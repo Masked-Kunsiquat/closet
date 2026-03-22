@@ -57,6 +57,9 @@ data class StatsUiState(
     val washStatus: List<BreakdownRow> = emptyList(),
 )
 
+/** Groups four period-independent breakdown flows so they fit in one combine slot. */
+private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
 /**
  * Intermediate holder for the five period-sensitive queries, carrying the active
  * [StatPeriod] so it surfaces in [StatsUiState] without an extra flow in the outer combine.
@@ -75,8 +78,8 @@ private data class PeriodData(
  *
  * Wear-based queries are subscribed via [flatMapLatest] on [_selectedPeriod]: changing the
  * period cancels the previous subscriptions and re-subscribes all five filterable flows at once.
- * Period-independent flows ([StatsRepository.getCategoryBreakdown] and
- * [StatsRepository.getNeverWornItems]) are folded in by the outer [combine].
+ * Period-independent flows (category, subcategory, color, occasion, wash status, never worn)
+ * are folded in by the outer [combine] using nested combines to stay within the 5-flow limit.
  */
 @HiltViewModel
 class StatsViewModel @Inject constructor(
@@ -102,18 +105,30 @@ class StatsViewModel @Inject constructor(
     /** Aggregated UI state for the Stats screen. */
     val uiState: StateFlow<StatsUiState> = combine(
         periodData,
-        statsRepository.getCategoryBreakdown(),
-        statsRepository.getNeverWornItems()
-    ) { pd, categoryCount, neverWorn ->
+        combine(
+            statsRepository.getCategoryBreakdown(),
+            statsRepository.getSubcategoryBreakdown(),
+            statsRepository.getColorBreakdown(),
+            statsRepository.getOccasionBreakdown(),
+        ) { cat, sub, color, occasion -> Quad(cat, sub, color, occasion) },
+        combine(
+            statsRepository.getWashStatusBreakdown(),
+            statsRepository.getNeverWornItems(),
+        ) { wash, never -> wash to never }
+    ) { pd, composition, misc ->
         StatsUiState(
             overview = pd.overview,
             mostWorn = pd.mostWorn,
             costPerWear = pd.costPerWear,
-            categoryCount = categoryCount,
+            categoryCount = composition.first,
             categoryWear = pd.categoryWear,
             totalLogsCount = pd.totalLogsCount,
-            neverWorn = neverWorn,
-            selectedPeriod = pd.period
+            selectedPeriod = pd.period,
+            subcategoryBreakdown = composition.second,
+            colorBreakdown = composition.third,
+            occasionBreakdown = composition.fourth,
+            washStatus = misc.first,
+            neverWorn = misc.second,
         )
     }.stateIn(
         scope = viewModelScope,
