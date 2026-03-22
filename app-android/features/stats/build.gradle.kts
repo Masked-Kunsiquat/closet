@@ -62,4 +62,7 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+
+    // Charts
+    implementation(libs.vico.compose.m3)
 }
