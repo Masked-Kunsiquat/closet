@@ -151,7 +151,7 @@ internal fun HeadlineCardsRow(
 }
 
 @Composable
-private fun StatHeadlineCard(
+internal fun StatHeadlineCard(
     value: String,
     label: String,
     accessibilityLabel: String,
@@ -405,6 +405,36 @@ internal fun OccasionBreakdownSection(
         rows = rows,
         modifier = modifier
     )
+}
+
+/** Clean vs Dirty item counts displayed as two side-by-side headline cards. */
+@Composable
+internal fun WashStatusSection(
+    rows: List<BreakdownRow>,
+    modifier: Modifier = Modifier
+) {
+    val clean = rows.firstOrNull { it.label == "Clean" }?.count ?: 0
+    val dirty = rows.firstOrNull { it.label == "Dirty" }?.count ?: 0
+    SectionHeader(stringResource(R.string.stats_section_wash_status))
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        StatHeadlineCard(
+            value = clean.toString(),
+            label = stringResource(R.string.stats_wash_clean),
+            accessibilityLabel = stringResource(R.string.stats_cd_wash_clean, clean),
+            modifier = Modifier.weight(1f)
+        )
+        StatHeadlineCard(
+            value = dirty.toString(),
+            label = stringResource(R.string.stats_wash_dirty),
+            accessibilityLabel = stringResource(R.string.stats_cd_wash_dirty, dirty),
+            modifier = Modifier.weight(1f)
+        )
+    }
 }
 
 /** Item count per color with a color swatch next to each label. */
