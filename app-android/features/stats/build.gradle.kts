@@ -65,4 +65,10 @@ dependencies {
 
     // Charts
     implementation(libs.vico.compose.m3)
+
+    // Unit tests
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.mockk)
 }

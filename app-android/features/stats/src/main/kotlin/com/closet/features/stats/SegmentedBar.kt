@@ -74,7 +74,7 @@ internal fun List<BarSegment>.withOtherGroup(
 
 // ─── Hit detection ────────────────────────────────────────────────────────────
 
-private fun resolveTooltip(
+internal fun resolveTooltip(
     tapX: Float,
     barWidthPx: Int,
     segments: List<BarSegment>,
