@@ -42,12 +42,13 @@ import com.closet.core.data.dao.CostPerWearItem
 import com.closet.core.data.dao.StatItem
 import com.closet.core.data.dao.StatsOverview
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.compose.cartesian.data.columnSeries
 import java.io.File
 import java.text.NumberFormat
 
@@ -302,9 +303,9 @@ internal fun CategoryWearSection(
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberColumnCartesianLayer(),
-            startAxis = rememberStartAxis(),
-            bottomAxis = rememberBottomAxis(
-                valueFormatter = { _, x, _ ->
+            startAxis = VerticalAxis.rememberStart(),
+            bottomAxis = HorizontalAxis.rememberBottom(
+                valueFormatter = CartesianValueFormatter { _, x, _ ->
                     rows.getOrNull(x.toInt())?.label ?: ""
                 }
             )
