@@ -38,14 +38,12 @@ fun ClosetScreen(
     onItemClick: (Long) -> Unit = {},
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
-    val items by viewModel.items.collectAsStateWithLifecycle()
-    val categories by viewModel.categories.collectAsStateWithLifecycle()
-    val selectedCategoryId by viewModel.selectedCategoryId.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ClosetContent(
-        items = items,
-        categories = categories,
-        selectedCategoryId = selectedCategoryId,
+        items = uiState.items,
+        categories = uiState.categories,
+        selectedCategoryId = uiState.selectedCategoryId,
         onCategorySelect = viewModel::selectCategory,
         resolveImagePath = viewModel::resolveImagePath,
         onAddItemClick = onAddItemClick,
