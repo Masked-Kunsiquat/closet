@@ -152,68 +152,78 @@ private fun BreakdownBar(row: BreakdownRow, maxCount: Int) {
 
 // ─── Color breakdown ──────────────────────────────────────────────────────────
 
-/** Item count per color with a color swatch rendered next to each label. */
+/**
+ * Color breakdown section: a [SegmentedBar] at the top where each segment is filled with the
+ * actual item color, followed by a per-row legend showing the swatch, label, and count.
+ */
 @Composable
 internal fun ColorBreakdownSection(
     rows: List<ColorBreakdownRow>,
     modifier: Modifier = Modifier
 ) {
     if (rows.isEmpty()) return
-    val maxCount = rows.maxOf { it.count }.takeIf { it > 0 } ?: 1
-    SectionHeader(stringResource(R.string.stats_section_color))
-    Column(
-        modifier = modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        rows.forEach { row ->
-            ColorBreakdownBar(row = row, maxCount = maxCount)
+    val otherColor = MaterialTheme.colorScheme.outlineVariant
+    val segments = remember(rows) {
+        rows.map { row ->
+            BarSegment(
+                label = row.label,
+                count = row.count,
+                color = runCatching { Color(android.graphics.Color.parseColor(row.hex)) }
+                    .getOrElse { Color.Gray }
+            )
         }
-        Spacer(Modifier.height(4.dp))
+    }
+    val (visible, hidden) = remember(segments, otherColor) {
+        segments.withOtherGroup(otherColor = otherColor)
+    }
+    SectionHeader(stringResource(R.string.stats_section_color))
+    Column(modifier = modifier.padding(horizontal = 16.dp)) {
+        SegmentedBar(
+            segments = visible,
+            hiddenSegments = hidden,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            rows.forEach { row ->
+                ColorLegendRow(row = row)
+            }
+            Spacer(Modifier.height(4.dp))
+        }
     }
 }
 
 /**
- * Single row inside [ColorBreakdownSection]: a 12 dp color swatch circle, the color label,
- * item count, and a proportional [LinearProgressIndicator]. Falls back to the theme primary
- * color when [ColorBreakdownRow.hex] is null or unparseable.
+ * Single legend row inside [ColorBreakdownSection]: a 12 dp color swatch circle, the color
+ * label, and item count. Falls back to [Color.Gray] when [ColorBreakdownRow.hex] is null
+ * or unparseable.
  */
 @Composable
-private fun ColorBreakdownBar(row: ColorBreakdownRow, maxCount: Int) {
+private fun ColorLegendRow(row: ColorBreakdownRow) {
     val swatchColor = remember(row.hex) {
         runCatching { Color(android.graphics.Color.parseColor(row.hex)) }
-            .getOrNull()
+            .getOrElse { Color.Gray }
     }
-    Column {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .background(swatchColor ?: MaterialTheme.colorScheme.primary)
-                )
-                Text(text = row.label, style = MaterialTheme.typography.bodyMedium)
-            }
-            Text(
-                text = row.count.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(swatchColor)
             )
+            Text(text = row.label, style = MaterialTheme.typography.bodyMedium)
         }
-        Spacer(Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = { row.count.toFloat() / maxCount },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
+        Text(
+            text = row.count.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
