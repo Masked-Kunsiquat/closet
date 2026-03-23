@@ -26,7 +26,7 @@ The backend is **complete**. Nothing needs to be added to the database layer.
 
 When the user picks a subcategory, the ViewModel auto-selects the most appropriate size system. The user can still override it via the system dropdown.
 
-```
+```text
 Footwear (any subcategory)              → Shoes (US Men's)
   Sneakers, Boots, Sandals, Dress Shoes, Slippers
 
@@ -214,7 +214,7 @@ Add a gear `IconButton` to the `TopAppBar` in `ClosetScreen`. No bottom nav tab 
 
 ## Sequencing suggestion
 
-```
+```text
 Feature 7 Step 1 (MTB export)  →  Feature 5 (size tracking)  →  Feature 7 Steps 2–6 (settings screen)
 ```
 

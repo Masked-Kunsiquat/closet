@@ -40,7 +40,7 @@ fun ClosetScreen(
     onAddItemClick: () -> Unit,
     modifier: Modifier = Modifier,
     onItemClick: (Long) -> Unit = {},
-    onSettingsClick: () -> Unit = {},
+    onSettingsClick: () -> Unit,
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
