@@ -3,6 +3,10 @@ package com.closet.core.data.model
 import androidx.room.*
 import java.time.Instant
 
+/**
+ * Represents a named collection of clothing items that the user has grouped together as an outfit.
+ * An outfit acts as a template — it can be logged multiple times on different dates via [OutfitLogEntity].
+ */
 @Entity(tableName = "outfits")
 data class OutfitEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -12,6 +16,11 @@ data class OutfitEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Instant = Instant.now()
 )
 
+/**
+ * Junction entity linking a clothing item to an outfit, with optional layout metadata
+ * (position and scale) for use in the collage-style outfit builder.
+ * Uses a composite primary key of [outfitId] + [clothingItemId].
+ */
 @Entity(
     tableName = "outfit_items",
     primaryKeys = ["outfit_id", "clothing_item_id"],
@@ -40,6 +49,13 @@ data class OutfitItemEntity(
     @ColumnInfo(name = "z_index") val zIndex: Int? = null
 )
 
+/**
+ * Records a single instance of an outfit being worn on a given [date] (YYYY-MM-DD).
+ * A unique index on ([outfitId], [date]) prevents logging the same outfit twice on the same day.
+ * The OOTD partial index (enforced via [onOpen] in ClothingDatabase) allows at most one
+ * log per day to be marked as the outfit-of-the-day ([isOotd] = 1).
+ * [outfitId] is nullable so historical log entries survive outfit deletion (SET NULL).
+ */
 @Entity(
     tableName = "outfit_logs",
     foreignKeys = [
