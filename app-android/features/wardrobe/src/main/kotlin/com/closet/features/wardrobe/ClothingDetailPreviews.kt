@@ -39,7 +39,7 @@ internal val previewDetailItem = ClothingItemDetail(
     wearCount = 12,
     category = CategoryEntity(id = 1L, name = "Tops", sortOrder = 1),
     subcategory = SubcategoryEntity(id = 2L, categoryId = 1L, name = "Jackets", sortOrder = 2),
-    brand = BrandEntity(id = 1L, name = "Levi's"),
+    brand = BrandEntity(id = 1L, name = "Levi's", normalizedName = "levi's"),
     sizeValue = null,
     colors = listOf(
         ColorEntity(id = 1L, name = "Blue", hex = "#3A6BAE"),

@@ -295,7 +295,7 @@ class ClothingFormViewModel @Inject constructor(
         if (nameNormalized.isBlank()) return
         viewModelScope.launch {
             when (val result = brandRepository.insertBrand(nameNormalized)) {
-                is DataResult.Success -> onBrandSelect(BrandEntity(id = result.data, name = nameNormalized))
+                is DataResult.Success -> onBrandSelect(BrandEntity(id = result.data, name = nameNormalized, normalizedName = nameNormalized.lowercase()))
                 is DataResult.Error -> _form.update { it.copy(
                     errorMessage = when (result.throwable) {
                         is AppError.DatabaseError.ConstraintViolation -> R.string.wardrobe_error_brand_duplicate

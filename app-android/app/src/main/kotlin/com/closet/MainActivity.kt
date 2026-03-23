@@ -21,7 +21,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Enable edge-to-edge to handle modern system bar behavior
         enableEdgeToEdge()
 

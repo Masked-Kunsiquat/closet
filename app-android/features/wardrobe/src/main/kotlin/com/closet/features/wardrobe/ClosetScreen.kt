@@ -211,7 +211,7 @@ private fun ClosetScreenPreview() {
                             washStatus = WashStatus.Clean
                         ),
                         wearCount = 12,
-                        brand = com.closet.core.data.model.BrandEntity(id = 1, name = "Levi's"),
+                        brand = com.closet.core.data.model.BrandEntity(id = 1, name = "Levi's", normalizedName = "levi's"),
                         category = CategoryEntity(id = 1, name = "Outerwear", sortOrder = 3),
                         subcategory = null,
                         sizeValue = null,

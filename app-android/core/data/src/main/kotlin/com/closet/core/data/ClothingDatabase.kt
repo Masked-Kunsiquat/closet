@@ -7,12 +7,6 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.closet.core.data.dao.*
-import com.closet.core.data.migrations.MIGRATION_1_2
-import com.closet.core.data.migrations.MIGRATION_2_3
-import com.closet.core.data.migrations.MIGRATION_3_4
-import com.closet.core.data.migrations.MIGRATION_4_5
-import com.closet.core.data.migrations.MIGRATION_5_6
-import com.closet.core.data.migrations.MIGRATION_6_7
 import com.closet.core.data.model.*
 
 /**
@@ -43,7 +37,7 @@ import com.closet.core.data.model.*
         ClothingItemOccasionEntity::class,
         ClothingItemPatternEntity::class
     ],
-    version = 7,
+    version = 1,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -78,10 +72,10 @@ abstract class ClothingDatabase : RoomDatabase() {
                     ClothingDatabase::class.java,
                     DATABASE_NAME
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
+                        db.execSQL("PRAGMA foreign_keys = ON")
                         DatabaseSeeder.seedAll(db)
                         createCategoryConsistencyTriggers(db)
                     }
@@ -90,8 +84,8 @@ abstract class ClothingDatabase : RoomDatabase() {
                         super.onOpen(db)
                         db.execSQL("PRAGMA foreign_keys = ON")
                         // Partial index — Room cannot represent this in entity annotations so it is
-                        // created here (runs for every open) rather than in onCreate. Migration 5→6
-                        // drops any pre-existing copy so Room's post-migration validation passes clean.
+                        // created here (runs for every open) rather than in onCreate. This avoids
+                        // Room's post-migration schema validator rejecting it as an unexpected index.
                         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
                     }
                 })

@@ -223,11 +223,11 @@ internal fun BrandManagementContent(
 // --- Previews ---
 
 private val previewBrandsList = listOf(
-    BrandEntity(id = 1, name = "Nike"),
-    BrandEntity(id = 2, name = "Adidas"),
-    BrandEntity(id = 3, name = "Levi's"),
-    BrandEntity(id = 4, name = "Uniqlo"),
-    BrandEntity(id = 5, name = "Zara"),
+    BrandEntity(id = 1, name = "Nike", normalizedName = "nike"),
+    BrandEntity(id = 2, name = "Adidas", normalizedName = "adidas"),
+    BrandEntity(id = 3, name = "Levi's", normalizedName = "levi's"),
+    BrandEntity(id = 4, name = "Uniqlo", normalizedName = "uniqlo"),
+    BrandEntity(id = 5, name = "Zara", normalizedName = "zara"),
 )
 
 @Preview(showBackground = true, name = "Brand List - Light")

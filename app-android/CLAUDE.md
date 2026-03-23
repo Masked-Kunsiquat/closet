@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Run all Gradle commands from the `app-android/` directory.
 
+**Git note:** Claude Code's working directory is `app-android/` and git commands run from here too. Use paths **relative to `app-android/`** — e.g. `git add CLAUDE.md`, not `git add app-android/CLAUDE.md` (that doubles the prefix and fails).
+
 ## Commands
 
 ```bash
@@ -22,7 +24,7 @@ Run all Gradle commands from the `app-android/` directory.
 ./gradlew connectedAndroidTest   # Instrumented tests
 ```
 
-There are no tests yet.
+Unit and instrumented tests exist for the stats feature. Migration tests live in `core/data/src/androidTest/.../MigrationTest.kt`. Run migration tests before any PR that touches the schema.
 
 ## Architecture
 
@@ -34,6 +36,7 @@ core/data/        — Database, DAOs, Repositories, entities, DI module
 core/ui/          — Material 3 theme, shared Composable components
 features/wardrobe/ — Closet screen, item detail, add/edit form
 features/outfits/  — Outfit builder, OOTD (in progress / placeholder)
+features/stats/    — Stats screen, StatsViewModel, breakdown sections
 ```
 
 Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
@@ -50,12 +53,15 @@ Hilt throughout. `@HiltAndroidApp` on `ClosetApp`, `@AndroidEntryPoint` on `Main
 
 ### Database (Room)
 
-- **File:** `closet.db`, current version **2**.
+- **File:** `closet.db`, current version **1** (chain reset 2026-03-22 — pre-release, no shipped installs).
 - **Initialization order:** `PRAGMA foreign_keys = ON` → create tables → `DatabaseSeeder` seeds lookup data on `onCreate`.
 - **Migrations** live in `ClothingDatabase.kt`. Never edit an applied migration — add a new one. Room schema JSON is exported to `core/data/schemas/`.
 - **Junction tables** (`clothing_item_colors`, `_materials`, `_seasons`, `_occasions`, `_patterns`) use delete-then-insert helpers in `ClothingRepository`. Never append.
 - **Computed fields** — `wear_count` (`COUNT(DISTINCT outfit_logs.id)` joined via `outfit_items`) and `cost_per_wear` (`purchase_price / wear_count`, `null` when wears = 0 or price is null) are never columns; always computed in queries.
-- **OOTD constraint** — `CREATE UNIQUE INDEX one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1`.
+- **OOTD partial index** — `one_ootd_per_day` lives in `ClothingDatabase.onOpen()` via `CREATE … IF NOT EXISTS`, **not** `onCreate` or migrations. Room can't represent partial indexes in `@Entity` and crashes if it finds an unexpected index during migration validation.
+- Every manual `migrate()` must `DROP INDEX IF EXISTS one_ootd_per_day` unconditionally at the top (even if the migration doesn't touch `outfit_logs`).
+- Migration tests must also drop that index on the pre-migration DB before closing it (see `AGENTS.md` for the pattern).
+- Full migration conventions and checklist: `core/data/src/main/kotlin/com/closet/core/data/migrations/AGENTS.md`.
 
 ### Navigation
 
@@ -72,6 +78,10 @@ Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, S
 ### Image handling
 
 Store only **relative paths** in the DB. Copy picked images into app-owned storage via `StorageRepository`, then store the relative path. Reconstruct full URI at display time in the repository/ViewModel layer before passing to Coil.
+
+### Charts
+
+Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/`. Import from `com.patrykandpatrick.vico.compose`.
 
 ### Logging
 
@@ -90,6 +100,9 @@ Timber. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` o
 | `core/data/src/.../di/DataModule.kt` | Hilt singleton providers |
 | `core/ui/src/.../theme/Color.kt` | Palette constants and accent enums |
 | `gradle/libs.versions.toml` | Centralized version catalog (all deps here) |
+| `core/data/src/.../migrations/AGENTS.md` | Full migration conventions and checklist |
+| `core/data/src/.../dao/StatsDao.kt` | Stats queries (wear counts, breakdowns by category/color/occasion) |
+| `features/stats/src/.../StatsViewModel.kt` | Stats state with `StatPeriod` filter |
 
 ## What is deferred — do not build
 
