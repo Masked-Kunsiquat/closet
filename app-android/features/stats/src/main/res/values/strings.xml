@@ -28,6 +28,7 @@
 
     <!-- Section headers — never worn (always shown, collapsible) -->
     <string name="stats_section_never_worn">Never Worn</string>
+    <string name="stats_section_never_worn_count">Never Worn (%d)</string>
 
     <!-- Wash status card labels shown inside WashStatusSection -->
     <string name="stats_wash_clean">Clean</string>

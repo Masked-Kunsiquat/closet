@@ -159,7 +159,7 @@ internal fun NeverWornSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "${stringResource(R.string.stats_section_never_worn)} (${items.size})",
+            text = stringResource(R.string.stats_section_never_worn_count, items.size),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.weight(1f)
         )
@@ -211,7 +211,7 @@ private fun NeverWornRow(
         ) {
             AsyncImage(
                 model = resolveImagePath(item.imagePath),
-                contentDescription = item.name,
+                contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )

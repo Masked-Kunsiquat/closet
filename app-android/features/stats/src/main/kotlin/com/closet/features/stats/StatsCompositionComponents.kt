@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.dao.BreakdownRow
 import com.closet.core.data.dao.ColorBreakdownRow
+import com.closet.core.data.model.WashStatus
 
 // ─── Wash status ──────────────────────────────────────────────────────────────
 
@@ -34,8 +35,8 @@ internal fun WashStatusSection(
     rows: List<BreakdownRow>,
     modifier: Modifier = Modifier
 ) {
-    val clean = rows.firstOrNull { it.label == "Clean" }?.count ?: 0
-    val dirty = rows.firstOrNull { it.label == "Dirty" }?.count ?: 0
+    val clean = rows.firstOrNull { it.label == WashStatus.Clean.label }?.count ?: 0
+    val dirty = rows.firstOrNull { it.label == WashStatus.Dirty.label }?.count ?: 0
     SectionHeader(stringResource(R.string.stats_section_wash_status))
     Row(
         modifier = modifier
