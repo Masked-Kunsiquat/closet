@@ -162,6 +162,7 @@ internal fun MostWornSection(
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (items.isEmpty()) return
     SectionHeader(stringResource(R.string.stats_section_most_worn))
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -231,6 +232,7 @@ internal fun CostPerWearSection(
     resolveImagePath: (String?) -> File?,
     onItemClick: (Long) -> Unit
 ) {
+    if (items.isEmpty()) return
     SectionHeader(stringResource(R.string.stats_section_cost_per_wear))
     items.forEachIndexed { index, item ->
         CostPerWearRow(item, resolveImagePath, onItemClick)
@@ -265,7 +267,7 @@ private fun CostPerWearRow(
         ) {
             AsyncImage(
                 model = resolveImagePath(item.imagePath),
-                contentDescription = item.name,
+                contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -279,13 +281,16 @@ private fun CostPerWearRow(
             overflow = TextOverflow.Ellipsis
         )
         Spacer(Modifier.width(8.dp))
+        val currencyFormat = remember {
+            NumberFormat.getCurrencyInstance().apply {
+                minimumFractionDigits = 2
+                maximumFractionDigits = 2
+            }
+        }
         Text(
             text = stringResource(
                 R.string.stats_cost_per_wear_formatted,
-                NumberFormat.getCurrencyInstance().apply {
-                    minimumFractionDigits = 2
-                    maximumFractionDigits = 2
-                }.format(item.costPerWear)
+                currencyFormat.format(item.costPerWear)
             ),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary

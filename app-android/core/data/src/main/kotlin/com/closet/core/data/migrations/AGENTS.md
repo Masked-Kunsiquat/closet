@@ -8,8 +8,7 @@ Reference: https://developer.android.com/training/data-storage/room/migrating-db
 ## The rules
 
 **Never edit an applied migration.**
-Once a migration file is committed and shipped, it is permanent.
-Add a new migration instead.
+Once a migration file is committed and could be on a real device, it is permanent. Add a new migration instead.
 
 **Always bump `@Database(version = N)` in `ClothingDatabase.kt`.**
 Room will crash on open if the entity schema version doesn't match the registered migration chain.
@@ -129,7 +128,7 @@ Run them before opening any PR that touches the database schema.
 > The steps below are safe for solo development on this app. If the app has ever been
 > released to real users, **do not follow these steps** — doing so will break upgrades
 > for every existing install.
-
+>
 > **⚠ WARNING — do not use after first public release.**
 > Once any user has `ClothingDatabase` version ≥ 2 on their device, resetting the chain
 > will cause Room to throw `IllegalStateException: Room cannot verify the data integrity`
