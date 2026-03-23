@@ -669,7 +669,7 @@ internal fun BreakdownSection(
 
 Update `StatsContent` in `StatsScreen.kt` to include all new sections. New layout order:
 
-```
+```text
 Period selector
 Headline cards (items · worn % · value)
 ─── Activity (shown only if totalLogsCount > 0) ──────────────
@@ -712,7 +712,7 @@ New strings needed in `features/stats/src/main/res/values/strings.xml`:
 
 ## Execution Order
 
-```
+```text
 Phase 1  →  Phase 2  →  Phase 3  →  Phase 4  →  Phase 5
 ```
 

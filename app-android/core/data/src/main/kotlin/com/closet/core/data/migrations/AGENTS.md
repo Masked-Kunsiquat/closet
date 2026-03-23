@@ -125,6 +125,17 @@ Run them before opening any PR that touches the database schema.
 
 ## Resetting the migration chain (solo dev only)
 
+> **Status (2026-03-22): pre-release, no shipped installs.**
+> The steps below are safe for solo development on this app. If the app has ever been
+> released to real users, **do not follow these steps** — doing so will break upgrades
+> for every existing install.
+
+> **⚠ WARNING — do not use after first public release.**
+> Once any user has `ClothingDatabase` version ≥ 2 on their device, resetting the chain
+> will cause Room to throw `IllegalStateException: Room cannot verify the data integrity`
+> on upgrade. There is no recovery path. The migration chain is permanent the moment a
+> release ships.
+
 During rapid early iteration it can make sense to consolidate the migration history rather
 than carry a long chain of incrementally-authored migrations. This is only safe when:
 

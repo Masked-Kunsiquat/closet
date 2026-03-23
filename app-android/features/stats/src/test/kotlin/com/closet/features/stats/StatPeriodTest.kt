@@ -41,7 +41,7 @@ class StatPeriodTest {
     }
 
     @Test
-    fun `LAST_30 date is strictly before LAST_90 date`() {
+    fun `LAST_30 date is strictly after LAST_90 date`() {
         val last30 = LocalDate.parse(StatPeriod.LAST_30.toFromDate()!!)
         val last90 = LocalDate.parse(StatPeriod.LAST_90.toFromDate()!!)
         assertTrue(last30.isAfter(last90))

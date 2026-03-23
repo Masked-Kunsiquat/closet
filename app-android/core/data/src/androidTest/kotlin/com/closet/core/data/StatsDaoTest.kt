@@ -301,8 +301,10 @@ class StatsDaoTest {
         val outfitId = insertOutfit()
         logOutfit(outfitId, "2026-01-01")
         logOutfit(outfitId, "2026-01-02")
+        logOutfit(outfitId, "2026-01-02") // second log on the same date — each has a distinct id
         logOutfit(outfitId, "2026-01-03")
-        assertEquals(3, dao.getTotalOutfitsLogged(null).first())
+        // COUNT(DISTINCT id) counts every log entry, so 4 rows → 4
+        assertEquals(4, dao.getTotalOutfitsLogged(null).first())
     }
 
     @Test

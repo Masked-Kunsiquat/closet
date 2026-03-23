@@ -42,7 +42,7 @@ All four queries added to `StatsDao` and exposed via `StatsRepository`.
 `StatsViewModel` + `StatPeriod` + `StatsUiState` in `StatsViewModel.kt`.
 `StatsScreen` wired to collect `uiState` via `collectAsStateWithLifecycle`.
 
-```
+```text
 UiState fields:
   overview        : StatsOverview           — total items, worn %, total value
   mostWorn        : List<StatItem>          — top N by wear count
@@ -91,7 +91,7 @@ Single `verticalScroll` Column inside a `Scaffold` with `CenterAlignedTopAppBar`
 
 ## Suggested build order
 
-```
+```text
 Phase 1 (data gaps)
   → Phase 2 (module + nav scaffold)
     → Phase 3 (ViewModel)
@@ -101,5 +101,5 @@ Phase 1 (data gaps)
 ```
 
 Phase 1 is the only real unknown — the wear-by-category join through
-`outfit_log_items` may need care. Everything else follows patterns already
+`outfit_items` → `outfit_logs` may need care. Everything else follows patterns already
 established in the codebase.

@@ -38,7 +38,7 @@ data class BreakdownRow(
  */
 data class ColorBreakdownRow(
     val label: String,
-    val hex: String,
+    val hex: String?,
     val count: Int
 )
 
@@ -173,7 +173,7 @@ interface StatsDao {
      * @return A [Flow] emitting a list of [BreakdownRow] ordered by wear count descending.
      */
     @Query("""
-        SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(DISTINCT ol.id) AS count
+        SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(oi.id) AS count
         FROM clothing_items ci
         LEFT JOIN categories c ON c.id = ci.category_id
         JOIN outfit_items oi ON oi.clothing_item_id = ci.id

@@ -75,6 +75,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
+                        db.execSQL("PRAGMA foreign_keys = ON")
                         DatabaseSeeder.seedAll(db)
                         createCategoryConsistencyTriggers(db)
                     }

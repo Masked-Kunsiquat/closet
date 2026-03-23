@@ -36,7 +36,9 @@ import androidx.compose.ui.window.Popup
 data class BarSegment(
     val label: String,
     val count: Int,
-    val color: Color
+    val color: Color,
+    /** True only for the synthetic "Other" segment created by [List.withOtherGroup]. */
+    val isSyntheticOther: Boolean = false
 )
 
 /** Content shown in a tap tooltip over a [SegmentedBar] segment. */
@@ -64,11 +66,17 @@ internal fun List<BarSegment>.withOtherGroup(
     maxVisible: Int = 8,
     otherColor: Color
 ): Pair<List<BarSegment>, List<BarSegment>> {
+    require(maxVisible > 0) { "maxVisible must be > 0, was $maxVisible" }
     if (size <= maxVisible) return this to emptyList()
     val sorted = sortedByDescending { it.count }
     val visible = sorted.take(maxVisible - 1).toMutableList()
     val hidden = sorted.drop(maxVisible - 1)
-    visible += BarSegment(label = "Other", count = hidden.sumOf { it.count }, color = otherColor)
+    visible += BarSegment(
+        label = "Other",
+        count = hidden.sumOf { it.count },
+        color = otherColor,
+        isSyntheticOther = true
+    )
     return visible to hidden
 }
 
@@ -95,7 +103,7 @@ internal fun resolveTooltip(
     for (seg in segments) {
         cumulative += seg.count.toFloat() / totalCount
         if (fraction <= cumulative) {
-            return if (seg.label == "Other") {
+            return if (seg.isSyntheticOther) {
                 TooltipContent.OtherDetail(
                     totalPercent = seg.count * 100 / totalCount,
                     topItems = hiddenSegments.take(3),
@@ -131,8 +139,9 @@ internal fun SegmentedBar(
     barHeight: Dp = 20.dp,
     cornerRadius: Dp = 4.dp
 ) {
-    if (segments.isEmpty()) return
-    val totalCount = segments.sumOf { it.count }
+    val positiveSegments = segments.filter { it.count > 0 }
+    if (positiveSegments.isEmpty()) return
+    val totalCount = positiveSegments.sumOf { it.count }
     var barWidthPx by remember { mutableStateOf(0) }
     var activeTooltip by remember { mutableStateOf<TooltipContent?>(null) }
 
@@ -143,19 +152,19 @@ internal fun SegmentedBar(
                 .height(barHeight)
                 .clip(RoundedCornerShape(cornerRadius))
                 .onSizeChanged { barWidthPx = it.width }
-                .pointerInput(segments) {
+                .pointerInput(positiveSegments) {
                     detectTapGestures { offset ->
                         activeTooltip = resolveTooltip(
                             tapX = offset.x,
                             barWidthPx = barWidthPx,
-                            segments = segments,
+                            segments = positiveSegments,
                             hiddenSegments = hiddenSegments,
                             totalCount = totalCount
                         )
                     }
                 }
         ) {
-            segments.forEach { seg ->
+            positiveSegments.forEach { seg ->
                 Box(
                     modifier = Modifier
                         .weight(seg.count.toFloat())
