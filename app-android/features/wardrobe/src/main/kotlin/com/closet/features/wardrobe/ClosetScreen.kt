@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ fun ClosetScreen(
     onAddItemClick: () -> Unit,
     modifier: Modifier = Modifier,
     onItemClick: (Long) -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -65,6 +67,7 @@ fun ClosetScreen(
         resolveImagePath = viewModel::resolveImagePath,
         onAddItemClick = onAddItemClick,
         onItemClick = onItemClick,
+        onSettingsClick = onSettingsClick,
         modifier = modifier
     )
 }
@@ -96,6 +99,7 @@ internal fun ClosetContent(
     resolveImagePath: (String?) -> File?,
     onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showFilterPanel by remember { mutableStateOf(false) }
@@ -135,6 +139,12 @@ internal fun ClosetContent(
                                 contentDescription = stringResource(R.string.wardrobe_cd_open_filters)
                             )
                         }
+                    }
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = stringResource(R.string.wardrobe_cd_open_settings),
+                        )
                     }
                 }
             )

@@ -14,6 +14,7 @@
     <string name="wardrobe_filter_section_season">Season</string>
     <string name="wardrobe_filter_section_occasion">Occasion</string>
     <string name="wardrobe_cd_open_filters">Open filters</string>
+    <string name="wardrobe_cd_open_settings">Open settings</string>
     <string name="wardrobe_filter_empty_results">No items match your filters</string>
     <string name="wardrobe_filter_clear_filters">Clear filters</string>
 

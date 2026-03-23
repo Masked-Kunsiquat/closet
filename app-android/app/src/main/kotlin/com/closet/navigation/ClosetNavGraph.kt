@@ -29,6 +29,8 @@ import com.closet.features.outfits.journalScreen
 import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.outfitsScreen
 import com.closet.features.outfits.wardrobePickerScreen
+import com.closet.features.settings.navigateToSettings
+import com.closet.features.settings.settingsScreen
 import com.closet.features.stats.StatsRoute
 import com.closet.features.stats.statsScreen
 import com.closet.features.wardrobe.AddClothingDestination
@@ -107,7 +109,8 @@ fun ClosetNavGraph(
             composable<ClosetDestination> {
                 ClosetScreen(
                     onAddItemClick = { navController.navigate(AddClothingDestination) },
-                    onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) }
+                    onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) },
+                    onSettingsClick = { navController.navigateToSettings() },
                 )
             }
 
@@ -151,6 +154,8 @@ fun ClosetNavGraph(
             statsScreen(
                 onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) }
             )
+
+            settingsScreen(onNavigateUp = { navController.popBackStack() })
         }
     }
 }
