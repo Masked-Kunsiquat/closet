@@ -41,6 +41,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.closet.core.data.dao.StatItem
@@ -82,11 +84,14 @@ internal fun StatHeadlineCard(
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            var fontSize by remember(value) { mutableStateOf(24.sp) }
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = fontSize),
                 fontWeight = FontWeight.Bold,
-                maxLines = 1
+                maxLines = 1,
+                softWrap = false,
+                onTextLayout = { if (it.didOverflowWidth) fontSize = (fontSize.value * 0.85f).sp }
             )
             Text(
                 text = label,
