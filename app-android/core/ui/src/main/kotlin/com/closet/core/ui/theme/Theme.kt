@@ -9,7 +9,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -38,12 +41,7 @@ fun ClosetTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val contrastLevel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-        val uiModeManager = LocalContext.current.getSystemService(UiModeManager::class.java)
-        uiModeManager?.contrast ?: 0f
-    } else {
-        0f
-    }
+    val contrastLevel = rememberContrastLevel()
 
     val colorScheme: ColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
@@ -68,6 +66,30 @@ fun ClosetTheme(
         typography = Typography,
         content = content,
     )
+}
+
+/**
+ * Returns the current system contrast level as reactive Compose state.
+ *
+ * On Android 14+ (API 34) this registers a [UiModeManager.ContrastChangeListener] so
+ * the returned value updates — and triggers recomposition — whenever the user changes
+ * the system contrast setting while the app is running. On older APIs it always returns
+ * `0f` (standard contrast).
+ */
+@Composable
+private fun rememberContrastLevel(): Float {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return 0f
+    val context = LocalContext.current
+    val uiModeManager = remember(context) { context.getSystemService(UiModeManager::class.java) }
+    val contrastState = remember { mutableStateOf(uiModeManager?.contrast ?: 0f) }
+    DisposableEffect(uiModeManager) {
+        val listener = UiModeManager.ContrastChangeListener { newContrast ->
+            contrastState.value = newContrast
+        }
+        uiModeManager?.addContrastChangeListener(context.mainExecutor, listener)
+        onDispose { uiModeManager?.removeContrastChangeListener(listener) }
+    }
+    return contrastState.value
 }
 
 /**
