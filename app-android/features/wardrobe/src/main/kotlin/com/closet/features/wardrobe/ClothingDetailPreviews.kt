@@ -91,11 +91,13 @@ private fun ClothingAttributesFilledPreview() {
             Column(modifier = Modifier.padding(16.dp)) {
                 ClothingAttributes(
                     item = previewDetailItem,
+                    sizeSystems = emptyList(),
                     onEditSeasons = {},
                     onEditOccasions = {},
                     onEditColors = {},
                     onEditMaterials = {},
-                    onEditPatterns = {}
+                    onEditPatterns = {},
+                    onEditSize = {}
                 )
             }
         }
@@ -110,11 +112,13 @@ private fun ClothingAttributesEmptyPreview() {
             Column(modifier = Modifier.padding(16.dp)) {
                 ClothingAttributes(
                     item = previewDetailItemMinimal,
+                    sizeSystems = emptyList(),
                     onEditSeasons = {},
                     onEditOccasions = {},
                     onEditColors = {},
                     onEditMaterials = {},
-                    onEditPatterns = {}
+                    onEditPatterns = {},
+                    onEditSize = {}
                 )
             }
         }
