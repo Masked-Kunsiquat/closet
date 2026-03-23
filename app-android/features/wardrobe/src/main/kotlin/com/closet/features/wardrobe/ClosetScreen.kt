@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -44,7 +46,9 @@ fun ClosetScreen(
         items = uiState.items,
         categories = uiState.categories,
         selectedCategoryId = uiState.selectedCategoryId,
+        favoritesOnly = uiState.favoritesOnly,
         onCategorySelect = viewModel::selectCategory,
+        onToggleFavorites = viewModel::toggleFavoritesOnly,
         resolveImagePath = viewModel::resolveImagePath,
         onAddItemClick = onAddItemClick,
         onItemClick = onItemClick,
@@ -61,7 +65,9 @@ internal fun ClosetContent(
     items: List<ClothingItemDetail>,
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
+    favoritesOnly: Boolean,
     onCategorySelect: (Long?) -> Unit,
+    onToggleFavorites: () -> Unit,
     resolveImagePath: (String?) -> File?,
     onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
@@ -91,7 +97,9 @@ internal fun ClosetContent(
             CategoryFilterRow(
                 categories = categories,
                 selectedCategoryId = selectedCategoryId,
-                onCategorySelect = onCategorySelect
+                favoritesOnly = favoritesOnly,
+                onCategorySelect = onCategorySelect,
+                onToggleFavorites = onToggleFavorites
             )
             
             if (items.isEmpty()) {
@@ -109,13 +117,18 @@ internal fun ClosetContent(
 }
 
 /**
- * A horizontal row of filter chips for categories.
+ * Horizontally scrollable row of filter chips.
+ *
+ * Order: Favorites shortcut → All → per-category chips.
+ * The Favorites chip is a standalone toggle independent of the category filter.
  */
 @Composable
 private fun CategoryFilterRow(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
+    favoritesOnly: Boolean,
     onCategorySelect: (Long?) -> Unit,
+    onToggleFavorites: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyRow(
@@ -123,6 +136,20 @@ private fun CategoryFilterRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        item(key = "favorites") {
+            FilterChip(
+                selected = favoritesOnly,
+                onClick = onToggleFavorites,
+                label = { Text(stringResource(R.string.wardrobe_filter_favorites)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                    )
+                }
+            )
+        }
         item(key = "all") {
             FilterChip(
                 selected = selectedCategoryId == null,
@@ -226,7 +253,9 @@ private fun ClosetScreenPreview() {
                     CategoryEntity(id = 3, name = "Outerwear", sortOrder = 3)
                 ),
                 selectedCategoryId = null,
+                favoritesOnly = false,
                 onCategorySelect = {},
+                onToggleFavorites = {},
                 resolveImagePath = { null },
                 onAddItemClick = {},
                 onItemClick = {}
@@ -244,7 +273,9 @@ private fun ClosetScreenEmptyPreview() {
                 items = emptyList(),
                 categories = emptyList(),
                 selectedCategoryId = null,
+                favoritesOnly = false,
                 onCategorySelect = {},
+                onToggleFavorites = {},
                 resolveImagePath = { null },
                 onAddItemClick = {},
                 onItemClick = {}

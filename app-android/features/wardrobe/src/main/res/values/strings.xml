@@ -7,6 +7,7 @@
     </plurals>
     <string name="wardrobe_empty_closet">Your closet is empty. Add some clothes!</string>
     <string name="wardrobe_all_items">All</string>
+    <string name="wardrobe_filter_favorites">Favorites</string>
 
     <!-- Clothing Detail -->
     <string name="wardrobe_back">Back</string>
