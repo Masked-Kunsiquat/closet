@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.dao.BreakdownRow
+import com.closet.core.data.dao.CategorySubcategoryRow
 import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.model.WashStatus
 
@@ -59,32 +60,106 @@ internal fun WashStatusSection(
     }
 }
 
-// ─── Category / subcategory / occasion ───────────────────────────────────────
+// ─── Category + subcategory combined ─────────────────────────────────────────
 
-/** Item count per category, shown as labelled progress bars. */
-@Composable
-internal fun CategoryCountSection(
-    rows: List<BreakdownRow>,
-    modifier: Modifier = Modifier
-) {
-    BreakdownSection(
-        title = stringResource(R.string.stats_section_category_count),
-        rows = rows,
-        modifier = modifier
-    )
+/**
+ * Fixed hue values (HSV degrees) for the per-category color palette.
+ * Each category is assigned a slot by its position in the sorted category list.
+ */
+private val categoryBaseHues = listOf(210f, 20f, 100f, 270f, 345f, 45f, 175f, 290f)
+
+/**
+ * Generates [count] colors for a single category's subcategory segments.
+ * Saturation steps from vivid (0.85) down to pastel (0.30) so the largest subcategory
+ * (first segment) is most saturated and smaller ones fade toward pastel.
+ */
+private fun subcategoryColors(categoryIndex: Int, count: Int): List<Color> {
+    val hue = categoryBaseHues[categoryIndex % categoryBaseHues.size]
+    return (0 until count).map { i ->
+        val saturation = if (count == 1) 0.65f
+        else 0.85f - (i.toFloat() / (count - 1)) * 0.55f
+        Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, 0.90f)))
+    }
 }
 
-/** Item count per subcategory. Hidden automatically when no items have a subcategory assigned. */
+/**
+ * Combined category + subcategory section. Renders one [SegmentedBar] per category where
+ * each segment represents a subcategory (or the category itself for items with no subcategory).
+ * Categories are ordered by total item count descending; segments within each bar are ordered
+ * by count descending. Returns early if [rows] is empty.
+ */
 @Composable
-internal fun SubcategoryBreakdownSection(
-    rows: List<BreakdownRow>,
+internal fun CategorySubcategorySection(
+    rows: List<CategorySubcategoryRow>,
     modifier: Modifier = Modifier
 ) {
-    BreakdownSection(
-        title = stringResource(R.string.stats_section_subcategory),
-        rows = rows,
-        modifier = modifier
-    )
+    if (rows.isEmpty()) return
+    val otherColor = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant
+    val sortedCategories = remember(rows) {
+        rows.groupBy { it.categoryLabel }
+            .entries
+            .sortedByDescending { (_, subcats) -> subcats.sumOf { it.count } }
+    }
+    SectionHeader(stringResource(R.string.stats_section_category_count))
+    sortedCategories.forEachIndexed { catIndex, (categoryLabel, subcategoryRows) ->
+        val colors = subcategoryColors(catIndex, subcategoryRows.size)
+        val segments = subcategoryRows.mapIndexed { i, row ->
+            BarSegment(label = row.subcategoryLabel, count = row.count, color = colors[i])
+        }
+        val (visible, hidden) = remember(segments, otherColor) {
+            segments.withOtherGroup(otherColor = otherColor)
+        }
+        Column(
+            modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = categoryLabel,
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            SegmentedBar(
+                segments = visible,
+                hiddenSegments = hidden,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            subcategoryRows.forEachIndexed { i, row ->
+                SubcategoryLegendRow(
+                    label = row.subcategoryLabel,
+                    count = row.count,
+                    color = colors.getOrElse(i) { Color.Gray }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubcategoryLegendRow(label: String, count: Int, color: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        }
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 /** Item count per occasion. */

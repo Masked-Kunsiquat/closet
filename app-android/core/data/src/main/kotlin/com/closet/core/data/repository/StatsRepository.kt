@@ -1,6 +1,7 @@
 package com.closet.core.data.repository
 
 import com.closet.core.data.dao.BreakdownRow
+import com.closet.core.data.dao.CategorySubcategoryRow
 import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.dao.CostPerWearItem
 import com.closet.core.data.dao.StatItem
@@ -37,11 +38,12 @@ class StatsRepository @Inject constructor(
         statsDao.getMostWornItems(fromDate, limit)
 
     /**
-     * Retrieves a breakdown of active items by their categories.
-     * @return A [Flow] emitting a list of [BreakdownRow] showing item counts per category.
+     * Retrieves item counts grouped by category and subcategory for the combined breakdown view.
+     * Items without a subcategory fall back to the category name as their subcategory label.
+     * @return A [Flow] emitting a list of [CategorySubcategoryRow].
      */
-    fun getCategoryBreakdown(): Flow<List<BreakdownRow>> =
-        statsDao.getBreakdownByCategory()
+    fun getCategorySubcategoryBreakdown(): Flow<List<CategorySubcategoryRow>> =
+        statsDao.getCategorySubcategoryBreakdown()
 
     /**
      * Retrieves active items ranked by cost-per-wear (cheapest per wear first).
@@ -75,13 +77,6 @@ class StatsRepository @Inject constructor(
      */
     fun getNeverWornItems(): Flow<List<StatItem>> =
         statsDao.getNeverWornItems()
-
-    /**
-     * Retrieves item count per subcategory. Items without a subcategory are excluded.
-     * @return A [Flow] emitting a list of [BreakdownRow] ordered by count descending.
-     */
-    fun getSubcategoryBreakdown(): Flow<List<BreakdownRow>> =
-        statsDao.getBreakdownBySubcategory()
 
     /**
      * Retrieves item count per color. Carries the hex value for swatch rendering.

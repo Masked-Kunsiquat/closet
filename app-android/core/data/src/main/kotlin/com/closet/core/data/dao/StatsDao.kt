@@ -43,6 +43,16 @@ data class ColorBreakdownRow(
 )
 
 /**
+ * A single row in the combined category + subcategory breakdown.
+ * Items without a subcategory use the category name as [subcategoryLabel].
+ */
+data class CategorySubcategoryRow(
+    val categoryLabel: String,
+    val subcategoryLabel: String,
+    val count: Int
+)
+
+/**
  * Represents a clothing item ranked by cost-per-wear (cheapest per wear first).
  * Only items with a known purchase price and at least one wear are included.
  */
@@ -112,20 +122,6 @@ interface StatsDao {
         LIMIT :limit
     """)
     fun getMostWornItems(fromDate: String?, limit: Int): Flow<List<StatItem>>
-
-    /**
-     * Generates a breakdown of active items by category.
-     * @return A [Flow] emitting a list of [BreakdownRow] showing item counts per category.
-     */
-    @Query("""
-        SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(DISTINCT ci.id) AS count
-        FROM clothing_items ci
-        LEFT JOIN categories c ON c.id = ci.category_id
-        WHERE ci.status = 'Active'
-        GROUP BY label
-        ORDER BY count DESC
-    """)
-    fun getBreakdownByCategory(): Flow<List<BreakdownRow>>
 
     /**
      * Ranks active items by cost-per-wear (cheapest per wear first).
@@ -204,19 +200,24 @@ interface StatsDao {
     fun getNeverWornItems(): Flow<List<StatItem>>
 
     /**
-     * Item count per subcategory. Only items that have a subcategory assigned are included
-     * (uses INNER JOIN, not LEFT JOIN).
-     * @return A [Flow] emitting a list of [BreakdownRow] ordered by count descending.
+     * Item count grouped by category and subcategory. Items without a subcategory fall back to
+     * the category name as their subcategory label so every active item is counted.
+     * Results are ordered category alphabetically, then by count descending within each category.
+     * @return A [Flow] emitting a list of [CategorySubcategoryRow].
      */
     @Query("""
-        SELECT s.name AS label, COUNT(DISTINCT ci.id) AS count
+        SELECT
+            COALESCE(c.name, 'Uncategorized') AS categoryLabel,
+            COALESCE(s.name, c.name, 'Uncategorized') AS subcategoryLabel,
+            COUNT(DISTINCT ci.id) AS count
         FROM clothing_items ci
-        JOIN subcategories s ON s.id = ci.subcategory_id
+        LEFT JOIN categories c ON c.id = ci.category_id
+        LEFT JOIN subcategories s ON s.id = ci.subcategory_id
         WHERE ci.status = 'Active'
-        GROUP BY s.id
-        ORDER BY count DESC
+        GROUP BY c.id, s.id
+        ORDER BY categoryLabel ASC, count DESC
     """)
-    fun getBreakdownBySubcategory(): Flow<List<BreakdownRow>>
+    fun getCategorySubcategoryBreakdown(): Flow<List<CategorySubcategoryRow>>
 
     /**
      * Item count per color via the junction table. Carries the hex value for swatch rendering.

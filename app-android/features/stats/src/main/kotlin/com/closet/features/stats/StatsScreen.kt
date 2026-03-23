@@ -119,8 +119,7 @@ internal fun StatsContent(
 
                 // ── Wardrobe Composition ──────────────────────────────────────
                 WashStatusSection(rows = uiState.washStatus)
-                CategoryCountSection(rows = uiState.categoryCount)
-                SubcategoryBreakdownSection(rows = uiState.subcategoryBreakdown)
+                CategorySubcategorySection(rows = uiState.categorySubcategoryBreakdown)
                 ColorBreakdownSection(rows = uiState.colorBreakdown)
                 OccasionBreakdownSection(rows = uiState.occasionBreakdown)
 

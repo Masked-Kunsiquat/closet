@@ -3,6 +3,7 @@ package com.closet.features.stats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.dao.BreakdownRow
+import com.closet.core.data.dao.CategorySubcategoryRow
 import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.dao.CostPerWearItem
 import com.closet.core.data.dao.StatItem
@@ -46,19 +47,15 @@ data class StatsUiState(
     val overview: StatsOverview = StatsOverview(0, 0, 0, null),
     val mostWorn: List<StatItem> = emptyList(),
     val costPerWear: List<CostPerWearItem> = emptyList(),
-    val categoryCount: List<BreakdownRow> = emptyList(),
+    val categorySubcategoryBreakdown: List<CategorySubcategoryRow> = emptyList(),
     val categoryWear: List<BreakdownRow> = emptyList(),
     val totalLogsCount: Int = 0,
     val neverWorn: List<StatItem> = emptyList(),
     val selectedPeriod: StatPeriod = StatPeriod.ALL_TIME,
-    val subcategoryBreakdown: List<BreakdownRow> = emptyList(),
     val colorBreakdown: List<ColorBreakdownRow> = emptyList(),
     val occasionBreakdown: List<BreakdownRow> = emptyList(),
     val washStatus: List<BreakdownRow> = emptyList(),
 )
-
-/** Groups four period-independent breakdown flows so they fit in one combine slot. */
-private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 /**
  * Intermediate holder for the five period-sensitive queries, carrying the active
@@ -106,11 +103,10 @@ class StatsViewModel @Inject constructor(
     val uiState: StateFlow<StatsUiState> = combine(
         periodData,
         combine(
-            statsRepository.getCategoryBreakdown(),
-            statsRepository.getSubcategoryBreakdown(),
+            statsRepository.getCategorySubcategoryBreakdown(),
             statsRepository.getColorBreakdown(),
             statsRepository.getOccasionBreakdown(),
-        ) { cat, sub, color, occasion -> Quad(cat, sub, color, occasion) },
+        ) { catSub, color, occasion -> Triple(catSub, color, occasion) },
         combine(
             statsRepository.getWashStatusBreakdown(),
             statsRepository.getNeverWornItems(),
@@ -120,13 +116,12 @@ class StatsViewModel @Inject constructor(
             overview = pd.overview,
             mostWorn = pd.mostWorn,
             costPerWear = pd.costPerWear,
-            categoryCount = composition.first,
+            categorySubcategoryBreakdown = composition.first,
             categoryWear = pd.categoryWear,
             totalLogsCount = pd.totalLogsCount,
             selectedPeriod = pd.period,
-            subcategoryBreakdown = composition.second,
-            colorBreakdown = composition.third,
-            occasionBreakdown = composition.fourth,
+            colorBreakdown = composition.second,
+            occasionBreakdown = composition.third,
             washStatus = misc.first,
             neverWorn = misc.second,
         )
