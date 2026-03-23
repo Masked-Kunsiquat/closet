@@ -123,6 +123,7 @@ internal fun CategorySubcategorySection(
                 hiddenSegments = hidden,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
+            val legendFallback = MaterialTheme.colorScheme.outlineVariant
             subcategoryRows.chunked(2).forEachIndexed { chunkIdx, pair ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -132,7 +133,7 @@ internal fun CategorySubcategorySection(
                         SubcategoryLegendRow(
                             label = row.subcategoryLabel,
                             count = row.count,
-                            color = colors.getOrElse(chunkIdx * 2 + pairIdx) { Color.Gray },
+                            color = colors.getOrElse(chunkIdx * 2 + pairIdx) { legendFallback },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -252,13 +253,13 @@ internal fun ColorBreakdownSection(
 ) {
     if (rows.isEmpty()) return
     val otherColor = MaterialTheme.colorScheme.outlineVariant
-    val segments = remember(rows) {
+    val segments = remember(rows, otherColor) {
         rows.map { row ->
             BarSegment(
                 label = row.label,
                 count = row.count,
                 color = runCatching { Color(android.graphics.Color.parseColor(row.hex)) }
-                    .getOrElse { Color.Gray }
+                    .getOrElse { otherColor }
             )
         }
     }
@@ -294,9 +295,10 @@ internal fun ColorBreakdownSection(
  */
 @Composable
 private fun ColorLegendRow(row: ColorBreakdownRow, modifier: Modifier = Modifier) {
-    val swatchColor = remember(row.hex) {
+    val fallbackColor = MaterialTheme.colorScheme.outlineVariant
+    val swatchColor = remember(row.hex, fallbackColor) {
         runCatching { Color(android.graphics.Color.parseColor(row.hex)) }
-            .getOrElse { Color.Gray }
+            .getOrElse { fallbackColor }
     }
     Row(
         modifier = modifier.padding(vertical = 2.dp),
