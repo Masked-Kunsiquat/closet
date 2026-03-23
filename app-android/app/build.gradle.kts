@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "com.closet"
-        minSdk = 26
+        minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
@@ -60,9 +60,11 @@ dependencies {
     implementation(project(":features:wardrobe"))
     implementation(project(":features:outfits"))
     implementation(project(":features:stats"))
+    implementation(project(":features:settings"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     
     implementation(platform(libs.androidx.compose.bom))

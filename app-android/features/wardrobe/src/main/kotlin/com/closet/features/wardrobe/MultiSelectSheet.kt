@@ -116,17 +116,17 @@ private fun MultiSelectRow(
         headlineContent = { Text(label) },
         leadingContent = {
             if (colorHex != null) {
+                val fallback = MaterialTheme.colorScheme.outlineVariant
                 val color = try {
                     Color(colorHex.toColorInt())
                 } catch (e: Exception) {
-                    Color.Gray
+                    fallback
                 }
                 Box(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
                         .background(color)
-                        .then(if (colorHex.isEmpty()) Modifier.background(Color.Gray) else Modifier)
                 )
             } else if (iconResId != null) {
                 Icon(

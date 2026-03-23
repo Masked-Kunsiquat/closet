@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_navigate_up">Navigate up</string>
+
+    <!-- Section headers -->
+    <string name="settings_section_appearance">Appearance</string>
+
+    <!-- Appearance preferences -->
+    <string name="settings_dynamic_color">Use system colors</string>
+    <string name="settings_dynamic_color_summary">Apply your wallpaper colors (Android 12+)</string>
+    <string name="settings_accent_color">Accent color</string>
+
+    <!-- Accent swatch accessibility labels -->
+    <string name="settings_accent_amber">Amber</string>
+    <string name="settings_accent_coral">Coral</string>
+    <string name="settings_accent_sage">Sage</string>
+    <string name="settings_accent_sky">Sky</string>
+    <string name="settings_accent_lavender">Lavender</string>
+    <string name="settings_accent_rose">Rose</string>
+    <string name="settings_accent_selected">%s, selected</string>
+    <string name="settings_accent_unselected">%s</string>
+</resources>

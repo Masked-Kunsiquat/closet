@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.closet.features.wardrobe"
+    namespace = "com.closet.features.settings"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
@@ -33,10 +33,8 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":core:data"))
     implementation(project(":core:ui"))
-    
-    // Compose
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.material3)
@@ -44,25 +42,13 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     debugImplementation(libs.androidx.ui.tooling)
 
-    // Navigation
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
 
-    // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // Lifecycle
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-
-    // Image loading
-    implementation(libs.coil.compose)
-
-    // Palette
-    implementation(libs.androidx.palette.ktx)
-
-    // Logging
-    implementation(libs.timber)
 }
