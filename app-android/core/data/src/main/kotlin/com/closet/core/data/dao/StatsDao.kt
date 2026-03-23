@@ -173,7 +173,7 @@ interface StatsDao {
      * @return A [Flow] emitting a list of [BreakdownRow] ordered by wear count descending.
      */
     @Query("""
-        SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(oi.id) AS count
+        SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(*) AS count
         FROM clothing_items ci
         LEFT JOIN categories c ON c.id = ci.category_id
         JOIN outfit_items oi ON oi.clothing_item_id = ci.id
