@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -62,21 +61,11 @@ import com.closet.core.ui.components.ResErrorSnackbarEffect
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ColorEntity
-import com.closet.core.data.model.SizeSystemEntity
-import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import java.time.LocalDate
 
 /**
  * Unified screen for adding or editing a clothing item.
- *
- * Handles image selection, brand autocomplete, category/subcategory selection,
- * sizing systems, and basic metadata (price, date, notes). Shows a discard
- * confirmation dialog if the user attempts to back out with unsaved changes.
- *
- * @param onBackClick Callback invoked when the user navigates away or cancels.
- * @param onManageBrands Callback to open the brand management screen.
- * @param viewModel Hilt-provided [ClothingFormViewModel].
  */
 @Composable
 fun ClothingFormScreen(
@@ -163,9 +152,6 @@ fun ClothingFormScreen(
                 onManageBrands = onManageBrands,
                 onCategorySelect = viewModel::selectCategory,
                 onSubcategorySelect = viewModel::selectSubcategory,
-                onSizeSystemSelect = viewModel::selectSizeSystem,
-                onSizeValueSelect = viewModel::selectSizeValue,
-                onClearSize = viewModel::clearSize,
                 onPriceChange = viewModel::updatePrice,
                 onDateChange = viewModel::updatePurchaseDate,
                 onLocationChange = viewModel::updatePurchaseLocation,
@@ -180,17 +166,6 @@ fun ClothingFormScreen(
     }
 }
 
-/**
- * Top app bar for the clothing form.
- *
- * Displays "Add Item" or "Edit Item" based on [isEditMode], and provides a
- * save action that is only enabled when [canSave] is true.
- *
- * @param isEditMode Whether the form is in edit mode.
- * @param canSave Whether the current form state is valid for saving.
- * @param onBackClick Callback for the navigation/back icon.
- * @param onSaveClick Callback for the save/check icon.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ClothingFormTopBar(
@@ -228,27 +203,6 @@ internal fun ClothingFormTopBar(
     )
 }
 
-/**
- * Main scrollable body of the clothing form.
- *
- * @param uiState Snapshot of the current form state and lookup data.
- * @param onNameChange Callback when the item name field is edited.
- * @param onBrandQueryChange Callback when the brand search text changes.
- * @param onBrandSelect Callback when a brand is selected from autocomplete.
- * @param onAddNewBrand Callback to create and select a new brand.
- * @param onManageBrands Callback to open brand management.
- * @param onCategorySelect Callback when a top-level category is selected.
- * @param onSubcategorySelect Callback when a subcategory is selected.
- * @param onSizeSystemSelect Callback when a sizing system is selected.
- * @param onSizeValueSelect Callback when a specific size value is selected.
- * @param onClearSize Callback to reset sizing fields.
- * @param onPriceChange Callback when the price field is edited.
- * @param onDateChange Callback when the purchase date is updated.
- * @param onLocationChange Callback when the purchase location field is edited.
- * @param onNotesChange Callback when the notes field is edited.
- * @param onImageClick Callback to launch the image picker.
- * @param onColorToggle Callback when a color chip is toggled.
- */
 @Composable
 internal fun ClothingFormContent(
     uiState: ClothingFormUiState,
@@ -259,9 +213,6 @@ internal fun ClothingFormContent(
     onManageBrands: () -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,
-    onSizeSystemSelect: (SizeSystemEntity?) -> Unit,
-    onSizeValueSelect: (SizeValueEntity?) -> Unit,
-    onClearSize: () -> Unit,
     onPriceChange: (String) -> Unit,
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
@@ -347,46 +298,6 @@ internal fun ClothingFormContent(
                     )
                 }
             }
-        }
-
-        // Size Section
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    val selectedSystem = uiState.sizeSystems.find { it.id == uiState.selectedSizeSystemId }
-                    DropdownSelector(
-                        selectedItem = selectedSystem,
-                        items = uiState.sizeSystems,
-                        onItemSelect = onSizeSystemSelect,
-                        label = stringResource(R.string.wardrobe_field_size_system),
-                        itemLabel = { it.name }
-                    )
-                }
-                if (uiState.selectedSizeSystemId != null) {
-                    IconButton(onClick = onClearSize) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = stringResource(R.string.wardrobe_date_clear),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            val selectedValue = uiState.sizeValues.find { it.id == uiState.selectedSizeValueId }
-            DropdownSelector(
-                selectedItem = selectedValue,
-                items = uiState.sizeValues,
-                onItemSelect = onSizeValueSelect,
-                label = stringResource(R.string.wardrobe_field_size_value),
-                itemLabel = { it.value },
-                enabled = uiState.selectedSizeSystemId != null
-            )
         }
 
         // Category & Subcategory
@@ -483,3 +394,4 @@ internal fun ClothingFormContent(
         }
     }
 }
+

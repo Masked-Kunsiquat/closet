@@ -19,7 +19,6 @@ import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
-import com.closet.core.data.util.AppError
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,16 +37,6 @@ import javax.inject.Inject
 
 /**
  * UI state for the Clothing Form (Add/Edit).
- *
- * @property isEditMode True when editing an existing item; false for a new item.
- * @property canSave True when the form is valid and no save is in progress.
- * @property isDirty True when the form has unsaved changes relative to the original item (edit)
- *   or has any filled field (add).
- * @property errorMessage String resource ID for the current error, or null if none.
- * @property sizeSystems All available sizing systems (e.g. Letter, Numeric).
- * @property sizeValues Available size values filtered by the currently selected system.
- * @property selectedSizeSystemId ID of the currently selected size system.
- * @property selectedSizeValueId ID of the currently selected size value.
  */
 data class ClothingFormUiState(
     val isEditMode: Boolean = false,
@@ -101,7 +90,6 @@ private data class FormState(
 
 /**
  * ViewModel for managing the state of the Clothing form (Add or Edit).
- * Implements Hydration logic for editing existing items and auto-suggestion for sizing systems.
  */
 @HiltViewModel
 class ClothingFormViewModel @Inject constructor(
@@ -123,33 +111,25 @@ class ClothingFormViewModel @Inject constructor(
 
     private val _form = MutableStateFlow(FormState(isLoading = isEditMode))
 
-    // To handle image replacement cleanup
     private var originalImagePath: String? = null
     private var originalEntity: ClothingItemEntity? = null
     private var originalColors: List<ColorEntity> = emptyList()
 
-    /** Tracks if the user has manually changed the size system to prevent auto-suggestions from overriding. */
     private var sizeSystemUserOverridden = false
 
-    // One-time events for navigation
     private val _events = Channel<ClothingFormEvent>()
-    /** One-time navigation events (e.g. [ClothingFormEvent.NavigateBack]) for the screen to collect. */
     val events = _events.receiveAsFlow()
 
-    /** All top-level categories, used to populate the category picker. */
     val categories: StateFlow<List<CategoryEntity>> = lookupRepository.getCategories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** All available colors, used to populate the color chip selector. */
     val allColors: StateFlow<List<ColorEntity>> = lookupRepository.getColors()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** All brands for the autocomplete dropdown. */
     val allBrands: StateFlow<List<BrandEntity>> = brandRepository.getAllBrands()
         .map { result -> if (result is DataResult.Success) result.data else emptyList() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Subcategories filtered by the currently selected category; resets to empty when no category is chosen. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val subcategories: StateFlow<List<SubcategoryEntity>> = _form
         .map { it.category }
@@ -160,11 +140,9 @@ class ClothingFormViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** All size systems available for selection. */
     val sizeSystems: StateFlow<List<SizeSystemEntity>> = lookupRepository.getSizeSystems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Size values filtered by the currently selected size system. */
     @OptIn(ExperimentalCoroutinesApi::class)
     val sizeValues: StateFlow<List<SizeValueEntity>> = _form
         .map { it.selectedSizeSystemId }
@@ -175,10 +153,24 @@ class ClothingFormViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Consolidated UI state combining the form fields with all lookup lists. */
+    @Suppress("UNCHECKED_CAST")
     val uiState: StateFlow<ClothingFormUiState> = combine(
-        _form, categories, subcategories, allColors, allBrands, sizeSystems, sizeValues
-    ) { form, cats, subs, colors, brands, systems, values ->
+        _form,
+        categories,
+        subcategories,
+        allColors,
+        allBrands,
+        sizeSystems,
+        sizeValues
+    ) { args: Array<Any?> ->
+        val form = args[0] as FormState
+        val cats = args[1] as List<CategoryEntity>
+        val subs = args[2] as List<SubcategoryEntity>
+        val colors = args[3] as List<ColorEntity>
+        val brands = args[4] as List<BrandEntity>
+        val systems = args[5] as List<SizeSystemEntity>
+        val values = args[6] as List<SizeValueEntity>
+
         ClothingFormUiState(
             isEditMode = isEditMode,
             name = form.name,
@@ -222,27 +214,29 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     private fun computeIsDirty(form: FormState): Boolean {
-        val original = originalEntity
-        if (isEditMode && original != null) {
-            val colorsChanged = form.selectedColors.size != originalColors.size ||
-                    !form.selectedColors.containsAll(originalColors)
-            return form.name != original.name ||
-                    form.selectedBrandId != original.brandId ||
-                    form.category?.id != original.categoryId ||
-                    form.subcategory?.id != original.subcategoryId ||
-                    form.price != (original.purchasePrice?.toString() ?: "") ||
-                    form.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE) != original.purchaseDate ||
-                    form.purchaseLocation != (original.purchaseLocation ?: "") ||
-                    form.notes != (original.notes ?: "") ||
-                    form.imagePath != original.imagePath ||
-                    colorsChanged ||
-                    form.selectedSizeValueId != original.sizeValueId
-        }
-        return form.name.isNotBlank() || form.brandQuery.isNotBlank() || form.selectedBrandId != null ||
+        val original = originalEntity ?: return form.name.isNotBlank() ||
+                form.brandQuery.isNotBlank() || form.selectedBrandId != null ||
                 form.category != null || form.price.isNotBlank() || form.purchaseDate != null ||
                 form.purchaseLocation.isNotBlank() || form.notes.isNotBlank() ||
                 form.imagePath != null || form.selectedColors.isNotEmpty() ||
                 form.selectedSizeValueId != null
+
+        val colorsChanged = form.selectedColors.size != originalColors.size ||
+                !form.selectedColors.containsAll(originalColors)
+        
+        val formDateString = form.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        
+        return form.name != original.name ||
+                form.selectedBrandId != original.brandId ||
+                form.category?.id != original.categoryId ||
+                form.subcategory?.id != original.subcategoryId ||
+                form.price != (original.purchasePrice?.toString() ?: "") ||
+                formDateString != original.purchaseDate ||
+                form.purchaseLocation != (original.purchaseLocation ?: "") ||
+                form.notes != (original.notes ?: "") ||
+                form.imagePath != original.imagePath ||
+                colorsChanged ||
+                form.selectedSizeValueId != original.sizeValueId
     }
 
     private fun loadItemForEditing(id: Long) {
@@ -256,7 +250,6 @@ class ClothingFormViewModel @Inject constructor(
                     originalEntity = entity
                     originalImagePath = entity.imagePath
 
-                    // Hydrate the fields
                     val brandName = if (entity.brandId != null) {
                         (brandRepository.getAllBrands().first { it is DataResult.Success } as DataResult.Success).data
                             .find { it.id == entity.brandId }?.name ?: ""
@@ -276,7 +269,6 @@ class ClothingFormViewModel @Inject constructor(
 
                     var systemId: Long? = null
                     if (entity.sizeValueId != null) {
-                        // We need to find the system ID for the saved size value
                         val allSystems = lookupRepository.getSizeSystems().first()
                         for (system in allSystems) {
                             val values = lookupRepository.getSizeValues(system.id).first()
@@ -305,267 +297,172 @@ class ClothingFormViewModel @Inject constructor(
                         selectedSizeValueId = entity.sizeValueId,
                         isLoading = false
                     ) }
-                } else {
-                    _form.update { it.copy(
-                        errorMessage = R.string.wardrobe_error_load_failed,
-                        isLoading = false
-                    ) }
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                _form.update { it.copy(
-                    errorMessage = R.string.wardrobe_error_load_failed,
-                    isLoading = false
-                ) }
+                _form.update { it.copy(isLoading = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
             }
         }
     }
 
-    /** Updates the item name field and clears any name validation error. */
-    fun updateName(newName: String) {
-        _form.update { it.copy(name = newName, isNameError = false) }
+    fun onNameChange(name: String) {
+        _form.update { it.copy(name = name, isNameError = false) }
     }
 
-    /** Updates the brand search text and clears any previously confirmed brand selection. */
-    fun onBrandQueryChange(text: String) {
-        _form.update { it.copy(brandQuery = text, selectedBrandId = null) }
+    fun onBrandQueryChange(query: String) {
+        _form.update { it.copy(brandQuery = query, selectedBrandId = null) }
     }
 
-    /** Confirms a brand selection from the autocomplete dropdown. */
-    fun onBrandSelect(brand: BrandEntity) {
-        _form.update { it.copy(selectedBrandId = brand.id, brandQuery = brand.name) }
+    fun onBrandSelected(brand: BrandEntity?) {
+        _form.update { it.copy(selectedBrandId = brand?.id, brandQuery = brand?.name ?: "") }
     }
 
-    /**
-     * Inserts a new brand with [name] and immediately selects it.
-     * Surfaces an error in [uiState] if the name is a duplicate or the insert fails.
-     */
-    fun onAddNewBrand(name: String) {
-        val nameNormalized = name.trim()
-        if (nameNormalized.isBlank()) return
-        viewModelScope.launch {
-            when (val result = brandRepository.insertBrand(nameNormalized)) {
-                is DataResult.Success -> onBrandSelect(BrandEntity(id = result.data, name = nameNormalized, normalizedName = nameNormalized.lowercase()))
-                is DataResult.Error -> _form.update { it.copy(
-                    errorMessage = when (result.throwable) {
-                        is AppError.DatabaseError.ConstraintViolation -> R.string.wardrobe_error_brand_duplicate
-                        else -> R.string.wardrobe_error_brand_save_failed
-                    }
-                ) }
-                else -> Unit
-            }
-        }
-    }
-
-    /** Selects [category] and clears the subcategory since it belongs to the old category. Resets size override. */
-    fun selectCategory(category: CategoryEntity?) {
+    fun onCategorySelected(category: CategoryEntity?) {
         _form.update { it.copy(category = category, subcategory = null) }
-        sizeSystemUserOverridden = false
     }
 
-    /** Selects [subcategory] within the currently chosen category and triggers size system auto-suggestion. */
-    fun selectSubcategory(subcategory: SubcategoryEntity?) {
+    fun onSubcategorySelected(subcategory: SubcategoryEntity?) {
         _form.update { it.copy(subcategory = subcategory) }
-        
-        if (!sizeSystemUserOverridden) {
-            val defaultSystemName = defaultSizeSystemName(subcategory?.name)
-            if (defaultSystemName != null) {
-                viewModelScope.launch {
-                    val systems = sizeSystems.value
-                    systems.find { it.name == defaultSystemName }?.let { 
-                        selectSizeSystem(it, isUserOverride = false) 
-                    }
-                }
-            }
-        }
     }
 
-    /** Mapping from subcategory name to its canonical default sizing system. */
-    private fun defaultSizeSystemName(subcategoryName: String?): String? = when (subcategoryName) {
-        "Sneakers", "Boots", "Sandals", "Dress Shoes", "Slippers" -> "Shoes (US Men's)"
-        "Belt", "Hat/Cap", "Scarf", "Sunglasses", "Watch",
-        "Jewelry", "Tie", "Cufflinks",
-        "Backpack", "Tote", "Crossbody", "Duffel"              -> "One Size"
-        null                                                     -> null
-        else                                                     -> "Letter"
+    fun onPriceChange(price: String) {
+        _form.update { it.copy(price = price) }
     }
 
-    /** Updates the price field, accepting only valid decimal strings (up to 2 decimal places). */
-    fun updatePrice(newPrice: String) {
-        if (newPrice.isEmpty() || newPrice.matches(Regex("""^\d*\.?\d{0,2}$"""))) {
-            _form.update { it.copy(price = newPrice) }
-        }
-    }
-
-    /** Updates the purchase date field. */
-    fun updatePurchaseDate(date: LocalDate?) {
+    fun onDateChange(date: LocalDate?) {
         _form.update { it.copy(purchaseDate = date) }
     }
 
-    /** Updates the purchase location text field. */
-    fun updatePurchaseLocation(location: String) {
+    fun onLocationChange(location: String) {
         _form.update { it.copy(purchaseLocation = location) }
     }
 
-    /** Updates the notes text field. */
-    fun updateNotes(newNotes: String) {
-        _form.update { it.copy(notes = newNotes) }
+    fun onNotesChange(notes: String) {
+        _form.update { it.copy(notes = notes) }
     }
 
-    /**
-     * Copies the image at [uri] into app-owned storage, stores its relative path, and
-     * auto-suggests colors from the image palette. Deletes any previously staged (unsaved)
-     * replacement image. No-ops if [uri] is null.
-     */
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
+        
         viewModelScope.launch {
+            _form.update { it.copy(isLoading = true) }
             try {
-                val previousPath = _form.value.imagePath
-                val relativePath = storageRepository.saveImage(uri)
-                _form.update { it.copy(imagePath = relativePath) }
-                if (previousPath != null && previousPath != originalImagePath) {
-                    storageRepository.deleteImage(previousPath)
-                }
-                extractColors(uri)
+                val path = storageRepository.saveImage(uri)
+                _form.update { it.copy(imagePath = path, isLoading = false) }
+                
+                val file = storageRepository.getFile(path)
+                extractColorsFromFile(file)
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                _form.update { it.copy(errorMessage = R.string.wardrobe_error_image_failed) }
+                _form.update { it.copy(isLoading = false, errorMessage = com.closet.core.ui.R.string.error_unexpected) }
             }
         }
     }
 
-    private suspend fun extractColors(uri: Uri) = withContext(Dispatchers.IO) {
-        try {
-            val bitmap = storageRepository.getBitmap(uri) ?: return@withContext
-            val palette = Palette.from(bitmap).generate()
+    private suspend fun extractColorsFromFile(file: File) {
+        withContext(Dispatchers.Default) {
+            try {
+                val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                if (bitmap != null) {
+                    val palette = Palette.from(bitmap).generate()
+                    val extracted = listOfNotNull(
+                        palette.dominantSwatch?.rgb,
+                        palette.vibrantSwatch?.rgb,
+                        palette.mutedSwatch?.rgb
+                    ).distinct()
 
-            val swatches = listOfNotNull(
-                palette.vibrantSwatch,
-                palette.mutedSwatch,
-                palette.dominantSwatch
-            )
-
-            if (swatches.isNotEmpty()) {
-                val availableColors = lookupRepository.getColors().first()
-                if (availableColors.isNotEmpty()) {
-                    val snappedColors = swatches.map { swatch ->
-                        ColorMatcher.findNearestColor(swatch.rgb, availableColors)
-                    }.distinctBy { it.id }
-
-                    _form.update { it.copy(selectedColors = snappedColors) }
+                    if (extracted.isNotEmpty()) {
+                        val availableColors = allColors.value
+                        val matched = extracted.map { ColorMatcher.findNearestColor(it, availableColors) }.distinct()
+                        if (matched.isNotEmpty()) {
+                            _form.update { it.copy(selectedColors = matched) }
+                        }
+                    }
                 }
-            }
-        } catch (e: Exception) {
-            if (e is CancellationException) throw e
-            // Silently fail color extraction
+            } catch (_: Exception) {}
         }
     }
 
-    /** Adds [color] to the selection if not present, or removes it if already selected. */
-    fun toggleColor(color: ColorEntity) {
-        _form.update { current ->
-            val updated = if (current.selectedColors.any { it.id == color.id }) {
-                current.selectedColors.filter { it.id != color.id }
+    fun onColorToggle(color: ColorEntity) {
+        _form.update { state ->
+            val newColors = if (state.selectedColors.contains(color)) {
+                state.selectedColors - color
             } else {
-                current.selectedColors + color
+                state.selectedColors + color
             }
-            current.copy(selectedColors = updated)
+            state.copy(selectedColors = newColors)
         }
     }
 
-    /** Clears the transient error message once the UI has consumed it. */
-    fun onErrorConsumed() {
-        _form.update { it.copy(errorMessage = null) }
+    fun onSizeSystemSelected(systemId: Long?) {
+        sizeSystemUserOverridden = true
+        _form.update { it.copy(selectedSizeSystemId = systemId, selectedSizeValueId = null) }
     }
 
-    /**
-     * Selects a size system and clears the current size value.
-     * @param system The sizing system to select.
-     * @param isUserOverride Set to true if this was an explicit user interaction, blocking future auto-suggestions.
-     */
-    fun selectSizeSystem(system: SizeSystemEntity?, isUserOverride: Boolean = true) {
-        if (isUserOverride) sizeSystemUserOverridden = true
-        _form.update { it.copy(selectedSizeSystemId = system?.id, selectedSizeValueId = null) }
+    fun onSizeValueSelected(valueId: Long?) {
+        _form.update { it.copy(selectedSizeValueId = valueId) }
     }
 
-    /** Selects a specific size value. */
-    fun selectSizeValue(value: SizeValueEntity?) {
-        _form.update { it.copy(selectedSizeValueId = value?.id) }
-    }
-
-    /** Clears both the size system and size value, and resets the user override flag. */
-    fun clearSize() {
-        sizeSystemUserOverridden = false
-        _form.update { it.copy(selectedSizeSystemId = null, selectedSizeValueId = null) }
-    }
-
-    /**
-     * Validates the form and persists the item (insert on add, update on edit).
-     * Emits [ClothingFormEvent.NavigateBack] on success.
-     * Sets [ClothingFormUiState.isNameError] if the name is blank, or surfaces a save error
-     * via [ClothingFormUiState.errorMessage] if the repository call fails.
-     */
     fun save() {
-        val currentForm = _form.value
-        if (currentForm.isSaving) return
-        if (currentForm.name.isBlank()) {
+        val state = _form.value
+        if (state.name.isBlank()) {
             _form.update { it.copy(isNameError = true) }
             return
         }
-        if (currentForm.brandQuery.isNotBlank() && currentForm.selectedBrandId == null) return
-
-        _form.update { it.copy(isSaving = true, errorMessage = null) }
 
         viewModelScope.launch {
+            _form.update { it.copy(isSaving = true) }
             try {
-                val form = _form.value
                 val item = ClothingItemEntity(
-                    id = itemId ?: 0,
-                    name = form.name.trim(),
-                    brandId = form.selectedBrandId,
-                    categoryId = form.category?.id,
-                    subcategoryId = form.subcategory?.id,
-                    sizeValueId = form.selectedSizeValueId,
-                    purchasePrice = form.price.toDoubleOrNull(),
-                    purchaseDate = form.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                    purchaseLocation = form.purchaseLocation.trim().takeIf { it.isNotBlank() },
-                    notes = form.notes.trim().takeIf { it.isNotBlank() },
-                    imagePath = form.imagePath,
+                    id = itemId ?: 0L,
+                    name = state.name,
+                    brandId = state.selectedBrandId,
+                    categoryId = state.category?.id,
+                    subcategoryId = state.subcategory?.id,
+                    purchasePrice = state.price.toDoubleOrNull(),
+                    purchaseDate = state.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    purchaseLocation = state.purchaseLocation.ifBlank { null },
+                    notes = state.notes.ifBlank { null },
+                    imagePath = state.imagePath,
+                    sizeValueId = state.selectedSizeValueId,
                     status = originalEntity?.status ?: ClothingStatus.Active,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
-                    isFavorite = originalEntity?.isFavorite ?: 0,
                     createdAt = originalEntity?.createdAt ?: Instant.now(),
                     updatedAt = Instant.now()
                 )
 
                 val result = if (isEditMode) {
-                    clothingRepository.updateItemWithColors(item, form.selectedColors)
+                    clothingRepository.updateItemWithColors(item, state.selectedColors)
                 } else {
-                    clothingRepository.insertItemWithColors(item, form.selectedColors)
+                    clothingRepository.insertItemWithColors(item, state.selectedColors)
                 }
 
-                when (result) {
-                    is DataResult.Success -> {
-                        if (isEditMode && form.imagePath != originalImagePath) {
-                            originalImagePath?.let { storageRepository.deleteImage(it) }
-                        }
-                        _events.send(ClothingFormEvent.NavigateBack)
+                if (result is DataResult.Success) {
+                    if (isEditMode && originalImagePath != null && originalImagePath != state.imagePath) {
+                        storageRepository.deleteImage(originalImagePath!!)
                     }
-                    is DataResult.Error -> {
-                        _form.update { it.copy(errorMessage = R.string.wardrobe_error_save_failed) }
-                    }
-                    else -> { /* No-op */ }
+                    _events.send(ClothingFormEvent.NavigateBack)
+                } else {
+                    _form.update { it.copy(isSaving = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
                 }
-            } finally {
-                _form.update { it.copy(isSaving = false) }
+            } catch (e: Exception) {
+                _form.update { it.copy(isSaving = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
             }
+        }
+    }
+
+    fun cancel() {
+        val currentPath = _form.value.imagePath
+        if (currentPath != null && currentPath != originalImagePath) {
+            viewModelScope.launch {
+                storageRepository.deleteImage(currentPath)
+            }
+        }
+        viewModelScope.launch {
+            _events.send(ClothingFormEvent.NavigateBack)
         }
     }
 }
 
-/** One-time navigation events emitted by [ClothingFormViewModel]. */
 sealed class ClothingFormEvent {
-    /** Emitted when the item was saved successfully; the screen should navigate back. */
-    data object NavigateBack : ClothingFormEvent()
+    object NavigateBack : ClothingFormEvent()
 }
