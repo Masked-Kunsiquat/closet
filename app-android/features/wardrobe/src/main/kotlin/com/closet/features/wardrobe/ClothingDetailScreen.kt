@@ -268,11 +268,13 @@ fun ClothingDetailScreen(
                         // Attributes
                         ClothingAttributes(
                             item = detail,
+                            sizeSystems = state.sizeSystems,
                             onEditSeasons = { activePicker = AttributePicker.SEASONS },
                             onEditOccasions = { activePicker = AttributePicker.OCCASIONS },
                             onEditColors = { activePicker = AttributePicker.COLORS },
                             onEditMaterials = { activePicker = AttributePicker.MATERIALS },
-                            onEditPatterns = { activePicker = AttributePicker.PATTERNS }
+                            onEditPatterns = { activePicker = AttributePicker.PATTERNS },
+                            onEditSize = { onEdit(detail.item.id) }
                         )
 
                         // Notes

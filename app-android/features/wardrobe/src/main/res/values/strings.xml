@@ -60,6 +60,8 @@
     <string name="wardrobe_field_location">Purchase Location</string>
     <string name="wardrobe_field_notes">Notes</string>
     <string name="wardrobe_field_none">None</string>
+    <string name="wardrobe_field_size_system">Size System</string>
+    <string name="wardrobe_field_size_value">Size</string>
     <string name="wardrobe_section_colors">Colors</string>
     <string name="wardrobe_discard_title">Discard Changes?</string>
     <string name="wardrobe_discard_message">You have unsaved changes. Are you sure you want to discard them?</string>

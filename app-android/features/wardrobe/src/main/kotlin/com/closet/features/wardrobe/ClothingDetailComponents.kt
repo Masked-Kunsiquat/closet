@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.ClothingItemDetail
+import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.ui.util.IconMapper
 
 // ─── ClothingAttributes ───────────────────────────────────────────────────────
@@ -40,13 +42,36 @@ import com.closet.core.ui.util.IconMapper
 @Composable
 internal fun ClothingAttributes(
     item: ClothingItemDetail,
+    sizeSystems: List<SizeSystemEntity>,
     onEditSeasons: () -> Unit,
     onEditOccasions: () -> Unit,
     onEditColors: () -> Unit,
     onEditMaterials: () -> Unit,
-    onEditPatterns: () -> Unit
+    onEditPatterns: () -> Unit,
+    onEditSize: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Size Attribute
+        if (item.sizeValue != null) {
+            AttributeSection(
+                title = stringResource(R.string.wardrobe_size),
+                onEditClick = onEditSize
+            ) {
+                val systemName = sizeSystems.find { it.id == item.sizeValue?.sizeSystemId }?.name
+                val label = if (systemName != null && systemName != "One Size" && systemName != "Letter") {
+                    "${item.sizeValue?.value}  ·  $systemName"
+                } else {
+                    item.sizeValue?.value ?: ""
+                }
+                
+                AttributeChip(
+                    label = label,
+                    icon = Icons.Default.Straighten,
+                    onClick = onEditSize
+                )
+            }
+        }
+
         AttributeSection(
             title = stringResource(R.string.wardrobe_seasons),
             onEditClick = onEditSeasons
@@ -182,6 +207,7 @@ internal fun AttributeSection(
 internal fun AttributeChip(
     label: String,
     iconResId: Int? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     color: Color? = null,
     onClick: () -> Unit
 ) {
@@ -205,6 +231,13 @@ internal fun AttributeChip(
             } else if (iconResId != null) {
                 Icon(
                     painter = painterResource(id = iconResId),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            } else if (icon != null) {
+                Icon(
+                    imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary

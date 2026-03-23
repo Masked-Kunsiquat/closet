@@ -45,9 +45,18 @@ class ClothingDetailViewModel @Inject constructor(
         lookupRepository.getMaterials(),
         lookupRepository.getSeasons(),
         lookupRepository.getOccasions(),
-        lookupRepository.getPatterns()
-    ) { colors, materials, seasons, occasions, patterns ->
-        ClothingDetailLookup(colors, materials, seasons, occasions, patterns)
+        lookupRepository.getPatterns(),
+        lookupRepository.getSizeSystems()
+    ) { args: Array<Any> ->
+        @Suppress("UNCHECKED_CAST")
+        ClothingDetailLookup(
+            colors = args[0] as List<ColorEntity>,
+            materials = args[1] as List<MaterialEntity>,
+            seasons = args[2] as List<SeasonEntity>,
+            occasions = args[3] as List<OccasionEntity>,
+            patterns = args[4] as List<PatternEntity>,
+            sizeSystems = args[5] as List<SizeSystemEntity>
+        )
     }
 
     private val wearHistoryFlow = logRepository.getLogsForItem(itemId)
@@ -64,6 +73,7 @@ class ClothingDetailViewModel @Inject constructor(
                 seasons = lookup.seasons,
                 occasions = lookup.occasions,
                 patterns = lookup.patterns,
+                sizeSystems = lookup.sizeSystems,
                 wearHistory = history,
             )
         } else {
@@ -205,7 +215,8 @@ private data class ClothingDetailLookup(
     val materials: List<MaterialEntity>,
     val seasons: List<SeasonEntity>,
     val occasions: List<OccasionEntity>,
-    val patterns: List<PatternEntity>
+    val patterns: List<PatternEntity>,
+    val sizeSystems: List<SizeSystemEntity>
 )
 
 /**
@@ -220,6 +231,7 @@ sealed interface ClothingDetailUiState {
         val seasons: List<SeasonEntity> = emptyList(),
         val occasions: List<OccasionEntity> = emptyList(),
         val patterns: List<PatternEntity> = emptyList(),
+        val sizeSystems: List<SizeSystemEntity> = emptyList(),
         val wearHistory: List<ItemWearLog> = emptyList(),
     ) : ClothingDetailUiState
     data class Error(val userMessage: UserMessage) : ClothingDetailUiState

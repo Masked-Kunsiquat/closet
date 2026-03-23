@@ -11,6 +11,8 @@ import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.model.SizeSystemEntity
+import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.BrandRepository
@@ -66,9 +68,12 @@ data class ClothingFormUiState(
     val isLoading: Boolean = false,
     val errorMessage: Int? = null,
     val canSave: Boolean = false,
-    val isDirty: Boolean = false
-) {
-}
+    val isDirty: Boolean = false,
+    val sizeSystems: List<SizeSystemEntity> = emptyList(),
+    val sizeValues: List<SizeValueEntity> = emptyList(),
+    val selectedSizeSystemId: Long? = null,
+    val selectedSizeValueId: Long? = null
+)
 
 private data class FormState(
     val name: String = "",
@@ -85,7 +90,9 @@ private data class FormState(
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
-    val errorMessage: Int? = null
+    val errorMessage: Int? = null,
+    val selectedSizeSystemId: Long? = null,
+    val selectedSizeValueId: Long? = null
 )
 
 /**
@@ -117,6 +124,8 @@ class ClothingFormViewModel @Inject constructor(
     private var originalEntity: ClothingItemEntity? = null
     private var originalColors: List<ColorEntity> = emptyList()
 
+    private var sizeSystemUserOverridden = false
+
     // One-time events for navigation
     private val _events = Channel<ClothingFormEvent>()
     /** One-time navigation events (e.g. [ClothingFormEvent.NavigateBack]) for the screen to collect. */
@@ -146,10 +155,25 @@ class ClothingFormViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** All size systems available for selection. */
+    val sizeSystems: StateFlow<List<SizeSystemEntity>> = lookupRepository.getSizeSystems()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Size values filtered by the currently selected size system. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val sizeValues: StateFlow<List<SizeValueEntity>> = _form
+        .map { it.selectedSizeSystemId }
+        .distinctUntilChanged()
+        .flatMapLatest { systemId ->
+            if (systemId == null) flowOf(emptyList())
+            else lookupRepository.getSizeValues(systemId)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     /** Consolidated UI state combining the form fields with all lookup lists. */
     val uiState: StateFlow<ClothingFormUiState> = combine(
-        _form, categories, subcategories, allColors, allBrands
-    ) { form, cats, subs, colors, brands ->
+        _form, categories, subcategories, allColors, allBrands, sizeSystems, sizeValues
+    ) { form, cats, subs, colors, brands, systems, values ->
         ClothingFormUiState(
             isEditMode = isEditMode,
             name = form.name,
@@ -174,7 +198,11 @@ class ClothingFormViewModel @Inject constructor(
             allColors = colors,
             canSave = form.name.isNotBlank() && !form.isSaving &&
                     !(form.brandQuery.isNotBlank() && form.selectedBrandId == null),
-            isDirty = computeIsDirty(form)
+            isDirty = computeIsDirty(form),
+            sizeSystems = systems,
+            sizeValues = values,
+            selectedSizeSystemId = form.selectedSizeSystemId,
+            selectedSizeValueId = form.selectedSizeValueId
         )
     }.stateIn(
         scope = viewModelScope,
@@ -202,12 +230,14 @@ class ClothingFormViewModel @Inject constructor(
                     form.purchaseLocation != (original.purchaseLocation ?: "") ||
                     form.notes != (original.notes ?: "") ||
                     form.imagePath != original.imagePath ||
-                    colorsChanged
+                    colorsChanged ||
+                    form.selectedSizeValueId != original.sizeValueId
         }
         return form.name.isNotBlank() || form.brandQuery.isNotBlank() || form.selectedBrandId != null ||
                 form.category != null || form.price.isNotBlank() || form.purchaseDate != null ||
                 form.purchaseLocation.isNotBlank() || form.notes.isNotBlank() ||
-                form.imagePath != null || form.selectedColors.isNotEmpty()
+                form.imagePath != null || form.selectedColors.isNotEmpty() ||
+                form.selectedSizeValueId != null
     }
 
     private fun loadItemForEditing(id: Long) {
@@ -239,6 +269,19 @@ class ClothingFormViewModel @Inject constructor(
                     val colors = clothingRepository.getItemColors(id).first()
                     originalColors = colors
 
+                    var systemId: Long? = null
+                    if (entity.sizeValueId != null) {
+                        // We need to find the system ID for the saved size value
+                        val allSystems = lookupRepository.getSizeSystems().first()
+                        for (system in allSystems) {
+                            val values = lookupRepository.getSizeValues(system.id).first()
+                            if (values.any { it.id == entity.sizeValueId }) {
+                                systemId = system.id
+                                break
+                            }
+                        }
+                    }
+
                     _form.update { it.copy(
                         name = entity.name,
                         selectedBrandId = entity.brandId,
@@ -253,6 +296,8 @@ class ClothingFormViewModel @Inject constructor(
                         category = selectedCat,
                         subcategory = selectedSub,
                         selectedColors = colors,
+                        selectedSizeSystemId = systemId,
+                        selectedSizeValueId = entity.sizeValueId,
                         isLoading = false
                     ) }
                 } else {
@@ -310,11 +355,33 @@ class ClothingFormViewModel @Inject constructor(
     /** Selects [category] and clears the subcategory since it belongs to the old category. */
     fun selectCategory(category: CategoryEntity?) {
         _form.update { it.copy(category = category, subcategory = null) }
+        sizeSystemUserOverridden = false
     }
 
     /** Selects [subcategory] within the currently chosen category. */
     fun selectSubcategory(subcategory: SubcategoryEntity?) {
         _form.update { it.copy(subcategory = subcategory) }
+        
+        if (!sizeSystemUserOverridden) {
+            val defaultSystemName = defaultSizeSystemName(subcategory?.name)
+            if (defaultSystemName != null) {
+                viewModelScope.launch {
+                    val systems = sizeSystems.value
+                    systems.find { it.name == defaultSystemName }?.let { 
+                        selectSizeSystem(it, isUserOverride = false) 
+                    }
+                }
+            }
+        }
+    }
+
+    private fun defaultSizeSystemName(subcategoryName: String?): String? = when (subcategoryName) {
+        "Sneakers", "Boots", "Sandals", "Dress Shoes", "Slippers" -> "Shoes (US Men's)"
+        "Belt", "Hat/Cap", "Scarf", "Sunglasses", "Watch",
+        "Jewelry", "Tie", "Cufflinks",
+        "Backpack", "Tote", "Crossbody", "Duffel"              -> "One Size"
+        null                                                     -> null
+        else                                                     -> "Letter"
     }
 
     /** Updates the price field, accepting only valid decimal strings (up to 2 decimal places). */
@@ -406,6 +473,23 @@ class ClothingFormViewModel @Inject constructor(
         _form.update { it.copy(errorMessage = null) }
     }
 
+    /** Selects a size system and clears the current size value. */
+    fun selectSizeSystem(system: SizeSystemEntity?, isUserOverride: Boolean = true) {
+        if (isUserOverride) sizeSystemUserOverridden = true
+        _form.update { it.copy(selectedSizeSystemId = system?.id, selectedSizeValueId = null) }
+    }
+
+    /** Selects a specific size value. */
+    fun selectSizeValue(value: SizeValueEntity?) {
+        _form.update { it.copy(selectedSizeValueId = value?.id) }
+    }
+
+    /** Clears both the size system and size value, and resets the user override flag. */
+    fun clearSize() {
+        sizeSystemUserOverridden = false
+        _form.update { it.copy(selectedSizeSystemId = null, selectedSizeValueId = null) }
+    }
+
     /**
      * Validates the form and persists the item (insert on add, update on edit).
      * Emits [ClothingFormEvent.NavigateBack] on success.
@@ -432,6 +516,7 @@ class ClothingFormViewModel @Inject constructor(
                     brandId = form.selectedBrandId,
                     categoryId = form.category?.id,
                     subcategoryId = form.subcategory?.id,
+                    sizeValueId = form.selectedSizeValueId,
                     purchasePrice = form.price.toDoubleOrNull(),
                     purchaseDate = form.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
                     purchaseLocation = form.purchaseLocation.trim().takeIf { it.isNotBlank() },

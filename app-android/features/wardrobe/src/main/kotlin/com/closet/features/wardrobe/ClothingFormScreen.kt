@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -61,6 +62,8 @@ import com.closet.core.ui.components.ResErrorSnackbarEffect
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.model.SizeSystemEntity
+import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import java.time.LocalDate
 
@@ -152,6 +155,9 @@ fun ClothingFormScreen(
                 onManageBrands = onManageBrands,
                 onCategorySelect = viewModel::selectCategory,
                 onSubcategorySelect = viewModel::selectSubcategory,
+                onSizeSystemSelect = viewModel::selectSizeSystem,
+                onSizeValueSelect = viewModel::selectSizeValue,
+                onClearSize = viewModel::clearSize,
                 onPriceChange = viewModel::updatePrice,
                 onDateChange = viewModel::updatePurchaseDate,
                 onLocationChange = viewModel::updatePurchaseLocation,
@@ -213,6 +219,9 @@ internal fun ClothingFormContent(
     onManageBrands: () -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,
+    onSizeSystemSelect: (SizeSystemEntity?) -> Unit,
+    onSizeValueSelect: (SizeValueEntity?) -> Unit,
+    onClearSize: () -> Unit,
     onPriceChange: (String) -> Unit,
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
@@ -298,6 +307,46 @@ internal fun ClothingFormContent(
                     )
                 }
             }
+        }
+
+        // Size Section
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    val selectedSystem = uiState.sizeSystems.find { it.id == uiState.selectedSizeSystemId }
+                    DropdownSelector(
+                        selectedItem = selectedSystem,
+                        items = uiState.sizeSystems,
+                        onItemSelect = onSizeSystemSelect,
+                        label = stringResource(R.string.wardrobe_field_size_system),
+                        itemLabel = { it.name }
+                    )
+                }
+                if (uiState.selectedSizeSystemId != null) {
+                    IconButton(onClick = onClearSize) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = stringResource(R.string.wardrobe_date_clear),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            val selectedValue = uiState.sizeValues.find { it.id == uiState.selectedSizeValueId }
+            DropdownSelector(
+                selectedItem = selectedValue,
+                items = uiState.sizeValues,
+                onItemSelect = onSizeValueSelect,
+                label = stringResource(R.string.wardrobe_field_size_value),
+                itemLabel = { it.value },
+                enabled = uiState.selectedSizeSystemId != null
+            )
         }
 
         // Category & Subcategory
@@ -394,4 +443,3 @@ internal fun ClothingFormContent(
         }
     }
 }
-
