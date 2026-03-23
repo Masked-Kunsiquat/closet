@@ -69,6 +69,14 @@ import java.time.LocalDate
 
 /**
  * Unified screen for adding or editing a clothing item.
+ *
+ * Handles image selection, brand autocomplete, category/subcategory selection,
+ * sizing systems, and basic metadata (price, date, notes). Shows a discard
+ * confirmation dialog if the user attempts to back out with unsaved changes.
+ *
+ * @param onBackClick Callback invoked when the user navigates away or cancels.
+ * @param onManageBrands Callback to open the brand management screen.
+ * @param viewModel Hilt-provided [ClothingFormViewModel].
  */
 @Composable
 fun ClothingFormScreen(
@@ -172,6 +180,17 @@ fun ClothingFormScreen(
     }
 }
 
+/**
+ * Top app bar for the clothing form.
+ *
+ * Displays "Add Item" or "Edit Item" based on [isEditMode], and provides a
+ * save action that is only enabled when [canSave] is true.
+ *
+ * @param isEditMode Whether the form is in edit mode.
+ * @param canSave Whether the current form state is valid for saving.
+ * @param onBackClick Callback for the navigation/back icon.
+ * @param onSaveClick Callback for the save/check icon.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ClothingFormTopBar(
@@ -209,6 +228,27 @@ internal fun ClothingFormTopBar(
     )
 }
 
+/**
+ * Main scrollable body of the clothing form.
+ *
+ * @param uiState Snapshot of the current form state and lookup data.
+ * @param onNameChange Callback when the item name field is edited.
+ * @param onBrandQueryChange Callback when the brand search text changes.
+ * @param onBrandSelect Callback when a brand is selected from autocomplete.
+ * @param onAddNewBrand Callback to create and select a new brand.
+ * @param onManageBrands Callback to open brand management.
+ * @param onCategorySelect Callback when a top-level category is selected.
+ * @param onSubcategorySelect Callback when a subcategory is selected.
+ * @param onSizeSystemSelect Callback when a sizing system is selected.
+ * @param onSizeValueSelect Callback when a specific size value is selected.
+ * @param onClearSize Callback to reset sizing fields.
+ * @param onPriceChange Callback when the price field is edited.
+ * @param onDateChange Callback when the purchase date is updated.
+ * @param onLocationChange Callback when the purchase location field is edited.
+ * @param onNotesChange Callback when the notes field is edited.
+ * @param onImageClick Callback to launch the image picker.
+ * @param onColorToggle Callback when a color chip is toggled.
+ */
 @Composable
 internal fun ClothingFormContent(
     uiState: ClothingFormUiState,

@@ -44,6 +44,10 @@ import javax.inject.Inject
  * @property isDirty True when the form has unsaved changes relative to the original item (edit)
  *   or has any filled field (add).
  * @property errorMessage String resource ID for the current error, or null if none.
+ * @property sizeSystems All available sizing systems (e.g. Letter, Numeric).
+ * @property sizeValues Available size values filtered by the currently selected system.
+ * @property selectedSizeSystemId ID of the currently selected size system.
+ * @property selectedSizeValueId ID of the currently selected size value.
  */
 data class ClothingFormUiState(
     val isEditMode: Boolean = false,
@@ -97,7 +101,7 @@ private data class FormState(
 
 /**
  * ViewModel for managing the state of the Clothing form (Add or Edit).
- * Implements Hydration logic for editing existing items.
+ * Implements Hydration logic for editing existing items and auto-suggestion for sizing systems.
  */
 @HiltViewModel
 class ClothingFormViewModel @Inject constructor(
@@ -124,6 +128,7 @@ class ClothingFormViewModel @Inject constructor(
     private var originalEntity: ClothingItemEntity? = null
     private var originalColors: List<ColorEntity> = emptyList()
 
+    /** Tracks if the user has manually changed the size system to prevent auto-suggestions from overriding. */
     private var sizeSystemUserOverridden = false
 
     // One-time events for navigation
@@ -352,13 +357,13 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
-    /** Selects [category] and clears the subcategory since it belongs to the old category. */
+    /** Selects [category] and clears the subcategory since it belongs to the old category. Resets size override. */
     fun selectCategory(category: CategoryEntity?) {
         _form.update { it.copy(category = category, subcategory = null) }
         sizeSystemUserOverridden = false
     }
 
-    /** Selects [subcategory] within the currently chosen category. */
+    /** Selects [subcategory] within the currently chosen category and triggers size system auto-suggestion. */
     fun selectSubcategory(subcategory: SubcategoryEntity?) {
         _form.update { it.copy(subcategory = subcategory) }
         
@@ -375,6 +380,7 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    /** Mapping from subcategory name to its canonical default sizing system. */
     private fun defaultSizeSystemName(subcategoryName: String?): String? = when (subcategoryName) {
         "Sneakers", "Boots", "Sandals", "Dress Shoes", "Slippers" -> "Shoes (US Men's)"
         "Belt", "Hat/Cap", "Scarf", "Sunglasses", "Watch",
@@ -473,7 +479,11 @@ class ClothingFormViewModel @Inject constructor(
         _form.update { it.copy(errorMessage = null) }
     }
 
-    /** Selects a size system and clears the current size value. */
+    /**
+     * Selects a size system and clears the current size value.
+     * @param system The sizing system to select.
+     * @param isUserOverride Set to true if this was an explicit user interaction, blocking future auto-suggestions.
+     */
     fun selectSizeSystem(system: SizeSystemEntity?, isUserOverride: Boolean = true) {
         if (isUserOverride) sizeSystemUserOverridden = true
         _form.update { it.copy(selectedSizeSystemId = system?.id, selectedSizeValueId = null) }

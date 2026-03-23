@@ -53,6 +53,20 @@ import com.closet.core.ui.theme.ClosetTheme
  * Shows multiple [FlowRow] chip sections — Color, Season, Occasion, and Size System —
  * allowing multi-select filtering across these dimensions simultaneously.
  *
+ * @param colors All available colors for filtering.
+ * @param seasons All available seasons for filtering.
+ * @param occasions All available occasions for filtering.
+ * @param sizeSystems All available size systems for filtering.
+ * @param selectedColorIds The set of currently selected color IDs.
+ * @param selectedSeasonIds The set of currently selected season IDs.
+ * @param selectedOccasionIds The set of currently selected occasion IDs.
+ * @param selectedSizeSystemIds The set of currently selected size system IDs.
+ * @param onToggleColor Callback to toggle a color filter.
+ * @param onToggleSeason Callback to toggle a season filter.
+ * @param onToggleOccasion Callback to toggle an occasion filter.
+ * @param onToggleSizeSystem Callback to toggle a size system filter.
+ * @param onClearAll Callback to reset all advanced filters in this panel.
+ * @param onDismiss Callback to close the bottom sheet.
  * @param sheetState Controls sheet expansion; defaults to [rememberModalBottomSheetState].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -185,6 +199,10 @@ internal fun FilterPanel(
 /**
  * Single labeled section inside [FilterPanel]. Renders a [Text] title above a
  * [FlowRow] of chips that wraps automatically across lines.
+ *
+ * @param title The label for the section.
+ * @param modifier Modifier for the container.
+ * @param content The chips or other UI elements to display in the section.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

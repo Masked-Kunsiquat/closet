@@ -38,6 +38,21 @@ import com.closet.core.ui.util.IconMapper
 
 // ─── ClothingAttributes ───────────────────────────────────────────────────────
 
+/**
+ * Displays a categorized list of clothing attributes (Size, Seasons, Colors, etc.).
+ *
+ * Each section provides an "Add" or "Edit" button that triggers the respective
+ * callback. If no attributes are present for a section, a "None selected" hint is shown.
+ *
+ * @param item The detail view of the clothing item containing its attributes.
+ * @param sizeSystems The list of all available size systems, used to resolve the system name for display.
+ * @param onEditSeasons Callback to open the season picker.
+ * @param onEditOccasions Callback to open the occasion picker.
+ * @param onEditColors Callback to open the color picker.
+ * @param onEditMaterials Callback to open the material picker.
+ * @param onEditPatterns Callback to open the pattern picker.
+ * @param onEditSize Callback to navigate to the form for size editing.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ClothingAttributes(
@@ -170,6 +185,15 @@ internal fun ClothingAttributes(
 
 // ─── AttributeSection ─────────────────────────────────────────────────────────
 
+/**
+ * A layout wrapper for an attribute category (e.g., "Seasons").
+ *
+ * Displays a bold title and an edit icon button above the provided [content].
+ *
+ * @param title The section heading.
+ * @param onEditClick Callback for the edit action.
+ * @param content The attribute-specific UI (usually a FlowRow of chips).
+ */
 @Composable
 internal fun AttributeSection(
     title: String,
@@ -202,6 +226,17 @@ internal fun AttributeSection(
 
 // ─── AttributeChip ────────────────────────────────────────────────────────────
 
+/**
+ * A specialized chip used to display a single attribute value.
+ *
+ * Supports an optional leading icon (vector or resource) or a color swatch.
+ *
+ * @param label The text to display.
+ * @param iconResId Optional drawable resource ID for the leading icon.
+ * @param icon Optional [ImageVector] for the leading icon.
+ * @param color Optional [Color] for a leading circular swatch.
+ * @param onClick Callback when the chip is tapped.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AttributeChip(
@@ -250,6 +285,9 @@ internal fun AttributeChip(
 
 // ─── AttributeEmptyHint ───────────────────────────────────────────────────────
 
+/**
+ * Placeholder text shown when an attribute section has no selections.
+ */
 @Composable
 private fun AttributeEmptyHint() {
     Text(
