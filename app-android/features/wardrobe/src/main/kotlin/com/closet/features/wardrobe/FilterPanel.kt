@@ -189,7 +189,7 @@ private fun FilterSection(
 
 // ─── Previews ─────────────────────────────────────────────────────────────────
 
-private val previewColors = listOf(
+private val filterPreviewColors = listOf(
     ColorEntity(1L, "Black", "#1C1C1C"),
     ColorEntity(2L, "White", "#F5F5F5"),
     ColorEntity(3L, "Navy", "#1B2A4A"),
@@ -248,7 +248,7 @@ private fun FilterPanelContentPreview(
             }
             HorizontalDivider()
             FilterSection(title = stringResource(R.string.wardrobe_filter_section_color)) {
-                previewColors.forEach { color ->
+                filterPreviewColors.forEach { color ->
                     val fallback = MaterialTheme.colorScheme.outlineVariant
                     val swatchColor = remember(color.hex) {
                         color.hex?.let {
