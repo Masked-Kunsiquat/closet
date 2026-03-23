@@ -58,10 +58,10 @@ internal fun ClothingAttributes(
                 onEditClick = onEditSize
             ) {
                 val systemName = sizeSystems.find { it.id == item.sizeValue?.sizeSystemId }?.name
-                val label = if (systemName != null && systemName != "One Size" && systemName != "Letter") {
-                    "${item.sizeValue?.value}  ·  $systemName"
-                } else {
-                    item.sizeValue?.value ?: ""
+                val label = when {
+                    systemName == "One Size" -> item.sizeValue?.value ?: ""
+                    systemName != null -> "${item.sizeValue?.value}  ·  $systemName"
+                    else -> item.sizeValue?.value ?: ""
                 }
                 
                 AttributeChip(
