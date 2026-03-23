@@ -6,6 +6,12 @@ import java.time.Instant
 /**
  * Represents a named collection of clothing items that the user has grouped together as an outfit.
  * An outfit acts as a template — it can be logged multiple times on different dates via [OutfitLogEntity].
+ *
+ * @property id Auto-generated primary key.
+ * @property name Optional display name for the outfit; null if the user has not assigned one.
+ * @property notes Optional free-text notes about the outfit.
+ * @property createdAt Timestamp of when the outfit was first created.
+ * @property updatedAt Timestamp of the most recent edit.
  */
 @Entity(tableName = "outfits")
 data class OutfitEntity(
@@ -18,8 +24,14 @@ data class OutfitEntity(
 
 /**
  * Junction entity linking a clothing item to an outfit, with optional layout metadata
- * (position and scale) for use in the collage-style outfit builder.
- * Uses a composite primary key of [outfitId] + [clothingItemId].
+ * for the collage-style outfit builder. Uses a composite primary key of [outfitId] + [clothingItemId].
+ *
+ * @property outfitId FK → [OutfitEntity.id]. Cascade-deletes this row when the outfit is deleted.
+ * @property clothingItemId FK → [ClothingItemEntity.id]. Cascade-deletes this row when the item is deleted.
+ * @property posX Horizontal canvas position of the item thumbnail (normalised 0–1), or null if not placed.
+ * @property posY Vertical canvas position of the item thumbnail (normalised 0–1), or null if not placed.
+ * @property scale Relative scale multiplier applied to the thumbnail, or null for default size.
+ * @property zIndex Stacking order; higher values render on top. Null means unspecified order.
  */
 @Entity(
     tableName = "outfit_items",
@@ -50,11 +62,22 @@ data class OutfitItemEntity(
 )
 
 /**
- * Records a single instance of an outfit being worn on a given [date] (YYYY-MM-DD).
+ * Records a single instance of an outfit being worn on a given date.
  * A unique index on ([outfitId], [date]) prevents logging the same outfit twice on the same day.
- * The OOTD partial index (enforced via [onOpen] in ClothingDatabase) allows at most one
- * log per day to be marked as the outfit-of-the-day ([isOotd] = 1).
- * [outfitId] is nullable so historical log entries survive outfit deletion (SET NULL).
+ * The OOTD partial index (enforced in [com.closet.core.data.ClothingDatabase]) allows at most
+ * one log per calendar day to be marked as the outfit-of-the-day.
+ *
+ * @property id Auto-generated primary key.
+ * @property outfitId FK → [OutfitEntity.id], SET NULL on delete so historical entries are preserved
+ *   even if the source outfit is later removed.
+ * @property date Wear date in `YYYY-MM-DD` format.
+ * @property isOotd `1` if this log is marked as the outfit-of-the-day for [date], `0` otherwise.
+ *   At most one log per day may have this set to `1` (enforced by the OOTD partial unique index).
+ * @property notes Optional free-text notes recorded at the time of logging.
+ * @property temperatureLow Optional low temperature recorded for the day.
+ * @property temperatureHigh Optional high temperature recorded for the day.
+ * @property weatherCondition Optional weather condition tag for the day.
+ * @property createdAt Timestamp of when this log entry was created.
  */
 @Entity(
     tableName = "outfit_logs",
