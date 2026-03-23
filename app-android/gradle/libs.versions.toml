@@ -21,6 +21,7 @@ targetSdk = "35"
 material = "1.13.0"
 timber = "5.0.1"
 androidxPalette = "1.0.0"
+datastorePreferences = "1.1.4"
 vico = "3.0.3"
 turbine = "1.2.0"
 mockk = "1.13.14"
@@ -57,6 +58,7 @@ google-material = { group = "com.google.android.material", name = "material", ve
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-palette-ktx = { group = "androidx.palette", name = "palette-ktx", version.ref = "androidxPalette" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
