@@ -189,6 +189,7 @@ internal fun NeverWornSection(
     }
 }
 
+/** Single 48 dp thumbnail row inside [NeverWornSection]. Tapping navigates to the item detail screen. */
 @Composable
 private fun NeverWornRow(
     item: StatItem,
