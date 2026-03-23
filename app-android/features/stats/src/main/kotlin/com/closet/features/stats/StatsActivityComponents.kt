@@ -106,7 +106,10 @@ internal fun HeadlineCardsRow(
         "${(overview.wornItems * 100.0 / overview.totalItems).roundToInt()}%"
     } else "0%"
     val currencyFormat = remember {
-        NumberFormat.getCurrencyInstance().apply { minimumFractionDigits = 2 }
+        NumberFormat.getCurrencyInstance().apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }
     }
     val formattedValue = overview.totalValue?.let { currencyFormat.format(it) } ?: "—"
 
@@ -279,7 +282,10 @@ private fun CostPerWearRow(
         Text(
             text = stringResource(
                 R.string.stats_cost_per_wear_formatted,
-                NumberFormat.getCurrencyInstance().apply { minimumFractionDigits = 2 }.format(item.costPerWear)
+                NumberFormat.getCurrencyInstance().apply {
+                    minimumFractionDigits = 2
+                    maximumFractionDigits = 2
+                }.format(item.costPerWear)
             ),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
