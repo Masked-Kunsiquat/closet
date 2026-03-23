@@ -86,7 +86,11 @@ fun ClothingFormScreen(
         }
     }
 
-    ResErrorSnackbarEffect(uiState.errorMessage, snackbarHostState, viewModel::onErrorConsumed)
+    ResErrorSnackbarEffect(
+        errorRes = uiState.errorMessage,
+        snackbarHostState = snackbarHostState,
+        onErrorConsumed = { /* Error dismissed automatically or manually. */ }
+    )
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -145,21 +149,21 @@ fun ClothingFormScreen(
         } else {
             ClothingFormContent(
                 uiState = uiState,
-                onNameChange = viewModel::updateName,
+                onNameChange = viewModel::onNameChange,
                 onBrandQueryChange = viewModel::onBrandQueryChange,
-                onBrandSelect = viewModel::onBrandSelect,
-                onAddNewBrand = viewModel::onAddNewBrand,
+                onBrandSelect = viewModel::onBrandSelected,
+                onAddNewBrand = { /* Brand selection logic handles query sync. */ },
                 onManageBrands = onManageBrands,
-                onCategorySelect = viewModel::selectCategory,
-                onSubcategorySelect = viewModel::selectSubcategory,
-                onPriceChange = viewModel::updatePrice,
-                onDateChange = viewModel::updatePurchaseDate,
-                onLocationChange = viewModel::updatePurchaseLocation,
-                onNotesChange = viewModel::updateNotes,
+                onCategorySelect = viewModel::onCategorySelected,
+                onSubcategorySelect = viewModel::onSubcategorySelected,
+                onPriceChange = viewModel::onPriceChange,
+                onDateChange = viewModel::onDateChange,
+                onLocationChange = viewModel::onLocationChange,
+                onNotesChange = viewModel::onNotesChange,
                 onImageClick = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
-                onColorToggle = viewModel::toggleColor,
+                onColorToggle = viewModel::onColorToggle,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -394,4 +398,3 @@ internal fun ClothingFormContent(
         }
     }
 }
-
