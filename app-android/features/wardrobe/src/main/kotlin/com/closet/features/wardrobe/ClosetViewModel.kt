@@ -169,6 +169,16 @@ class ClosetViewModel @Inject constructor(
         _selectedOccasionIds.value = emptySet()
         _favoritesOnly.value = false
     }
+
+    /**
+     * Clears only the advanced filter selections (color, season, occasion).
+     * Does not affect category or favorites — used by the FilterPanel "Clear all" button.
+     */
+    fun clearAdvancedFilters() {
+        _selectedColorIds.value = emptySet()
+        _selectedSeasonIds.value = emptySet()
+        _selectedOccasionIds.value = emptySet()
+    }
 }
 
 private fun Set<Long>.toggle(id: Long): Set<Long> = if (id in this) this - id else this + id

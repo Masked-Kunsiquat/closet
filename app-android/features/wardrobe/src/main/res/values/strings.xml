@@ -8,6 +8,14 @@
     <string name="wardrobe_empty_closet">Your closet is empty. Add some clothes!</string>
     <string name="wardrobe_all_items">All</string>
     <string name="wardrobe_filter_favorites">Favorites</string>
+    <string name="wardrobe_filter_title">Filters</string>
+    <string name="wardrobe_filter_clear_all">Clear all</string>
+    <string name="wardrobe_filter_section_color">Color</string>
+    <string name="wardrobe_filter_section_season">Season</string>
+    <string name="wardrobe_filter_section_occasion">Occasion</string>
+    <string name="wardrobe_cd_open_filters">Open filters</string>
+    <string name="wardrobe_filter_empty_results">No items match your filters</string>
+    <string name="wardrobe_filter_clear_filters">Clear filters</string>
 
     <!-- Clothing Detail -->
     <string name="wardrobe_back">Back</string>
