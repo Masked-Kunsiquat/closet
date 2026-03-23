@@ -60,6 +60,7 @@ dependencies {
     implementation(project(":features:wardrobe"))
     implementation(project(":features:outfits"))
     implementation(project(":features:stats"))
+    implementation(project(":features:settings"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
