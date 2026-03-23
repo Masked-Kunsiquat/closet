@@ -7,6 +7,7 @@ import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.OccasionEntity
 import com.closet.core.data.model.SeasonEntity
+import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
@@ -22,11 +23,11 @@ import javax.inject.Inject
 /**
  * Snapshot of all state needed to render the Closet screen.
  *
- * Filter lookup lists ([colors], [seasons], [occasions]) are pre-loaded so the
+ * Filter lookup lists ([colors], [seasons], [occasions], [sizeSystems]) are pre-loaded so the
  * FilterPanel can build its chips without an extra repository call.
  *
- * [activeFilterCount] is the number of active filter *dimensions* (max 4:
- * colors, seasons, occasions, favorites). Use this to drive the badge on the
+ * [activeFilterCount] is the number of active filter *dimensions* (max 5:
+ * colors, seasons, occasions, favorites, sizes). Use this to drive the badge on the
  * filter icon button.
  */
 data class ClosetUiState(
@@ -36,28 +37,32 @@ data class ClosetUiState(
     val colors: List<ColorEntity> = emptyList(),
     val seasons: List<SeasonEntity> = emptyList(),
     val occasions: List<OccasionEntity> = emptyList(),
+    val sizeSystems: List<SizeSystemEntity> = emptyList(),
     val selectedColorIds: Set<Long> = emptySet(),
     val selectedSeasonIds: Set<Long> = emptySet(),
     val selectedOccasionIds: Set<Long> = emptySet(),
+    val selectedSizeSystemIds: Set<Long> = emptySet(),
     val favoritesOnly: Boolean = false,
     val activeFilterCount: Int = 0,
 )
 
 /**
- * Packs the four advanced filter selections into a single value so they can
+ * Packs the five advanced filter selections into a single value so they can
  * occupy one slot in the outer [combine] (which is limited to 5 flows).
  */
 private data class FilterSelections(
     val colorIds: Set<Long>,
     val seasonIds: Set<Long>,
     val occIds: Set<Long>,
+    val sizeSystemIds: Set<Long>,
     val favOnly: Boolean,
 ) {
-    /** Number of active filter dimensions (max 4). Drives the filter badge. */
+    /** Number of active filter dimensions (max 5). Drives the filter badge. */
     val activeCount: Int get() = listOf(
         colorIds.isNotEmpty(),
         seasonIds.isNotEmpty(),
         occIds.isNotEmpty(),
+        sizeSystemIds.isNotEmpty(),
         favOnly
     ).count { it }
 }
@@ -65,7 +70,7 @@ private data class FilterSelections(
 /**
  * ViewModel for the main Closet (Wardrobe) screen.
  *
- * Exposes a single [uiState] built from [combine] over the item list, the five
+ * Exposes a single [uiState] built from [combine] over the item list, the six
  * filter flows, and lookup data. Changing any filter flow cancels the previous
  * emission and rebuilds the filtered list reactively.
  *
@@ -81,19 +86,21 @@ class ClosetViewModel @Inject constructor(
     private val storageRepository: StorageRepository
 ) : ViewModel() {
 
-    private val _selectedCategoryId  = MutableStateFlow<Long?>(null)
-    private val _selectedColorIds    = MutableStateFlow<Set<Long>>(emptySet())
-    private val _selectedSeasonIds   = MutableStateFlow<Set<Long>>(emptySet())
-    private val _selectedOccasionIds = MutableStateFlow<Set<Long>>(emptySet())
-    private val _favoritesOnly       = MutableStateFlow(false)
+    private val _selectedCategoryId    = MutableStateFlow<Long?>(null)
+    private val _selectedColorIds      = MutableStateFlow<Set<Long>>(emptySet())
+    private val _selectedSeasonIds     = MutableStateFlow<Set<Long>>(emptySet())
+    private val _selectedOccasionIds   = MutableStateFlow<Set<Long>>(emptySet())
+    private val _selectedSizeSystemIds = MutableStateFlow<Set<Long>>(emptySet())
+    private val _favoritesOnly         = MutableStateFlow(false)
 
     private val filterSelections = combine(
         _selectedColorIds,
         _selectedSeasonIds,
         _selectedOccasionIds,
+        _selectedSizeSystemIds,
         _favoritesOnly
-    ) { colorIds, seasonIds, occIds, favOnly ->
-        FilterSelections(colorIds, seasonIds, occIds, favOnly)
+    ) { colorIds, seasonIds, occIds, sizeSystemIds, favOnly ->
+        FilterSelections(colorIds, seasonIds, occIds, sizeSystemIds, favOnly)
     }
 
     /** Aggregated UI state for the Closet screen. */
@@ -104,26 +111,43 @@ class ClosetViewModel @Inject constructor(
         combine(
             lookupRepository.getColors(),
             lookupRepository.getSeasons(),
-            lookupRepository.getOccasions()
-        ) { colors, seasons, occasions -> Triple(colors, seasons, occasions) },
+            lookupRepository.getOccasions(),
+            lookupRepository.getSizeSystems()
+        ) { args: Array<Any> -> 
+            @Suppress("UNCHECKED_CAST")
+            FilterLookups(
+                colors = args[0] as List<ColorEntity>,
+                seasons = args[1] as List<SeasonEntity>,
+                occasions = args[2] as List<OccasionEntity>,
+                sizeSystems = args[3] as List<SizeSystemEntity>
+            )
+        },
         filterSelections
-    ) { allItems, categoryId, categories, (colors, seasons, occasions), fs ->
+    ) { allItems, categoryId, categories, lookups, fs ->
         val filtered = allItems
             .filter { categoryId == null || it.item.categoryId == categoryId }
             .filter { fs.colorIds.isEmpty() || it.colors.any { c -> c.id in fs.colorIds } }
             .filter { fs.seasonIds.isEmpty() || it.seasons.any { s -> s.id in fs.seasonIds } }
             .filter { fs.occIds.isEmpty() || it.occasions.any { o -> o.id in fs.occIds } }
+            .filter { fs.sizeSystemIds.isEmpty() || it.sizeValue?.sizeSystemId in fs.sizeSystemIds }
             .filter { !fs.favOnly || it.item.isFavorite == 1 }
+
+        // Only show size systems that are actually used by items in the closet
+        val usedSizeSystemIds = allItems.mapNotNull { it.sizeValue?.sizeSystemId }.toSet()
+        val visibleSizeSystems = lookups.sizeSystems.filter { it.id in usedSizeSystemIds }
+
         ClosetUiState(
             items = filtered,
             categories = categories,
             selectedCategoryId = categoryId,
-            colors = colors,
-            seasons = seasons,
-            occasions = occasions,
+            colors = lookups.colors,
+            seasons = lookups.seasons,
+            occasions = lookups.occasions,
+            sizeSystems = visibleSizeSystems,
             selectedColorIds = fs.colorIds,
             selectedSeasonIds = fs.seasonIds,
             selectedOccasionIds = fs.occIds,
+            selectedSizeSystemIds = fs.sizeSystemIds,
             favoritesOnly = fs.favOnly,
             activeFilterCount = fs.activeCount,
         )
@@ -131,6 +155,13 @@ class ClosetViewModel @Inject constructor(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = ClosetUiState()
+    )
+
+    private data class FilterLookups(
+        val colors: List<ColorEntity>,
+        val seasons: List<SeasonEntity>,
+        val occasions: List<OccasionEntity>,
+        val sizeSystems: List<SizeSystemEntity>
     )
 
     /** Resolves a relative image path to an absolute [File] for UI display. */
@@ -156,6 +187,11 @@ class ClosetViewModel @Inject constructor(
         _selectedOccasionIds.value = _selectedOccasionIds.value.toggle(id)
     }
 
+    /** Adds [id] to the size system filter if absent; removes it if already selected. */
+    fun toggleSizeSystemFilter(id: Long) {
+        _selectedSizeSystemIds.value = _selectedSizeSystemIds.value.toggle(id)
+    }
+
     /** Toggles the favorites-only filter. */
     fun toggleFavoritesOnly() {
         _favoritesOnly.value = !_favoritesOnly.value
@@ -167,17 +203,19 @@ class ClosetViewModel @Inject constructor(
         _selectedColorIds.value = emptySet()
         _selectedSeasonIds.value = emptySet()
         _selectedOccasionIds.value = emptySet()
+        _selectedSizeSystemIds.value = emptySet()
         _favoritesOnly.value = false
     }
 
     /**
-     * Clears only the advanced filter selections (color, season, occasion).
+     * Clears only the advanced filter selections (color, season, occasion, size).
      * Does not affect category or favorites — used by the FilterPanel "Clear all" button.
      */
     fun clearAdvancedFilters() {
         _selectedColorIds.value = emptySet()
         _selectedSeasonIds.value = emptySet()
         _selectedOccasionIds.value = emptySet()
+        _selectedSizeSystemIds.value = emptySet()
     }
 }
 
