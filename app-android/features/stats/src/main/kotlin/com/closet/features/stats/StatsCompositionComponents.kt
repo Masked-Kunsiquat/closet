@@ -123,6 +123,7 @@ internal fun BreakdownSection(
     }
 }
 
+/** Single label + count + proportional [LinearProgressIndicator] row inside [BreakdownSection]. */
 @Composable
 private fun BreakdownBar(row: BreakdownRow, maxCount: Int) {
     Column {
@@ -170,6 +171,11 @@ internal fun ColorBreakdownSection(
     }
 }
 
+/**
+ * Single row inside [ColorBreakdownSection]: a 12 dp color swatch circle, the color label,
+ * item count, and a proportional [LinearProgressIndicator]. Falls back to the theme primary
+ * color when [ColorBreakdownRow.hex] is null or unparseable.
+ */
 @Composable
 private fun ColorBreakdownBar(row: ColorBreakdownRow, maxCount: Int) {
     val swatchColor = remember(row.hex) {

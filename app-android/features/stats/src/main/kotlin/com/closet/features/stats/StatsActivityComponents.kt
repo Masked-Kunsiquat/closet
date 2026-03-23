@@ -82,6 +82,7 @@ internal fun PeriodSelectorRow(
     }
 }
 
+/** Localized display string for the period chip label. */
 private val StatPeriod.label: String
     @Composable get() = when (this) {
         StatPeriod.ALL_TIME -> stringResource(R.string.stats_period_all_time)
@@ -169,6 +170,10 @@ internal fun MostWornSection(
     }
 }
 
+/**
+ * Single 88 dp thumbnail card for a most-worn item.
+ * Shows the item image with a wear-count badge overlaid in the bottom-right corner.
+ */
 @Composable
 private fun MostWornThumbnail(
     item: StatItem,
@@ -231,6 +236,10 @@ internal fun CostPerWearSection(
     }
 }
 
+/**
+ * Single row in the cost-per-wear list: 48 dp thumbnail, item name, and the formatted
+ * cost-per-wear value. Tapping the row navigates to the item detail screen.
+ */
 @Composable
 private fun CostPerWearRow(
     item: CostPerWearItem,
