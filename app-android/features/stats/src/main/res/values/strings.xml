@@ -38,8 +38,9 @@
     <string name="stats_never_worn_collapse">Collapse never worn section</string>
     <string name="stats_never_worn_empty">Every item has been worn at least once</string>
 
-    <!-- Cost per wear suffix -->
+    <!-- Cost per wear suffix and combined format string (%s = formatted currency amount) -->
     <string name="stats_cost_per_wear_suffix">/ wear</string>
+    <string name="stats_cost_per_wear_formatted">%s / wear</string>
 
     <!-- Empty states -->
     <string name="stats_empty_no_items_title">Your wardrobe is empty</string>

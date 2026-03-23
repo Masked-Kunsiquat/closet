@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import kotlin.math.roundToInt
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -101,7 +102,7 @@ internal fun HeadlineCardsRow(
     modifier: Modifier = Modifier
 ) {
     val wornPct = if (overview.totalItems > 0) {
-        "${overview.wornItems * 100 / overview.totalItems}%"
+        "${(overview.wornItems * 100.0 / overview.totalItems).roundToInt()}%"
     } else "0%"
     val formattedValue = overview.totalValue
         ?.let { NumberFormat.getCurrencyInstance().format(it) }
@@ -266,7 +267,10 @@ private fun CostPerWearRow(
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = "${NumberFormat.getCurrencyInstance().format(item.costPerWear)} ${stringResource(R.string.stats_cost_per_wear_suffix)}",
+            text = stringResource(
+                R.string.stats_cost_per_wear_formatted,
+                NumberFormat.getCurrencyInstance().format(item.costPerWear)
+            ),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )
