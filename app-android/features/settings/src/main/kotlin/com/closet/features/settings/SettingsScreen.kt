@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +37,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.ui.theme.ClosetAccent
 import com.closet.core.ui.theme.ClosetTheme
 
+/**
+ * Settings screen entry point.
+ *
+ * Collects [SettingsViewModel.accent] and delegates all rendering to [SettingsContent].
+ *
+ * @param onNavigateUp Called when the user taps the back arrow.
+ * @param viewModel Hilt-provided [SettingsViewModel]; override in tests.
+ */
 @Composable
 fun SettingsScreen(
     onNavigateUp: () -> Unit,
@@ -52,6 +59,16 @@ fun SettingsScreen(
     )
 }
 
+/**
+ * Stateless rendering of the Settings screen.
+ *
+ * Layout: a [Scaffold] with a [CenterAlignedTopAppBar] and a [LazyColumn] body.
+ * Currently contains one section — Appearance — with the accent colour swatch row.
+ *
+ * @param currentAccent The currently active [ClosetAccent].
+ * @param onSetAccent Invoked with the newly selected [ClosetAccent].
+ * @param onNavigateUp Called when the user taps the back arrow.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsContent(
@@ -94,6 +111,12 @@ internal fun SettingsContent(
     }
 }
 
+/**
+ * Section heading styled with [MaterialTheme.typography.labelLarge] in
+ * [MaterialTheme.colorScheme.primary], matching the Material 3 settings pattern.
+ *
+ * @param title The label to display above the section's preference items.
+ */
 @Composable
 private fun SettingsSectionHeader(title: String) {
     Text(
@@ -104,6 +127,15 @@ private fun SettingsSectionHeader(title: String) {
     )
 }
 
+/**
+ * Settings list item for the accent colour preference.
+ *
+ * Renders a [ListItem] with the preference label as the headline and a horizontal
+ * row of [AccentSwatch]s as supporting content.
+ *
+ * @param currentAccent The currently active [ClosetAccent].
+ * @param onSetAccent Invoked with the newly selected [ClosetAccent].
+ */
 @Composable
 private fun AccentColorItem(
     currentAccent: ClosetAccent,
@@ -132,6 +164,20 @@ private fun AccentColorItem(
     )
 }
 
+/**
+ * A tappable circular swatch representing a single [ClosetAccent].
+ *
+ * Renders a 36 dp filled circle inside a 48 dp touch target (meeting M3 minimum).
+ * When [selected], a 2 dp ring in [ClosetAccent.muted] is drawn between the touch
+ * target boundary and the fill circle to indicate the active choice.
+ *
+ * Provides a full accessibility [contentDescription] via [semantics]:
+ * "[accent name], selected" or "[accent name]".
+ *
+ * @param accent The accent whose [ClosetAccent.primary] colour fills the circle.
+ * @param selected Whether this swatch represents the currently active accent.
+ * @param onClick Invoked when the user taps the swatch.
+ */
 @Composable
 private fun AccentSwatch(
     accent: ClosetAccent,
@@ -171,6 +217,7 @@ private fun AccentSwatch(
     }
 }
 
+/** Returns the localized display name for [accent]. */
 @Composable
 private fun accentLabel(accent: ClosetAccent): String = when (accent) {
     ClosetAccent.Amber -> stringResource(R.string.settings_accent_amber)

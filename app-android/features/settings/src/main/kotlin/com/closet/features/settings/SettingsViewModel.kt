@@ -11,14 +11,26 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * ViewModel for the Settings screen.
+ *
+ * Bridges [PreferencesRepository] to the UI layer, exposing the persisted
+ * [ClosetAccent] as a [StateFlow] and providing a single write path via [setAccent].
+ */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefsRepo: PreferencesRepository,
 ) : ViewModel() {
 
+    /** The current accent color, persisted across app launches. */
     val accent: StateFlow<ClosetAccent> = prefsRepo.getAccent()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ClosetAccent.Amber)
 
+    /**
+     * Persists [accent] to [PreferencesRepository]. The change propagates
+     * immediately to [ClosetTheme] via [MainActivity][com.closet.MainActivity]'s
+     * collected flow, causing the entire app theme to recompose.
+     */
     fun setAccent(accent: ClosetAccent) {
         viewModelScope.launch { prefsRepo.setAccent(accent) }
     }

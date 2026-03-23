@@ -14,6 +14,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+/**
+ * Root Material 3 theme for the app.
+ *
+ * Color scheme selection priority:
+ * 1. Dynamic color (Material You) on Android 12+ when [dynamicColor] is `true`.
+ * 2. Accent-based MTB-generated [ColorScheme], with the correct contrast variant
+ *    selected automatically from [UiModeManager.contrast] on API 34+.
+ *
+ * Status bar and navigation bar icon appearance is updated to match the current
+ * light/dark mode via [WindowCompat].
+ *
+ * @param accent The accent palette to apply when dynamic color is unavailable.
+ * @param darkTheme Whether to use dark colors; defaults to the system setting.
+ * @param dynamicColor Whether to use Material You wallpaper-derived colors on Android 12+.
+ * @param content The composable content to theme.
+ */
 @Composable
 fun ClosetTheme(
     accent: ClosetAccent = ClosetAccent.Amber,
@@ -53,6 +69,15 @@ fun ClosetTheme(
     )
 }
 
+/**
+ * Returns the pre-baked MTB [ColorScheme] for [accent] that best matches
+ * [darkTheme] and the system's [contrastLevel].
+ *
+ * Contrast thresholds mirror [UiModeManager.contrast] semantics:
+ * - `>= 1.0f` → high contrast
+ * - `>= 0.5f` → medium contrast
+ * - otherwise → standard
+ */
 private fun accentColorScheme(
     accent: ClosetAccent,
     darkTheme: Boolean,

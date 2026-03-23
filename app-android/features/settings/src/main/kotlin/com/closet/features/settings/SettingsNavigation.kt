@@ -10,7 +10,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 object SettingsRoute
 
-/** Navigates to the Settings screen. */
+/**
+ * Navigates to [SettingsRoute], optionally applying [navOptions] for back-stack
+ * management (e.g. `singleTop`, `popUpTo`).
+ */
 fun NavController.navigateToSettings(navOptions: NavOptions? = null) {
     navigate(SettingsRoute, navOptions)
 }

@@ -24,6 +24,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    // Field-injected rather than constructor-injected: Hilt does not support
+    // constructor injection for Activity subclasses.
     @Inject lateinit var preferencesRepository: PreferencesRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
