@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -38,15 +41,27 @@ fun ClosetScreen(
     onItemClick: (Long) -> Unit = {},
     viewModel: ClosetViewModel = hiltViewModel()
 ) {
-    val items by viewModel.items.collectAsStateWithLifecycle()
-    val categories by viewModel.categories.collectAsStateWithLifecycle()
-    val selectedCategoryId by viewModel.selectedCategoryId.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ClosetContent(
-        items = items,
-        categories = categories,
-        selectedCategoryId = selectedCategoryId,
+        items = uiState.items,
+        categories = uiState.categories,
+        selectedCategoryId = uiState.selectedCategoryId,
+        favoritesOnly = uiState.favoritesOnly,
+        colors = uiState.colors,
+        seasons = uiState.seasons,
+        occasions = uiState.occasions,
+        selectedColorIds = uiState.selectedColorIds,
+        selectedSeasonIds = uiState.selectedSeasonIds,
+        selectedOccasionIds = uiState.selectedOccasionIds,
+        activeFilterCount = uiState.activeFilterCount,
         onCategorySelect = viewModel::selectCategory,
+        onToggleFavorites = viewModel::toggleFavoritesOnly,
+        onToggleColor = viewModel::toggleColorFilter,
+        onToggleSeason = viewModel::toggleSeasonFilter,
+        onToggleOccasion = viewModel::toggleOccasionFilter,
+        onClearAdvancedFilters = viewModel::clearAdvancedFilters,
+        onClearAllFilters = viewModel::clearAllFilters,
         resolveImagePath = viewModel::resolveImagePath,
         onAddItemClick = onAddItemClick,
         onItemClick = onItemClick,
@@ -63,17 +78,65 @@ internal fun ClosetContent(
     items: List<ClothingItemDetail>,
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
+    favoritesOnly: Boolean,
+    colors: List<ColorEntity>,
+    seasons: List<SeasonEntity>,
+    occasions: List<OccasionEntity>,
+    selectedColorIds: Set<Long>,
+    selectedSeasonIds: Set<Long>,
+    selectedOccasionIds: Set<Long>,
+    activeFilterCount: Int,
     onCategorySelect: (Long?) -> Unit,
+    onToggleFavorites: () -> Unit,
+    onToggleColor: (Long) -> Unit,
+    onToggleSeason: (Long) -> Unit,
+    onToggleOccasion: (Long) -> Unit,
+    onClearAdvancedFilters: () -> Unit,
+    onClearAllFilters: () -> Unit,
     resolveImagePath: (String?) -> File?,
     onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showFilterPanel by remember { mutableStateOf(false) }
+
+    if (showFilterPanel) {
+        FilterPanel(
+            colors = colors,
+            seasons = seasons,
+            occasions = occasions,
+            selectedColorIds = selectedColorIds,
+            selectedSeasonIds = selectedSeasonIds,
+            selectedOccasionIds = selectedOccasionIds,
+            onToggleColor = onToggleColor,
+            onToggleSeason = onToggleSeason,
+            onToggleOccasion = onToggleOccasion,
+            onClearAll = onClearAdvancedFilters,
+            onDismiss = { showFilterPanel = false }
+        )
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.wardrobe_my_closet)) }
+                title = { Text(stringResource(R.string.wardrobe_my_closet)) },
+                actions = {
+                    IconButton(onClick = { showFilterPanel = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (activeFilterCount > 0) {
+                                    Badge { Text(activeFilterCount.toString()) }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FilterList,
+                                contentDescription = stringResource(R.string.wardrobe_cd_open_filters)
+                            )
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -93,31 +156,42 @@ internal fun ClosetContent(
             CategoryFilterRow(
                 categories = categories,
                 selectedCategoryId = selectedCategoryId,
-                onCategorySelect = onCategorySelect
+                favoritesOnly = favoritesOnly,
+                onCategorySelect = onCategorySelect,
+                onToggleFavorites = onToggleFavorites
             )
             
-            if (items.isEmpty()) {
-                EmptyClosetMessage(modifier = Modifier.weight(1f))
-            } else {
-                ClosetGrid(
+            val isFiltered = activeFilterCount > 0 || selectedCategoryId != null
+            when {
+                items.isNotEmpty() -> ClosetGrid(
                     items = items,
                     onItemClick = onItemClick,
                     resolveImagePath = resolveImagePath,
                     modifier = Modifier.weight(1f)
                 )
+                isFiltered -> FilteredEmptyMessage(
+                    onClearFilters = onClearAllFilters,
+                    modifier = Modifier.weight(1f)
+                )
+                else -> EmptyClosetMessage(modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
 /**
- * A horizontal row of filter chips for categories.
+ * Horizontally scrollable row of filter chips.
+ *
+ * Order: Favorites shortcut → All → per-category chips.
+ * The Favorites chip is a standalone toggle independent of the category filter.
  */
 @Composable
 private fun CategoryFilterRow(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
+    favoritesOnly: Boolean,
     onCategorySelect: (Long?) -> Unit,
+    onToggleFavorites: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyRow(
@@ -125,6 +199,20 @@ private fun CategoryFilterRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        item(key = "favorites") {
+            FilterChip(
+                selected = favoritesOnly,
+                onClick = onToggleFavorites,
+                label = { Text(stringResource(R.string.wardrobe_filter_favorites)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                    )
+                }
+            )
+        }
         item(key = "all") {
             FilterChip(
                 selected = selectedCategoryId == null,
@@ -192,6 +280,32 @@ private fun EmptyClosetMessage(modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Empty state shown when filters are active but no items match.
+ * Provides a "Clear filters" CTA that resets all active filters.
+ */
+@Composable
+private fun FilteredEmptyMessage(
+    onClearFilters: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = androidx.compose.ui.Alignment.Center
+    ) {
+        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+            Text(
+                text = stringResource(R.string.wardrobe_filter_empty_results),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = onClearFilters) {
+                Text(stringResource(R.string.wardrobe_filter_clear_filters))
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, name = "Items - Light")
 @Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Items - Dark")
 @Composable
@@ -228,7 +342,21 @@ private fun ClosetScreenPreview() {
                     CategoryEntity(id = 3, name = "Outerwear", sortOrder = 3)
                 ),
                 selectedCategoryId = null,
+                favoritesOnly = false,
+                colors = emptyList(),
+                seasons = emptyList(),
+                occasions = emptyList(),
+                selectedColorIds = emptySet(),
+                selectedSeasonIds = emptySet(),
+                selectedOccasionIds = emptySet(),
+                activeFilterCount = 0,
                 onCategorySelect = {},
+                onToggleFavorites = {},
+                onToggleColor = {},
+                onToggleSeason = {},
+                onToggleOccasion = {},
+                onClearAdvancedFilters = {},
+                onClearAllFilters = {},
                 resolveImagePath = { null },
                 onAddItemClick = {},
                 onItemClick = {}
@@ -246,7 +374,21 @@ private fun ClosetScreenEmptyPreview() {
                 items = emptyList(),
                 categories = emptyList(),
                 selectedCategoryId = null,
+                favoritesOnly = false,
+                colors = emptyList(),
+                seasons = emptyList(),
+                occasions = emptyList(),
+                selectedColorIds = emptySet(),
+                selectedSeasonIds = emptySet(),
+                selectedOccasionIds = emptySet(),
+                activeFilterCount = 0,
                 onCategorySelect = {},
+                onToggleFavorites = {},
+                onToggleColor = {},
+                onToggleSeason = {},
+                onToggleOccasion = {},
+                onClearAdvancedFilters = {},
+                onClearAllFilters = {},
                 resolveImagePath = { null },
                 onAddItemClick = {},
                 onItemClick = {}
