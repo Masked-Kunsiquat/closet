@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+  <group android:scaleX="0.69"
+      android:scaleY="0.69"
+      android:translateX="158.72"
+      android:translateY="158.72">
+
+      <group android:name="hanger_group">
+          <path
+              android:name="hanger_hook"
+              android:pathData="M 512,280 A 80,80 0 1 1 592,360 C 592,430 512,450 512,500"
+              android:strokeColor="#FFFFFF"
+              android:strokeWidth="64"
+              android:strokeLineCap="round" />
+
+          <path
+              android:name="hanger_shoulders_and_bar"
+              android:pathData="M 180,720 L 512,500 L 844,720 L 210,720"
+              android:strokeColor="#FFFFFF"
+              android:strokeWidth="64"
+              android:strokeLineCap="round"
+              android:strokeLineJoin="round" />
+      </group>
+
+      <path
+          android:name="sparkle_cyan"
+          android:pathData="M 720,320 Q 760,320 760,280 Q 760,320 800,320 Q 760,320 760,360 Q 760,320 720,320 Z"
+          android:fillColor="#38BDF8" />
+
+      <path
+          android:name="sparkle_pink"
+          android:pathData="M 280,480 Q 300,480 300,460 Q 300,480 320,480 Q 300,480 300,500 Q 300,480 280,480 Z"
+          android:fillColor="#F472B6" />
+
+  </group>
+</vector>
