@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.dao.BreakdownRow
 import com.closet.core.data.dao.CategorySubcategoryRow
@@ -122,29 +123,37 @@ internal fun CategorySubcategorySection(
                 hiddenSegments = hidden,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            subcategoryRows.forEachIndexed { i, row ->
-                SubcategoryLegendRow(
-                    label = row.subcategoryLabel,
-                    count = row.count,
-                    color = colors.getOrElse(i) { Color.Gray }
-                )
+            subcategoryRows.chunked(2).forEachIndexed { chunkIdx, pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    pair.forEachIndexed { pairIdx, row ->
+                        SubcategoryLegendRow(
+                            label = row.subcategoryLabel,
+                            count = row.count,
+                            color = colors.getOrElse(chunkIdx * 2 + pairIdx) { Color.Gray },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SubcategoryLegendRow(label: String, count: Int, color: Color) {
+private fun SubcategoryLegendRow(label: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp),
+        modifier = modifier.padding(vertical = 3.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
+            modifier = Modifier.weight(1f).padding(end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -152,7 +161,12 @@ private fun SubcategoryLegendRow(label: String, count: Int, color: Color) {
                     .clip(CircleShape)
                     .background(color)
             )
-            Text(text = label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         Text(
             text = count.toString(),
@@ -258,9 +272,15 @@ internal fun ColorBreakdownSection(
             hiddenSegments = hidden,
             modifier = Modifier.padding(bottom = 12.dp)
         )
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            rows.forEach { row ->
-                ColorLegendRow(row = row)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            rows.chunked(2).forEach { pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    pair.forEach { row -> ColorLegendRow(row = row, modifier = Modifier.weight(1f)) }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
             Spacer(Modifier.height(4.dp))
         }
@@ -273,19 +293,20 @@ internal fun ColorBreakdownSection(
  * or unparseable.
  */
 @Composable
-private fun ColorLegendRow(row: ColorBreakdownRow) {
+private fun ColorLegendRow(row: ColorBreakdownRow, modifier: Modifier = Modifier) {
     val swatchColor = remember(row.hex) {
         runCatching { Color(android.graphics.Color.parseColor(row.hex)) }
             .getOrElse { Color.Gray }
     }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
+            modifier = Modifier.weight(1f).padding(end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -293,7 +314,12 @@ private fun ColorLegendRow(row: ColorBreakdownRow) {
                     .clip(CircleShape)
                     .background(swatchColor)
             )
-            Text(text = row.label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = row.label,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         Text(
             text = row.count.toString(),
