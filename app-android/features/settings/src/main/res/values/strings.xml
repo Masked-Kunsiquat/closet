@@ -7,6 +7,8 @@
     <string name="settings_section_appearance">Appearance</string>
 
     <!-- Appearance preferences -->
+    <string name="settings_dynamic_color">Use system colors</string>
+    <string name="settings_dynamic_color_summary">Apply your wallpaper colors (Android 12+)</string>
     <string name="settings_accent_color">Accent color</string>
 
     <!-- Accent swatch accessibility labels -->

@@ -37,8 +37,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val accent = preferencesRepository.getAccent()
                 .collectAsStateWithLifecycle(initialValue = ClosetAccent.Amber)
+            val dynamicColor = preferencesRepository.getDynamicColor()
+                .collectAsStateWithLifecycle(initialValue = false)
 
-            ClosetTheme(accent = accent.value) {
+            ClosetTheme(accent = accent.value, dynamicColor = dynamicColor.value) {
                 ClosetNavGraph(modifier = Modifier.fillMaxSize())
             }
         }

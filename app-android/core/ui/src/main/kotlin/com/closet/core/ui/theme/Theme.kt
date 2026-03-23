@@ -28,13 +28,14 @@ import androidx.core.view.WindowCompat
  * @param accent The accent palette to apply when dynamic color is unavailable.
  * @param darkTheme Whether to use dark colors; defaults to the system setting.
  * @param dynamicColor Whether to use Material You wallpaper-derived colors on Android 12+.
+ *   Defaults to `false` so the user-selected [accent] always applies unless opted in via Settings.
  * @param content The composable content to theme.
  */
 @Composable
 fun ClosetTheme(
     accent: ClosetAccent = ClosetAccent.Amber,
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val contrastLevel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

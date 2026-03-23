@@ -29,6 +29,7 @@ class PreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private val accentKey = stringPreferencesKey("accent")
+    private val dynamicColorKey = androidx.datastore.preferences.core.booleanPreferencesKey("dynamic_color")
 
     /**
      * Returns a [Flow] that emits the currently stored [ClosetAccent] and
@@ -46,6 +47,25 @@ class PreferencesRepository @Inject constructor(
     suspend fun setAccent(accent: ClosetAccent) {
         context.dataStore.edit { prefs ->
             prefs[accentKey] = accent.name
+        }
+    }
+
+    /**
+     * Returns a [Flow] that emits whether Material You dynamic color is enabled.
+     * Defaults to `false` so the user-selected accent always applies unless
+     * explicitly opted in.
+     */
+    fun getDynamicColor(): Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[dynamicColorKey] ?: false
+    }
+
+    /**
+     * Persists the dynamic color [enabled] flag to DataStore. Suspends until
+     * the write completes.
+     */
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[dynamicColorKey] = enabled
         }
     }
 }
