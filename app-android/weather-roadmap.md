@@ -195,11 +195,13 @@ Phase 4 — Surface forecast in the Journal
 The Journal screen is the natural home for weather since it already shows
 wear history by date.
 
-🔲 4.1 — Today's forecast widget on Journal header
-When weatherEnabled = true and forecast is cached for today: show a compact
-weather chip (condition icon + temp range) at the top of JournalScreen
-above the calendar. Tapping it opens a bottom sheet with the 7-day
-forecast.
+✅ 4.1 — Today's forecast widget on Journal header
+TodayForecastChip shown above the month nav header when todayForecast != null.
+Chip label: "{condition} · {low} / {high}" with condition icon. Taps open
+ForecastSheet (7-day ModalBottomSheet). WeatherConditionExt.kt holds the
+shared icon() extension (all 11 conditions) and toDisplayTemp() helper.
+JournalViewModel injects WeatherRepository + WeatherPreferencesRepository;
+forecastDays uses flatMapLatest on weatherEnabled.
 
 🔲 4.2 — Auto-populate weather on log creation
 In JournalViewModel.logOutfitOnDate(): if weatherEnabled = true and a
