@@ -31,4 +31,11 @@
     <string name="settings_temperature_unit">Temperature unit</string>
     <string name="settings_clear_cache">Clear cached forecast</string>
     <string name="settings_clear_cache_summary">Remove stored forecast data</string>
+
+    <!-- Location permission -->
+    <string name="settings_location_snackbar">Location access is needed to fetch weather. You can enable it in System Settings.</string>
+    <string name="settings_location_dialog_title">Location permission required</string>
+    <string name="settings_location_dialog_message">Location access is needed to show your local weather forecast. Tap Open Settings to grant it.</string>
+    <string name="settings_location_dialog_open_settings">Open Settings</string>
+    <string name="settings_location_dialog_cancel">Cancel</string>
 </resources>

@@ -1,6 +1,14 @@
 package com.closet.features.settings
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,10 +38,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -44,10 +60,14 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.ui.theme.ClosetAccent
@@ -73,6 +93,63 @@ fun SettingsScreen(
     val googleApiKey by viewModel.googleApiKey.collectAsStateWithLifecycle()
     val temperatureUnit by viewModel.temperatureUnit.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val activity = LocalActivity.current
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showRationaleDialog by remember { mutableStateOf(false) }
+
+    val deniedMessage = stringResource(R.string.settings_location_snackbar)
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            viewModel.setWeatherEnabled(true)
+        } else {
+            val shouldShow = activity?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    it,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                )
+            } ?: false
+            if (shouldShow) {
+                coroutineScope.launch { snackbarHostState.showSnackbar(deniedMessage) }
+            } else {
+                showRationaleDialog = true
+            }
+        }
+    }
+
+    val onWeatherToggle: (Boolean) -> Unit = { enabled ->
+        if (!enabled) {
+            viewModel.setWeatherEnabled(false)
+        } else {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                viewModel.setWeatherEnabled(true)
+            } else {
+                permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+        }
+    }
+
+    if (showRationaleDialog) {
+        PermissionRationaleDialog(
+            onOpenSettings = {
+                showRationaleDialog = false
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+                context.startActivity(intent)
+            },
+            onDismiss = { showRationaleDialog = false },
+        )
+    }
+
     SettingsContent(
         currentAccent = accent,
         dynamicColor = dynamicColor,
@@ -82,11 +159,12 @@ fun SettingsScreen(
         weatherService = weatherService,
         googleApiKey = googleApiKey,
         temperatureUnit = temperatureUnit,
-        onWeatherEnabledChange = viewModel::setWeatherEnabled,
+        onWeatherEnabledChange = onWeatherToggle,
         onWeatherServiceChange = viewModel::setWeatherService,
         onGoogleApiKeyChange = viewModel::setGoogleApiKey,
         onTemperatureUnitChange = viewModel::setTemperatureUnit,
         onClearCache = viewModel::clearForecastCache,
+        snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
     )
 }
@@ -115,11 +193,13 @@ internal fun SettingsContent(
     onGoogleApiKeyChange: (String) -> Unit,
     onTemperatureUnitChange: (TemperatureUnit) -> Unit,
     onClearCache: () -> Unit,
+    snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
@@ -425,6 +505,35 @@ private fun ClearCacheItem(onClick: () -> Unit) {
     )
 }
 
+// ── Dialogs ───────────────────────────────────────────────────────────────────
+
+/**
+ * Shown when the user has permanently denied [ACCESS_COARSE_LOCATION].
+ * Explains why the permission is needed and offers a direct link to system
+ * app settings so the user can grant it without navigating manually.
+ */
+@Composable
+private fun PermissionRationaleDialog(
+    onOpenSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_location_dialog_title)) },
+        text = { Text(stringResource(R.string.settings_location_dialog_message)) },
+        confirmButton = {
+            TextButton(onClick = onOpenSettings) {
+                Text(stringResource(R.string.settings_location_dialog_open_settings))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.settings_location_dialog_cancel))
+            }
+        },
+    )
+}
+
 // ── Previews ──────────────────────────────────────────────────────────────────
 
 @Preview(showBackground = true, name = "Appearance / weather off")
@@ -445,6 +554,7 @@ private fun SettingsContentDefaultPreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
+            snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
     }
@@ -468,6 +578,7 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
+            snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
     }
@@ -491,6 +602,7 @@ private fun SettingsContentWeatherGooglePreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
+            snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
     }

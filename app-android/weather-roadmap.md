@@ -135,19 +135,18 @@ Phase 2 — Location permission
 ACCESS_COARSE_LOCATION added to AndroidManifest.xml.
 (INTERNET already added in Phase 0.3.)
 
-🔲 2.2 — Permission request flow
-When the Settings toggle transitions from off → on:
-1. Check if ACCESS_COARSE_LOCATION is already granted.
-2. If not: use Compose rememberLauncherForActivityResult(RequestPermission)
-   to surface the native modal.
-3. On grant: save weatherEnabled = true in DataStore, trigger initial
-   forecast fetch.
-4. On deny: revert the toggle to off, show a non-blocking snackbar:
-   "Location access is needed to fetch weather. You can enable it later in
-   System Settings."
-5. On permanent deny (shouldShowRationale = false after a denial): show a
-   dialog explaining why + deep-link to system app settings via
-   ACTION_APPLICATION_DETAILS_SETTINGS. Still revert the toggle.
+✅ 2.2 — Permission request flow
+Toggle interception lives in SettingsScreen (not ViewModel). On → off:
+writes directly. On → on: checks ContextCompat.checkSelfPermission first;
+if already granted, writes directly. If not granted, launches
+rememberLauncherForActivityResult(RequestPermission).
+Launcher result:
+  Granted → viewModel.setWeatherEnabled(true)
+  Denied + shouldShowRationale=true → Snackbar (non-blocking)
+  Denied + shouldShowRationale=false → PermissionRationaleDialog with
+    "Open Settings" deeplink to ACTION_APPLICATION_DETAILS_SETTINGS
+SettingsContent gains SnackbarHostState param wired to Scaffold.
+"Trigger initial forecast fetch" deferred to Phase 3 (no fetch client yet).
 
 🔲 2.3 — Location fetch
 Use LocationManager (no Play Services dependency — the app has none).
