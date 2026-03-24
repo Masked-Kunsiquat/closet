@@ -94,12 +94,15 @@ Persists:
 
 Provide via Hilt @Singleton in DataModule.kt.
 
-🔲 0.3 — HTTP client
-Add Ktor-client-android + ktor-client-okhttp + ktor-client-content-negotiation
-+ ktor-serialization-kotlinx-json to libs.versions.toml.
-kotlinx-serialization-json is already present (1.10.0) — just add Ktor.
-Weather APIs are simple GET-only JSON endpoints; Retrofit is not needed.
-Provide KtorHttpClient as a @Singleton in DataModule.kt.
+✅ 0.3 — HTTP client
+Ktor 3.1.3 (ktor-client-okhttp + content-negotiation + serialization-kotlinx-json
++ client-logging) added to libs.versions.toml and core/data/build.gradle.kts.
+HttpClient singleton provided in DataModule: OkHttp engine, ContentNegotiation
+with ignoreUnknownKeys=true, Timber-backed logging (BODY in debug, NONE in
+release). BuildConfig generation enabled in core/data for the DEBUG flag.
+INTERNET permission added to AndroidManifest.xml (pulled forward from Phase 2.1
+— it's a normal permission with no user-facing prompt, needed the moment any
+HTTP call is made).
 
   ---
 Phase 1 — Settings screen
@@ -134,10 +137,9 @@ Phase 2 — Location permission
 🔲 2.1 — Manifest
 Add to AndroidManifest.xml:
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-  <uses-permission android:name="android.permission.INTERNET" />
 COARSE is sufficient for city-level weather. Do not request FINE — it
 signals GPS tracking, which is trust-destroying for a privacy-first app.
-INTERNET is required for any outbound HTTP call.
+(INTERNET permission already added in Phase 0.3.)
 
 🔲 2.2 — Permission request flow
 When the Settings toggle transitions from off → on:
