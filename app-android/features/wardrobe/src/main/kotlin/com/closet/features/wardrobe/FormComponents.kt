@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -22,6 +23,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +51,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.model.SizeSystemEntity
+import com.closet.core.data.model.SizeValueEntity
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -192,6 +196,43 @@ internal fun isColorDark(color: Color): Boolean {
     return luminance < 0.5
 }
 
+// ─── SizeSection ──────────────────────────────────────────────────────────────
+
+@Composable
+internal fun SizeSection(
+    sizeSystems: List<SizeSystemEntity>,
+    sizeValues: List<SizeValueEntity>,
+    selectedSizeSystemId: Long?,
+    selectedSizeValueId: Long?,
+    onSizeSystemSelected: (Long?) -> Unit,
+    onSizeValueSelected: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        DropdownSelector(
+            selectedItem = sizeSystems.find { it.id == selectedSizeSystemId },
+            items = sizeSystems,
+            onItemSelect = { onSizeSystemSelected(it?.id) },
+            label = stringResource(R.string.wardrobe_field_size_system),
+            itemLabel = { it.name }
+        )
+        if (selectedSizeSystemId != null && sizeValues.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(sizeValues) { sizeValue ->
+                    FilterChip(
+                        selected = sizeValue.id == selectedSizeValueId,
+                        onClick = {
+                            val newId = if (sizeValue.id == selectedSizeValueId) null else sizeValue.id
+                            onSizeValueSelected(newId)
+                        },
+                        label = { Text(sizeValue.value) }
+                    )
+                }
+            }
+        }
+    }
+}
+
 // ─── DatePickerField ──────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -265,10 +306,10 @@ internal fun BrandAutocompleteField(
     allBrands: List<BrandEntity>,
     onQueryChange: (String) -> Unit,
     onBrandSelect: (BrandEntity) -> Unit,
-    onAddNewBrand: (String) -> Unit
+    onAddNewBrand: ((String) -> Unit)? = null
 ) {
     val filteredBrands = allBrands.filter { it.name.contains(query, ignoreCase = true) }
-    val showAddOption = query.isNotBlank() &&
+    val showAddOption = onAddNewBrand != null && query.isNotBlank() &&
             filteredBrands.none { it.name.equals(query, ignoreCase = true) }
 
     var expanded by remember { mutableStateOf(false) }

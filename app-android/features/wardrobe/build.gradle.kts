@@ -65,4 +65,10 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+
+    // Testing
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.mockk)
 }

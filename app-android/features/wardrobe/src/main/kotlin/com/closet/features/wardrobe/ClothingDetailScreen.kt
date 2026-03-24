@@ -34,6 +34,17 @@ import com.closet.core.ui.util.IconMapper
 
 private enum class AttributePicker { SEASONS, OCCASIONS, COLORS, MATERIALS, PATTERNS }
 
+/**
+ * Screen displaying full details for a single clothing item.
+ *
+ * Provides actions for editing, deleting, toggling favorites, and updating wash status.
+ * Attributes (colors, seasons, etc.) can be updated directly via bottom sheets.
+ *
+ * @param onBack Callback to return to the previous screen.
+ * @param onEdit Callback to navigate to the edit form for this item.
+ * @param onNavigateToJournal Callback to navigate to a specific date in the Outfit Journal.
+ * @param viewModel Hilt-provided [ClothingDetailViewModel].
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ClothingDetailScreen(
@@ -268,11 +279,13 @@ fun ClothingDetailScreen(
                         // Attributes
                         ClothingAttributes(
                             item = detail,
+                            sizeSystems = state.sizeSystems,
                             onEditSeasons = { activePicker = AttributePicker.SEASONS },
                             onEditOccasions = { activePicker = AttributePicker.OCCASIONS },
                             onEditColors = { activePicker = AttributePicker.COLORS },
                             onEditMaterials = { activePicker = AttributePicker.MATERIALS },
-                            onEditPatterns = { activePicker = AttributePicker.PATTERNS }
+                            onEditPatterns = { activePicker = AttributePicker.PATTERNS },
+                            onEditSize = { onEdit(detail.item.id) }
                         )
 
                         // Notes
@@ -353,6 +366,13 @@ fun ClothingDetailScreen(
 
 // ─── Wear history section ─────────────────────────────────────────────────────
 
+/**
+ * Displays a vertical list of dates and outfit names where this item was logged as worn.
+ * Shows an empty state message if the item has never been logged.
+ *
+ * @param history List of [ItemWearLog] entries sorted by date (usually descending).
+ * @param onEntryClick Callback triggered when a row is tapped, passing the ISO date string.
+ */
 @Composable
 private fun WearHistorySection(
     history: List<ItemWearLog>,
@@ -386,6 +406,15 @@ private fun WearHistorySection(
     }
 }
 
+/**
+ * A single row in the wear history list.
+ *
+ * Displays the formatted date, the outfit name (or "Untitled"), and an optional
+ * "Outfit of the Day" star icon.
+ *
+ * @param log The wear log data for this row.
+ * @param onClick Callback when the row is tapped.
+ */
 @Composable
 private fun WearHistoryRow(
     log: ItemWearLog,

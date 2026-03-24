@@ -23,6 +23,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material3.Icon
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,19 +44,29 @@ import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.OccasionEntity
 import com.closet.core.data.model.SeasonEntity
+import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.ui.theme.ClosetTheme
 
 /**
  * Bottom sheet filter panel for the Closet screen.
  *
- * Shows three [FlowRow] chip sections — Color, Season, and Occasion — allowing
- * multi-select filtering across all three dimensions simultaneously. Chips toggle
- * immediately (live filtering); there is no confirm step.
+ * Shows multiple [FlowRow] chip sections — Color, Season, Occasion, and Size System —
+ * allowing multi-select filtering across these dimensions simultaneously.
  *
- * Empty sections are hidden so the sheet stays compact when lookup data is sparse.
- * The "Clear all" button is only enabled when at least one advanced filter is active
- * (it does not clear the category chip in the main row).
- *
+ * @param colors All available colors for filtering.
+ * @param seasons All available seasons for filtering.
+ * @param occasions All available occasions for filtering.
+ * @param sizeSystems All available size systems for filtering.
+ * @param selectedColorIds The set of currently selected color IDs.
+ * @param selectedSeasonIds The set of currently selected season IDs.
+ * @param selectedOccasionIds The set of currently selected occasion IDs.
+ * @param selectedSizeSystemIds The set of currently selected size system IDs.
+ * @param onToggleColor Callback to toggle a color filter.
+ * @param onToggleSeason Callback to toggle a season filter.
+ * @param onToggleOccasion Callback to toggle an occasion filter.
+ * @param onToggleSizeSystem Callback to toggle a size system filter.
+ * @param onClearAll Callback to reset all advanced filters in this panel.
+ * @param onDismiss Callback to close the bottom sheet.
  * @param sheetState Controls sheet expansion; defaults to [rememberModalBottomSheetState].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -62,19 +75,23 @@ internal fun FilterPanel(
     colors: List<ColorEntity>,
     seasons: List<SeasonEntity>,
     occasions: List<OccasionEntity>,
+    sizeSystems: List<SizeSystemEntity>,
     selectedColorIds: Set<Long>,
     selectedSeasonIds: Set<Long>,
     selectedOccasionIds: Set<Long>,
+    selectedSizeSystemIds: Set<Long>,
     onToggleColor: (Long) -> Unit,
     onToggleSeason: (Long) -> Unit,
     onToggleOccasion: (Long) -> Unit,
+    onToggleSizeSystem: (Long) -> Unit,
     onClearAll: () -> Unit,
     onDismiss: () -> Unit,
     sheetState: SheetState = rememberModalBottomSheetState(),
 ) {
     val anyActive = selectedColorIds.isNotEmpty() ||
             selectedSeasonIds.isNotEmpty() ||
-            selectedOccasionIds.isNotEmpty()
+            selectedOccasionIds.isNotEmpty() ||
+            selectedSizeSystemIds.isNotEmpty()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -130,6 +147,25 @@ internal fun FilterPanel(
                     }
                 }
 
+                if (sizeSystems.isNotEmpty()) {
+                    FilterSection(title = stringResource(R.string.wardrobe_field_size_system)) {
+                        sizeSystems.forEach { system ->
+                            FilterChip(
+                                selected = system.id in selectedSizeSystemIds,
+                                onClick = { onToggleSizeSystem(system.id) },
+                                label = { Text(system.name) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Straighten,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
                 if (seasons.isNotEmpty()) {
                     FilterSection(title = stringResource(R.string.wardrobe_filter_section_season)) {
                         seasons.forEach { season ->
@@ -163,6 +199,10 @@ internal fun FilterPanel(
 /**
  * Single labeled section inside [FilterPanel]. Renders a [Text] title above a
  * [FlowRow] of chips that wraps automatically across lines.
+ *
+ * @param title The label for the section.
+ * @param modifier Modifier for the container.
+ * @param content The chips or other UI elements to display in the section.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -213,6 +253,13 @@ private val previewOccasions = listOf(
     OccasionEntity(5L, "Beach", null),
 )
 
+private val previewSizeSystems = listOf(
+    SizeSystemEntity(1L, "Letter"),
+    SizeSystemEntity(2L, "Women's Numeric"),
+    SizeSystemEntity(3L, "Shoes (US Men's)"),
+    SizeSystemEntity(4L, "One Size"),
+)
+
 /**
  * Renders the filter panel content directly (without [ModalBottomSheet]) so
  * Android Studio can display a pixel-accurate preview.
@@ -223,10 +270,12 @@ private fun FilterPanelContentPreview(
     selectedColorIds: Set<Long> = emptySet(),
     selectedSeasonIds: Set<Long> = emptySet(),
     selectedOccasionIds: Set<Long> = emptySet(),
+    selectedSizeSystemIds: Set<Long> = emptySet(),
 ) {
     val anyActive = selectedColorIds.isNotEmpty() ||
             selectedSeasonIds.isNotEmpty() ||
-            selectedOccasionIds.isNotEmpty()
+            selectedOccasionIds.isNotEmpty() ||
+            selectedSizeSystemIds.isNotEmpty()
 
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -270,6 +319,22 @@ private fun FilterPanelContentPreview(
                     )
                 }
             }
+            FilterSection(title = stringResource(R.string.wardrobe_field_size_system)) {
+                previewSizeSystems.forEach { system ->
+                    FilterChip(
+                        selected = system.id in selectedSizeSystemIds,
+                        onClick = {},
+                        label = { Text(system.name) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Straighten,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
             FilterSection(title = stringResource(R.string.wardrobe_filter_section_season)) {
                 previewSeasons.forEach { season ->
                     FilterChip(
@@ -306,6 +371,7 @@ private fun FilterPanelActivePreview() {
         FilterPanelContentPreview(
             selectedColorIds = setOf(1L, 3L),
             selectedSeasonIds = setOf(2L),
+            selectedSizeSystemIds = setOf(1L),
         )
     }
 }

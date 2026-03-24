@@ -1,6 +1,5 @@
 package com.closet.features.outfits
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.ClothingItemDetail
@@ -14,8 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -57,7 +54,6 @@ sealed interface OutfitBuilderEvent {
  */
 @HiltViewModel
 class OutfitBuilderViewModel @Inject constructor(
-    private val savedStateHandle: SavedStateHandle,
     private val clothingRepository: ClothingRepository,
     private val outfitRepository: OutfitRepository,
     private val storageRepository: StorageRepository
@@ -106,19 +102,6 @@ class OutfitBuilderViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
         initialValue = OutfitBuilderUiState()
     )
-
-    init {
-        // Observe picker results deposited by WardrobePickerScreen into this destination's
-        // SavedStateHandle via navController.previousBackStackEntry?.savedStateHandle.
-        savedStateHandle.getStateFlow(PICKER_RESULT_KEY, LongArray(0))
-            .onEach { ids ->
-                if (ids.isNotEmpty()) {
-                    addItems(ids.toList())
-                    savedStateHandle[PICKER_RESULT_KEY] = LongArray(0) // consume
-                }
-            }
-            .launchIn(viewModelScope)
-    }
 
     /** Updates the outfit name as the user types. */
     fun updateName(value: String) {

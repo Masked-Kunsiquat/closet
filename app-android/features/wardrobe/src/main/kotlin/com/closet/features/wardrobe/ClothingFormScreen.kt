@@ -86,7 +86,11 @@ fun ClothingFormScreen(
         }
     }
 
-    ResErrorSnackbarEffect(uiState.errorMessage, snackbarHostState, viewModel::onErrorConsumed)
+    ResErrorSnackbarEffect(
+        errorRes = uiState.errorMessage,
+        snackbarHostState = snackbarHostState,
+        onErrorConsumed = viewModel::onErrorConsumed
+    )
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -109,7 +113,7 @@ fun ClothingFormScreen(
             title = { Text(stringResource(R.string.wardrobe_discard_title)) },
             text = { Text(stringResource(R.string.wardrobe_discard_message)) },
             confirmButton = {
-                TextButton(onClick = onBackClick) {
+                TextButton(onClick = viewModel::cancel) {
                     Text(stringResource(R.string.wardrobe_discard_confirm))
                 }
             },
@@ -145,21 +149,23 @@ fun ClothingFormScreen(
         } else {
             ClothingFormContent(
                 uiState = uiState,
-                onNameChange = viewModel::updateName,
+                onNameChange = viewModel::onNameChange,
                 onBrandQueryChange = viewModel::onBrandQueryChange,
-                onBrandSelect = viewModel::onBrandSelect,
-                onAddNewBrand = viewModel::onAddNewBrand,
+                onBrandSelect = viewModel::onBrandSelected,
+                onAddNewBrand = null,
                 onManageBrands = onManageBrands,
-                onCategorySelect = viewModel::selectCategory,
-                onSubcategorySelect = viewModel::selectSubcategory,
-                onPriceChange = viewModel::updatePrice,
-                onDateChange = viewModel::updatePurchaseDate,
-                onLocationChange = viewModel::updatePurchaseLocation,
-                onNotesChange = viewModel::updateNotes,
+                onCategorySelect = viewModel::onCategorySelected,
+                onSubcategorySelect = viewModel::onSubcategorySelected,
+                onSizeSystemSelected = viewModel::onSizeSystemSelected,
+                onSizeValueSelected = viewModel::onSizeValueSelected,
+                onPriceChange = viewModel::onPriceChange,
+                onDateChange = viewModel::onDateChange,
+                onLocationChange = viewModel::onLocationChange,
+                onNotesChange = viewModel::onNotesChange,
                 onImageClick = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
-                onColorToggle = viewModel::toggleColor,
+                onColorToggle = viewModel::onColorToggle,
                 modifier = Modifier.padding(padding)
             )
         }
@@ -209,10 +215,12 @@ internal fun ClothingFormContent(
     onNameChange: (String) -> Unit,
     onBrandQueryChange: (String) -> Unit,
     onBrandSelect: (BrandEntity) -> Unit,
-    onAddNewBrand: (String) -> Unit,
+    onAddNewBrand: ((String) -> Unit)?,
     onManageBrands: () -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,
+    onSizeSystemSelected: (Long?) -> Unit,
+    onSizeValueSelected: (Long?) -> Unit,
     onPriceChange: (String) -> Unit,
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
@@ -322,6 +330,18 @@ internal fun ClothingFormContent(
             )
         }
 
+        // Size Section
+        item {
+            SizeSection(
+                sizeSystems = uiState.sizeSystems,
+                sizeValues = uiState.sizeValues,
+                selectedSizeSystemId = uiState.selectedSizeSystemId,
+                selectedSizeValueId = uiState.selectedSizeValueId,
+                onSizeSystemSelected = onSizeSystemSelected,
+                onSizeValueSelected = onSizeValueSelected
+            )
+        }
+
         // Color Section
         item {
             Column {
@@ -394,4 +414,3 @@ internal fun ClothingFormContent(
         }
     }
 }
-

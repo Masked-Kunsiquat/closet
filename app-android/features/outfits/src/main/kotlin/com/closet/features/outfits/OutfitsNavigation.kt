@@ -1,16 +1,11 @@
 package com.closet.features.outfits
 
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import kotlinx.serialization.Serializable
-
-/**
- * [SavedStateHandle] key used to pass selected clothing item IDs back from
- * [WardrobePickerScreen] to [OutfitBuilderViewModel] via the previous back-stack entry.
- */
-const val PICKER_RESULT_KEY = "wardrobe_picker_item_ids"
 
 /** Top-level route for the Outfits gallery screen. */
 @Serializable
@@ -61,17 +56,17 @@ fun NavGraphBuilder.outfitBuilderScreen(navController: NavController) {
 /**
  * Registers the [WardrobePickerDestination] composable destination in the [NavGraphBuilder].
  *
- * On confirm, the selected item IDs are deposited into the previous back-stack entry's
- * [androidx.lifecycle.SavedStateHandle] under [PICKER_RESULT_KEY] before popping.
+ * On confirm, [addItems] is called directly on the [OutfitBuilderViewModel] scoped to the
+ * previous back-stack entry, then the picker is popped from the stack.
  */
 fun NavGraphBuilder.wardrobePickerScreen(navController: NavController) {
     composable<WardrobePickerDestination> {
+        val parentEntry = navController.previousBackStackEntry
+        val builderViewModel: OutfitBuilderViewModel? = parentEntry?.let { hiltViewModel(it) }
         WardrobePickerScreen(
             onBack = { navController.popBackStack() },
             onConfirm = { selectedIds ->
-                navController.previousBackStackEntry
-                    ?.savedStateHandle
-                    ?.set(PICKER_RESULT_KEY, selectedIds.toLongArray())
+                builderViewModel?.addItems(selectedIds)
                 navController.popBackStack()
             }
         )
