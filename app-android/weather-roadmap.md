@@ -225,30 +225,46 @@ These are independent of Phases 1–4 and can be done at any time, but are
 required before weather data can drive outfit suggestions. All changes
 go in Migration 2 (or a new migration if chain has moved).
 
-🔲 Gap 1 — Temperature suitability on clothing items
-Add temp_min_c REAL nullable and temp_max_c REAL nullable to
-clothing_items. Lets a user express "this jacket is suitable for 0–10°C".
-User-set, not auto-populated.
+Design decisions settled (2026-03-24):
 
-🔲 Gap 2 — Precipitation resistance on clothing items
-Add water_resistant INTEGER NOT NULL DEFAULT 0 to clothing_items. Needed
-to filter for rainy-day suitable items.
+Gap 1 & 2 — DEFERRED. Do not add user-input temp_min_c / temp_max_c or
+water_resistant to clothing_items. Instead, suitability will be DERIVED
+from log history at query time (never stored as a column — consistent with
+the project's no-derived-data rule). The engine concept:
+  - For each clothing item, collect all outfit_logs where it appears with a
+    recorded temperature range.
+  - Comfortable range = statistical distribution (e.g. 10th–90th percentile)
+    of logged temps. Rain suitability = % of logs recorded in wet conditions.
+  - The layering problem (t-shirt OK at 0°C if worn with a heavy jacket) is
+    addressed at the OUTFIT level, not the item level. A warmth_layer enum
+    will be added to categories (None / Base / Mid / Outer) so the engine
+    can score outfit combinations rather than individual items.
+  - MLKit is not the right tool here — personal wardrobes top out at a few
+    hundred log entries, where simple SQL statistics outperform ML. No
+    training data, no model, no on-device inference needed.
+  - This work belongs in a dedicated Recommendation feature roadmap.
+    See recommendation-roadmap.md when ready.
 
-🔲 Gap 3 — WeatherCondition enum expansion  ← do this BEFORE Phase 3
-Current 6 values don't cover: Thunderstorm, Foggy, Drizzle, Sleet,
-HeavySnow, HeatWave. WMO weathercode mapping has ~30 codes. Expand the
-enum and add fromWmoCode(code: Int): WeatherCondition factory. Room
-stores this as a String (label), so adding new values is non-breaking.
+✅ Gap 3 — WeatherCondition enum expansion — DONE in Phase 0.2.
+Added Thunderstorm, Foggy, Drizzle, Sleet, HeavySnow and fromWmoCode().
 
-🔲 Gap 4 — Seasons with temperature ranges (optional, low priority)
-Add temp_low_c / temp_high_c to the seasons lookup table for automatic
-season-tag suggestions from forecast temperature. Works fine without it
-if temperature suitability is on items directly (Gap 1).
+🔲 Gap 4 — Seasons with temperature ranges
+Add temp_low_c REAL nullable and temp_high_c REAL nullable to the seasons
+lookup table. Enables temperature-band-driven season matching alongside
+calendar quarters (e.g. "Winter" = below 5°C in user's locale, not just
+Dec–Feb). Feeds the future recommendation engine: if the forecast hits the
+Winter temp band on a warm January day, Winter-tagged items are still
+surfaced. Update DatabaseSeeder with sensible defaults per season.
+Add warmth_layer TEXT NOT NULL DEFAULT 'None' to the categories table
+(values: None / Base / Mid / Outer) at the same time — needed for the
+layering logic described above.
 
 🔲 Gap 5 — precipitation_mm and wind_speed_kmh on outfit_logs
 Add precipitation_mm REAL nullable and wind_speed_kmh REAL nullable to
-outfit_logs for richer historical analysis ("what did I wear last time it
-rained heavily?"). Include in the same migration as Gaps 1 and 2.
+outfit_logs. Pure data-collection infrastructure — auto-populated from the
+cached forecast on log creation (same hook as temperature, Phase 4.2).
+This is what the recommendation engine feeds on for rain/wind suitability
+inference. No user-facing change. Do in the same migration as Gap 4.
 
   ---
 Phase ordering summary
@@ -282,14 +298,12 @@ Key design decisions (resolved or still open)
    the app has none and adding Play Services is a meaningful SDK bloat
    decision). NETWORK_PROVIDER gives city-level accuracy — sufficient.
 
-🔲 3. Temperature unit — canonical storage is °C (recommended). All DB
-   columns (temperature_low, temperature_high, temp_min_c, temp_max_c)
-   store Celsius. Convert to °F for display only, driven by
-   temperatureUnit preference. CONFIRM before any data is written.
+✅ 3. Temperature unit — canonical storage is °C. All DB columns store
+   Celsius. toDisplayTemp() converts to °F for display only, driven by
+   temperatureUnit preference. CONFIRMED — implemented throughout.
 
-🔲 4. NWS out-of-US — notify the user and ask them to switch service
-   (do not silently fall back). Rationale: user made a deliberate choice;
-   silent fallback would be confusing if NWS and Open-Meteo disagree.
-   CONFIRM this UX.
+✅ 4. NWS out-of-US — returns Result.failure with a descriptive message;
+   WeatherRepository surfaces it to the caller. No silent fallback to
+   Open-Meteo. CONFIRMED — implemented in NwsClient.
 
 ✅ 5. Cache TTL — 3 hours, stored as named constant FORECAST_CACHE_TTL_MS.
