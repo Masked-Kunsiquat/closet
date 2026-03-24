@@ -174,8 +174,12 @@ precipitationMm=0.0, uvIndex=null (not in basic forecast endpoint).
 
 ✅ 3.4 — Google Weather API implementation (key required)
 GoogleWeatherClient has separate fetchDailyForecast(lat, lon, apiKey) — does
-not implement WeatherServiceClient (different signature). DTOs based on
-Google Weather API v1; marked with verification note in code.
+not implement WeatherServiceClient (different signature). DTOs match the
+actual Google Weather API v1 daily forecast schema:
+- displayDate.year/month/day for date parsing
+- daytimeForecast.wind.speed.value + unit (mph→km/h conversion)
+- daytimeForecast.uvIndex and relativeHumidity
+- Temperature.unit field with F→C conversion; no unitsSystem request param
 
 ✅ 3.5 — WeatherRepository + caching
 FORECAST_CACHE_TTL_MS = 3h named constant. Cache-first: if fresh, parse and
