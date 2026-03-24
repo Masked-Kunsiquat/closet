@@ -248,23 +248,24 @@ the project's no-derived-data rule). The engine concept:
 ✅ Gap 3 — WeatherCondition enum expansion — DONE in Phase 0.2.
 Added Thunderstorm, Foggy, Drizzle, Sleet, HeavySnow and fromWmoCode().
 
-🔲 Gap 4 — Seasons with temperature ranges
+✅ Gap 4 — Seasons with temperature ranges
 Add temp_low_c REAL nullable and temp_high_c REAL nullable to the seasons
 lookup table. Enables temperature-band-driven season matching alongside
 calendar quarters (e.g. "Winter" = below 5°C in user's locale, not just
 Dec–Feb). Feeds the future recommendation engine: if the forecast hits the
 Winter temp band on a warm January day, Winter-tagged items are still
-surfaced. Update DatabaseSeeder with sensible defaults per season.
-Add warmth_layer TEXT NOT NULL DEFAULT 'None' to the categories table
-(values: None / Base / Mid / Outer) at the same time — needed for the
-layering logic described above.
+surfaced. DatabaseSeeder updated with sensible defaults per season.
+warmth_layer TEXT NOT NULL DEFAULT 'None' added to the categories table
+(values: None / Base / Mid / Outer) — needed for the layering logic
+described above. Seeded: Outerwear=Outer, Underwear & Intimates=Base.
+Done in Migration 1→2.
 
-🔲 Gap 5 — precipitation_mm and wind_speed_kmh on outfit_logs
-Add precipitation_mm REAL nullable and wind_speed_kmh REAL nullable to
-outfit_logs. Pure data-collection infrastructure — auto-populated from the
-cached forecast on log creation (same hook as temperature, Phase 4.2).
-This is what the recommendation engine feeds on for rain/wind suitability
-inference. No user-facing change. Do in the same migration as Gap 4.
+✅ Gap 5 — precipitation_mm and wind_speed_kmh on outfit_logs
+Added precipitation_mm REAL nullable and wind_speed_kmh REAL nullable to
+outfit_logs. Auto-populated from the cached forecast on log creation
+(JournalViewModel.logOutfitOnDate passes forecast.precipitationMm and
+forecast.windSpeedKmh through LogRepository.wearOutfitOnDate). No
+user-facing change. Done in the same migration as Gap 4 (Migration 1→2).
 
   ---
 Phase ordering summary

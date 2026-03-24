@@ -63,6 +63,8 @@ class LogRepository @Inject constructor(
      * @param temperatureLow Optional low temperature (°C) to pre-populate from forecast.
      * @param temperatureHigh Optional high temperature (°C) to pre-populate from forecast.
      * @param weatherCondition Optional weather condition to pre-populate from forecast.
+     * @param precipitationMm Optional precipitation amount (mm) to pre-populate from forecast.
+     * @param windSpeedKmh Optional wind speed (km/h) to pre-populate from forecast.
      * @return The log row ID in [DataResult.Success], or [DataResult.Error].
      */
     suspend fun wearOutfitOnDate(
@@ -71,6 +73,8 @@ class LogRepository @Inject constructor(
         temperatureLow: Double? = null,
         temperatureHigh: Double? = null,
         weatherCondition: WeatherCondition? = null,
+        precipitationMm: Double? = null,
+        windSpeedKmh: Double? = null,
     ): DataResult<Long> = try {
         val existingId = logDao.getLogIdByOutfitAndDate(outfitId, date)
         if (existingId != null) return DataResult.Success(existingId)
@@ -81,6 +85,8 @@ class LogRepository @Inject constructor(
                 temperatureLow = temperatureLow,
                 temperatureHigh = temperatureHigh,
                 weatherCondition = weatherCondition,
+                precipitationMm = precipitationMm,
+                windSpeedKmh = windSpeedKmh,
             )
         )
         DataResult.Success(logId)

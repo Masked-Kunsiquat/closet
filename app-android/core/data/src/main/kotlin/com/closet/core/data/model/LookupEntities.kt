@@ -23,7 +23,9 @@ data class CategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val icon: String? = null,
-    @ColumnInfo(name = "sort_order") val sortOrder: Int
+    @ColumnInfo(name = "sort_order") val sortOrder: Int,
+    /** Thermal role of this category. Values: None | Base | Mid | Outer. */
+    @ColumnInfo(name = "warmth_layer") val warmthLayer: String = "None",
 )
 
 /** Clothing subcategory (e.g. T-Shirt, Jeans) belonging to a parent [CategoryEntity]. */
@@ -51,7 +53,11 @@ data class SubcategoryEntity(
 data class SeasonEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val icon: String? = null
+    val icon: String? = null,
+    /** Lower bound of this season's typical temperature range (°C). Null = no lower bound. */
+    @ColumnInfo(name = "temp_low_c") val tempLowC: Double? = null,
+    /** Upper bound of this season's typical temperature range (°C). Null = no upper bound. */
+    @ColumnInfo(name = "temp_high_c") val tempHighC: Double? = null,
 )
 
 /** Occasion lookup value (e.g. Casual, Formal). Stored with a Phosphor icon name for display. */

@@ -127,18 +127,20 @@ class GoogleWeatherClient @Inject constructor(
         fun toKmh(): Double = if (unit == "MILES_PER_HOUR") value * 1.60934 else value
     }
 
-    private fun mapConditionType(type: String?): WeatherCondition = when (type?.uppercase()) {
-        "CLEAR" -> WeatherCondition.Sunny
-        "PARTLY_CLOUDY" -> WeatherCondition.PartlyCloudy
-        "MOSTLY_CLOUDY", "CLOUDY" -> WeatherCondition.Cloudy
-        "FOGGY", "FOG" -> WeatherCondition.Foggy
-        "DRIZZLE", "LIGHT_RAIN" -> WeatherCondition.Drizzle
-        "RAIN", "HEAVY_RAIN", "RAIN_SHOWERS" -> WeatherCondition.Rainy
-        "FREEZING_RAIN", "SLEET" -> WeatherCondition.Sleet
-        "SNOW", "LIGHT_SNOW", "SNOW_SHOWERS" -> WeatherCondition.Snowy
-        "HEAVY_SNOW", "BLIZZARD" -> WeatherCondition.HeavySnow
-        "THUNDERSTORM" -> WeatherCondition.Thunderstorm
-        "WINDY" -> WeatherCondition.Windy
-        else -> WeatherCondition.Cloudy
+    companion object {
+        private fun mapConditionType(type: String?): WeatherCondition = when (type?.uppercase()) {
+            "CLEAR" -> WeatherCondition.Sunny
+            "PARTLY_CLOUDY" -> WeatherCondition.PartlyCloudy
+            "MOSTLY_CLOUDY", "CLOUDY" -> WeatherCondition.Cloudy
+            "FOGGY", "FOG" -> WeatherCondition.Foggy
+            "DRIZZLE", "LIGHT_RAIN" -> WeatherCondition.Drizzle
+            "RAIN", "HEAVY_RAIN", "RAIN_SHOWERS" -> WeatherCondition.Rainy
+            "FREEZING_RAIN", "SLEET" -> WeatherCondition.Sleet
+            "SNOW", "LIGHT_SNOW", "SNOW_SHOWERS" -> WeatherCondition.Snowy
+            "HEAVY_SNOW", "BLIZZARD" -> WeatherCondition.HeavySnow
+            "THUNDERSTORM" -> WeatherCondition.Thunderstorm
+            "WINDY" -> WeatherCondition.Windy
+            else -> WeatherCondition.Cloudy
+        }
     }
 }

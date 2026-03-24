@@ -35,22 +35,23 @@ object DatabaseSeeder {
 
     /** Seeds the 10 top-level clothing categories with stable IDs (1–10). */
     private fun seedCategories(db: SupportSQLiteDatabase) {
+        // name, icon, sort_order, warmth_layer
         val categories = listOf(
-            Triple("Tops", "t-shirt", 1),
-            Triple("Bottoms", "pants", 2),
-            Triple("Outerwear", "hoodie", 3),
-            Triple("Dresses & Jumpsuits", "dress", 4),
-            Triple("Footwear", "sneaker", 5),
-            Triple("Accessories", "watch", 6),
-            Triple("Bags", "handbag", 7),
-            Triple("Activewear", "person-simple-running", 8),
-            Triple("Underwear & Intimates", "sock", 9),
-            Triple("Swimwear", "goggles", 10)
+            listOf("Tops",                  "t-shirt",               1, "None"),
+            listOf("Bottoms",               "pants",                 2, "None"),
+            listOf("Outerwear",             "hoodie",                3, "Outer"),
+            listOf("Dresses & Jumpsuits",   "dress",                 4, "None"),
+            listOf("Footwear",              "sneaker",               5, "None"),
+            listOf("Accessories",           "watch",                 6, "None"),
+            listOf("Bags",                  "handbag",               7, "None"),
+            listOf("Activewear",            "person-simple-running", 8, "None"),
+            listOf("Underwear & Intimates", "sock",                  9, "Base"),
+            listOf("Swimwear",              "goggles",               10, "None"),
         )
-        categories.forEachIndexed { index, (name, icon, order) ->
+        categories.forEachIndexed { index, row ->
             db.execSQL(
-                "INSERT OR IGNORE INTO categories (id, name, icon, sort_order) VALUES (?, ?, ?, ?)",
-                arrayOf<Any>(index + 1, name, icon, order)
+                "INSERT OR IGNORE INTO categories (id, name, icon, sort_order, warmth_layer) VALUES (?, ?, ?, ?, ?)",
+                arrayOf<Any>(index + 1, row[0], row[1], row[2], row[3])
             )
         }
     }
@@ -79,19 +80,20 @@ object DatabaseSeeder {
         }
     }
 
-    /** Seeds the 5 seasons (Spring, Summer, Fall, Winter, All Season) with Phosphor icons. */
+    /** Seeds the 5 seasons with Phosphor icons and temperature bands (°C). All Season has null bounds. */
     private fun seedSeasons(db: SupportSQLiteDatabase) {
+        // name, icon, temp_low_c, temp_high_c — All Season intentionally null (always applicable)
         val seasons = listOf(
-            "Spring" to "flower",
-            "Summer" to "sun",
-            "Fall" to "leaf",
-            "Winter" to "snowflake",
-            "All Season" to "thermometer"
+            listOf<Any?>("Spring",     "flower",      10.0,  20.0),
+            listOf<Any?>("Summer",     "sun",         22.0,  35.0),
+            listOf<Any?>("Fall",       "leaf",         5.0,  18.0),
+            listOf<Any?>("Winter",     "snowflake",  -10.0,   5.0),
+            listOf<Any?>("All Season", "thermometer",  null,  null),
         )
-        seasons.forEach { (name, icon) ->
+        seasons.forEach { row ->
             db.execSQL(
-                "INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)",
-                arrayOf<Any>(name, icon)
+                "INSERT OR IGNORE INTO seasons (name, icon, temp_low_c, temp_high_c) VALUES (?, ?, ?, ?)",
+                arrayOf<Any?>(row[0], row[1], row[2], row[3])
             )
         }
     }

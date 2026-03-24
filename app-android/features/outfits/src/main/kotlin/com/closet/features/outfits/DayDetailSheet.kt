@@ -216,11 +216,13 @@ private fun LogCard(
                 )
                 // Weather row: condition icon + label + temp range (read-only, stored on log)
                 val condition = WeatherCondition.fromString(log.weatherCondition)
+                val tempLow = log.temperatureLow
+                val tempHigh = log.temperatureHigh
                 val tempText = when {
-                    log.temperatureLow != null && log.temperatureHigh != null ->
-                        "${log.temperatureLow.toDisplayTemp(temperatureUnit)} / ${log.temperatureHigh.toDisplayTemp(temperatureUnit)}"
-                    log.temperatureLow != null -> log.temperatureLow.toDisplayTemp(temperatureUnit)
-                    log.temperatureHigh != null -> log.temperatureHigh.toDisplayTemp(temperatureUnit)
+                    tempLow != null && tempHigh != null ->
+                        "${tempLow.toDisplayTemp(temperatureUnit)} / ${tempHigh.toDisplayTemp(temperatureUnit)}"
+                    tempLow != null -> tempLow.toDisplayTemp(temperatureUnit)
+                    tempHigh != null -> tempHigh.toDisplayTemp(temperatureUnit)
                     else -> null
                 }
                 val weatherText = listOfNotNull(condition?.label, tempText).joinToString(" · ")
@@ -248,9 +250,10 @@ private fun LogCard(
                         }
                     }
                 }
-                if (log.notes != null) {
+                val notes = log.notes
+                if (notes != null) {
                     Text(
-                        text = log.notes,
+                        text = notes,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

@@ -178,6 +178,8 @@ data class OutfitLogWithMeta(
     @ColumnInfo(name = "temperature_low") val temperatureLow: Double?,
     @ColumnInfo(name = "temperature_high") val temperatureHigh: Double?,
     @ColumnInfo(name = "weather_condition") val weatherCondition: String?,
+    @ColumnInfo(name = "precipitation_mm") val precipitationMm: Double?,
+    @ColumnInfo(name = "wind_speed_kmh") val windSpeedKmh: Double?,
     @ColumnInfo(name = "created_at") val createdAt: String,
     @ColumnInfo(name = "outfit_name") val outfitName: String?,
     @ColumnInfo(name = "item_count") val itemCount: Int,

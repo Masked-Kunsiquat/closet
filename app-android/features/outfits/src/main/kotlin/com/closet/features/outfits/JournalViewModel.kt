@@ -305,6 +305,8 @@ class JournalViewModel @Inject constructor(
                 temperatureLow = forecast?.tempLow,
                 temperatureHigh = forecast?.tempHigh,
                 weatherCondition = forecast?.condition,
+                precipitationMm = forecast?.precipitationMm,
+                windSpeedKmh = forecast?.windSpeedKmh,
             )) {
                 is DataResult.Success -> _showOutfitPicker.value = false
                 is DataResult.Error -> {
