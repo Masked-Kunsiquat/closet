@@ -25,6 +25,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -364,9 +365,13 @@ class ClothingFormViewModel @Inject constructor(
         viewModelScope.launch {
             _form.update { it.copy(isLoading = true) }
             try {
+                val previousPath = _form.value.imagePath
                 val path = storageRepository.saveImage(uri)
+                // Delete the previously staged file (skip if it's the persisted original)
+                if (previousPath != null && previousPath != originalImagePath) {
+                    withContext(NonCancellable) { storageRepository.deleteImage(previousPath) }
+                }
                 _form.update { it.copy(imagePath = path, isLoading = false) }
-                
                 val file = storageRepository.getFile(path)
                 extractColorsFromFile(file)
             } catch (e: Exception) {
@@ -463,7 +468,7 @@ class ClothingFormViewModel @Inject constructor(
 
                 if (result is DataResult.Success) {
                     if (isEditMode && originalImagePath != null && originalImagePath != state.imagePath) {
-                        storageRepository.deleteImage(originalImagePath!!)
+                        withContext(NonCancellable) { storageRepository.deleteImage(originalImagePath!!) }
                     }
                     _events.send(ClothingFormEvent.NavigateBack)
                 } else {
@@ -480,7 +485,7 @@ class ClothingFormViewModel @Inject constructor(
         val currentPath = _form.value.imagePath
         if (currentPath != null && currentPath != originalImagePath) {
             viewModelScope.launch {
-                storageRepository.deleteImage(currentPath)
+                withContext(NonCancellable) { storageRepository.deleteImage(currentPath) }
             }
         }
         viewModelScope.launch {
