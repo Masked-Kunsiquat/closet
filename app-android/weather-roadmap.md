@@ -131,12 +131,9 @@ features/settings/build.gradle.kts gains :core:data dep.
   ---
 Phase 2 — Location permission
 
-🔲 2.1 — Manifest
-Add to AndroidManifest.xml:
-  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-COARSE is sufficient for city-level weather. Do not request FINE — it
-signals GPS tracking, which is trust-destroying for a privacy-first app.
-(INTERNET permission already added in Phase 0.3.)
+✅ 2.1 — Manifest
+ACCESS_COARSE_LOCATION added to AndroidManifest.xml.
+(INTERNET already added in Phase 0.3.)
 
 🔲 2.2 — Permission request flow
 When the Settings toggle transitions from off → on:
