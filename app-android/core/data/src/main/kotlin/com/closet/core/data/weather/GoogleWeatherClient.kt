@@ -23,13 +23,12 @@ private const val BASE_URL = "https://weather.googleapis.com/v1/forecast/days:lo
  * this client directly after reading and validating the key from
  * [com.closet.core.data.repository.WeatherPreferencesRepository].
  *
- * IMPORTANT: The response DTOs below are based on the Google Weather API design
- * as of early 2025. Verify field names and endpoint against current Google
- * Weather API documentation if responses are empty or parsing fails. The
- * `ignoreUnknownKeys = true` JSON config means extra fields won't cause crashes,
- * but renamed/removed fields will silently default to null/0.
+ * Response DTOs reflect the Google Weather API v1 daily forecast schema.
+ * Temperatures are returned in the unit specified by the API (may be Fahrenheit
+ * depending on locale); they are always converted to °C before returning.
+ * Wind speed is always converted to km/h.
  *
- * Reference: https://developers.google.com/maps/documentation/weather
+ * Reference: https://developers.google.com/maps/documentation/weather/daily-forecast
  */
 @Singleton
 class GoogleWeatherClient @Inject constructor(
@@ -46,7 +45,6 @@ class GoogleWeatherClient @Inject constructor(
                 parameter("location.latitude", lat)
                 parameter("location.longitude", lon)
                 parameter("days", 7)
-                parameter("unitsSystem", "METRIC")
             }.body()
             response.toForecasts()
         }.onFailure { Timber.e(it, "GoogleWeatherClient: fetch failed") }
@@ -58,46 +56,55 @@ class GoogleWeatherClient @Inject constructor(
         @SerialName("forecastDays") val forecastDays: List<GoogleForecastDay> = emptyList(),
     ) {
         fun toForecasts(): List<DailyForecast> = forecastDays.mapIndexed { i, day ->
-            val startTime = day.interval?.startTime
-            val date = if (startTime != null) {
-                runCatching { LocalDate.parse(startTime.take(10)) }.getOrNull()
-            } else null
+            val date = day.displayDate?.toLocalDate()
+                ?: LocalDate.now().plusDays(i.toLong())
             DailyForecast(
-                date = date ?: LocalDate.now().plusDays(i.toLong()),
-                tempLow = day.minTemperature?.degrees ?: 0.0,
-                tempHigh = day.maxTemperature?.degrees ?: 0.0,
+                date = date,
+                tempLow = day.minTemperature?.toCelsius() ?: 0.0,
+                tempHigh = day.maxTemperature?.toCelsius() ?: 0.0,
                 condition = mapConditionType(day.daytimeForecast?.weatherCondition?.type),
                 precipitationMm = day.daytimeForecast?.precipitation?.qpf?.quantity ?: 0.0,
-                windSpeedKmh = day.maxWindSpeed?.value ?: 0.0,
-                uvIndex = day.uvIndex,
-                humidity = null,
+                windSpeedKmh = day.daytimeForecast?.wind?.speed?.toKmh() ?: 0.0,
+                uvIndex = day.daytimeForecast?.uvIndex,
+                humidity = day.daytimeForecast?.relativeHumidity,
             )
         }
     }
 
     @Serializable
     private data class GoogleForecastDay(
-        val interval: TimeInterval? = null,
+        val displayDate: DisplayDate? = null,
         @SerialName("maxTemperature") val maxTemperature: Temperature? = null,
         @SerialName("minTemperature") val minTemperature: Temperature? = null,
         @SerialName("daytimeForecast") val daytimeForecast: DaytimeForecast? = null,
-        @SerialName("maxWindSpeed") val maxWindSpeed: WindSpeed? = null,
-        val uvIndex: Int? = null,
     )
 
     @Serializable
-    private data class TimeInterval(val startTime: String? = null)
+    private data class DisplayDate(
+        val year: Int = 0,
+        val month: Int = 0,
+        val day: Int = 0,
+    ) {
+        fun toLocalDate(): LocalDate? = runCatching {
+            LocalDate.of(year, month, day)
+        }.getOrNull()
+    }
 
     @Serializable
-    private data class Temperature(val degrees: Double = 0.0)
-
-    @Serializable
-    private data class WindSpeed(val value: Double = 0.0)
+    private data class Temperature(
+        val degrees: Double = 0.0,
+        val unit: String = "CELSIUS",
+    ) {
+        fun toCelsius(): Double = if (unit == "FAHRENHEIT") (degrees - 32) * 5.0 / 9.0 else degrees
+    }
 
     @Serializable
     private data class DaytimeForecast(
         val weatherCondition: WeatherConditionDto? = null,
         val precipitation: Precipitation? = null,
+        val wind: Wind? = null,
+        val uvIndex: Int? = null,
+        val relativeHumidity: Int? = null,
     )
 
     @Serializable
@@ -108,6 +115,17 @@ class GoogleWeatherClient @Inject constructor(
 
     @Serializable
     private data class Qpf(val quantity: Double = 0.0)
+
+    @Serializable
+    private data class Wind(val speed: WindSpeed? = null)
+
+    @Serializable
+    private data class WindSpeed(
+        val value: Double = 0.0,
+        val unit: String = "KILOMETERS_PER_HOUR",
+    ) {
+        fun toKmh(): Double = if (unit == "MILES_PER_HOUR") value * 1.60934 else value
+    }
 
     private fun mapConditionType(type: String?): WeatherCondition = when (type?.uppercase()) {
         "CLEAR" -> WeatherCondition.Sunny
