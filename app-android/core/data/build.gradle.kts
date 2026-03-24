@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -54,6 +55,9 @@ dependencies {
 
     // DataStore
     implementation(libs.androidx.datastore.preferences)
+
+    // Serialization (for cache DTOs + service response parsing)
+    implementation(libs.kotlinx.serialization.json)
 
     // Ktor HTTP client
     implementation(libs.ktor.client.okhttp)

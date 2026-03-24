@@ -60,7 +60,10 @@ enum class TemperatureUnit(val label: String) {
 }
 
 /**
- * Parity: Weather condition options.
+ * Weather condition options. Stored in the DB as [label] strings — adding new
+ * entries is non-breaking for existing rows.
+ *
+ * Covers all WMO weather interpretation codes used by Open-Meteo; see [fromWmoCode].
  */
 enum class WeatherCondition(val label: String) {
     Sunny("Sunny"),
@@ -68,11 +71,35 @@ enum class WeatherCondition(val label: String) {
     Cloudy("Cloudy"),
     Rainy("Rainy"),
     Snowy("Snowy"),
-    Windy("Windy");
+    Windy("Windy"),
+    Thunderstorm("Thunderstorm"),
+    Foggy("Foggy"),
+    Drizzle("Drizzle"),
+    Sleet("Sleet"),
+    HeavySnow("Heavy Snow");
 
     companion object {
-        fun fromString(value: String?): WeatherCondition? {
-            return entries.find { it.label == value }
+        fun fromString(value: String?): WeatherCondition? =
+            entries.find { it.label == value }
+
+        /**
+         * Maps a WMO weather interpretation code (as used by Open-Meteo) to the
+         * nearest [WeatherCondition]. Returns [Cloudy] for any unrecognised code.
+         *
+         * Reference: https://open-meteo.com/en/docs#weathervariables
+         */
+        fun fromWmoCode(code: Int): WeatherCondition = when (code) {
+            0 -> Sunny
+            1, 2 -> PartlyCloudy
+            3 -> Cloudy
+            45, 48 -> Foggy
+            51, 53, 55, 56, 57 -> Drizzle
+            61, 63, 65, 80, 81, 82 -> Rainy
+            66, 67 -> Sleet
+            71, 73, 77, 85 -> Snowy
+            75, 86 -> HeavySnow
+            95, 96, 99 -> Thunderstorm
+            else -> Cloudy
         }
     }
 }
