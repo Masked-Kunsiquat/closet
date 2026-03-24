@@ -41,6 +41,8 @@
     <string name="journal_edit_weather_label">Weather</string>
     <string name="journal_edit_save">Save</string>
     <string name="journal_edit_cancel">Cancel</string>
+    <string name="journal_forecast_chip_description">Today\'s forecast — tap to see 7-day forecast</string>
+    <string name="journal_forecast_sheet_title">7-Day Forecast</string>
 
     <!-- Outfit Builder -->
     <string name="outfits_builder_title">New Outfit</string>

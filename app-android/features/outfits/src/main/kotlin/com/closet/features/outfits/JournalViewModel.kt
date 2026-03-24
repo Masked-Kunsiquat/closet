@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.dao.CalendarDay
 import com.closet.core.data.dao.OutfitLogWithMeta
+import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.OutfitLogEntity
 import com.closet.core.data.model.OutfitWithItems
+import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherCondition
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.repository.WeatherPreferencesRepository
+import com.closet.core.data.repository.WeatherRepository
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.ui.util.UserMessage
@@ -19,6 +23,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -54,6 +60,10 @@ data class JournalUiState(
     val logsForSelectedDate: List<OutfitLogWithMeta> = emptyList(),
     val showOutfitPicker: Boolean = false,
     val editingLog: OutfitLogWithMeta? = null,
+    val todayForecast: DailyForecast? = null,
+    val forecastDays: List<DailyForecast> = emptyList(),
+    val showForecastSheet: Boolean = false,
+    val temperatureUnit: TemperatureUnit = TemperatureUnit.Celsius,
 )
 
 /**
@@ -69,12 +79,28 @@ class JournalViewModel @Inject constructor(
     private val logRepository: LogRepository,
     private val outfitRepository: OutfitRepository,
     private val storageRepository: StorageRepository,
+    private val weatherRepository: WeatherRepository,
+    private val weatherPrefsRepo: WeatherPreferencesRepository,
 ) : ViewModel() {
 
     private val _currentYearMonth = MutableStateFlow(YearMonth.now())
     private val _selectedDate = MutableStateFlow<String?>(null)
     private val _showOutfitPicker = MutableStateFlow(false)
     private val _editingLog = MutableStateFlow<OutfitLogWithMeta?>(null)
+    private val _showForecastSheet = MutableStateFlow(false)
+
+    // Emits today's 7-day forecast whenever weather is enabled; empty list when disabled.
+    private val forecastDays: Flow<List<DailyForecast>> =
+        weatherPrefsRepo.getWeatherEnabled().flatMapLatest { enabled ->
+            if (!enabled) flowOf(emptyList())
+            else flow {
+                weatherRepository.getForecast()
+                    .onSuccess { emit(it) }
+                    .onFailure { Timber.w(it, "JournalViewModel: forecast unavailable") }
+            }
+        }
+
+    private val temperatureUnit: Flow<TemperatureUnit> = weatherPrefsRepo.getTemperatureUnit()
 
     private val _actionError = MutableSharedFlow<UserMessage>(
         replay = 0,
@@ -111,6 +137,16 @@ class JournalViewModel @Inject constructor(
         )
     }.combine(_editingLog) { state, editingLog ->
         state.copy(editingLog = editingLog)
+    }.combine(forecastDays) { state, forecasts ->
+        val today = LocalDate.now()
+        state.copy(
+            todayForecast = forecasts.find { it.date == today },
+            forecastDays = forecasts,
+        )
+    }.combine(_showForecastSheet) { state, show ->
+        state.copy(showForecastSheet = show)
+    }.combine(temperatureUnit) { state, unit ->
+        state.copy(temperatureUnit = unit)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -268,6 +304,9 @@ class JournalViewModel @Inject constructor(
             }
         }
     }
+
+    fun openForecastSheet() { _showForecastSheet.value = true }
+    fun closeForecastSheet() { _showForecastSheet.value = false }
 
     /** Resolves a relative image path to an absolute [File] for Coil. */
     fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }

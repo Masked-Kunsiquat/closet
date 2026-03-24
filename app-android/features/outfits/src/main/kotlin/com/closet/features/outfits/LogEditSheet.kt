@@ -12,13 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AcUnit
-import androidx.compose.material.icons.outlined.Air
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Grain
-import androidx.compose.material.icons.outlined.WbCloudy
-import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -36,7 +29,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -158,13 +150,3 @@ internal fun LogEditSheet(
     }
 }
 
-// ─── Weather icon mapping ─────────────────────────────────────────────────────
-
-private fun WeatherCondition.icon(): ImageVector = when (this) {
-    WeatherCondition.Sunny       -> Icons.Outlined.WbSunny
-    WeatherCondition.PartlyCloudy -> Icons.Outlined.WbCloudy
-    WeatherCondition.Cloudy      -> Icons.Outlined.Cloud
-    WeatherCondition.Rainy       -> Icons.Outlined.Grain
-    WeatherCondition.Snowy       -> Icons.Outlined.AcUnit
-    WeatherCondition.Windy       -> Icons.Outlined.Air
-}
