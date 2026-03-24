@@ -34,6 +34,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import timber.log.Timber
 
 /**
  * UI state for the Clothing Form (Add/Edit).
@@ -394,7 +395,9 @@ class ClothingFormViewModel @Inject constructor(
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Timber.d(e, "color extraction failed")
+            }
         }
     }
 
@@ -461,6 +464,7 @@ class ClothingFormViewModel @Inject constructor(
                     _form.update { it.copy(isSaving = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
                 }
             } catch (e: Exception) {
+                Timber.e(e, "save clothing item failed")
                 _form.update { it.copy(isSaving = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
             }
         }
