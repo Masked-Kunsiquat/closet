@@ -3,6 +3,7 @@ package com.closet.core.data.di
 import android.content.Context
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.*
+import com.closet.core.data.repository.WeatherPreferencesRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -11,7 +12,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Hilt module that provides the Room database and all DAO singletons.
+ * Hilt module that provides the Room database, all DAO singletons, and
+ * DataStore-backed repositories that live in the data layer.
  *
  * Installed in [dagger.hilt.components.SingletonComponent] so every DAO and
  * repository shares a single [ClothingDatabase] instance for the app's lifetime.
@@ -56,4 +58,11 @@ object DataModule {
     @Provides
     @Singleton
     fun provideBrandDao(db: ClothingDatabase): BrandDao = db.brandDao()
+
+    /** Provides the [WeatherPreferencesRepository] singleton backed by its own DataStore file. */
+    @Provides
+    @Singleton
+    fun provideWeatherPreferencesRepository(
+        @ApplicationContext context: Context,
+    ): WeatherPreferencesRepository = WeatherPreferencesRepository(context)
 }

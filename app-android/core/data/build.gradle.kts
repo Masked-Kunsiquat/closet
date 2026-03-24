@@ -48,6 +48,9 @@ dependencies {
     // Palette
     implementation(libs.androidx.palette.ktx)
 
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
     // Logging
     implementation(libs.timber)
 
