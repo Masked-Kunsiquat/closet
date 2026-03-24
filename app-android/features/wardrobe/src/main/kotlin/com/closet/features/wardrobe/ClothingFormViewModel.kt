@@ -318,11 +318,27 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     fun onCategorySelected(category: CategoryEntity?) {
+        sizeSystemUserOverridden = false
         _form.update { it.copy(category = category, subcategory = null) }
     }
 
     fun onSubcategorySelected(subcategory: SubcategoryEntity?) {
-        _form.update { it.copy(subcategory = subcategory) }
+        if (!sizeSystemUserOverridden) {
+            val targetName = defaultSizeSystemName(subcategory?.name)
+            val systemId = sizeSystems.value.find { it.name == targetName }?.id
+            _form.update { it.copy(subcategory = subcategory, selectedSizeSystemId = systemId, selectedSizeValueId = null) }
+        } else {
+            _form.update { it.copy(subcategory = subcategory) }
+        }
+    }
+
+    private fun defaultSizeSystemName(subcategoryName: String?): String? = when (subcategoryName) {
+        "Sneakers", "Boots", "Sandals", "Dress Shoes", "Slippers" -> "Shoes (US Men's)"
+        "Belt", "Hat/Cap", "Scarf", "Sunglasses", "Watch",
+        "Jewelry", "Tie", "Cufflinks",
+        "Backpack", "Tote", "Crossbody", "Duffel"               -> "One Size"
+        null                                                      -> null
+        else                                                      -> "Letter"
     }
 
     fun onPriceChange(price: String) {

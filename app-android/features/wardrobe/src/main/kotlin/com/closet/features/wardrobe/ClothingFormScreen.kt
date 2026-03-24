@@ -156,6 +156,8 @@ fun ClothingFormScreen(
                 onManageBrands = onManageBrands,
                 onCategorySelect = viewModel::onCategorySelected,
                 onSubcategorySelect = viewModel::onSubcategorySelected,
+                onSizeSystemSelected = viewModel::onSizeSystemSelected,
+                onSizeValueSelected = viewModel::onSizeValueSelected,
                 onPriceChange = viewModel::onPriceChange,
                 onDateChange = viewModel::onDateChange,
                 onLocationChange = viewModel::onLocationChange,
@@ -217,6 +219,8 @@ internal fun ClothingFormContent(
     onManageBrands: () -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,
+    onSizeSystemSelected: (Long?) -> Unit,
+    onSizeValueSelected: (Long?) -> Unit,
     onPriceChange: (String) -> Unit,
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
@@ -323,6 +327,18 @@ internal fun ClothingFormContent(
                 label = stringResource(R.string.wardrobe_field_subcategory),
                 itemLabel = { it.name },
                 enabled = uiState.category != null
+            )
+        }
+
+        // Size Section
+        item {
+            SizeSection(
+                sizeSystems = uiState.sizeSystems,
+                sizeValues = uiState.sizeValues,
+                selectedSizeSystemId = uiState.selectedSizeSystemId,
+                selectedSizeValueId = uiState.selectedSizeValueId,
+                onSizeSystemSelected = onSizeSystemSelected,
+                onSizeValueSelected = onSizeValueSelected
             )
         }
 
