@@ -77,22 +77,30 @@ object DataModule {
     ): WeatherPreferencesRepository = WeatherPreferencesRepository(context)
 
     /**
+     * Provides the shared [Json] instance used for both HTTP content negotiation
+     * and DataStore cache serialization.
+     */
+    @Provides
+    @Singleton
+    fun provideJson(): Json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
+    /**
      * Provides the shared [HttpClient] singleton used by all weather service clients.
      *
      * - Engine: OkHttp (recommended Android engine for Ktor 3.x).
-     * - ContentNegotiation: kotlinx-serialization JSON with unknown-key tolerance so
-     *   future API fields don't crash the parser.
+     * - ContentNegotiation: shares the [provideJson] instance so HTTP parsing and
+     *   cache serialization use the same config.
      * - Logging: Timber-backed, bodies only in debug builds to avoid leaking API keys
      *   or location data in release logs.
      */
     @Provides
     @Singleton
-    fun provideHttpClient(): HttpClient = HttpClient(OkHttp) {
+    fun provideHttpClient(json: Json): HttpClient = HttpClient(OkHttp) {
         install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                coerceInputValues = true
-            })
+            json(json)
         }
         install(Logging) {
             logger = object : Logger {

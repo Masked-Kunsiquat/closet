@@ -148,67 +148,42 @@ Launcher result:
 SettingsContent gains SnackbarHostState param wired to Scaffold.
 "Trigger initial forecast fetch" deferred to Phase 3 (no fetch client yet).
 
-🔲 2.3 — Location fetch
-Use LocationManager (no Play Services dependency — the app has none).
-Do a single passive location read (NETWORK_PROVIDER is sufficient for
-city-level accuracy). Cache lat/lon in DataStore alongside the forecast.
-Only re-request location when fetching a fresh forecast.
+✅ 2.3 — Location fetch
+LocationProvider (@Singleton) wraps LocationManager. Tries NETWORK_PROVIDER
+last-known, then GPS last-known, then a one-shot active update with 10s
+timeout if both caches are empty. Falls back to cached lat/lon in DataStore
+if no device fix is available.
 
   ---
 Phase 3 — Weather service abstraction
 
-🔲 3.1 — WeatherService interface
-interface WeatherServiceClient {
-    suspend fun fetchDailyForecast(lat: Double, lon: Double): Result<DailyForecast>
-}
+✅ 3.1 — WeatherService interface + domain models
+WeatherServiceClient interface: fetchDailyForecast(lat, lon): Result<List<DailyForecast>>
+DailyForecast domain model (all temps °C).
+CachedForecastEntry @Serializable DTO (primitives only) + toDomain/toCached extensions.
 
-data class DailyForecast(
-    val date: LocalDate,
-    val tempLow: Double,       // always stored in °C; convert for display
-    val tempHigh: Double,
-    val condition: WeatherCondition,
-    val precipitationMm: Double,
-    val windSpeedKmh: Double,
-    val uvIndex: Int?,
-    val humidity: Int?         // percent
-)
+✅ 3.2 — Open-Meteo implementation (default, no key)
+GET /v1/forecast with 7-day daily params. WMO weathercode → WeatherCondition
+via fromWmoCode(). humidity=null (daily endpoint only).
 
-Must implement WeatherCondition enum expansion (Gap 3 below) before this
-step — the mapping from WMO codes depends on the expanded enum.
+✅ 3.3 — NWS implementation (US-only, no key)
+Two-step /points + forecast URL. Merges 12h periods to daily via date grouping.
+shortForecast text → WeatherCondition keyword map. F→C conversion. Returns
+Result.failure on 404 (non-US) — user must switch service manually.
+precipitationMm=0.0, uvIndex=null (not in basic forecast endpoint).
 
-🔲 3.2 — Open-Meteo implementation (default, no key)
-Endpoint: https://api.open-meteo.com/v1/forecast
-Params: latitude, longitude,
-  daily=temperature_2m_max,temperature_2m_min,precipitation_sum,
-  windspeed_10m_max,weathercode,uv_index_max,
-  forecast_days=7, timezone=auto
-Map WMO weathercode integer → WeatherCondition via fromWmoCode() factory.
-This is the most important mapping work in the whole feature.
+✅ 3.4 — Google Weather API implementation (key required)
+GoogleWeatherClient has separate fetchDailyForecast(lat, lon, apiKey) — does
+not implement WeatherServiceClient (different signature). DTOs based on
+Google Weather API v1; marked with verification note in code.
 
-🔲 3.3 — NWS implementation (US-only, no key)
-Two-step: /points/{lat},{lon} → get forecastUrl → fetch that URL.
-NWS returns 12-hour periods — merge pairs into daily low/high.
-Detect US location: if /points returns 404, notify the user that NWS is
-US-only and ask them to switch service (do not silently fall back — the
-user chose NWS deliberately).
-
-🔲 3.4 — Google Weather API implementation (key required)
-Per Google's current Weather API docs. Validate key is non-empty before
-any request. Surface an error state in Settings if the key returns 401.
-
-🔲 3.5 — WeatherRepository
-Wraps the active client. Implements the caching rule:
-- Read cached forecast from DataStore (cachedForecastJson + timestamp).
-- If age < FORECAST_CACHE_TTL_MS (3 hours): return cached data immediately.
-- Otherwise: fetch fresh, serialize to JSON, store with new timestamp.
-- On fetch failure: return cached data if present, otherwise
-  Result.failure with a typed AppError.
-
-FORECAST_CACHE_TTL_MS = 3 * 60 * 60 * 1000L  // named constant, not magic
-
-Hilt: use @Named qualifier or a sealed binding to provide the correct
-WeatherServiceClient at runtime based on
-WeatherPreferencesRepository.weatherService.
+✅ 3.5 — WeatherRepository + caching
+FORECAST_CACHE_TTL_MS = 3h named constant. Cache-first: if fresh, parse and
+return cached JSON. On fresh fetch: get location (LocationProvider → cached
+lat/lon fallback), select client, fetch, serialize to CachedForecastEntry list,
+saveCache(). On fetch failure: return stale cache if present.
+DataModule: Json extracted to @Provides @Singleton; HttpClient now takes json
+param so both HTTP and cache serialization share the same Json config.
 
   ---
 Phase 4 — Surface forecast in the Journal
