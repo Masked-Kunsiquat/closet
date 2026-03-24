@@ -5,6 +5,7 @@ import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.dao.LogDao
 import com.closet.core.data.dao.OutfitLogWithMeta
 import com.closet.core.data.model.OutfitLogEntity
+import com.closet.core.data.model.WeatherCondition
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
@@ -54,16 +55,34 @@ class LogRepository @Inject constructor(
 
     /**
      * Logs an outfit as worn on [date] (YYYY-MM-DD). Idempotent — returns the existing
-     * log ID if the outfit was already logged for that date.
+     * log ID if the outfit was already logged for that date (weather fields are not
+     * overwritten on the existing row).
      *
      * @param outfitId The ID of the outfit that was worn.
      * @param date The date to log, in YYYY-MM-DD format.
+     * @param temperatureLow Optional low temperature (°C) to pre-populate from forecast.
+     * @param temperatureHigh Optional high temperature (°C) to pre-populate from forecast.
+     * @param weatherCondition Optional weather condition to pre-populate from forecast.
      * @return The log row ID in [DataResult.Success], or [DataResult.Error].
      */
-    suspend fun wearOutfitOnDate(outfitId: Long, date: String): DataResult<Long> = try {
+    suspend fun wearOutfitOnDate(
+        outfitId: Long,
+        date: String,
+        temperatureLow: Double? = null,
+        temperatureHigh: Double? = null,
+        weatherCondition: WeatherCondition? = null,
+    ): DataResult<Long> = try {
         val existingId = logDao.getLogIdByOutfitAndDate(outfitId, date)
         if (existingId != null) return DataResult.Success(existingId)
-        val logId = logDao.insertLogAndSnapshot(OutfitLogEntity(outfitId = outfitId, date = date))
+        val logId = logDao.insertLogAndSnapshot(
+            OutfitLogEntity(
+                outfitId = outfitId,
+                date = date,
+                temperatureLow = temperatureLow,
+                temperatureHigh = temperatureHigh,
+                weatherCondition = weatherCondition,
+            )
+        )
         DataResult.Success(logId)
     } catch (e: Exception) {
         if (e is CancellationException) throw e

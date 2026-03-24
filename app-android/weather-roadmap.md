@@ -203,11 +203,14 @@ shared icon() extension (all 11 conditions) and toDisplayTemp() helper.
 JournalViewModel injects WeatherRepository + WeatherPreferencesRepository;
 forecastDays uses flatMapLatest on weatherEnabled.
 
-🔲 4.2 — Auto-populate weather on log creation
-In JournalViewModel.logOutfitOnDate(): if weatherEnabled = true and a
-cached forecast exists for today's date, pre-populate temperatureLow,
-temperatureHigh, and weatherCondition on the new OutfitLogEntity. User
-can still override manually.
+✅ 4.2 — Auto-populate weather on log creation
+LogRepository.wearOutfitOnDate() gains three optional nullable params
+(temperatureLow, temperatureHigh, weatherCondition) passed into the new
+OutfitLogEntity on insert. Idempotent path (existing row) returns early
+and does not overwrite existing weather data.
+JournalViewModel.logOutfitOnDate() looks up forecastDays for the selected
+date and passes values through. No-op when weather is disabled or the date
+has no forecast entry. User can still override via the log-edit sheet.
 
 🔲 4.3 — Weather on DayDetailSheet
 DayDetailSheet.kt exists. Show the stored temperature_low/high and

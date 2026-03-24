@@ -288,13 +288,24 @@ class JournalViewModel @Inject constructor(
     /**
      * Logs [outfitId] as worn on the currently selected date, then closes the picker.
      * Idempotent — no-op if the outfit was already logged for that date.
+     *
+     * If a cached forecast entry exists for the selected date, its temperature and
+     * condition values are pre-populated on the new log. The user can still override
+     * them via [openLogEdit].
      */
     fun logOutfitOnDate(outfitId: Long) {
         viewModelScope.launch {
             val date = _selectedDate.value ?: return@launch
             val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return@launch
             if (parsedDate.isAfter(LocalDate.now())) return@launch
-            when (val result = logRepository.wearOutfitOnDate(outfitId, date)) {
+            val forecast = uiState.value.forecastDays.find { it.date == parsedDate }
+            when (val result = logRepository.wearOutfitOnDate(
+                outfitId = outfitId,
+                date = date,
+                temperatureLow = forecast?.tempLow,
+                temperatureHigh = forecast?.tempHigh,
+                weatherCondition = forecast?.condition,
+            )) {
                 is DataResult.Success -> _showOutfitPicker.value = false
                 is DataResult.Error -> {
                     Timber.e(result.throwable, "logOutfitOnDate: failed to log outfit $outfitId on $date")
