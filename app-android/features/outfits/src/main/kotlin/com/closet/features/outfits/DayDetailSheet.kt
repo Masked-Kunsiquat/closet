@@ -43,6 +43,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.closet.core.data.dao.OutfitLogWithMeta
+import com.closet.core.data.model.TemperatureUnit
+import com.closet.core.data.model.WeatherCondition
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -73,6 +75,7 @@ internal fun DayDetailSheet(
     onOotdToggle: (logId: Long, currentIsOotd: Boolean) -> Unit,
     onDeleteLog: (logId: Long) -> Unit,
     resolveImage: (String?) -> File?,
+    temperatureUnit: TemperatureUnit = TemperatureUnit.Celsius,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -140,6 +143,7 @@ internal fun DayDetailSheet(
                     LogCard(
                         log = log,
                         imageFile = resolveImage(log.coverImage),
+                        temperatureUnit = temperatureUnit,
                         onClick = { onEditLog(log) },
                         onOotdToggle = { onOotdToggle(log.id, log.isOotd == 1) },
                         onDelete = { onDeleteLog(log.id) },
@@ -156,6 +160,7 @@ internal fun DayDetailSheet(
 private fun LogCard(
     log: OutfitLogWithMeta,
     imageFile: File?,
+    temperatureUnit: TemperatureUnit,
     onClick: () -> Unit,
     onOotdToggle: () -> Unit,
     onDelete: () -> Unit,
@@ -209,14 +214,43 @@ private fun LogCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                // Show weather + notes summary if either is set
-                val summary = buildList {
-                    log.weatherCondition?.let { add(it) }
-                    log.notes?.let { add(it) }
-                }.joinToString(" · ")
-                if (summary.isNotEmpty()) {
+                // Weather row: condition icon + label + temp range (read-only, stored on log)
+                val condition = WeatherCondition.fromString(log.weatherCondition)
+                val tempText = when {
+                    log.temperatureLow != null && log.temperatureHigh != null ->
+                        "${log.temperatureLow.toDisplayTemp(temperatureUnit)} / ${log.temperatureHigh.toDisplayTemp(temperatureUnit)}"
+                    log.temperatureLow != null -> log.temperatureLow.toDisplayTemp(temperatureUnit)
+                    log.temperatureHigh != null -> log.temperatureHigh.toDisplayTemp(temperatureUnit)
+                    else -> null
+                }
+                val weatherText = listOfNotNull(condition?.label, tempText).joinToString(" · ")
+                if (condition != null || tempText != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (condition != null) {
+                            Icon(
+                                imageVector = condition.icon(),
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (weatherText.isNotEmpty()) {
+                            Text(
+                                text = weatherText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+                if (log.notes != null) {
                     Text(
-                        text = summary,
+                        text = log.notes,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

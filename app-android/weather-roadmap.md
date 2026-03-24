@@ -212,10 +212,11 @@ JournalViewModel.logOutfitOnDate() looks up forecastDays for the selected
 date and passes values through. No-op when weather is disabled or the date
 has no forecast entry. User can still override via the log-edit sheet.
 
-🔲 4.3 — Weather on DayDetailSheet
-DayDetailSheet.kt exists. Show the stored temperature_low/high and
-weather_condition from the OutfitLog entity if present. This is a
-read-only display — no fetch involved.
+✅ 4.3 — Weather on DayDetailSheet
+LogCard upgraded: condition icon (12dp) + label + temp range on a dedicated
+weather row; notes on a separate line below. Both are read-only from stored
+OutfitLogWithMeta fields. WeatherCondition.fromString() parses the DB string;
+toDisplayTemp() honours temperatureUnit preference passed from JournalContent.
 
   ---
 Phase 5 — Schema gaps (needed for outfit recommendation filtering)

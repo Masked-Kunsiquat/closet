@@ -217,6 +217,7 @@ internal fun JournalContent(
                 onOotdToggle = onOotdToggle,
                 onDeleteLog = onDeleteLog,
                 resolveImage = resolveImage,
+                temperatureUnit = uiState.temperatureUnit,
             )
         }
     }
