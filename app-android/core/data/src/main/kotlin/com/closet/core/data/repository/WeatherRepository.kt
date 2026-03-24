@@ -106,8 +106,10 @@ class WeatherRepository @Inject constructor(
 
         // ── 4. Cache on success ───────────────────────────────────────────────
         result.onSuccess { forecasts ->
-            val entriesJson = json.encodeToString(forecasts.map { it.toCached() })
-            weatherPrefsRepo.saveCache(entriesJson, System.currentTimeMillis(), lat, lon)
+            runCatching {
+                val entriesJson = json.encodeToString(forecasts.map { it.toCached() })
+                weatherPrefsRepo.saveCache(entriesJson, System.currentTimeMillis(), lat, lon)
+            }.onFailure { Timber.w(it, "WeatherRepository: failed to write forecast cache") }
         }
 
         return result

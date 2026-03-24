@@ -72,21 +72,24 @@ class NwsClient @Inject constructor(
                 Pair(existing.first, period)
             }
         }
-        return byDate.entries.take(7).map { (date, pair) ->
-            val day = pair.first
-            val night = pair.second
-            val representative = day ?: night!!
-            DailyForecast(
-                date = date,
-                tempHigh = (day ?: night!!).temperatureCelsius,
-                tempLow = (night ?: day!!).temperatureCelsius,
-                condition = mapShortForecast(representative.shortForecast),
-                precipitationMm = 0.0,
-                windSpeedKmh = parseWindSpeedKmh(representative.windSpeed),
-                uvIndex = null,
-                humidity = null,
-            )
-        }
+        return byDate.entries
+            .filter { (_, pair) -> pair.first != null || pair.second != null }
+            .take(7)
+            .map { (date, pair) ->
+                val day = pair.first
+                val night = pair.second
+                val representative = day ?: night!! // safe: filter above guarantees at least one
+                DailyForecast(
+                    date = date,
+                    tempHigh = (day ?: night!!).temperatureCelsius,
+                    tempLow = (night ?: day!!).temperatureCelsius,
+                    condition = mapShortForecast(representative.shortForecast),
+                    precipitationMm = 0.0,
+                    windSpeedKmh = parseWindSpeedKmh(representative.windSpeed),
+                    uvIndex = null,
+                    humidity = null,
+                )
+            }
     }
 
     private fun mapShortForecast(forecast: String): WeatherCondition {
