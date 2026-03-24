@@ -448,6 +448,7 @@ class ClothingFormViewModel @Inject constructor(
                     notes = state.notes.ifBlank { null },
                     imagePath = state.imagePath,
                     sizeValueId = state.selectedSizeValueId,
+                    isFavorite = originalEntity?.isFavorite ?: 0,
                     status = originalEntity?.status ?: ClothingStatus.Active,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
                     createdAt = originalEntity?.createdAt ?: Instant.now(),
