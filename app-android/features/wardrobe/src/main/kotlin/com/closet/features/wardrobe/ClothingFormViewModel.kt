@@ -370,9 +370,14 @@ class ClothingFormViewModel @Inject constructor(
                 val file = storageRepository.getFile(path)
                 extractColorsFromFile(file)
             } catch (e: Exception) {
+                Timber.e(e, "image selection failed")
                 _form.update { it.copy(isLoading = false, errorMessage = com.closet.core.ui.R.string.error_unexpected) }
             }
         }
+    }
+
+    fun onErrorConsumed() {
+        _form.update { it.copy(errorMessage = null) }
     }
 
     private suspend fun extractColorsFromFile(file: File) {

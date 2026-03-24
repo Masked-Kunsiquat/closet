@@ -89,7 +89,7 @@ fun ClothingFormScreen(
     ResErrorSnackbarEffect(
         errorRes = uiState.errorMessage,
         snackbarHostState = snackbarHostState,
-        onErrorConsumed = { /* Error dismissed automatically or manually. */ }
+        onErrorConsumed = viewModel::onErrorConsumed
     )
 
     val launcher = rememberLauncherForActivityResult(
@@ -113,7 +113,7 @@ fun ClothingFormScreen(
             title = { Text(stringResource(R.string.wardrobe_discard_title)) },
             text = { Text(stringResource(R.string.wardrobe_discard_message)) },
             confirmButton = {
-                TextButton(onClick = onBackClick) {
+                TextButton(onClick = viewModel::cancel) {
                     Text(stringResource(R.string.wardrobe_discard_confirm))
                 }
             },
@@ -152,7 +152,7 @@ fun ClothingFormScreen(
                 onNameChange = viewModel::onNameChange,
                 onBrandQueryChange = viewModel::onBrandQueryChange,
                 onBrandSelect = viewModel::onBrandSelected,
-                onAddNewBrand = { /* Brand selection logic handles query sync. */ },
+                onAddNewBrand = null,
                 onManageBrands = onManageBrands,
                 onCategorySelect = viewModel::onCategorySelected,
                 onSubcategorySelect = viewModel::onSubcategorySelected,
@@ -215,7 +215,7 @@ internal fun ClothingFormContent(
     onNameChange: (String) -> Unit,
     onBrandQueryChange: (String) -> Unit,
     onBrandSelect: (BrandEntity) -> Unit,
-    onAddNewBrand: (String) -> Unit,
+    onAddNewBrand: ((String) -> Unit)?,
     onManageBrands: () -> Unit,
     onCategorySelect: (CategoryEntity?) -> Unit,
     onSubcategorySelect: (SubcategoryEntity?) -> Unit,

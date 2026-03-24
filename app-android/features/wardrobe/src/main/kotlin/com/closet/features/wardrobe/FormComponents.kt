@@ -306,10 +306,10 @@ internal fun BrandAutocompleteField(
     allBrands: List<BrandEntity>,
     onQueryChange: (String) -> Unit,
     onBrandSelect: (BrandEntity) -> Unit,
-    onAddNewBrand: (String) -> Unit
+    onAddNewBrand: ((String) -> Unit)? = null
 ) {
     val filteredBrands = allBrands.filter { it.name.contains(query, ignoreCase = true) }
-    val showAddOption = query.isNotBlank() &&
+    val showAddOption = onAddNewBrand != null && query.isNotBlank() &&
             filteredBrands.none { it.name.equals(query, ignoreCase = true) }
 
     var expanded by remember { mutableStateOf(false) }
