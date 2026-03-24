@@ -115,21 +115,18 @@ ClosetNavGraph.kt. Gear icon wired on ClosetScreen. DONE.
 SettingsScreen.kt + SettingsViewModel.kt exist. Dynamic color toggle +
 accent color picker implemented. DONE.
 
-🔲 1.3 — Weather section in Settings
-Extend SettingsViewModel to also inject WeatherPreferencesRepository.
-Add a "Weather" section to SettingsScreen with:
-- Toggle: "Show weather forecast" (off by default). On first enable →
-  trigger location permission request (Phase 2).
-- Service picker (visible only when toggle is on):
-  Open-Meteo / NWS / Google Weather API.
-- Conditional API key input field (visible only when Google is selected).
-- Units toggle: °C / °F (moves here from a hypothetical general section —
-  it only matters once weather is enabled).
-- "Clear cached forecast" action.
-
-All state flows from WeatherPreferencesRepository via SettingsViewModel.
-Note: features/settings can depend on both core/ui and core/data — no
-module dependency issue.
+✅ 1.3 — Weather section in Settings
+SettingsViewModel now injects WeatherPreferencesRepository alongside
+PreferencesRepository. Exposes 4 new StateFlows (weatherEnabled,
+weatherService, googleApiKey, temperatureUnit) + 5 new actions.
+SettingsScreen adds a "Weather" section:
+- Toggle: "Show weather forecast" (off by default)
+- Service picker (SingleChoiceSegmentedButtonRow, visible when on):
+  Open-Meteo / NWS / Google
+- API key field (OutlinedTextField, visible only when Google selected)
+- Temperature unit picker (°C / °F segmented button, visible when on)
+- "Clear cached forecast" tappable ListItem
+features/settings/build.gradle.kts gains :core:data dep.
 
   ---
 Phase 2 — Location permission

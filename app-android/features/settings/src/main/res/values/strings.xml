@@ -5,6 +5,7 @@
 
     <!-- Section headers -->
     <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_weather">Weather</string>
 
     <!-- Appearance preferences -->
     <string name="settings_dynamic_color">Use system colors</string>
@@ -20,4 +21,14 @@
     <string name="settings_accent_rose">Rose</string>
     <string name="settings_accent_selected">%s, selected</string>
     <string name="settings_accent_unselected">%s</string>
+
+    <!-- Weather preferences -->
+    <string name="settings_weather_enabled">Show weather forecast</string>
+    <string name="settings_weather_enabled_summary">Fetch today\'s forecast using your location</string>
+    <string name="settings_weather_service">Weather service</string>
+    <string name="settings_weather_api_key">Google API key</string>
+    <string name="settings_weather_api_key_placeholder">Paste your API key here</string>
+    <string name="settings_temperature_unit">Temperature unit</string>
+    <string name="settings_clear_cache">Clear cached forecast</string>
+    <string name="settings_clear_cache_summary">Remove stored forecast data</string>
 </resources>

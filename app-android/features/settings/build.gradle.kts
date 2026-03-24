@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:ui"))
+    implementation(project(":core:data"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
