@@ -36,7 +36,7 @@ class OpenMeteoClient @Inject constructor(
                 parameter(
                     "daily",
                     "temperature_2m_max,temperature_2m_min,precipitation_sum," +
-                        "windspeed_10m_max,weathercode,uv_index_max",
+                        "wind_speed_10m_max,weather_code,uv_index_max",
                 )
                 parameter("forecast_days", 7)
                 parameter("timezone", "auto")
@@ -53,7 +53,7 @@ class OpenMeteoClient @Inject constructor(
                 date = LocalDate.parse(daily.time[i]),
                 tempLow = daily.temperatureMin[i],
                 tempHigh = daily.temperatureMax[i],
-                condition = WeatherCondition.fromWmoCode(daily.weathercode[i]),
+                condition = WeatherCondition.fromWmoCode(daily.weatherCode[i]),
                 precipitationMm = daily.precipitationSum[i],
                 windSpeedKmh = daily.windspeedMax[i],
                 uvIndex = daily.uvIndexMax.getOrNull(i)?.toInt(),
@@ -68,8 +68,8 @@ class OpenMeteoClient @Inject constructor(
         @SerialName("temperature_2m_max") val temperatureMax: List<Double>,
         @SerialName("temperature_2m_min") val temperatureMin: List<Double>,
         @SerialName("precipitation_sum") val precipitationSum: List<Double>,
-        @SerialName("windspeed_10m_max") val windspeedMax: List<Double>,
-        val weathercode: List<Int>,
+        @SerialName("wind_speed_10m_max") val windspeedMax: List<Double>,
+        @SerialName("weather_code") val weatherCode: List<Int>,
         @SerialName("uv_index_max") val uvIndexMax: List<Double> = emptyList(),
     )
 }
