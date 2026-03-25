@@ -39,29 +39,29 @@ Reference: `outfit-recs-overview.md`
 
 ### Engine — core logic
 
-- [ ] `OutfitRecommendationEngine` — pure class, no Android/Hilt dependencies (unit-testable)
-- [ ] Hard filter step (clean, active, season/occasion)
-- [ ] Per-item suitability scoring (multiplicative multipliers; skip signal if < 5 logs)
-- [ ] Category completeness: build valid combos — (Top + Bottom) OR (OnePiece), optional Outerwear/Footwear/Accessory
-- [ ] Per-category cap: 1–2 candidates per slot before combining
-- [ ] Color deduplication: one item per color+subcategory combo
-- [ ] Layering validation (warmth_layer): enforce/encourage Outer on cold days; down-rank on warm days
-- [ ] Color harmony scoring (color_family pairwise outfit adjustment)
-- [ ] Pattern mixing scoring (solid/patterned classification + outfit-level bonus/penalty)
-- [ ] Outfit score = mean of item scores × outfit-level multipliers; tie-break by last-worn date
-- [ ] Return top 3 ranked combos
+- [x] `OutfitRecommendationEngine` — pure class, no Android/Hilt dependencies (unit-testable)
+- [x] Hard filter step (clean, active, season/occasion)
+- [x] Per-item suitability scoring (multiplicative multipliers; skip signal if < 5 logs)
+- [x] Category completeness: build valid combos — (Top + Bottom) OR (OnePiece), optional Outerwear/Footwear/Accessory
+- [x] Per-category cap: 1–2 candidates per slot before combining
+- [x] Color deduplication: one item per color+subcategory combo
+- [x] Layering validation (warmth_layer): enforce/encourage Outer on cold days; down-rank on warm days
+- [x] Color harmony scoring (color_family pairwise outfit adjustment)
+- [x] Pattern mixing scoring (solid/patterned classification + outfit-level bonus/penalty)
+- [x] Outfit score = mean of item scores × outfit-level multipliers; tie-break by last-worn date
+- [x] Return top 3 ranked combos
 
 ---
 
 ### Engine — unit tests
 
-- [ ] Hard filter: items failing wash/status/season/occasion are excluded
-- [ ] Suitability scoring: correct multipliers applied; sparse data skips signal
-- [ ] Category completeness: only valid Top+Bottom or OnePiece combos formed
-- [ ] Layering: cold day without Outer scores lower; warm day with Outer scores lower
-- [ ] Color harmony: same-family bonus, Bright+Bright penalty, Warm+Cool penalty
-- [ ] Pattern mixing: 1 patterned item bonus; 2+ patterned penalty
-- [ ] Top 3 returned; tied scores broken by last-worn
+- [x] Hard filter: items failing wash/status/season/occasion are excluded
+- [x] Suitability scoring: correct multipliers applied; sparse data skips signal
+- [x] Category completeness: only valid Top+Bottom or OnePiece combos formed
+- [x] Layering: cold day without Outer scores lower; warm day with Outer scores lower
+- [x] Color harmony: same-family bonus, Bright+Bright penalty, Warm+Cool penalty
+- [x] Pattern mixing: 1 patterned item bonus; 2+ patterned penalty
+- [x] Top 3 returned; tied scores broken by last-worn
 
 ---
 
