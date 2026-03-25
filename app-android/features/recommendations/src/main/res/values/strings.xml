@@ -4,4 +4,30 @@
     <string name="recommendations_title">Outfit Suggestions</string>
     <!-- Placeholder shown while ViewModel and UI are not yet implemented -->
     <string name="outfit_recommendations_coming_soon">Outfit recommendations coming soon</string>
+
+    <!-- Shared sheet actions -->
+    <string name="recs_sheet_skip">Skip</string>
+
+    <!-- OccasionSheet -->
+    <string name="recs_occasion_sheet_title">What\'s the occasion?</string>
+    <string name="recs_occasion_sheet_prompt">Pick one to filter suggestions, or skip.</string>
+    <string name="recs_occasion_sheet_empty">No occasions available.</string>
+
+    <!-- WeatherSheet -->
+    <string name="recs_weather_sheet_title">Today\'s weather</string>
+    <string name="recs_weather_autofill_chip">Pulled from location data</string>
+    <string name="recs_weather_section_temperature">Temperature range</string>
+    <string name="recs_weather_temp_low">Low</string>
+    <string name="recs_weather_temp_high">High</string>
+    <string name="recs_weather_temp_unit">°C</string>
+    <string name="recs_weather_section_condition">Condition</string>
+    <string name="recs_weather_condition_sunny">Sunny</string>
+    <string name="recs_weather_condition_cloudy">Cloudy</string>
+    <string name="recs_weather_condition_rainy">Rainy</string>
+    <string name="recs_weather_condition_snowy">Snowy</string>
+    <string name="recs_weather_condition_windy">Windy</string>
+    <string name="recs_weather_section_conditions">Active conditions</string>
+    <string name="recs_weather_toggle_raining">Raining</string>
+    <string name="recs_weather_toggle_windy">Windy</string>
+    <string name="recs_weather_confirm">Use these conditions</string>
 </resources>

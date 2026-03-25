@@ -79,14 +79,14 @@ Reference: `outfit-recs-overview.md`
 
 ### UI — pre-suggestion sheets
 
-- [ ] `OccasionSheet` — single-select bottom sheet, skippable; uses existing `OccasionEntity` list from `LookupDao`
-- [ ] `WeatherSheet` — bottom sheet with:
-  - [ ] Temp range inputs (low/high °C)
-  - [ ] Condition picker (Sunny / Cloudy / Rainy / Snowy / Windy)
-  - [ ] Precipitation toggle
-  - [ ] Wind toggle
-  - [ ] Autofill from `WeatherRepository` cache on open; show "Pulled from location data" chip when autofilled
-  - [ ] All fields user-overridable; sheet submittable with partial data
+- [x] `OccasionSheet` — single-select bottom sheet, skippable; uses existing `OccasionEntity` list from `LookupDao`
+- [x] `WeatherSheet` — bottom sheet with:
+  - [x] Temp range inputs (low/high °C)
+  - [x] Condition picker (Sunny / Cloudy / Rainy / Snowy / Windy)
+  - [x] Precipitation toggle
+  - [x] Wind toggle
+  - [x] Autofill from `WeatherRepository` cache on open; show "Pulled from location data" chip when autofilled
+  - [x] All fields user-overridable; sheet submittable with partial data
 
 ---
 
