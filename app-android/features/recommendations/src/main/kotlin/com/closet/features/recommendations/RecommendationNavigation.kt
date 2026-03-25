@@ -20,12 +20,12 @@ fun NavController.navigateToRecommendations(navOptions: NavOptions? = null) {
  *
  * @param onNavigateUp    Called when the user presses back from the Recommendations screen.
  * @param onNavigateToLog Called with item IDs when the user taps "Log it" on a combo.
- *                        Navigate to the outfit logging flow with those IDs pre-loaded.
- *                        Pass a no-op if the log screen is not yet wired.
+ *                        Pass null (the default) to disable the "Log it" button until
+ *                        [OutfitBuilderDestination] supports pre-selected item IDs.
  */
 fun NavGraphBuilder.recommendationScreen(
     onNavigateUp: () -> Unit = {},
-    onNavigateToLog: (List<Long>) -> Unit = {},
+    onNavigateToLog: ((List<Long>) -> Unit)? = null,
 ) {
     composable<RecommendationRoute> {
         RecommendationScreen(

@@ -33,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -61,14 +63,14 @@ import java.io.File
  *   confirmation ("Outfit saved") or error.
  *
  * @param onNavigateUp     Back-navigation lambda — passed in, not handled internally.
- * @param onNavigateToLog  Called with item IDs when the user taps "Log it".
- *                         The log screen is not implemented in this module.
+ * @param onNavigateToLog  Called with item IDs when the user taps "Log it". Pass null to
+ *                         disable the "Log it" button until the log flow is wired up.
  * @param viewModel        Injected by Hilt; override only in tests.
  */
 @Composable
 fun RecommendationScreen(
     onNavigateUp: () -> Unit = {},
-    onNavigateToLog: (List<Long>) -> Unit = {},
+    onNavigateToLog: ((List<Long>) -> Unit)? = null,
     viewModel: RecommendationViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -78,7 +80,7 @@ fun RecommendationScreen(
     // ── One-shot: "Log it" — navigate to log screen ──────────────────────────
     LaunchedEffect(viewModel) {
         viewModel.logItEvent.collect { itemIds ->
-            onNavigateToLog(itemIds)
+            onNavigateToLog?.invoke(itemIds)
         }
     }
 
@@ -123,8 +125,14 @@ fun RecommendationScreen(
                 is RecommendationUiState.Results -> ResultsContent(
                     combos = contentState.combos,
                     resolveImage = { path -> path?.let { viewModel.resolveImage(it) } },
+                    logItEnabled = onNavigateToLog != null,
                     onLogIt = viewModel::onLogIt,
                     onSaveForLater = viewModel::onSaveForLater,
+                    onRegenerate = viewModel::onRegenerate,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                is RecommendationUiState.NoResults -> NoResultsContent(
                     onRegenerate = viewModel::onRegenerate,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -213,23 +221,12 @@ private fun LoadingContent(
 private fun ResultsContent(
     combos: List<OutfitCombo>,
     resolveImage: (String?) -> File?,
+    logItEnabled: Boolean,
     onLogIt: (OutfitCombo) -> Unit,
     onSaveForLater: (OutfitCombo) -> Unit,
     onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (combos.isEmpty()) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text(
-                text = stringResource(R.string.recs_error_title),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        return
-    }
-
     val pagerState = rememberPagerState(pageCount = { combos.size })
 
     Column(
@@ -248,6 +245,7 @@ private fun ResultsContent(
             OutfitComboCard(
                 combo = combo,
                 resolveImage = resolveImage,
+                logItEnabled = logItEnabled,
                 onLogIt = { onLogIt(combo) },
                 onSaveForLater = { onSaveForLater(combo) },
                 onRegenerate = onRegenerate,
@@ -263,6 +261,42 @@ private fun ResultsContent(
                 .fillMaxWidth()
                 .padding(vertical = 12.dp),
         )
+    }
+}
+
+/**
+ * Shown in [RecommendationUiState.NoResults]. The engine ran successfully but
+ * couldn't form any valid combos — e.g. wardrobe too small, all items dirty/inactive.
+ * Offers a Regenerate button in case the user wants to retry with different filters.
+ */
+@Composable
+private fun NoResultsContent(
+    onRegenerate: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.recs_no_results_title),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.recs_no_results_body),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 32.dp),
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onRegenerate) {
+            Text(stringResource(R.string.recs_retry))
+        }
     }
 }
 
@@ -318,8 +352,9 @@ private fun PagerIndicator(
     currentPage: Int,
     modifier: Modifier = Modifier,
 ) {
+    val description = stringResource(R.string.recs_page_indicator_description, currentPage + 1, pageCount)
     Row(
-        modifier = modifier,
+        modifier = modifier.semantics { contentDescription = description },
         horizontalArrangement = Arrangement.Center,
     ) {
         repeat(pageCount) { index ->
@@ -398,6 +433,7 @@ private fun ResultsContentPreview() {
             ResultsContent(
                 combos = previewCombos,
                 resolveImage = { null },
+                logItEnabled = false,
                 onLogIt = {},
                 onSaveForLater = {},
                 onRegenerate = {},

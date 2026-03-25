@@ -34,6 +34,10 @@
     <!-- Suggestions screen — loading -->
     <string name="recs_loading_description">Finding outfit combinations…</string>
 
+    <!-- Suggestions screen — no results (valid outcome, not an error) -->
+    <string name="recs_no_results_title">No matches found</string>
+    <string name="recs_no_results_body">Try broadening your filters, adding more items to your wardrobe, or marking items as clean.</string>
+
     <!-- Suggestions screen — error -->
     <string name="recs_error_title">Something went wrong</string>
     <string name="recs_retry">Try Again</string>

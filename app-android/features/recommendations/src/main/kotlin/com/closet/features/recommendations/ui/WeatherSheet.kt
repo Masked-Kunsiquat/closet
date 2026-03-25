@@ -53,6 +53,13 @@ import com.closet.features.recommendations.model.WeatherConditions
  * resource ID for its label — resolved in the composable so the model stays
  * free of Android dependencies.
  */
+// Condition picker options. Only Rainy and Windy map to distinct engine signals
+// (WeatherConditions.isRaining / isWindy). Selecting Rainy/Windy also flips the
+// matching toggle so the two controls stay consistent.
+// Sunny, Cloudy, and Snowy are UX shortcuts that clear both toggles — the engine
+// currently has no separate signal for these conditions.
+// TODO: add isSnowing (and optionally isSunny) to WeatherConditions + EngineWeather
+//  when the engine gains temperature-band logic that distinguishes snow from clear days.
 private enum class WeatherConditionOption(val labelRes: Int) {
     Sunny(R.string.recs_weather_condition_sunny),
     Cloudy(R.string.recs_weather_condition_cloudy),
@@ -117,28 +124,30 @@ internal fun WeatherSheetContent(
     onSkip: () -> Unit,
 ) {
     // ── Local form state ──────────────────────────────────────────────────────
-    // rememberSaveable preserves values across recompositions but resets if the
-    // sheet is recreated — appropriate for a short-lived bottom sheet.
-    var tempLowText by rememberSaveable(prefill) {
-        mutableStateOf(prefill?.tempLowC?.let { formatTemp(it) } ?: "")
-    }
-    var tempHighText by rememberSaveable(prefill) {
-        mutableStateOf(prefill?.tempHighC?.let { formatTemp(it) } ?: "")
-    }
-    var selectedCondition by rememberSaveable(prefill) {
-        mutableStateOf<WeatherConditionOption?>(
-            when {
-                prefill?.isRaining == true -> WeatherConditionOption.Rainy
-                prefill?.isWindy == true -> WeatherConditionOption.Windy
-                else -> null
-            }
-        )
-    }
-    var isRaining by rememberSaveable(prefill) {
-        mutableStateOf(prefill?.isRaining ?: false)
-    }
-    var isWindy by rememberSaveable(prefill) {
-        mutableStateOf(prefill?.isWindy ?: false)
+    // Keys intentionally omit `prefill` so late-arriving autofill doesn't reset
+    // in-progress edits. Instead, prefill is applied once below when the form
+    // is still pristine (all fields at their default empty/false state).
+    var tempLowText by rememberSaveable { mutableStateOf("") }
+    var tempHighText by rememberSaveable { mutableStateOf("") }
+    var selectedCondition by rememberSaveable { mutableStateOf<WeatherConditionOption?>(null) }
+    var isRaining by rememberSaveable { mutableStateOf(false) }
+    var isWindy by rememberSaveable { mutableStateOf(false) }
+
+    // Apply autofill only when the form is still in its pristine default state so
+    // a late-arriving prefill doesn't overwrite values the user has already typed.
+    if (prefill != null &&
+        tempLowText.isEmpty() && tempHighText.isEmpty() &&
+        selectedCondition == null && !isRaining && !isWindy
+    ) {
+        tempLowText = prefill.tempLowC?.let { formatTemp(it) } ?: ""
+        tempHighText = prefill.tempHighC?.let { formatTemp(it) } ?: ""
+        isRaining = prefill.isRaining
+        isWindy = prefill.isWindy
+        selectedCondition = when {
+            prefill.isRaining -> WeatherConditionOption.Rainy
+            prefill.isWindy -> WeatherConditionOption.Windy
+            else -> null
+        }
     }
 
     Column(

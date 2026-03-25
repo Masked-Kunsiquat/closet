@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -57,6 +58,8 @@ import java.io.File
  * @param combo           The outfit combination to display.
  * @param resolveImage    Maps a relative [EngineItem.imagePath] to a [File] for Coil,
  *                        or returns null when no image exists for that path.
+ * @param logItEnabled    When false, the "Log it" button is disabled. Set to false until
+ *                        [OutfitBuilderDestination] supports pre-selected item IDs.
  * @param onLogIt         Called when the user taps "Log it".
  * @param onSaveForLater  Called when the user taps "Save for later".
  * @param onRegenerate    Called when the user taps "Regenerate".
@@ -66,6 +69,7 @@ import java.io.File
 fun OutfitComboCard(
     combo: OutfitCombo,
     resolveImage: (String?) -> File?,
+    logItEnabled: Boolean = false,
     onLogIt: () -> Unit,
     onSaveForLater: () -> Unit,
     onRegenerate: () -> Unit,
@@ -111,6 +115,7 @@ fun OutfitComboCard(
             // ── Action buttons ────────────────────────────────────────────────
             Button(
                 onClick = onLogIt,
+                enabled = logItEnabled,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.recs_action_log_it))
@@ -148,23 +153,29 @@ private fun ItemImageGrid(
     modifier: Modifier = Modifier,
 ) {
     // LazyVerticalGrid requires a fixed height when nested inside a Column.
-    // Calculate based on item count: 2 columns, each cell is ~160dp tall.
+    // Use BoxWithConstraints to measure available width, derive cell size from it
+    // (2 columns with 8dp gap), then compute exact grid height so cells remain square.
+    val cellSpacing = 8.dp
     val rowCount = (items.size + 1) / 2
-    val gridHeight = (rowCount * 160).dp
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = modifier.height(gridHeight),
-        contentPadding = PaddingValues(0.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        userScrollEnabled = false,
-    ) {
-        items(items) { item ->
-            ItemImageCell(
-                item = item,
-                resolveImage = resolveImage,
-            )
+    BoxWithConstraints(modifier = modifier) {
+        val cellSize = (maxWidth - cellSpacing) / 2
+        val gridHeight = cellSize * rowCount + cellSpacing * (rowCount - 1).coerceAtLeast(0)
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.height(gridHeight),
+            contentPadding = PaddingValues(0.dp),
+            horizontalArrangement = Arrangement.spacedBy(cellSpacing),
+            verticalArrangement = Arrangement.spacedBy(cellSpacing),
+            userScrollEnabled = false,
+        ) {
+            items(items) { item ->
+                ItemImageCell(
+                    item = item,
+                    resolveImage = resolveImage,
+                )
+            }
         }
     }
 }

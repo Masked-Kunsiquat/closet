@@ -162,8 +162,8 @@ fun ClosetNavGraph(
                 //  1. Convert OutfitBuilderDestination to a data class with an optional
                 //     `preselectedItemIds: List<Long>` parameter (default empty).
                 //  2. Update OutfitBuilderViewModel to accept and pre-populate those IDs.
-                //  3. Replace the no-op below with: navController.navigateToOutfitBuilder(itemIds)
-                onNavigateToLog = { _ -> },
+                //  3. Replace null below with: { itemIds -> navController.navigateToOutfitBuilder(itemIds) }
+                onNavigateToLog = null,
             )
             journalScreen()
 
