@@ -144,21 +144,21 @@ Reference: `outfit-recs-overview.md`
 
 ### Coherence scorer
 
-- [ ] `OutfitCoherenceScorer` — delegates to the active `OutfitAiProvider`
-- [ ] Build `PromptPrefix` (cached system instructions: output format, constraints, schema)
-- [ ] Serialize candidate payload as dynamic suffix (include suitability scores as context hints)
-- [ ] Nano only: `countTokens()` gate before inference; trim payload if over limit; treat `FinishReason.MAX_TOKENS` as failed inference
-- [ ] Validate `selected_ids` against candidate list before any DB interaction
-- [ ] Discard silently on JSON parse failure or unknown IDs; fall back to programmatic top 3
-- [ ] Surface `reason` field behind a "why?" tap (hidden by default)
+- [x] `OutfitCoherenceScorer` — delegates to the active `OutfitAiProvider`
+- [x] Build `PromptPrefix` (cached system instructions: output format, constraints, schema)
+- [x] Serialize candidate payload as dynamic suffix (include suitability scores as context hints)
+- [x] Nano only: `countTokens()` gate before inference; trim payload if over limit; treat `FinishReason.MAX_TOKENS` as failed inference
+- [x] Validate `selected_ids` against candidate list before any DB interaction
+- [x] Discard silently on JSON parse failure or unknown IDs; fall back to programmatic top 3
+- [x] Surface `reason` field behind a "why?" tap (hidden by default)
 
 ---
 
 ### Wire scorer into engine
 
-- [ ] Engine checks `aiReady` flag (Nano) or key presence (cloud providers) before invoking scorer
-- [ ] If not ready: return top-3 programmatic result with no AI label, no "why?" affordance
-- [ ] If ready: pass candidate payload to scorer; return re-ranked top 3
+- [x] Engine checks `aiReady` flag (Nano) or key presence (cloud providers) before invoking scorer
+- [x] If not ready: return top-3 programmatic result with no AI label, no "why?" affordance
+- [x] If ready: pass candidate payload to scorer; return re-ranked top 3
 
 ---
 
