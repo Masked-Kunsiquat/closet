@@ -1,7 +1,7 @@
 package com.closet.core.data.ai
 
 /**
- * Contract for AI providers that re-rank outfit candidates via coherence scoring.
+ * Contract for AI providers that curate outfit recommendations from a ranked combo pool.
  *
  * Modelled on the weather feature's [com.closet.core.data.weather.WeatherServiceClient]
  * pattern — lives in `core/data` so it can be injected from any module without creating
@@ -16,18 +16,21 @@ package com.closet.core.data.ai
  * The caller is responsible for:
  * - Checking [com.closet.core.data.repository.AiPreferencesRepository.getAiReady] (Nano)
  *   or key presence (cloud providers) before invoking.
- * - Validating [OutfitSuggestion.selectedIds] against the original candidate list.
+ * - Validating that all [OutfitSelection.comboId] values returned are within the range of
+ *   the supplied [combos] list before mapping back to [OutfitComboPayload].
  * - Discarding the result and falling back to the programmatic top-3 on any failure.
  */
 interface OutfitAiProvider {
     /**
-     * Ask the AI provider to select an outfit from [candidates].
+     * Ask the AI to select the 3 best outfits from [combos] for the given [styleVibe].
      *
-     * @param candidates Pre-filtered, programmatically ranked items (the payload). The
-     *                   provider must not see items that haven't passed the hard-filter step.
-     * @return [Result.success] with an [OutfitSuggestion] on a well-formed response, or
-     *         [Result.failure] on network error, JSON parse failure, or unsupported device.
-     *         The caller treats any [Result.failure] as a silent fallback to programmatic results.
+     * @param combos     Pool of outfit combos (up to 25) to curate from.
+     * @param styleVibe  The requested aesthetic e.g. "Streetwear", "Minimalist".
+     * @return [Result.success] with exactly 3 [OutfitSelection]s, or [Result.failure]
+     *         on any error. Caller falls back to programmatic top-3 on failure.
      */
-    suspend fun suggestOutfit(candidates: List<ClothingItemDto>): Result<OutfitSuggestion>
+    suspend fun selectOutfits(
+        combos: List<OutfitComboPayload>,
+        styleVibe: String,
+    ): Result<List<OutfitSelection>>
 }

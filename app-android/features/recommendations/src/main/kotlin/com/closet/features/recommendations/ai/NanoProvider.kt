@@ -5,8 +5,9 @@ import com.closet.core.data.ai.ClothingItemDto
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
+import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
-import com.closet.core.data.ai.OutfitSuggestion
+import com.closet.core.data.ai.OutfitSelection
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -14,7 +15,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.long
+import kotlinx.serialization.json.int
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -88,16 +89,16 @@ internal class StubNanoInferenceEngine : NanoInferenceEngine {
  * this provider will return [Result.failure] immediately if Nano is not available.
  *
  * Token management (countTokens / trim payload) is performed by the coherence scorer
- * layer (Phase 2 wiring), not here.
+ * layer, not here.
  *
  * Prompt design — constrained selection only:
- * The model selects IDs from the provided candidate list; it cannot hallucinate clothing
- * data. Response format (JSON only, no preamble):
+ * The model selects combo_ids from the provided combo list; it cannot hallucinate clothing
+ * data. Response format (JSON array, no preamble):
  * ```json
- * { "selected_ids": [1, 4, 7], "reason": "..." }
+ * [{"combo_id": 0, "reason": "..."}, {"combo_id": 3, "reason": "..."}, {"combo_id": 7, "reason": "..."}]
  * ```
- * Any response that fails JSON parsing or contains IDs not in the candidate list is
- * discarded silently by the caller, which falls back to the programmatic top-3.
+ * Any response that fails JSON parsing, returns fewer than 3 valid entries, or contains
+ * combo_ids not in the input is discarded by the caller, which falls back to programmatic top-3.
  *
  * Bound to [OutfitAiProvider] via [com.closet.features.recommendations.di.RecommendationModule].
  */
@@ -174,9 +175,12 @@ class NanoProvider @Inject constructor(
 
     // ── OutfitAiProvider ──────────────────────────────────────────────────────
 
-    override suspend fun suggestOutfit(candidates: List<ClothingItemDto>): Result<OutfitSuggestion> {
-        if (candidates.isEmpty()) {
-            return Result.failure(IllegalArgumentException("Candidate list is empty"))
+    override suspend fun selectOutfits(
+        combos: List<OutfitComboPayload>,
+        styleVibe: String,
+    ): Result<List<OutfitSelection>> {
+        if (combos.isEmpty()) {
+            return Result.failure(IllegalArgumentException("Combo list is empty"))
         }
 
         if (!engine.isAvailable()) {
@@ -186,52 +190,84 @@ class NanoProvider @Inject constructor(
         }
 
         return runCatching {
-            val candidateJson = buildCandidateJson(candidates)
-            val prompt = "$SYSTEM_PROMPT\n\nCandidates:\n$candidateJson"
+            val comboJson = buildComboJson(combos)
+            val prompt = "$SYSTEM_PROMPT\n\nStyle vibe: $styleVibe\n\nCombos:\n$comboJson"
 
             val responseText = engine.generate(prompt)
-            parseResponse(responseText)
+            parseResponse(responseText, combos)
         }.onFailure { e ->
             Timber.tag(TAG).w(e, "NanoProvider inference failed")
         }
     }
 
     /**
-     * Serializes the candidate list to compact JSON for the dynamic prompt suffix.
-     * Manual serialization avoids requiring [ClothingItemDto] to be annotated with
-     * @Serializable in core/data.
+     * Serializes the combo list to compact JSON for the dynamic prompt suffix.
+     *
+     * Shape:
+     * ```json
+     * [{"combo_id":0,"items":[{"id":1,"name":"...","clothing_type":"...","material":"...","outfit_role":"...","layer":"...","color_families":["Neutral"],"is_pattern_solid":true,"suitability_score":0.9},...]}]
+     * ```
      */
-    private fun buildCandidateJson(candidates: List<ClothingItemDto>): String =
+    private fun buildComboJson(combos: List<OutfitComboPayload>): String =
         buildString {
             append("[")
-            candidates.forEachIndexed { i, item ->
+            combos.forEachIndexed { i, combo ->
                 if (i > 0) append(",")
                 append("{")
-                append("\"id\":${item.id},")
-                append("\"name\":${item.name.asJsonString()},")
-                append("\"outfit_role\":${item.outfitRole?.asJsonString() ?: "null"},")
-                append("\"color_families\":[${item.colorFamilies.joinToString(",") { it.asJsonString() }}],")
-                append("\"is_pattern_solid\":${item.isPatternSolid},")
-                append("\"suitability_score\":${item.suitabilityScore}")
-                append("}")
+                append("\"combo_id\":${combo.comboId},")
+                append("\"items\":[")
+                combo.items.forEachIndexed { j, item ->
+                    if (j > 0) append(",")
+                    append(item.toJsonObject())
+                }
+                append("]}")
             }
             append("]")
         }
+
+    private fun ClothingItemDto.toJsonObject(): String = buildString {
+        append("{")
+        append("\"id\":$id,")
+        append("\"name\":${name.asJsonString()},")
+        append("\"clothing_type\":${clothingType?.asJsonString() ?: "null"},")
+        append("\"material\":${material?.asJsonString() ?: "null"},")
+        append("\"outfit_role\":${outfitRole?.asJsonString() ?: "null"},")
+        append("\"layer\":${layer?.asJsonString() ?: "null"},")
+        append("\"color_families\":[${colorFamilies.joinToString(",") { it.asJsonString() }}],")
+        append("\"is_pattern_solid\":$isPatternSolid,")
+        append("\"suitability_score\":$suitabilityScore")
+        append("}")
+    }
 
     /** Wraps a string in JSON double-quotes, escaping internal quotes and backslashes. */
     private fun String.asJsonString(): String =
         "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
     /**
-     * Parses the model's JSON response into an [OutfitSuggestion].
-     * Throws [IllegalStateException] on parse failure — callers catch via [runCatching].
+     * Parses the model's JSON response into a list of [OutfitSelection].
+     *
+     * Expected format: a top-level JSON array of objects, each with `combo_id` (Int)
+     * and `reason` (String). Validates that all returned combo_ids exist in [combos].
+     * Throws [IllegalStateException] if fewer than 3 valid selections are returned.
+     * Callers catch via [runCatching].
      */
-    private fun parseResponse(responseText: String): OutfitSuggestion {
-        val root = json.parseToJsonElement(responseText.trim()).jsonObject
-        val ids = root["selected_ids"]?.jsonArray?.map { it.jsonPrimitive.long }
-            ?: error("selected_ids missing from model response")
-        check(ids.isNotEmpty()) { "selected_ids array is empty in model response" }
-        val reason = root["reason"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
-        return OutfitSuggestion(selectedIds = ids, reason = reason)
+    private fun parseResponse(responseText: String, combos: List<OutfitComboPayload>): List<OutfitSelection> {
+        val validComboIds = combos.map { it.comboId }.toSet()
+        val array = json.parseToJsonElement(responseText.trim()).jsonArray
+        val selections = array.mapNotNull { element ->
+            val obj = element.jsonObject
+            val comboId = obj["combo_id"]?.jsonPrimitive?.int ?: return@mapNotNull null
+            val reason = obj["reason"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            if (comboId !in validComboIds) {
+                Timber.tag(TAG).w("Nano returned combo_id=%d not in input — discarding", comboId)
+                return@mapNotNull null
+            }
+            OutfitSelection(comboId = comboId, reason = reason)
+        }
+        check(selections.size >= 3) {
+            "Nano returned only ${selections.size} valid selections — need at least 3"
+        }
+        return selections.take(3)
     }
 }

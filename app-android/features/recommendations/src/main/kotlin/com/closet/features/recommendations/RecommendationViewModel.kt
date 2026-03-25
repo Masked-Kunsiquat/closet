@@ -404,9 +404,13 @@ class RecommendationViewModel @Inject constructor(
             item.id to baseScore
         }
 
-        // 8. Optional AI coherence scoring — prepend AI combo at position 0 if successful
-        val aiCombo = try {
-            scorer.score(engineInput = input, itemScores = itemScoresForScorer)
+        // 8. Optional AI coherence scoring — replaces top-3 with AI-curated combos if successful
+        val aiCombos = try {
+            scorer.score(
+                combos = programmaticCombos,
+                engineInput = input,
+                itemScores = itemScoresForScorer,
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -414,11 +418,7 @@ class RecommendationViewModel @Inject constructor(
             null
         }
 
-        return@coroutineScope if (aiCombo != null) {
-            listOf(aiCombo) + programmaticCombos
-        } else {
-            programmaticCombos
-        }
+        return@coroutineScope aiCombos ?: programmaticCombos
     }
 
     /**

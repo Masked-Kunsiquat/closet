@@ -1,10 +1,13 @@
 package com.closet.features.recommendations.ai
 
 import com.closet.core.data.ai.ClothingItemDto
+import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
-import com.closet.core.data.ai.OutfitSuggestion
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.repository.ItemAiContextHint
+import com.closet.core.data.repository.RecommendationRepository
+import com.closet.core.data.util.DataResult
 import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitCombo
@@ -14,15 +17,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Delegates to the active [OutfitAiProvider] to re-rank the programmatic top-3
- * outfit candidates using AI coherence scoring.
+ * Delegates to the active [OutfitAiProvider] to curate 3 AI-selected outfit combos
+ * from the programmatic candidate pool.
  *
  * ### Role in the pipeline
- * The [OutfitRecommendationEngine] always runs first and produces the programmatic
- * top-3. This scorer is invoked *after* the engine, and optionally prepends an
- * AI-selected combo at position 0. It never replaces the engine — it augments its
- * output. If the scorer is unavailable, returns an error, or produces an invalid
- * response, the engine result is used as-is with no AI label.
+ * The [OutfitRecommendationEngine] always runs first and produces the full programmatic
+ * combo list. This scorer receives that list and optionally replaces the top-3 with
+ * AI-selected combos. It never replaces the engine — it augments its output. If the
+ * scorer is unavailable, returns an error, or produces an invalid response, the engine
+ * result is used as-is with no AI label.
  *
  * ### Provider selection
  * The active provider is determined at call time by reading
@@ -32,50 +35,59 @@ import javax.inject.Singleton
  * - [AiProvider.Anthropic] — always returns null (not yet implemented).
  *
  * ### Token gate (Nano only)
- * Before calling [NanoProvider.suggestOutfit], the full prompt (system prefix +
- * candidate JSON) is counted via [NanoProvider.countTokens]. If the count exceeds
- * the stored token limit from [AiPreferencesRepository.getTokenLimit], candidates
- * are trimmed from the tail (lowest suitability score first) until the prompt fits.
- * If no candidates remain after trimming, the scorer returns null.
+ * Before calling [NanoProvider.selectOutfits], the full prompt (system prefix +
+ * combo JSON) is counted via [NanoProvider.countTokens]. If the count exceeds
+ * the stored token limit from [AiPreferencesRepository.getTokenLimit], combos
+ * are trimmed from the tail (lowest average suitability score first) until the
+ * prompt fits. If no combos remain after trimming, the scorer returns null.
  *
  * [StubNanoInferenceEngine.countTokens] returns [Int.MAX_VALUE], so trimming never
  * fires until the real MLKit implementation is wired.
  *
  * ### Validation
- * [OutfitSuggestion.selectedIds] are validated against the original candidate ID set.
- * Any IDs not present in the candidate list are discarded. If no valid IDs remain
- * after filtering, the scorer returns null.
+ * Returned [OutfitSelection.comboId] values are validated against the input combo
+ * index range. Any out-of-range IDs are discarded. If fewer than 3 valid selections
+ * remain, the scorer returns null.
  *
  * ### Silent failure
- * All failures ([Result.failure], JSON errors, empty valid IDs) return null — the
- * caller then uses the programmatic result unchanged.
+ * All failures ([Result.failure], JSON errors, insufficient valid selections) return
+ * null — the caller then uses the programmatic result unchanged.
  */
 @Singleton
 class OutfitCoherenceScorer @Inject constructor(
     private val nanoProvider: NanoProvider,
     private val openAiProvider: OpenAiProvider,
     private val aiPreferencesRepository: AiPreferencesRepository,
+    private val recommendationRepository: RecommendationRepository,
 ) {
 
     companion object {
         private const val TAG = "OutfitCoherenceScorer"
+        /** Maximum number of combos to send to the AI in a single request. */
+        private const val MAX_COMBOS = 25
     }
 
     /**
-     * Attempts AI coherence scoring on the engine's candidate pool.
+     * Attempts AI curation on the engine's combo pool.
      *
-     * @param engineInput  The full engine input — provides the candidate item pool and
-     *                     their attributes for [ClothingItemDto] serialization.
-     * @param itemScores   Per-item suitability scores computed by the engine's scoring
-     *                     step. Included as context hints in [ClothingItemDto.suitabilityScore].
+     * @param combos       Full list of [OutfitCombo]s from the engine (already ranked by score).
+     *                     Up to [MAX_COMBOS] are sent to the AI; the rest are silently dropped.
+     * @param engineInput  The full engine input — provides the candidate item pool for building
+     *                     [ClothingItemDto] payloads.
+     * @param itemScores   Per-item suitability scores computed by the engine's scoring step.
+     *                     Included as context hints in [ClothingItemDto.suitabilityScore].
      *                     Items absent from this map receive a neutral score of 1.0.
-     * @return An [OutfitCombo] with [OutfitCombo.isAiSelected] = true if the scorer
-     *         produced a valid result, or null if AI is unavailable / scoring failed.
+     * @param styleVibe    The requested aesthetic e.g. "Smart Casual", "Streetwear". Passed to
+     *                     the provider as the style filter instruction.
+     * @return A list of exactly 3 [OutfitCombo]s with [OutfitCombo.isAiSelected] = true if the
+     *         scorer produced a valid result, or null if AI is unavailable / scoring failed.
      */
     suspend fun score(
+        combos: List<OutfitCombo>,
         engineInput: EngineInput,
         itemScores: Map<Long, Double>,
-    ): OutfitCombo? {
+        styleVibe: String = "Smart Casual",
+    ): List<OutfitCombo>? {
         // 1. Check master AI toggle
         val aiEnabled = aiPreferencesRepository.getAiEnabled().first()
         if (!aiEnabled) return null
@@ -105,60 +117,78 @@ class OutfitCoherenceScorer @Inject constructor(
             }
         }
 
-        // 3. Build ClothingItemDto list from engine candidates
-        var candidates: List<ClothingItemDto> = engineInput.candidates.map { item ->
-            item.toDto(suitabilityScore = itemScores[item.id] ?: 1.0)
-        }
+        // 3. Cap the combo pool at MAX_COMBOS
+        val pool = combos.take(MAX_COMBOS)
+        if (pool.isEmpty()) return null
 
-        if (candidates.isEmpty()) return null
-
-        // 4. Nano-only: token count gate — trim if over limit
-        if (provider == AiProvider.Nano) {
-            candidates = trimCandidatesToTokenLimit(candidates)
-            if (candidates.isEmpty()) {
-                Timber.tag(TAG).w("All candidates trimmed by token gate — falling back")
+        // 4. Fetch AI context hints for all items across all combos in the pool
+        val allItemIds = pool.flatMap { combo -> combo.items.map { it.id } }.distinct()
+        val contextHints: Map<Long, ItemAiContextHint> = when (val r = recommendationRepository.getAiContextHints(allItemIds)) {
+            is DataResult.Success -> r.data
+            else -> {
+                Timber.tag(TAG).w("getAiContextHints failed — falling back to programmatic result")
                 return null
             }
         }
 
-        // 5. Call the active provider
-        val result = activeProvider.suggestOutfit(candidates)
+        // 5. Build OutfitComboPayload list — each combo gets a sequential comboId
+        var payloads: List<OutfitComboPayload> = pool.mapIndexed { index, combo ->
+            OutfitComboPayload(
+                comboId = index,
+                items = combo.items.map { item ->
+                    item.toDto(
+                        suitabilityScore = itemScores[item.id] ?: 1.0,
+                        contextHint = contextHints[item.id],
+                    )
+                }
+            )
+        }
+
+        // 6. Nano-only: token count gate — trim combos if over limit
+        if (provider == AiProvider.Nano) {
+            payloads = trimCombosToTokenLimit(payloads, styleVibe)
+            if (payloads.isEmpty()) {
+                Timber.tag(TAG).w("All combos trimmed by token gate — falling back")
+                return null
+            }
+        }
+
+        // 7. Call the active provider
+        val result = activeProvider.selectOutfits(payloads, styleVibe)
         if (result.isFailure) {
             Timber.tag(TAG).w(result.exceptionOrNull(), "AI provider returned failure — falling back")
             return null
         }
 
-        val suggestion = result.getOrNull() ?: return null
+        val selections = result.getOrNull() ?: return null
 
-        // 6. Validate selected_ids against the candidate list
-        val candidateIdSet = candidates.map { it.id }.toSet()
-        val validIds = suggestion.selectedIds.filter { it in candidateIdSet }
-        if (validIds.isEmpty()) {
+        // 8. Validate combo_ids against the payload index range
+        val validIdRange = payloads.map { it.comboId }.toSet()
+        val validSelections = selections.filter { it.comboId in validIdRange }
+        if (validSelections.size < 3) {
             Timber.tag(TAG).w(
-                "AI returned IDs not in candidate list (raw=%s) — discarding",
-                suggestion.selectedIds
+                "AI returned only %d valid combo_ids (raw=%s) — discarding",
+                validSelections.size,
+                selections.map { it.comboId },
             )
             return null
         }
 
-        // 7. Build the OutfitCombo from valid selected IDs
-        val itemById: Map<Long, EngineItem> = engineInput.candidates.associateBy { it.id }
-        val selectedItems = validIds.mapNotNull { itemById[it] }
-        if (selectedItems.isEmpty()) return null
+        // 9. Map the 3 selections back to OutfitCombo objects
+        val comboByIndex: Map<Int, OutfitCombo> = pool.mapIndexed { index, combo -> index to combo }.toMap()
+        val aiCombos = validSelections.take(3).mapNotNull { selection ->
+            val original = comboByIndex[selection.comboId] ?: return@mapNotNull null
+            original.copy(isAiSelected = true, reason = selection.reason)
+        }
+        if (aiCombos.size < 3) return null
 
         Timber.tag(TAG).d(
-            "AI selected %d items (provider=%s, reason=%s)",
-            selectedItems.size,
+            "AI selected 3 combos (provider=%s, styleVibe=%s)",
             provider.name,
-            suggestion.reason,
+            styleVibe,
         )
 
-        return OutfitCombo(
-            items = selectedItems,
-            score = selectedItems.map { itemScores[it.id] ?: 1.0 }.average(),
-            isAiSelected = true,
-            reason = suggestion.reason,
-        )
+        return aiCombos
     }
 
     // -------------------------------------------------------------------------
@@ -166,34 +196,35 @@ class OutfitCoherenceScorer @Inject constructor(
     // -------------------------------------------------------------------------
 
     /**
-     * Trims the candidate list until the full prompt (system prefix + candidate JSON)
+     * Trims the combo list until the full prompt (system prefix + style vibe + combo JSON)
      * fits within the Nano model's token limit.
      *
-     * Trim strategy: drop the lowest-scoring candidate (last in the list, which is
-     * pre-sorted descending by suitability score) on each iteration.
+     * Trim strategy: drop the lowest-scoring combo (last in the list, which is pre-sorted
+     * descending by average item suitability) on each iteration.
      *
      * Returns the original list unchanged when the limit is 0 (DataStore not yet
      * populated) or when the stub engine returns [Int.MAX_VALUE].
      */
-    private suspend fun trimCandidatesToTokenLimit(
-        candidates: List<ClothingItemDto>,
-    ): List<ClothingItemDto> {
+    private suspend fun trimCombosToTokenLimit(
+        payloads: List<OutfitComboPayload>,
+        styleVibe: String,
+    ): List<OutfitComboPayload> {
         val tokenLimit = aiPreferencesRepository.getTokenLimit().first()
         // 0 means not yet populated (Nano not ready) — skip trimming
-        if (tokenLimit <= 0) return candidates
+        if (tokenLimit <= 0) return payloads
 
-        // Sort descending by suitability so we drop lowest-scoring items from the tail
-        val sorted = candidates.sortedByDescending { it.suitabilityScore }.toMutableList()
+        val sorted = payloads.toMutableList()
 
         while (sorted.isNotEmpty()) {
-            val candidateJson = buildCandidateJson(sorted)
-            val fullPrompt = "${OutfitPromptPrefix.SYSTEM_PROMPT}\n\nCandidates:\n$candidateJson"
+            val comboJson = buildComboJson(sorted)
+            val fullPrompt = "${OutfitPromptPrefix.SYSTEM_PROMPT}\n\nStyle vibe: $styleVibe\n\nCombos:\n$comboJson"
             val tokenCount = nanoProvider.countTokens(fullPrompt)
             if (tokenCount <= tokenLimit) break
-            // Drop the lowest-scoring candidate (tail of descending-sorted list)
             sorted.removeAt(sorted.lastIndex)
-            Timber.tag(TAG).d("Token gate: trimmed to %d candidates (count=%d, limit=%d)",
-                sorted.size, tokenCount, tokenLimit)
+            Timber.tag(TAG).d(
+                "Token gate: trimmed to %d combos (count=%d, limit=%d)",
+                sorted.size, tokenCount, tokenLimit,
+            )
         }
 
         return sorted
@@ -204,26 +235,40 @@ class OutfitCoherenceScorer @Inject constructor(
     // -------------------------------------------------------------------------
 
     /**
-     * Serializes candidate list to compact JSON for token counting.
+     * Serializes combo list to compact JSON for token counting.
      * Must produce exactly the same output as the providers' own serialization so
      * the token count is accurate.
      */
-    private fun buildCandidateJson(candidates: List<ClothingItemDto>): String =
+    private fun buildComboJson(payloads: List<OutfitComboPayload>): String =
         buildString {
             append("[")
-            candidates.forEachIndexed { i, item ->
+            payloads.forEachIndexed { i, combo ->
                 if (i > 0) append(",")
                 append("{")
-                append("\"id\":${item.id},")
-                append("\"name\":${item.name.asJsonString()},")
-                append("\"outfit_role\":${item.outfitRole?.asJsonString() ?: "null"},")
-                append("\"color_families\":[${item.colorFamilies.joinToString(",") { it.asJsonString() }}],")
-                append("\"is_pattern_solid\":${item.isPatternSolid},")
-                append("\"suitability_score\":${item.suitabilityScore}")
-                append("}")
+                append("\"combo_id\":${combo.comboId},")
+                append("\"items\":[")
+                combo.items.forEachIndexed { j, item ->
+                    if (j > 0) append(",")
+                    append(item.toJsonObject())
+                }
+                append("]}")
             }
             append("]")
         }
+
+    private fun ClothingItemDto.toJsonObject(): String = buildString {
+        append("{")
+        append("\"id\":$id,")
+        append("\"name\":${name.asJsonString()},")
+        append("\"clothing_type\":${clothingType?.asJsonString() ?: "null"},")
+        append("\"material\":${material?.asJsonString() ?: "null"},")
+        append("\"outfit_role\":${outfitRole?.asJsonString() ?: "null"},")
+        append("\"layer\":${layer?.asJsonString() ?: "null"},")
+        append("\"color_families\":[${colorFamilies.joinToString(",") { it.asJsonString() }}],")
+        append("\"is_pattern_solid\":$isPatternSolid,")
+        append("\"suitability_score\":$suitabilityScore")
+        append("}")
+    }
 
     private fun String.asJsonString(): String =
         "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
@@ -236,13 +281,22 @@ class OutfitCoherenceScorer @Inject constructor(
 /**
  * Maps an [EngineItem] to the [ClothingItemDto] payload sent to the AI provider.
  *
- * [suitabilityScore] is the per-item score from the engine's scoring step, included
- * as a context hint so the model has statistical signal beyond raw item attributes.
+ * @param suitabilityScore  Per-item score from the engine's scoring step, included as a
+ *                          context hint so the model has statistical signal beyond raw attributes.
+ * @param contextHint       Optional AI enrichment context from [RecommendationRepository.getAiContextHints].
+ *                          Provides human-readable subcategory name and primary material.
+ *                          Null fields are passed through as null in the DTO.
  */
-private fun EngineItem.toDto(suitabilityScore: Double): ClothingItemDto = ClothingItemDto(
+private fun EngineItem.toDto(
+    suitabilityScore: Double,
+    contextHint: ItemAiContextHint?,
+): ClothingItemDto = ClothingItemDto(
     id = id,
     name = name,
+    clothingType = contextHint?.subcategoryName,
+    material = contextHint?.primaryMaterial,
     outfitRole = outfitRole,
+    layer = warmthLayer,
     colorFamilies = colorFamilies,
     isPatternSolid = isPatternSolid,
     suitabilityScore = suitabilityScore,
