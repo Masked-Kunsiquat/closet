@@ -39,6 +39,7 @@ class AiPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     // Keys
+    private val aiEnabledKey = booleanPreferencesKey("ai_enabled")
     private val selectedProviderKey = stringPreferencesKey("ai_selected_provider")
     private val openAiApiKeyKey = stringPreferencesKey("ai_openai_api_key")
     private val openAiBaseUrlKey = stringPreferencesKey("ai_openai_base_url")
@@ -46,6 +47,23 @@ class AiPreferencesRepository @Inject constructor(
     private val anthropicApiKeyKey = stringPreferencesKey("ai_anthropic_api_key")
     private val nanoAiReadyKey = booleanPreferencesKey("ai_nano_ready")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
+
+    // ── Master AI toggle ─────────────────────────────────────────────────────
+
+    /**
+     * Whether AI coherence scoring is enabled at all. Independent of [getAiReady] —
+     * a user can have AI enabled with an OpenAI key without Nano ever being downloaded.
+     * Defaults to false (off by default).
+     */
+    fun getAiEnabled(): Flow<Boolean> = context.aiDataStore.data.map { prefs ->
+        prefs[aiEnabledKey] ?: false
+    }
+
+    suspend fun setAiEnabled(enabled: Boolean) {
+        context.aiDataStore.edit { prefs ->
+            prefs[aiEnabledKey] = enabled
+        }
+    }
 
     // ── Provider selection ───────────────────────────────────────────────────
 
