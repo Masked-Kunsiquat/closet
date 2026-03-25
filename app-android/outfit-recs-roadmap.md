@@ -159,6 +159,7 @@ Reference: `outfit-recs-overview.md`
 - [x] Engine checks `aiReady` flag (Nano) or key presence (cloud providers) before invoking scorer
 - [x] If not ready: return top-3 programmatic result with no AI label, no "why?" affordance
 - [x] If ready: pass candidate payload to scorer; return re-ranked top 3
+- [x] Dynamic engine pool size — `recommend()` accepts `topN`/`candidatesPerSlot` params; ViewModel passes 25/3 when AI ready, defaults (3/2) when not; `isAiReady()` helper encapsulates provider-specific gating
 
 ---
 

@@ -7,8 +7,9 @@ package com.closet.features.recommendations.engine
  * `@Singleton` so Hilt creates exactly one instance for the app's lifetime. It remains
  * fully unit-testable without Hilt — just call the constructor directly in tests.
  *
- * Takes pre-fetched data as [EngineInput] and returns the top 3 ranked [OutfitCombo]s
- * (or fewer if the wardrobe cannot form 3 valid combos).
+ * Takes pre-fetched data as [EngineInput] and returns the top-N ranked [OutfitCombo]s
+ * (or fewer if the wardrobe cannot form that many valid combos). The pool size is
+ * controlled by the [recommend] parameters — defaults are [TOP_N] / [CANDIDATES_PER_SLOT].
  *
  * ### Pipeline
  * 1. Hard filter — redundant safety check: Active + Clean (DAO already filtered, but
@@ -84,13 +85,23 @@ class OutfitRecommendationEngine @javax.inject.Inject constructor() {
     // -------------------------------------------------------------------------
 
     /**
-     * Run the full recommendation pipeline and return the top [TOP_N] combos.
+     * Run the full recommendation pipeline and return the top-N combos.
      *
-     * @param input Pre-fetched engine input (no I/O performed inside this call).
-     * @return Up to 3 [OutfitCombo]s ranked highest-score-first. Empty if the wardrobe
+     * @param input             Pre-fetched engine input (no I/O performed inside this call).
+     * @param topN              Maximum number of combos to return. Defaults to [TOP_N] (3).
+     *                          Pass a larger value (e.g. 25) when AI is enabled so the
+     *                          coherence scorer has a wider pool to curate from.
+     * @param candidatesPerSlot Maximum candidates kept per outfit-role slot after scoring
+     *                          and deduplication. Defaults to [CANDIDATES_PER_SLOT] (2).
+     *                          Increase to 3 when AI is enabled to broaden variety.
+     * @return Up to [topN] [OutfitCombo]s ranked highest-score-first. Empty if the wardrobe
      *         cannot form any valid outfit combination.
      */
-    fun recommend(input: EngineInput): List<OutfitCombo> {
+    fun recommend(
+        input: EngineInput,
+        topN: Int = TOP_N,
+        candidatesPerSlot: Int = CANDIDATES_PER_SLOT,
+    ): List<OutfitCombo> {
         // 1. Hard filter — redundant safety guard on top of DAO filter
         val safeItems = input.candidates.filter { isActiveAndClean(it) }
         if (safeItems.isEmpty()) return emptyList()
@@ -107,7 +118,7 @@ class OutfitRecommendationEngine @javax.inject.Inject constructor() {
             items
                 .sortedByDescending { itemScores[it.id] ?: 1.0 }
                 .deduplicateByColorAndSubcategory()
-                .take(CANDIDATES_PER_SLOT)
+                .take(candidatesPerSlot)
         }
 
         // 4. Build valid combos from capped candidates
@@ -127,7 +138,7 @@ class OutfitRecommendationEngine @javax.inject.Inject constructor() {
                 compareByDescending<OutfitCombo> { it.score }
                     .thenBy { combo -> comboTieBreakKey(combo, input) }
             )
-            .take(TOP_N)
+            .take(topN)
     }
 
     // -------------------------------------------------------------------------

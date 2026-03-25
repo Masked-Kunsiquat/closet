@@ -9,7 +9,9 @@ import com.closet.core.data.dao.ItemPatternName
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
+import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.OccasionEntity
+import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.RecommendationRepository
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -70,6 +73,7 @@ class RecommendationViewModel @Inject constructor(
     private val outfitRepository: OutfitRepository,
     private val lookupRepository: LookupRepository,
     private val storageRepository: StorageRepository,
+    private val aiPrefsRepo: AiPreferencesRepository,
 ) : ViewModel() {
 
     // -------------------------------------------------------------------------
@@ -381,8 +385,14 @@ class RecommendationViewModel @Inject constructor(
             weather = engineWeather
         )
 
-        // 6. Run the pure engine
-        val programmaticCombos = engine.recommend(input)
+        // 6. Run the pure engine — expand the pool when AI is ready so the scorer
+        //    has more combos to curate from.
+        val aiReady = isAiReady()
+        val programmaticCombos = if (aiReady) {
+            engine.recommend(input, topN = 25, candidatesPerSlot = 3)
+        } else {
+            engine.recommend(input)
+        }
         if (programmaticCombos.isEmpty()) return@coroutineScope emptyList()
 
         // 7. Per-item scores used by the engine — needed for ClothingItemDto suitability hints.
@@ -408,6 +418,28 @@ class RecommendationViewModel @Inject constructor(
             listOf(aiCombo) + programmaticCombos
         } else {
             programmaticCombos
+        }
+    }
+
+    /**
+     * Returns true when AI scoring is both enabled by the user and actually ready to run.
+     *
+     * Readiness rules per provider:
+     * - [AiProvider.Nano]      — [AiPreferencesRepository.getAiReady] must be true (model downloaded).
+     * - [AiProvider.OpenAi]   — an API key must have been stored.
+     * - [AiProvider.Anthropic] — always false (not yet implemented).
+     *
+     * The master [AiPreferencesRepository.getAiEnabled] toggle is checked first; if the
+     * user has AI off, this returns false without reading provider-specific state.
+     *
+     * Kept as a clean helper so the coherence scorer gating uses the same logic.
+     */
+    private suspend fun isAiReady(): Boolean {
+        if (!aiPrefsRepo.getAiEnabled().first()) return false
+        return when (aiPrefsRepo.getSelectedProvider().first()) {
+            AiProvider.Nano -> aiPrefsRepo.getAiReady().first()
+            AiProvider.OpenAi -> aiPrefsRepo.getOpenAiApiKey().first().isNotBlank()
+            AiProvider.Anthropic -> false
         }
     }
 
