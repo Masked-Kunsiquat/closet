@@ -13,7 +13,7 @@ data class DailyForecast(
     val tempLow: Double,          // °C
     val tempHigh: Double,         // °C
     val condition: WeatherCondition,
-    val precipitationMm: Double,
+    val precipitationMm: Double?,     // null when not provided by the service
     val windSpeedKmh: Double,
     val uvIndex: Int?,
     val humidity: Int?,           // percent; null when not provided by the service

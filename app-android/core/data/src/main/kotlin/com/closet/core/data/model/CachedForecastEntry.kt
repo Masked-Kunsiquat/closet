@@ -16,7 +16,7 @@ data class CachedForecastEntry(
     val tempLowC: Double,
     val tempHighC: Double,
     val conditionName: String,    // WeatherCondition.name
-    val precipitationMm: Double,
+    val precipitationMm: Double?,
     val windSpeedKmh: Double,
     val uvIndex: Int?,
     val humidity: Int?,

@@ -270,9 +270,9 @@ internal fun SettingsContent(
                         onSelect = onTemperatureUnitChange,
                     )
                 }
-                item {
-                    ClearCacheItem(onClick = onClearCache)
-                }
+            }
+            item {
+                ClearCacheItem(onClick = onClearCache)
             }
         }
     }

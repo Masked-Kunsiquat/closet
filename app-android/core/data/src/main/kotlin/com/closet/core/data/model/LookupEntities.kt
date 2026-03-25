@@ -25,7 +25,7 @@ data class CategoryEntity(
     val icon: String? = null,
     @ColumnInfo(name = "sort_order") val sortOrder: Int,
     /** Thermal role of this category. Values: None | Base | Mid | Outer. */
-    @ColumnInfo(name = "warmth_layer") val warmthLayer: String = "None",
+    @ColumnInfo(name = "warmth_layer", defaultValue = "None") val warmthLayer: String = "None",
 )
 
 /** Clothing subcategory (e.g. T-Shirt, Jeans) belonging to a parent [CategoryEntity]. */

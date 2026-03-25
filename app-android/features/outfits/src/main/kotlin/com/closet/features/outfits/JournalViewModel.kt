@@ -90,13 +90,17 @@ class JournalViewModel @Inject constructor(
     private val _showForecastSheet = MutableStateFlow(false)
 
     // Emits today's 7-day forecast whenever weather is enabled; empty list when disabled.
+    // Emits emptyList() immediately so combine() is not blocked while the fetch is in-flight.
     private val forecastDays: Flow<List<DailyForecast>> =
         weatherPrefsRepo.getWeatherEnabled().flatMapLatest { enabled ->
             if (!enabled) flowOf(emptyList())
             else flow {
-                weatherRepository.getForecast()
-                    .onSuccess { emit(it) }
-                    .onFailure { Timber.w(it, "JournalViewModel: forecast unavailable") }
+                emit(emptyList())
+                when (val result = weatherRepository.getForecast()) {
+                    is DataResult.Success -> emit(result.data)
+                    is DataResult.Error -> Timber.w(result.throwable, "JournalViewModel: forecast unavailable")
+                    DataResult.Loading -> Unit
+                }
             }
         }
 

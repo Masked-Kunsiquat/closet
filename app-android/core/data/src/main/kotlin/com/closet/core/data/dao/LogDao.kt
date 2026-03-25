@@ -163,6 +163,20 @@ interface LogDao {
         }
         return logId
     }
+
+    /**
+     * Atomically returns the existing log ID for [outfitId] + [date], or inserts a new
+     * log (with optional weather fields) and returns its row ID. The check-then-insert
+     * runs inside a single transaction to avoid a TOCTOU race.
+     *
+     * @return The existing or newly created log row ID.
+     */
+    @Transaction
+    suspend fun getOrCreateLog(log: OutfitLogEntity): Long {
+        val existing = log.outfitId?.let { getLogIdByOutfitAndDate(it, log.date) }
+        if (existing != null) return existing
+        return insertLogAndSnapshot(log)
+    }
 }
 
 /**

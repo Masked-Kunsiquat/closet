@@ -45,6 +45,7 @@ class GoogleWeatherClient @Inject constructor(
                 parameter("location.latitude", lat)
                 parameter("location.longitude", lon)
                 parameter("days", 7)
+                parameter("pageSize", 7)
             }.body()
             response.toForecasts()
         }.onFailure { Timber.e(it, "GoogleWeatherClient: fetch failed") }
@@ -129,17 +130,18 @@ class GoogleWeatherClient @Inject constructor(
 
     companion object {
         private fun mapConditionType(type: String?): WeatherCondition = when (type?.uppercase()) {
-            "CLEAR" -> WeatherCondition.Sunny
+            "CLEAR", "MOSTLY_CLEAR" -> WeatherCondition.Sunny
             "PARTLY_CLOUDY" -> WeatherCondition.PartlyCloudy
             "MOSTLY_CLOUDY", "CLOUDY" -> WeatherCondition.Cloudy
             "FOGGY", "FOG" -> WeatherCondition.Foggy
-            "DRIZZLE", "LIGHT_RAIN" -> WeatherCondition.Drizzle
-            "RAIN", "HEAVY_RAIN", "RAIN_SHOWERS" -> WeatherCondition.Rainy
-            "FREEZING_RAIN", "SLEET" -> WeatherCondition.Sleet
+            "DRIZZLE", "LIGHT_RAIN", "LIGHT_RAIN_SHOWERS" -> WeatherCondition.Drizzle
+            "RAIN", "HEAVY_RAIN", "RAIN_SHOWERS", "WIND_AND_RAIN", "SCATTERED_SHOWERS",
+            "HEAVY_RAIN_SHOWERS" -> WeatherCondition.Rainy
+            "FREEZING_RAIN", "SLEET", "RAIN_AND_SNOW" -> WeatherCondition.Sleet
             "SNOW", "LIGHT_SNOW", "SNOW_SHOWERS" -> WeatherCondition.Snowy
             "HEAVY_SNOW", "BLIZZARD" -> WeatherCondition.HeavySnow
-            "THUNDERSTORM" -> WeatherCondition.Thunderstorm
-            "WINDY" -> WeatherCondition.Windy
+            "THUNDERSTORM", "THUNDERSHOWER" -> WeatherCondition.Thunderstorm
+            "WINDY", "SQUALL" -> WeatherCondition.Windy
             else -> WeatherCondition.Cloudy
         }
     }

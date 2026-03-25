@@ -276,7 +276,8 @@
             "fieldPath": "warmthLayer",
             "columnName": "warmth_layer",
             "affinity": "TEXT",
-            "notNull": true
+            "notNull": true,
+            "defaultValue": "None"
           }
         ],
         "primaryKey": {

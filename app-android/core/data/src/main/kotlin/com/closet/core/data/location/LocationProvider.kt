@@ -45,7 +45,7 @@ class LocationProvider @Inject constructor(
         for (provider in listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)) {
             if (!locationManager.isProviderEnabled(provider)) continue
             val loc = locationManager.getLastKnownLocation(provider) ?: continue
-            Timber.d("LocationProvider: cached fix from $provider (%.4f, %.4f)".format(loc.latitude, loc.longitude))
+            Timber.d("LocationProvider: cached fix from $provider")
             return Pair(loc.latitude, loc.longitude)
         }
         return null
@@ -57,13 +57,13 @@ class LocationProvider @Inject constructor(
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
                     locationManager.removeUpdates(this)
-                    Timber.d("LocationProvider: active fix (%.4f, %.4f)".format(location.latitude, location.longitude))
-                    cont.resume(Pair(location.latitude, location.longitude))
+                    Timber.d("LocationProvider: active fix received")
+                    if (cont.isActive) cont.resume(Pair(location.latitude, location.longitude))
                 }
 
                 override fun onProviderDisabled(provider: String) {
                     locationManager.removeUpdates(this)
-                    cont.resume(null)
+                    if (cont.isActive) cont.resume(null)
                 }
             }
             try {
@@ -76,7 +76,7 @@ class LocationProvider @Inject constructor(
                 cont.invokeOnCancellation { locationManager.removeUpdates(listener) }
             } catch (e: Exception) {
                 Timber.e(e, "LocationProvider: requestLocationUpdates failed")
-                cont.resume(null)
+                if (cont.isActive) cont.resume(null)
             }
         }
 }

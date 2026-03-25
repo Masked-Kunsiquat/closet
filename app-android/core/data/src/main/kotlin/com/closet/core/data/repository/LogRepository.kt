@@ -76,9 +76,7 @@ class LogRepository @Inject constructor(
         precipitationMm: Double? = null,
         windSpeedKmh: Double? = null,
     ): DataResult<Long> = try {
-        val existingId = logDao.getLogIdByOutfitAndDate(outfitId, date)
-        if (existingId != null) return DataResult.Success(existingId)
-        val logId = logDao.insertLogAndSnapshot(
+        val logId = logDao.getOrCreateLog(
             OutfitLogEntity(
                 outfitId = outfitId,
                 date = date,

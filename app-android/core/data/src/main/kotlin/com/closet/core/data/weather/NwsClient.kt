@@ -6,6 +6,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import timber.log.Timber
 import java.time.LocalDate
@@ -27,7 +28,7 @@ private const val USER_AGENT = "(hangr wardrobe app, github.com/Masked-Kunsiquat
  *
  * Notes:
  * - Precipitation (mm) is not available in the basic gridpoint forecast endpoint;
- *   `precipitationMm` is always 0.0.
+ *   `precipitationMm` is always `null`.
  * - UV index and humidity are not available from this endpoint; both are `null`.
  *
  * Reference: https://www.weather.gov/documentation/services-web-api
@@ -38,7 +39,7 @@ class NwsClient @Inject constructor(
 ) : WeatherServiceClient {
 
     override suspend fun fetchDailyForecast(lat: Double, lon: Double): Result<List<DailyForecast>> =
-        runCatching {
+        try {
             // Step 1 — resolve grid point for this lat/lon
             val points: NwsPointsResponse = client.get("$POINTS_URL/$lat,$lon") {
                 header("User-Agent", USER_AGENT)
@@ -51,8 +52,13 @@ class NwsClient @Inject constructor(
                 header("Accept", "application/geo+json")
             }.body()
 
-            mergePeriods(forecast.properties.periods)
-        }.onFailure { Timber.e(it, "NwsClient: fetch failed") }
+            Result.success(mergePeriods(forecast.properties.periods))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, "NwsClient: fetch failed")
+            Result.failure(e)
+        }
 
     /**
      * NWS delivers 12-hour periods (daytime + nighttime). Group by calendar date
@@ -78,14 +84,20 @@ class NwsClient @Inject constructor(
             .map { (date, pair) ->
                 val day = pair.first
                 val night = pair.second
-                val representative = day ?: night!! // safe: filter above guarantees at least one
+                val dayCondition = day?.let { mapShortForecast(it.shortForecast) }
+                val nightCondition = night?.let { mapShortForecast(it.shortForecast) }
+                val worstCondition = worstOf(dayCondition, nightCondition) ?: WeatherCondition.Cloudy
+                val maxWindKmh = maxOf(
+                    day?.let { parseWindSpeedKmh(it.windSpeed) } ?: 0.0,
+                    night?.let { parseWindSpeedKmh(it.windSpeed) } ?: 0.0,
+                )
                 DailyForecast(
                     date = date,
                     tempHigh = (day ?: night!!).temperatureCelsius,
                     tempLow = (night ?: day!!).temperatureCelsius,
-                    condition = mapShortForecast(representative.shortForecast),
-                    precipitationMm = 0.0,
-                    windSpeedKmh = parseWindSpeedKmh(representative.windSpeed),
+                    condition = worstCondition,
+                    precipitationMm = null,
+                    windSpeedKmh = maxWindKmh,
                     uvIndex = null,
                     humidity = null,
                 )
@@ -115,6 +127,32 @@ class NwsClient @Inject constructor(
         if (windSpeed.contains("calm", ignoreCase = true)) return 0.0
         val mph = Regex("""\d+""").findAll(windSpeed).map { it.value.toInt() }.lastOrNull() ?: 0
         return mph * 1.60934
+    }
+
+    /**
+     * Returns the more severe of two [WeatherCondition]s, or the non-null one if only
+     * one is present. Severity order (highest first): Thunderstorm, HeavySnow, Snowy,
+     * Sleet, Rainy, Drizzle, Foggy, Windy, PartlyCloudy, Cloudy, Sunny, null.
+     */
+    private fun worstOf(a: WeatherCondition?, b: WeatherCondition?): WeatherCondition? {
+        if (a == null) return b
+        if (b == null) return a
+        val severity = listOf(
+            WeatherCondition.Thunderstorm,
+            WeatherCondition.HeavySnow,
+            WeatherCondition.Snowy,
+            WeatherCondition.Sleet,
+            WeatherCondition.Rainy,
+            WeatherCondition.Drizzle,
+            WeatherCondition.Foggy,
+            WeatherCondition.Windy,
+            WeatherCondition.PartlyCloudy,
+            WeatherCondition.Cloudy,
+            WeatherCondition.Sunny,
+        )
+        val indexA = severity.indexOf(a).takeIf { it >= 0 } ?: severity.size
+        val indexB = severity.indexOf(b).takeIf { it >= 0 } ?: severity.size
+        return if (indexA <= indexB) a else b
     }
 
     // ── Response DTOs ─────────────────────────────────────────────────────────

@@ -27,6 +27,16 @@ import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
+@Composable
+private fun LocalDate.toForecastLabelComposable(): String {
+    val today = LocalDate.now()
+    return when (this) {
+        today -> stringResource(R.string.journal_forecast_today)
+        today.plusDays(1) -> stringResource(R.string.journal_forecast_tomorrow)
+        else -> "${dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())} $dayOfMonth"
+    }
+}
+
 /**
  * Bottom sheet showing a 7-day forecast.
  *
@@ -82,13 +92,13 @@ private fun DailyForecastRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = forecast.date.toForecastLabel(),
+            text = forecast.date.toForecastLabelComposable(),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
         )
         Icon(
             imageVector = forecast.condition.icon(),
-            contentDescription = forecast.condition.label,
+            contentDescription = null, // decorative — condition label follows immediately
             modifier = Modifier.size(18.dp),
         )
         Spacer(Modifier.width(6.dp))
@@ -106,11 +116,3 @@ private fun DailyForecastRow(
     }
 }
 
-private fun LocalDate.toForecastLabel(): String {
-    val today = LocalDate.now()
-    return when (this) {
-        today -> "Today"
-        today.plusDays(1) -> "Tomorrow"
-        else -> "${dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())} $dayOfMonth"
-    }
-}

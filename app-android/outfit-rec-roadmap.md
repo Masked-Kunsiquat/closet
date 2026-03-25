@@ -41,7 +41,7 @@ Coherence scoring is an enhancement layered on top when the device supports it.
 - Occasion match — user-selects at suggestion time
 
 ### 1b. Statistical suitability scores (derived from log history, not stored)
-These are SQL aggregations over `outfit_logs` + `outfit_log_items` + `outfit_log`
+These are SQL aggregations over `outfit_logs` + `outfit_log_items` + `outfit_logs`
 weather columns. Items with no history are treated as neutral (score = 0.5).
 
 - **Comfortable temp range** — collect all logs where this item was worn with a

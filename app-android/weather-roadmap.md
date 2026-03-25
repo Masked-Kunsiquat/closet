@@ -222,8 +222,13 @@ toDisplayTemp() honours temperatureUnit preference passed from JournalContent.
 Phase 5 — Schema gaps (needed for outfit recommendation filtering)
 
 These are independent of Phases 1–4 and can be done at any time, but are
-required before weather data can drive outfit suggestions. All changes
-go in Migration 2 (or a new migration if chain has moved).
+required before weather data can drive outfit suggestions.
+
+Migration conventions (see also core/data/.../migrations/AGENTS.md):
+- NEVER edit an applied migration. Add a new one instead.
+- Every migrate() block MUST start with:
+    db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+  even if the migration does not touch outfit_logs.
 
 Design decisions settled (2026-03-24):
 

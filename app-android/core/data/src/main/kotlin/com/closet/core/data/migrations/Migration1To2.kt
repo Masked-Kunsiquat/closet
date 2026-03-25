@@ -32,9 +32,10 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         // ── Gap 4: Warmth layer on categories ──────────────────────────────────
         db.execSQL("ALTER TABLE categories ADD COLUMN warmth_layer TEXT NOT NULL DEFAULT 'None'")
 
-        // Only Outerwear is unambiguously an outer layer at the category level.
+        // Backfill known warmth layers. Other categories default to 'None'.
         // Users can update Mid/Base assignments via the UI when the engine ships.
         db.execSQL("UPDATE categories SET warmth_layer = 'Outer' WHERE name = 'Outerwear'")
+        db.execSQL("UPDATE categories SET warmth_layer = 'Base'  WHERE name = 'Underwear & Intimates'")
 
         // ── Gap 5: Precipitation and wind on outfit_logs ───────────────────────
         db.execSQL("ALTER TABLE outfit_logs ADD COLUMN precipitation_mm REAL")

@@ -42,6 +42,7 @@ class WeatherPreferencesRepository @Inject constructor(
     private val cachedForecastTimestampKey = longPreferencesKey("cached_forecast_timestamp")
     private val cachedLatitudeKey = doublePreferencesKey("cached_latitude")
     private val cachedLongitudeKey = doublePreferencesKey("cached_longitude")
+    private val cachedForecastServiceKey = stringPreferencesKey("cached_forecast_service")
 
     // ── Weather enabled ──────────────────────────────────────────────────────
 
@@ -109,8 +110,13 @@ class WeatherPreferencesRepository @Inject constructor(
         prefs[cachedLongitudeKey] ?: 0.0
     }
 
+    /** Returns the [WeatherService] that produced the current cached forecast, or null if no cache. */
+    fun getCachedForecastService(): Flow<WeatherService?> = context.weatherDataStore.data.map { prefs ->
+        prefs[cachedForecastServiceKey]?.let { WeatherService.fromString(it) }
+    }
+
     /**
-     * Writes all four cache fields atomically in a single DataStore transaction.
+     * Writes all cache fields atomically in a single DataStore transaction.
      * Call this after a successful forecast fetch.
      */
     suspend fun saveCache(
@@ -118,12 +124,14 @@ class WeatherPreferencesRepository @Inject constructor(
         timestamp: Long,
         latitude: Double,
         longitude: Double,
+        service: WeatherService,
     ) {
         context.weatherDataStore.edit { prefs ->
             prefs[cachedForecastJsonKey] = forecastJson
             prefs[cachedForecastTimestampKey] = timestamp
             prefs[cachedLatitudeKey] = latitude
             prefs[cachedLongitudeKey] = longitude
+            prefs[cachedForecastServiceKey] = service.name
         }
     }
 
@@ -137,6 +145,7 @@ class WeatherPreferencesRepository @Inject constructor(
             prefs.remove(cachedForecastTimestampKey)
             prefs.remove(cachedLatitudeKey)
             prefs.remove(cachedLongitudeKey)
+            prefs.remove(cachedForecastServiceKey)
         }
     }
 }
