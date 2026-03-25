@@ -157,7 +157,13 @@ fun ClosetNavGraph(
 
             recommendationScreen(
                 onNavigateUp = { navController.popBackStack() },
-                onNavigateToLog = { /* outfit log screen not yet wired — no-op stub */ },
+                // TODO: wire "Log it" — OutfitBuilderDestination is currently a plain object with no
+                //  support for pre-selected items. To implement this:
+                //  1. Convert OutfitBuilderDestination to a data class with an optional
+                //     `preselectedItemIds: List<Long>` parameter (default empty).
+                //  2. Update OutfitBuilderViewModel to accept and pre-populate those IDs.
+                //  3. Replace the no-op below with: navController.navigateToOutfitBuilder(itemIds)
+                onNavigateToLog = { _ -> },
             )
             journalScreen()
 
