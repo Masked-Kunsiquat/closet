@@ -19,6 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -48,7 +50,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.dao.CalendarDay
 import com.closet.core.data.dao.OutfitLogWithMeta
+import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.OutfitWithItems
+import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherCondition
 import java.io.File
 import java.time.DayOfWeek
@@ -96,6 +100,8 @@ fun JournalScreen(
         onDismissEdit = viewModel::dismissLogEdit,
         onSaveEdit = viewModel::saveLogEdit,
         resolveImage = viewModel::resolveImagePath,
+        onForecastChipClick = viewModel::openForecastSheet,
+        onDismissForecastSheet = viewModel::closeForecastSheet,
         modifier = modifier,
     )
 }
@@ -121,6 +127,8 @@ internal fun JournalContent(
     onDismissEdit: () -> Unit,
     onSaveEdit: (notes: String?, weatherCondition: WeatherCondition?) -> Unit,
     resolveImage: (String?) -> File?,
+    onForecastChipClick: () -> Unit,
+    onDismissForecastSheet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val today = remember(uiState.currentYearMonth) { LocalDate.now() }
@@ -144,6 +152,15 @@ internal fun JournalContent(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
+            if (uiState.todayForecast != null) {
+                TodayForecastChip(
+                    forecast = uiState.todayForecast,
+                    temperatureUnit = uiState.temperatureUnit,
+                    onClick = onForecastChipClick,
+                )
+                Spacer(Modifier.height(4.dp))
+            }
+
             MonthNavHeader(
                 yearMonth = uiState.currentYearMonth,
                 onPrevious = onPreviousMonth,
@@ -166,6 +183,14 @@ internal fun JournalContent(
                 JournalEmptyState()
             }
         }
+    }
+
+    if (uiState.showForecastSheet) {
+        ForecastSheet(
+            forecasts = uiState.forecastDays,
+            temperatureUnit = uiState.temperatureUnit,
+            onDismiss = onDismissForecastSheet,
+        )
     }
 
     val selectedDate = uiState.selectedDate
@@ -192,6 +217,7 @@ internal fun JournalContent(
                 onOotdToggle = onOotdToggle,
                 onDeleteLog = onDeleteLog,
                 resolveImage = resolveImage,
+                temperatureUnit = uiState.temperatureUnit,
             )
         }
     }
@@ -374,6 +400,35 @@ private fun DayCell(
             )
         }
     }
+}
+
+// ─── Today's forecast chip ────────────────────────────────────────────────────
+
+@Composable
+private fun TodayForecastChip(
+    forecast: DailyForecast,
+    temperatureUnit: TemperatureUnit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AssistChip(
+        onClick = onClick,
+        label = {
+            Text(
+                text = "${forecast.condition.label} · " +
+                    "${forecast.tempLow.toDisplayTemp(temperatureUnit)} / " +
+                    forecast.tempHigh.toDisplayTemp(temperatureUnit),
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = forecast.condition.icon(),
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+        },
+        modifier = modifier,
+    )
 }
 
 // ─── Empty state ──────────────────────────────────────────────────────────────

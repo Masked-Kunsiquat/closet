@@ -34,6 +34,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:ui"))
+    implementation(project(":core:data"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -42,6 +43,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     debugImplementation(libs.androidx.ui.tooling)
 
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
 

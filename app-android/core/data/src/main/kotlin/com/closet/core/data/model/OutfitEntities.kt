@@ -77,6 +77,8 @@ data class OutfitItemEntity(
  * @property temperatureLow Optional low temperature recorded for the day.
  * @property temperatureHigh Optional high temperature recorded for the day.
  * @property weatherCondition Optional weather condition tag for the day.
+ * @property precipitationMm Optional precipitation amount (mm) recorded for the day.
+ * @property windSpeedKmh Optional wind speed (km/h) recorded for the day.
  * @property createdAt Timestamp of when this log entry was created.
  */
 @Entity(
@@ -104,6 +106,8 @@ data class OutfitLogEntity(
     @ColumnInfo(name = "temperature_low") val temperatureLow: Double? = null,
     @ColumnInfo(name = "temperature_high") val temperatureHigh: Double? = null,
     @ColumnInfo(name = "weather_condition") val weatherCondition: WeatherCondition? = null,
+    @ColumnInfo(name = "precipitation_mm") val precipitationMm: Double? = null,
+    @ColumnInfo(name = "wind_speed_kmh") val windSpeedKmh: Double? = null,
     @ColumnInfo(name = "created_at") val createdAt: Instant = Instant.now()
 )
 

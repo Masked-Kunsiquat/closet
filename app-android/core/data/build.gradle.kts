@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -16,6 +17,10 @@ android {
 
     sourceSets {
         getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     compileOptions {
@@ -47,6 +52,18 @@ dependencies {
 
     // Palette
     implementation(libs.androidx.palette.ktx)
+
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
+    // Serialization (for cache DTOs + service response parsing)
+    implementation(libs.kotlinx.serialization.json)
+
+    // Ktor HTTP client
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.logging)
 
     // Logging
     implementation(libs.timber)
