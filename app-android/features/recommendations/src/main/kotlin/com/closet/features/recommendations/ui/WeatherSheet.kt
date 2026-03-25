@@ -243,10 +243,11 @@ internal fun WeatherSheetContent(
                 FilterChip(
                     selected = selectedCondition == option,
                     onClick = {
-                        selectedCondition = if (selectedCondition == option) null else option
-                        // Sync toggles when condition chip is tapped
-                        if (selectedCondition == WeatherConditionOption.Rainy) isRaining = true
-                        if (selectedCondition == WeatherConditionOption.Windy) isWindy = true
+                        val newCondition = if (selectedCondition == option) null else option
+                        selectedCondition = newCondition
+                        // Bidirectional sync: selecting clears the other toggle, deselecting clears both
+                        isRaining = newCondition == WeatherConditionOption.Rainy
+                        isWindy = newCondition == WeatherConditionOption.Windy
                     },
                     label = { Text(stringResource(option.labelRes)) },
                 )
