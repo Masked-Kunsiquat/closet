@@ -23,6 +23,7 @@ import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.model.WeatherConditions
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -151,11 +152,15 @@ class RecommendationViewModel @Inject constructor(
 
     /**
      * User taps "Regenerate" — re-run the engine with the same occasion and weather
-     * that produced the current [RecommendationUiState.Results].
+     * that produced the current [RecommendationUiState.Results] or [RecommendationUiState.NoResults].
      */
     fun onRegenerate() {
-        val current = uiState.value as? RecommendationUiState.Results ?: return
-        runEngine(occasionId = current.occasionId, weather = current.weather)
+        val (occasionId, weather) = when (val s = uiState.value) {
+            is RecommendationUiState.Results -> s.occasionId to s.weather
+            is RecommendationUiState.NoResults -> s.occasionId to s.weather
+            else -> return
+        }
+        runEngine(occasionId = occasionId, weather = weather)
     }
 
     /**
@@ -251,11 +256,17 @@ class RecommendationViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val combos = fetchAndRun(occasionId = occasionId, weather = weather)
-                _uiState.value = RecommendationUiState.Results(
-                    combos = combos,
-                    occasionId = occasionId,
-                    weather = weather
-                )
+                _uiState.value = if (combos.isEmpty()) {
+                    RecommendationUiState.NoResults(occasionId = occasionId, weather = weather)
+                } else {
+                    RecommendationUiState.Results(
+                        combos = combos,
+                        occasionId = occasionId,
+                        weather = weather
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "RecommendationViewModel: engine pipeline failed")
                 _uiState.value = RecommendationUiState.Error(

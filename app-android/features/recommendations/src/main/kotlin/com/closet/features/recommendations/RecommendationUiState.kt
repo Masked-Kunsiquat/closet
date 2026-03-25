@@ -10,9 +10,11 @@ import com.closet.features.recommendations.model.WeatherConditions
  *   Idle → OccasionSheet  (user taps "Get suggestions")
  *   OccasionSheet → WeatherSheet  (occasion selected or skipped)
  *   WeatherSheet → Loading  (weather confirmed or skipped)
- *   Loading → Results  (engine returns combos)
- *   Loading → Error  (repo or engine failure)
- *   Results → Loading  (user taps Regenerate)
+ *   Loading → Results    (engine returns ≥1 combo)
+ *   Loading → NoResults  (engine returns 0 combos — valid, not an error)
+ *   Loading → Error      (repo or engine failure)
+ *   Results → Loading    (user taps Regenerate)
+ *   NoResults → Loading  (user taps Regenerate)
  *   any → Idle  (user dismisses)
  */
 sealed interface RecommendationUiState {
@@ -50,6 +52,19 @@ sealed interface RecommendationUiState {
         val combos: List<OutfitCombo>,
         val occasionId: Long?,
         val weather: WeatherConditions?
+    ) : RecommendationUiState
+
+    /**
+     * Engine ran successfully but no valid combos could be formed (e.g. wardrobe
+     * is too small, or all items are dirty/inactive for the given filters).
+     * This is a valid outcome — not an error.
+     *
+     * @property occasionId The occasion used for this run, or null if skipped.
+     * @property weather The weather conditions used for this run, or null if skipped.
+     */
+    data class NoResults(
+        val occasionId: Long?,
+        val weather: WeatherConditions?,
     ) : RecommendationUiState
 
     /**
