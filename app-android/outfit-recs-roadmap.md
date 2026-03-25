@@ -67,13 +67,13 @@ Reference: `outfit-recs-overview.md`
 
 ### ViewModel
 
-- [ ] `RecommendationViewModel` (`@HiltViewModel`) with `StateFlow<RecommendationUiState>`
-- [ ] States: `Idle → OccasionSheet → WeatherSheet → Loading → Results(combos) → Error`
-- [ ] Handle occasion selected / skipped
-- [ ] Handle weather confirmed / skipped / autofill from `WeatherRepository`
-- [ ] Handle regenerate (re-runs engine, replaces all 3 combos)
-- [ ] Handle "Log it" (passes selected combo IDs to outfit logging flow)
-- [ ] Handle "Save for later" (creates a named outfit from combo)
+- [x] `RecommendationViewModel` (`@HiltViewModel`) with `StateFlow<RecommendationUiState>`
+- [x] States: `Idle → OccasionSheet → WeatherSheet → Loading → Results(combos) → Error`
+- [x] Handle occasion selected / skipped
+- [x] Handle weather confirmed / skipped / autofill from `WeatherRepository`
+- [x] Handle regenerate (re-runs engine, replaces all 3 combos)
+- [x] Handle "Log it" (passes selected combo IDs to outfit logging flow)
+- [x] Handle "Save for later" (creates a named outfit from combo)
 
 ---
 
