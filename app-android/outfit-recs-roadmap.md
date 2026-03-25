@@ -25,15 +25,15 @@ Reference: `outfit-recs-overview.md`
 
 ### Data layer — engine inputs
 
-- [ ] Define `RecommendationRequest` data class (occasion: `Long?`, weather: `WeatherConditions?`)
-- [ ] Define `WeatherConditions` parameter object (tempLowC, tempHighC, isRaining, isWindy) — engine receives this directly, never calls `WeatherRepository` itself
-- [ ] Add `RecommendationDao` with hard-filter candidate query (Active + Clean + season match + optional occasion)
-- [ ] Add suitability score queries to `RecommendationDao`:
-  - [ ] Temp percentile query (10th–90th of logged `temperature_low`/`temperature_high` per item)
-  - [ ] Rain% query (% of logs where `precipitation_mm` > 1.0, per item)
-  - [ ] Wind% query (% of logs where `wind_speed_kmh` > 30, per item)
-  - [ ] Last-worn date query per item (for tie-breaking only, not scoring)
-- [ ] Add `RecommendationRepository` wrapping DAO calls in `DataResult`
+- [x] Define `RecommendationRequest` data class (occasion: `Long?`, weather: `WeatherConditions?`)
+- [x] Define `WeatherConditions` parameter object (tempLowC, tempHighC, isRaining, isWindy) — engine receives this directly, never calls `WeatherRepository` itself
+- [x] Add `RecommendationDao` with hard-filter candidate query (Active + Clean + season match + optional occasion)
+- [x] Add suitability score queries to `RecommendationDao`:
+  - [x] Temp percentile query (10th–90th of logged `temperature_low`/`temperature_high` per item)
+  - [x] Rain% query (% of logs where `precipitation_mm` > 1.0, per item)
+  - [x] Wind% query (% of logs where `wind_speed_kmh` > 30, per item)
+  - [x] Last-worn date query per item (for tie-breaking only, not scoring)
+- [x] Add `RecommendationRepository` wrapping DAO calls in `DataResult`
 
 ---
 

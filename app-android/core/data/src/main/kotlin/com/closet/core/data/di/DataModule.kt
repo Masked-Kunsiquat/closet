@@ -69,6 +69,11 @@ object DataModule {
     @Singleton
     fun provideBrandDao(db: ClothingDatabase): BrandDao = db.brandDao()
 
+    /** Provides the [RecommendationDao] singleton from the shared database instance. */
+    @Provides
+    @Singleton
+    fun provideRecommendationDao(db: ClothingDatabase): RecommendationDao = db.recommendationDao()
+
     /** Provides the [WeatherPreferencesRepository] singleton backed by its own DataStore file. */
     @Provides
     @Singleton

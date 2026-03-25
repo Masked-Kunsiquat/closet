@@ -56,6 +56,8 @@ abstract class ClothingDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     /** @return [StatsDao] for wardrobe analytics. */
     abstract fun statsDao(): StatsDao
+    /** @return [RecommendationDao] for the outfit recommendation pipeline. */
+    abstract fun recommendationDao(): RecommendationDao
 
     companion object {
         private const val DATABASE_NAME = "closet.db"
