@@ -2,9 +2,13 @@ package com.closet.features.recommendations.ai
 
 import android.content.Context
 import com.closet.core.data.ai.ClothingItemDto
+import com.closet.core.data.ai.NanoInitResult
+import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
 import com.closet.core.data.ai.OutfitSuggestion
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -87,7 +91,7 @@ internal class StubNanoInferenceEngine : NanoInferenceEngine {
 class NanoProvider @Inject constructor(
     @ApplicationContext private val context: Context,
     private val json: Json,
-) : OutfitAiProvider {
+) : OutfitAiProvider, NanoInitializer {
 
     // TODO: replace StubNanoInferenceEngine with the real MLKit-backed implementation when
     //   com.google.mlkit:genai-inference lands on Google Maven.
@@ -116,6 +120,46 @@ class NanoProvider @Inject constructor(
             {"selected_ids": [<id1>, <id2>, ...], "reason": "<one sentence>"}
         """.trimIndent()
     }
+
+    // ── NanoInitializer ───────────────────────────────────────────────────────
+
+    /**
+     * Runs the Nano init sequence and emits progress + terminal result.
+     *
+     * Sequence:
+     *   1. [NanoInferenceEngine.isAvailable] — if false → emit [NanoInitResult.NotSupported]
+     *   2. Simulated download progress (real impl replaces with MLKit download stream)
+     *   3. getTokenLimit() — stubbed as 0 until the real engine lands
+     *   4. Emits [NanoInitResult.Success] with the token limit
+     *
+     * Because [StubNanoInferenceEngine.isAvailable] always returns false, this flow will
+     * always emit [NanoInitResult.NotSupported] until the real MLKit implementation is wired.
+     */
+    override fun initNanoFlow(): Flow<NanoInitResult> = flow {
+        Timber.tag(TAG).d("initNanoFlow: checking Nano availability")
+        if (!engine.isAvailable()) {
+            Timber.tag(TAG).d("initNanoFlow: Nano not supported on this device")
+            emit(NanoInitResult.NotSupported)
+            return@flow
+        }
+
+        // TODO: replace with real MLKit model download + progress streaming when
+        //   com.google.mlkit:genai-inference lands on Google Maven.
+        //   The real implementation should emit NanoInitResult.Downloading(pct) events
+        //   from the download progress callback before emitting Success.
+        try {
+            // Stub: engine is available, proceed directly to Success with a placeholder token limit.
+            // Real impl: call engine.download() here and emit Downloading(pct) events.
+            val tokenLimit = 0 // TODO: replace with engine.getTokenLimit() when available
+            Timber.tag(TAG).d("initNanoFlow: Nano ready, tokenLimit=$tokenLimit")
+            emit(NanoInitResult.Success(tokenLimit))
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "initNanoFlow: init failed")
+            emit(NanoInitResult.Failed(e.message ?: "Unknown error during Nano init"))
+        }
+    }
+
+    // ── OutfitAiProvider ──────────────────────────────────────────────────────
 
     override suspend fun suggestOutfit(candidates: List<ClothingItemDto>): Result<OutfitSuggestion> {
         if (candidates.isEmpty()) {

@@ -133,11 +133,11 @@ Reference: `outfit-recs-overview.md`
 
 ### Settings — AI section
 
-- [ ] Add AI section to existing Settings screen (disabled by default)
-- [ ] Provider picker: **On-device (Nano)** / **OpenAI-compatible** / **Anthropic**
-- [ ] For Nano: background worker on enable — `checkStatus()` → `download()` (stream progress) → `getTokenLimit()` → set `aiReady = true`; UI states: Checking / Downloading (n%) / Ready / Failed / Not Supported; flip back off on failure
-- [ ] For OpenAI-compatible: API key input + optional base URL override (for Ollama / Groq / self-hosted)
-- [ ] For Anthropic: API key input
+- [x] Add AI section to existing Settings screen (disabled by default)
+- [x] Provider picker: **On-device (Nano)** / **OpenAI-compatible** / **Anthropic**
+- [x] For Nano: background worker on enable — `checkStatus()` → `download()` (stream progress) → `getTokenLimit()` → set `aiReady = true`; UI states: Checking / Downloading (n%) / Ready / Failed / Not Supported; flip back off on failure
+- [x] For OpenAI-compatible: API key input + optional base URL override (for Ollama / Groq / self-hosted)
+- [x] For Anthropic: API key input (greyed out — AnthropicProvider not yet implemented)
 - [ ] No key stored in plaintext — use `EncryptedSharedPreferences` or Android Keystore
 
 ---

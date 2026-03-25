@@ -1,5 +1,6 @@
 package com.closet.features.recommendations.di
 
+import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
 import com.closet.features.recommendations.ai.NanoProvider
 import dagger.Binds
@@ -36,4 +37,14 @@ abstract class RecommendationModule {
     @Binds
     @Singleton
     abstract fun bindOutfitAiProvider(nanoProvider: NanoProvider): OutfitAiProvider
+
+    /**
+     * Binds [NanoProvider] as the [NanoInitializer] implementation.
+     *
+     * Defined in core/data so features/settings can inject [NanoInitializer] without
+     * depending on features/recommendations.
+     */
+    @Binds
+    @Singleton
+    abstract fun bindNanoInitializer(nanoProvider: NanoProvider): NanoInitializer
 }

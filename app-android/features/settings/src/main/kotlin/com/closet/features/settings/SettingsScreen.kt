@@ -9,15 +9,19 @@ import android.provider.Settings
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,11 +30,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -60,6 +68,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -68,6 +78,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.ui.theme.ClosetAccent
@@ -92,6 +103,12 @@ fun SettingsScreen(
     val weatherService by viewModel.weatherService.collectAsStateWithLifecycle()
     val googleApiKey by viewModel.googleApiKey.collectAsStateWithLifecycle()
     val temperatureUnit by viewModel.temperatureUnit.collectAsStateWithLifecycle()
+    val aiEnabled by viewModel.aiEnabled.collectAsStateWithLifecycle()
+    val selectedAiProvider by viewModel.selectedAiProvider.collectAsStateWithLifecycle()
+    val nanoStatus by viewModel.nanoStatus.collectAsStateWithLifecycle()
+    val openAiKey by viewModel.openAiKey.collectAsStateWithLifecycle()
+    val openAiBaseUrl by viewModel.openAiBaseUrl.collectAsStateWithLifecycle()
+    val openAiModel by viewModel.openAiModel.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val activity = LocalActivity.current
@@ -164,6 +181,17 @@ fun SettingsScreen(
         onGoogleApiKeyChange = viewModel::setGoogleApiKey,
         onTemperatureUnitChange = viewModel::setTemperatureUnit,
         onClearCache = viewModel::clearForecastCache,
+        aiEnabled = aiEnabled,
+        selectedAiProvider = selectedAiProvider,
+        nanoStatus = nanoStatus,
+        openAiKey = openAiKey,
+        openAiBaseUrl = openAiBaseUrl,
+        openAiModel = openAiModel,
+        onAiToggled = viewModel::onAiToggled,
+        onAiProviderSelected = viewModel::onAiProviderSelected,
+        onOpenAiKeyChanged = viewModel::onOpenAiKeyChanged,
+        onOpenAiBaseUrlChanged = viewModel::onOpenAiBaseUrlChanged,
+        onOpenAiModelChanged = viewModel::onOpenAiModelChanged,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
     )
@@ -176,6 +204,8 @@ fun SettingsScreen(
  * - **Appearance**: dynamic color toggle (API 31+) + accent color picker.
  * - **Weather**: forecast toggle; when on — service picker, optional API key
  *   field (Google only), temperature unit picker, and a clear-cache action.
+ * - **AI suggestions**: master toggle; when on — provider picker (Nano / OpenAI /
+ *   Anthropic), provider-specific config fields.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -193,6 +223,17 @@ internal fun SettingsContent(
     onGoogleApiKeyChange: (String) -> Unit,
     onTemperatureUnitChange: (TemperatureUnit) -> Unit,
     onClearCache: () -> Unit,
+    aiEnabled: Boolean,
+    selectedAiProvider: AiProvider,
+    nanoStatus: NanoStatus,
+    openAiKey: String,
+    openAiBaseUrl: String,
+    openAiModel: String,
+    onAiToggled: (Boolean) -> Unit,
+    onAiProviderSelected: (AiProvider) -> Unit,
+    onOpenAiKeyChanged: (String) -> Unit,
+    onOpenAiBaseUrlChanged: (String) -> Unit,
+    onOpenAiModelChanged: (String) -> Unit,
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -273,6 +314,44 @@ internal fun SettingsContent(
             }
             item {
                 ClearCacheItem(onClick = onClearCache)
+            }
+
+            // ── AI suggestions ────────────────────────────────────────────────
+            item {
+                SettingsSectionHeader(stringResource(R.string.settings_section_ai))
+            }
+            item {
+                AiToggleItem(
+                    enabled = aiEnabled,
+                    onCheckedChange = onAiToggled,
+                )
+            }
+            if (aiEnabled) {
+                item {
+                    AiProviderItem(
+                        selected = selectedAiProvider,
+                        onSelect = onAiProviderSelected,
+                    )
+                }
+                when (selectedAiProvider) {
+                    AiProvider.Nano -> item {
+                        NanoStatusItem(status = nanoStatus)
+                    }
+                    AiProvider.OpenAi -> item {
+                        OpenAiFieldsItem(
+                            apiKey = openAiKey,
+                            baseUrl = openAiBaseUrl,
+                            model = openAiModel,
+                            onApiKeyChanged = onOpenAiKeyChanged,
+                            onBaseUrlChanged = onOpenAiBaseUrlChanged,
+                            onModelChanged = onOpenAiModelChanged,
+                        )
+                    }
+                    AiProvider.Anthropic -> {
+                        // Anthropic provider not yet implemented — segment is greyed out,
+                        // so this branch is unreachable in practice. No fields shown.
+                    }
+                }
             }
         }
     }
@@ -505,6 +584,239 @@ private fun ClearCacheItem(onClick: () -> Unit) {
     )
 }
 
+// ── AI items ──────────────────────────────────────────────────────────────────
+
+/**
+ * Master AI toggle. Default OFF.
+ */
+@Composable
+private fun AiToggleItem(
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_ai_enabled)) },
+        supportingContent = { Text(stringResource(R.string.settings_ai_enabled_summary)) },
+        trailingContent = {
+            Switch(
+                checked = enabled,
+                onCheckedChange = onCheckedChange,
+            )
+        },
+    )
+}
+
+/**
+ * Provider picker: On-device (Nano) / OpenAI / Anthropic.
+ *
+ * The Anthropic segment is always [enabled = false] — [AnthropicProvider] is not yet
+ * implemented. A "(coming soon)" note is embedded in its label string.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiProviderItem(
+    selected: AiProvider,
+    onSelect: (AiProvider) -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_ai_provider)) },
+        supportingContent = {
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            ) {
+                AiProvider.entries.forEachIndexed { index, provider ->
+                    val isAnthropic = provider == AiProvider.Anthropic
+                    SegmentedButton(
+                        selected = provider == selected,
+                        onClick = { if (!isAnthropic) onSelect(provider) },
+                        enabled = !isAnthropic,
+                        shape = SegmentedButtonDefaults.itemShape(index, AiProvider.entries.size),
+                        label = {
+                            Text(
+                                text = when (provider) {
+                                    AiProvider.Nano -> stringResource(R.string.settings_ai_provider_nano)
+                                    AiProvider.OpenAi -> stringResource(R.string.settings_ai_provider_openai)
+                                    AiProvider.Anthropic -> stringResource(R.string.settings_ai_provider_anthropic)
+                                },
+                            )
+                        },
+                    )
+                }
+            }
+        },
+    )
+}
+
+/**
+ * Status indicator shown below the provider picker when Nano is selected.
+ *
+ * - [NanoStatus.Idle] — nothing shown (init not yet started)
+ * - [NanoStatus.Checking] — indeterminate [LinearProgressIndicator]
+ * - [NanoStatus.Downloading] — determinate [LinearProgressIndicator] + percentage text
+ * - [NanoStatus.Ready] — green checkmark + "Model ready"
+ * - [NanoStatus.Failed] — error text
+ * - [NanoStatus.NotSupported] — muted "Not supported on this device"
+ */
+@Composable
+private fun NanoStatusItem(status: NanoStatus) {
+    AnimatedVisibility(visible = status !is NanoStatus.Idle) {
+        ListItem(
+            headlineContent = {
+                when (status) {
+                    NanoStatus.Idle -> Unit
+                    NanoStatus.Checking -> {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.settings_ai_nano_checking),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    is NanoStatus.Downloading -> {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.settings_ai_nano_downloading, status.progressPct),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { status.progressPct / 100f },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                    NanoStatus.Ready -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_ai_nano_ready),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    is NanoStatus.Failed -> {
+                        Text(
+                            text = stringResource(R.string.settings_ai_nano_failed, status.message),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    NanoStatus.NotSupported -> {
+                        Text(
+                            text = stringResource(R.string.settings_ai_nano_not_supported),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+        )
+    }
+}
+
+/**
+ * OpenAI-compatible provider config fields:
+ * - API key (password field with toggleable visibility)
+ * - Base URL override (optional; hint for default)
+ * - Model override (optional; hint for default)
+ *
+ * All changes persist on every keystroke via the provided callbacks.
+ *
+ * TODO: Keys are stored as plain strings in DataStore for now. Before shipping to
+ *   production, migrate to EncryptedSharedPreferences or Android Keystore to avoid
+ *   storing credentials in cleartext on-device.
+ */
+@Composable
+private fun OpenAiFieldsItem(
+    apiKey: String,
+    baseUrl: String,
+    model: String,
+    onApiKeyChanged: (String) -> Unit,
+    onBaseUrlChanged: (String) -> Unit,
+    onModelChanged: (String) -> Unit,
+) {
+    var keyVisible by remember { mutableStateOf(false) }
+
+    ListItem(
+        headlineContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // API key field with toggleable visibility
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = onApiKeyChanged,
+                    label = { Text(stringResource(R.string.settings_ai_openai_key)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_openai_key_placeholder)) },
+                    singleLine = true,
+                    visualTransformation = if (keyVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next,
+                    ),
+                    trailingIcon = {
+                        val cd = stringResource(
+                            if (keyVisible) R.string.settings_ai_openai_hide_key
+                            else R.string.settings_ai_openai_show_key,
+                        )
+                        IconButton(onClick = { keyVisible = !keyVisible }) {
+                            Icon(
+                                imageVector = if (keyVisible) Icons.Default.VisibilityOff
+                                else Icons.Default.Visibility,
+                                contentDescription = cd,
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Base URL override
+                OutlinedTextField(
+                    value = baseUrl,
+                    onValueChange = onBaseUrlChanged,
+                    label = { Text(stringResource(R.string.settings_ai_openai_base_url)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_openai_base_url_placeholder)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Next,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Model override
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = onModelChanged,
+                    label = { Text(stringResource(R.string.settings_ai_openai_model)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_openai_model_placeholder)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+    )
+}
+
 // ── Dialogs ───────────────────────────────────────────────────────────────────
 
 /**
@@ -554,6 +866,17 @@ private fun SettingsContentDefaultPreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
+            aiEnabled = false,
+            selectedAiProvider = AiProvider.Nano,
+            nanoStatus = NanoStatus.Idle,
+            openAiKey = "",
+            openAiBaseUrl = "",
+            openAiModel = "",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -578,6 +901,17 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
+            aiEnabled = false,
+            selectedAiProvider = AiProvider.Nano,
+            nanoStatus = NanoStatus.Idle,
+            openAiKey = "",
+            openAiBaseUrl = "",
+            openAiModel = "",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -595,13 +929,164 @@ private fun SettingsContentWeatherGooglePreview() {
             onSetDynamicColor = {},
             weatherEnabled = true,
             weatherService = WeatherService.Google,
-            googleApiKey = "AIzaSy••••••••••••••",
+            googleApiKey = "AIzaSy\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
             temperatureUnit = TemperatureUnit.Fahrenheit,
             onWeatherEnabledChange = {},
             onWeatherServiceChange = {},
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
+            aiEnabled = false,
+            selectedAiProvider = AiProvider.Nano,
+            nanoStatus = NanoStatus.Idle,
+            openAiKey = "",
+            openAiBaseUrl = "",
+            openAiModel = "",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
+            snackbarHostState = remember { SnackbarHostState() },
+            onNavigateUp = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "AI on / Nano checking")
+@Composable
+private fun SettingsContentAiNanoCheckingPreview() {
+    ClosetTheme {
+        SettingsContent(
+            currentAccent = ClosetAccent.Sage,
+            dynamicColor = false,
+            onSetAccent = {},
+            onSetDynamicColor = {},
+            weatherEnabled = false,
+            weatherService = WeatherService.OpenMeteo,
+            googleApiKey = "",
+            temperatureUnit = TemperatureUnit.Celsius,
+            onWeatherEnabledChange = {},
+            onWeatherServiceChange = {},
+            onGoogleApiKeyChange = {},
+            onTemperatureUnitChange = {},
+            onClearCache = {},
+            aiEnabled = true,
+            selectedAiProvider = AiProvider.Nano,
+            nanoStatus = NanoStatus.Checking,
+            openAiKey = "",
+            openAiBaseUrl = "",
+            openAiModel = "",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
+            snackbarHostState = remember { SnackbarHostState() },
+            onNavigateUp = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "AI on / Nano downloading 42%")
+@Composable
+private fun SettingsContentAiNanoDownloadingPreview() {
+    ClosetTheme {
+        SettingsContent(
+            currentAccent = ClosetAccent.Sage,
+            dynamicColor = false,
+            onSetAccent = {},
+            onSetDynamicColor = {},
+            weatherEnabled = false,
+            weatherService = WeatherService.OpenMeteo,
+            googleApiKey = "",
+            temperatureUnit = TemperatureUnit.Celsius,
+            onWeatherEnabledChange = {},
+            onWeatherServiceChange = {},
+            onGoogleApiKeyChange = {},
+            onTemperatureUnitChange = {},
+            onClearCache = {},
+            aiEnabled = true,
+            selectedAiProvider = AiProvider.Nano,
+            nanoStatus = NanoStatus.Downloading(42),
+            openAiKey = "",
+            openAiBaseUrl = "",
+            openAiModel = "",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
+            snackbarHostState = remember { SnackbarHostState() },
+            onNavigateUp = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "AI on / Nano not supported")
+@Composable
+private fun SettingsContentAiNanoNotSupportedPreview() {
+    ClosetTheme {
+        SettingsContent(
+            currentAccent = ClosetAccent.Sage,
+            dynamicColor = false,
+            onSetAccent = {},
+            onSetDynamicColor = {},
+            weatherEnabled = false,
+            weatherService = WeatherService.OpenMeteo,
+            googleApiKey = "",
+            temperatureUnit = TemperatureUnit.Celsius,
+            onWeatherEnabledChange = {},
+            onWeatherServiceChange = {},
+            onGoogleApiKeyChange = {},
+            onTemperatureUnitChange = {},
+            onClearCache = {},
+            aiEnabled = true,
+            selectedAiProvider = AiProvider.Nano,
+            nanoStatus = NanoStatus.NotSupported,
+            openAiKey = "",
+            openAiBaseUrl = "",
+            openAiModel = "",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
+            snackbarHostState = remember { SnackbarHostState() },
+            onNavigateUp = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "AI on / OpenAI fields")
+@Composable
+private fun SettingsContentAiOpenAiPreview() {
+    ClosetTheme {
+        SettingsContent(
+            currentAccent = ClosetAccent.Lavender,
+            dynamicColor = false,
+            onSetAccent = {},
+            onSetDynamicColor = {},
+            weatherEnabled = false,
+            weatherService = WeatherService.OpenMeteo,
+            googleApiKey = "",
+            temperatureUnit = TemperatureUnit.Celsius,
+            onWeatherEnabledChange = {},
+            onWeatherServiceChange = {},
+            onGoogleApiKeyChange = {},
+            onTemperatureUnitChange = {},
+            onClearCache = {},
+            aiEnabled = true,
+            selectedAiProvider = AiProvider.OpenAi,
+            nanoStatus = NanoStatus.Idle,
+            openAiKey = "sk-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+            openAiBaseUrl = "",
+            openAiModel = "gpt-4o",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
