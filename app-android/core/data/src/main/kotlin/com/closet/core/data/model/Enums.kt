@@ -102,6 +102,25 @@ enum class ColorFamily(val label: String) {
 }
 
 /**
+ * AI inference provider for outfit coherence scoring (Phase 2).
+ * Stored as the enum [name] string in DataStore.
+ *
+ * - [Nano]     — on-device MLKit GenAI Prompt API; no API key, default/F-Droid option.
+ * - [OpenAi]   — OpenAI-compatible HTTP endpoint; covers OpenAI, Gemini cloud, Ollama, Groq.
+ * - [Anthropic] — Claude via Anthropic API; different endpoint structure (x-api-key header).
+ */
+enum class AiProvider(val label: String) {
+    Nano("On-device (Nano)"),
+    OpenAi("OpenAI-compatible"),
+    Anthropic("Anthropic (Claude)");
+
+    companion object {
+        fun fromString(value: String): AiProvider =
+            entries.find { it.name == value } ?: Nano
+    }
+}
+
+/**
  * Weather condition options. Stored in the DB as [label] strings — adding new
  * entries is non-breaking for existing rows.
  *

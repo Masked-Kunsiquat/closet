@@ -4,6 +4,7 @@ import android.content.Context
 import com.closet.core.data.BuildConfig
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.*
+import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import dagger.Module
@@ -88,6 +89,13 @@ object DataModule {
     fun provideWeatherPreferencesRepository(
         @ApplicationContext context: Context,
     ): WeatherPreferencesRepository = WeatherPreferencesRepository(context)
+
+    /** Provides the [AiPreferencesRepository] singleton backed by its own DataStore file. */
+    @Provides
+    @Singleton
+    fun provideAiPreferencesRepository(
+        @ApplicationContext context: Context,
+    ): AiPreferencesRepository = AiPreferencesRepository(context)
 
     /**
      * Provides the shared [Json] instance used for both HTTP content negotiation

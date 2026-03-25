@@ -63,6 +63,13 @@ dependencies {
     // Logging
     implementation(libs.timber)
 
+    // MLKit GenAI Prompt API (Gemini Nano — on-device coherence scoring, Phase 2)
+    // TODO: uncomment when com.google.mlkit:genai-common / genai-inference GA/beta lands on Maven
+    // implementation(libs.mlkit.genai.common)
+    // implementation(libs.mlkit.genai.inference)
+    // Coroutine bridge for Google Tasks (.await() extension)
+    // implementation(libs.kotlinx.coroutines.play.services)
+
     // Unit tests
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
