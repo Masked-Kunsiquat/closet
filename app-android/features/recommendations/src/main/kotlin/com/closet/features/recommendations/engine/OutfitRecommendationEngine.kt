@@ -20,7 +20,7 @@ package com.closet.features.recommendations.engine
  * 7. Sort + tie-break — descending score; ties broken by oldest last-worn date.
  * 8. Return top 3.
  */
-class OutfitRecommendationEngine {
+class OutfitRecommendationEngine @javax.inject.Inject constructor() {
 
     companion object {
         // --- Temperatures ---

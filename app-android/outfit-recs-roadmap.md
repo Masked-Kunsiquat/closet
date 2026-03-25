@@ -103,17 +103,17 @@ Reference: `outfit-recs-overview.md`
 
 ### Outfit gallery & entry point
 
-- [ ] Restyle outfit gallery to 3-column grid (currently 1-column list)
-- [ ] Expand existing FAB into a two-option menu: **Add outfit** + **Get suggestions**
-- [ ] Wire "Get suggestions" → occasion sheet → weather sheet → `RecommendationScreen`
+- [x] Restyle outfit gallery to 3-column grid (currently 1-column list)
+- [x] Expand existing FAB into a two-option menu: **Add outfit** + **Get suggestions**
+- [x] Wire "Get suggestions" → occasion sheet → weather sheet → `RecommendationScreen`
 
 ---
 
 ### Navigation
 
-- [ ] Define `RecommendationDestination` (`@Serializable`) in `app/navigation/`
-- [ ] Add `RecommendationNavigation.kt` extension in `features/recommendations/`
-- [ ] Register route in `ClosetNavGraph.kt`
+- [x] Define `RecommendationDestination` (`@Serializable`) in `app/navigation/`
+- [x] Add `RecommendationNavigation.kt` extension in `features/recommendations/`
+- [x] Register route in `ClosetNavGraph.kt`
 
 ---
 

@@ -18,10 +18,19 @@ fun NavController.navigateToRecommendations(navOptions: NavOptions? = null) {
 /**
  * Registers the [RecommendationRoute] composable destination in the [NavGraphBuilder].
  *
- * @param onNavigateUp Called when the user presses back from the Recommendations screen.
+ * @param onNavigateUp    Called when the user presses back from the Recommendations screen.
+ * @param onNavigateToLog Called with item IDs when the user taps "Log it" on a combo.
+ *                        Navigate to the outfit logging flow with those IDs pre-loaded.
+ *                        Pass a no-op if the log screen is not yet wired.
  */
-fun NavGraphBuilder.recommendationScreen(onNavigateUp: () -> Unit = {}) {
+fun NavGraphBuilder.recommendationScreen(
+    onNavigateUp: () -> Unit = {},
+    onNavigateToLog: (List<Long>) -> Unit = {},
+) {
     composable<RecommendationRoute> {
-        RecommendationScreen(onNavigateUp = onNavigateUp)
+        RecommendationScreen(
+            onNavigateUp = onNavigateUp,
+            onNavigateToLog = onNavigateToLog,
+        )
     }
 }
