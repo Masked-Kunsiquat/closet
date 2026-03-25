@@ -41,6 +41,8 @@ class AiPreferencesRepository @Inject constructor(
     // Keys
     private val selectedProviderKey = stringPreferencesKey("ai_selected_provider")
     private val openAiApiKeyKey = stringPreferencesKey("ai_openai_api_key")
+    private val openAiBaseUrlKey = stringPreferencesKey("ai_openai_base_url")
+    private val openAiModelKey = stringPreferencesKey("ai_openai_model")
     private val anthropicApiKeyKey = stringPreferencesKey("ai_anthropic_api_key")
     private val nanoAiReadyKey = booleanPreferencesKey("ai_nano_ready")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
@@ -76,6 +78,38 @@ class AiPreferencesRepository @Inject constructor(
     suspend fun setOpenAiApiKey(key: String) {
         context.aiDataStore.edit { prefs ->
             prefs[openAiApiKeyKey] = key
+        }
+    }
+
+    /**
+     * Base URL for OpenAI-compatible providers. Defaults to `https://api.openai.com` when not set.
+     *
+     * Override to point at a self-hosted Ollama instance, Groq, Gemini cloud, or any other
+     * OpenAI-compatible endpoint. The provider normalizes trailing slashes before use.
+     */
+    fun getOpenAiBaseUrl(): Flow<String> = context.aiDataStore.data.map { prefs ->
+        prefs[openAiBaseUrlKey] ?: ""
+    }
+
+    suspend fun setOpenAiBaseUrl(url: String) {
+        context.aiDataStore.edit { prefs ->
+            prefs[openAiBaseUrlKey] = url
+        }
+    }
+
+    /**
+     * Model identifier for the OpenAI-compatible provider. Defaults to `gpt-4o-mini` when not set.
+     *
+     * Set to any model name accepted by the configured endpoint — e.g. `gemini-2.0-flash`,
+     * `llama3`, `mixtral-8x7b-32768` (Groq), etc.
+     */
+    fun getOpenAiModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
+        prefs[openAiModelKey] ?: ""
+    }
+
+    suspend fun setOpenAiModel(model: String) {
+        context.aiDataStore.edit { prefs ->
+            prefs[openAiModelKey] = model
         }
     }
 

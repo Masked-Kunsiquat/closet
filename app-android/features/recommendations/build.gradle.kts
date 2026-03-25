@@ -63,6 +63,12 @@ dependencies {
     // Logging
     implementation(libs.timber)
 
+    // Ktor HTTP client (OpenAI-compatible provider — Phase 2)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.logging)
+
     // MLKit GenAI Prompt API (Gemini Nano — on-device coherence scoring, Phase 2)
     // TODO: uncomment when com.google.mlkit:genai-common / genai-inference GA/beta lands on Maven
     // implementation(libs.mlkit.genai.common)

@@ -125,7 +125,7 @@ Reference: `outfit-recs-overview.md`
 
 - [x] Define `OutfitAiProvider` interface — `suspend fun suggestOutfit(candidates: List<ClothingItemDto>): Result<OutfitSuggestion>` (mirrors weather's `WeatherServiceClient` pattern)
 - [x] Implement `NanoProvider` (MLKit GenAI Prompt API — on-device, no key, F-Droid default)
-- [ ] Implement `OpenAiProvider` (OpenAI-compatible endpoint — covers OpenAI, Gemini cloud, Ollama, Groq, etc.)
+- [x] Implement `OpenAiProvider` (OpenAI-compatible endpoint — covers OpenAI, Gemini cloud, Ollama, Groq, etc.)
 - [ ] Implement `AnthropicProvider` (Claude — separate impl; different endpoint structure, `x-api-key` header)
 - [x] `AiPreferencesRepository` — stores selected provider, API key (per provider), and Nano-specific `aiReady: Boolean` / `tokenLimit: Int` in DataStore
 
