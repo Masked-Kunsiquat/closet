@@ -26,6 +26,12 @@ data class CategoryEntity(
     @ColumnInfo(name = "sort_order") val sortOrder: Int,
     /** Thermal role of this category. Values: None | Base | Mid | Outer. */
     @ColumnInfo(name = "warmth_layer", defaultValue = "None") val warmthLayer: String = "None",
+    /**
+     * Outfit role for recommendation engine category completeness.
+     * Values: Top | Bottom | OnePiece | Outerwear | Footwear | Accessory | Other.
+     * Added in Migration 2→3. Never use string-matching on [name] for role logic.
+     */
+    @ColumnInfo(name = "outfit_role", defaultValue = "Other") val outfitRole: String = "Other",
 )
 
 /** Clothing subcategory (e.g. T-Shirt, Jeans) belonging to a parent [CategoryEntity]. */
@@ -73,7 +79,13 @@ data class OccasionEntity(
 data class ColorEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val hex: String? = null
+    val hex: String? = null,
+    /**
+     * Color family for recommendation engine color harmony scoring.
+     * Values: Neutral | Earth | Cool | Warm | Bright.
+     * Added in Migration 2→3.
+     */
+    @ColumnInfo(name = "color_family", defaultValue = "Neutral") val colorFamily: String = "Neutral",
 )
 
 /** Fabric/material lookup value (e.g. Cotton, Wool). */

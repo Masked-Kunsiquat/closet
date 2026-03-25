@@ -8,10 +8,10 @@ Reference: `outfit-recs-overview.md`
 
 ### Schema & data foundation
 
-- [ ] **Migration 2→3** — add `categories.outfit_role` (Top/Bottom/OnePiece/Outerwear/Footwear/Accessory/Other) and `colors.color_family` (Neutral/Earth/Cool/Warm/Bright) with backfill seeds
-- [ ] Update `CategoryEntity` and `ColorEntity` Room entities to reflect new columns
-- [ ] Update `DatabaseSeeder` to seed `outfit_role` on all categories and `color_family` on all colors
-- [ ] Write migration test for Migration 2→3
+- [x] **Migration 2→3** — add `categories.outfit_role` (Top/Bottom/OnePiece/Outerwear/Footwear/Accessory/Other) and `colors.color_family` (Neutral/Earth/Cool/Warm/Bright) with backfill seeds
+- [x] Update `CategoryEntity` and `ColorEntity` Room entities to reflect new columns
+- [x] Update `DatabaseSeeder` to seed `outfit_role` on all categories and `color_family` on all colors
+- [x] Write migration test for Migration 2→3
 
 ---
 
