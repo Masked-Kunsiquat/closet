@@ -2,6 +2,8 @@ package com.closet.features.outfits
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -57,6 +59,7 @@ internal fun ForecastSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
         ) {
@@ -118,7 +121,11 @@ private fun DailyForecastRow(
             modifier = Modifier.weight(1.2f),
         )
         Text(
-            text = "${forecast.tempLow.toDisplayTemp(temperatureUnit)} / ${forecast.tempHigh.toDisplayTemp(temperatureUnit)}",
+            text = stringResource(
+                R.string.journal_forecast_temp_range,
+                forecast.tempLow.toDisplayTemp(temperatureUnit),
+                forecast.tempHigh.toDisplayTemp(temperatureUnit),
+            ),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.End,
         )

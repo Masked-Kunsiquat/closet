@@ -46,6 +46,7 @@
     <string name="journal_forecast_today">Today</string>
     <string name="journal_forecast_tomorrow">Tomorrow</string>
     <string name="journal_forecast_empty">Forecast unavailable</string>
+    <string name="journal_forecast_temp_range">%1$s / %2$s</string>
 
     <!-- Outfit Builder -->
     <string name="outfits_builder_title">New Outfit</string>
