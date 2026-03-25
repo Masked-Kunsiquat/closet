@@ -57,19 +57,21 @@ class GoogleWeatherClient @Inject constructor(
     private data class GoogleForecastResponse(
         @SerialName("forecastDays") val forecastDays: List<GoogleForecastDay> = emptyList(),
     ) {
-        fun toForecasts(): List<DailyForecast> = forecastDays.mapIndexed { i, day ->
-            val date = day.displayDate?.toLocalDate()
-                ?: LocalDate.now().plusDays(i.toLong())
-            DailyForecast(
-                date = date,
-                tempLow = day.minTemperature?.toCelsius() ?: 0.0,
-                tempHigh = day.maxTemperature?.toCelsius() ?: 0.0,
-                condition = mapConditionType(day.daytimeForecast?.weatherCondition?.type),
-                precipitationMm = day.daytimeForecast?.precipitation?.qpf?.quantity ?: 0.0,
-                windSpeedKmh = day.daytimeForecast?.wind?.speed?.toKmh() ?: 0.0,
-                uvIndex = day.daytimeForecast?.uvIndex,
-                humidity = day.daytimeForecast?.relativeHumidity,
-            )
+        fun toForecasts(): List<DailyForecast> {
+            val baseDate = LocalDate.now()
+            return forecastDays.mapIndexed { i, day ->
+                val date = day.displayDate?.toLocalDate() ?: baseDate.plusDays(i.toLong())
+                DailyForecast(
+                    date = date,
+                    tempLow = day.minTemperature?.toCelsius() ?: 0.0,
+                    tempHigh = day.maxTemperature?.toCelsius() ?: 0.0,
+                    condition = mapConditionType(day.daytimeForecast?.weatherCondition?.type),
+                    precipitationMm = day.daytimeForecast?.precipitation?.qpf?.quantity ?: 0.0,
+                    windSpeedKmh = day.daytimeForecast?.wind?.speed?.toKmh() ?: 0.0,
+                    uvIndex = day.daytimeForecast?.uvIndex,
+                    humidity = day.daytimeForecast?.relativeHumidity,
+                )
+            }
         }
     }
 

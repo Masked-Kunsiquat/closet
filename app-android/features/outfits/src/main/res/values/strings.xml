@@ -45,6 +45,7 @@
     <string name="journal_forecast_sheet_title">7-Day Forecast</string>
     <string name="journal_forecast_today">Today</string>
     <string name="journal_forecast_tomorrow">Tomorrow</string>
+    <string name="journal_forecast_empty">Forecast unavailable</string>
 
     <!-- Outfit Builder -->
     <string name="outfits_builder_title">New Outfit</string>

@@ -68,12 +68,20 @@ internal fun ForecastSheet(
                 modifier = Modifier.padding(bottom = 16.dp),
             )
             val today = remember { LocalDate.now() }
-            forecasts.forEachIndexed { index, forecast ->
-                DailyForecastRow(forecast = forecast, temperatureUnit = temperatureUnit, today = today)
-                if (index < forecasts.lastIndex) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    )
+            if (forecasts.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.journal_forecast_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                forecasts.forEachIndexed { index, forecast ->
+                    DailyForecastRow(forecast = forecast, temperatureUnit = temperatureUnit, today = today)
+                    if (index < forecasts.lastIndex) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        )
+                    }
                 }
             }
         }
