@@ -22,6 +22,12 @@
     <string name="outfits_gallery_untitled">Untitled outfit</string>
     <string name="outfits_gallery_item_count">%d items</string>
 
+    <!-- Gallery FAB -->
+    <string name="outfits_fab_expand">More actions</string>
+    <string name="outfits_fab_collapse">Close menu</string>
+    <string name="outfits_fab_add_outfit">Add outfit</string>
+    <string name="outfits_fab_get_suggestions">Get suggestions</string>
+
     <!-- Journal -->
     <string name="journal_title">Journal</string>
     <string name="journal_prev_month">Previous month</string>
