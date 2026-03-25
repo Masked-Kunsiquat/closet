@@ -1,16 +1,26 @@
 package com.closet.features.outfits
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,6 +30,7 @@ import java.io.File
 @Composable
 fun OutfitsScreen(
     onCreateOutfit: () -> Unit,
+    onGetSuggestions: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: OutfitsViewModel = hiltViewModel()
 ) {
@@ -43,6 +54,7 @@ fun OutfitsScreen(
         wearingOutfitId = wearingOutfitId,
         resolveImagePath = viewModel::resolveImagePath,
         onCreateOutfit = onCreateOutfit,
+        onGetSuggestions = onGetSuggestions,
         onWearOutfit = viewModel::wearOutfit,
         snackbarHostState = snackbarHostState,
         modifier = modifier
@@ -56,10 +68,13 @@ internal fun OutfitsContent(
     wearingOutfitId: Long?,
     resolveImagePath: (String?) -> File?,
     onCreateOutfit: () -> Unit,
+    onGetSuggestions: () -> Unit,
     onWearOutfit: (Long) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
+    var fabExpanded by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
@@ -68,12 +83,18 @@ internal fun OutfitsContent(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onCreateOutfit) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.outfits_gallery_create)
-                )
-            }
+            OutfitsFab(
+                expanded = fabExpanded,
+                onToggle = { fabExpanded = !fabExpanded },
+                onCreateOutfit = {
+                    fabExpanded = false
+                    onCreateOutfit()
+                },
+                onGetSuggestions = {
+                    fabExpanded = false
+                    onGetSuggestions()
+                }
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -85,18 +106,20 @@ internal fun OutfitsContent(
                     .fillMaxSize()
             )
         } else {
-            LazyColumn(
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
                 contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
+                    start = 8.dp,
+                    end = 8.dp,
                     top = padding.calculateTopPadding() + 8.dp,
                     bottom = padding.calculateBottomPadding() + 88.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(outfits, key = { it.outfit.id }) { outfitWithItems ->
-                    OutfitCard(
+                    OutfitGridCell(
                         outfitWithItems = outfitWithItems,
                         resolveImagePath = resolveImagePath,
                         isWearing = wearingOutfitId == outfitWithItems.outfit.id,
@@ -106,11 +129,112 @@ internal fun OutfitsContent(
                 }
             }
         }
+
+        // Scrim — drawn on top of content so it intercepts taps and collapses the FAB menu
+        if (fabExpanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { fabExpanded = false }
+                    )
+            )
+        }
+    }
+}
+
+/**
+ * Expandable FAB for the outfit gallery.
+ *
+ * When collapsed: shows a single FAB with a "+" / "x" icon.
+ * When expanded: shows two [SmallFloatingActionButton]s stacked above the main FAB —
+ * "Add outfit" and "Get suggestions" — using [AnimatedVisibility] for the
+ * expand/collapse transition.
+ */
+@Composable
+private fun OutfitsFab(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onCreateOutfit: () -> Unit,
+    onGetSuggestions: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
+        ) {
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FabOption(
+                    label = stringResource(R.string.outfits_fab_get_suggestions),
+                    onClick = onGetSuggestions
+                )
+                FabOption(
+                    label = stringResource(R.string.outfits_fab_add_outfit),
+                    onClick = onCreateOutfit
+                )
+            }
+        }
+
+        FloatingActionButton(onClick = onToggle) {
+            Icon(
+                imageVector = if (expanded) Icons.Default.Close else Icons.Default.Add,
+                contentDescription = if (expanded) {
+                    stringResource(R.string.outfits_fab_collapse)
+                } else {
+                    stringResource(R.string.outfits_fab_expand)
+                }
+            )
+        }
+    }
+}
+
+/**
+ * A single labelled small FAB option shown in the expanded FAB menu.
+ */
+@Composable
+private fun FabOption(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.small,
+            tonalElevation = 2.dp
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+        SmallFloatingActionButton(onClick = onClick) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = label
+            )
+        }
     }
 }
 
 @Composable
-private fun OutfitCard(
+private fun OutfitGridCell(
     outfitWithItems: OutfitWithItems,
     resolveImagePath: (String?) -> File?,
     isWearing: Boolean,
@@ -124,20 +248,23 @@ private fun OutfitCard(
             resolveImagePath = resolveImagePath,
             modifier = Modifier.fillMaxWidth()
         )
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 6.dp, vertical = 6.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = outfitWithItems.outfit.name
-                        ?: stringResource(R.string.outfits_gallery_untitled),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1
-                )
+            Text(
+                text = outfitWithItems.outfit.name
+                    ?: stringResource(R.string.outfits_gallery_untitled),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = stringResource(
                         R.string.outfits_gallery_item_count,
@@ -146,22 +273,24 @@ private fun OutfitCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            IconButton(
-                onClick = onWear,
-                enabled = wearEnabled
-            ) {
-                if (isWearing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
-                        contentDescription = stringResource(R.string.outfits_wear_today),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                IconButton(
+                    onClick = onWear,
+                    enabled = wearEnabled,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    if (isWearing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.CheckCircle,
+                            contentDescription = stringResource(R.string.outfits_wear_today),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }

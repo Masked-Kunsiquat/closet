@@ -1,7 +1,9 @@
 package com.closet.core.data.repository
 
 import com.closet.core.data.dao.CandidateItem
+import com.closet.core.data.dao.ItemColorFamily
 import com.closet.core.data.dao.ItemLastWorn
+import com.closet.core.data.dao.ItemPatternName
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
@@ -136,6 +138,43 @@ class RecommendationRepository @Inject constructor(
         return runCatching {
             recommendationDao.getLastWornDates(itemIds)
         }.toDataResult("getLastWornDates")
+    }
+
+    /**
+     * Returns color family rows for each item in [itemIds].
+     *
+     * One row per (item, color_family) pair — items with no colors are omitted.
+     * The ViewModel groups these into a per-item [Set] of color family strings and
+     * treats a missing item as having an empty set (the engine treats that as Neutral).
+     *
+     * @param itemIds Candidate item IDs from [getCandidates].
+     */
+    suspend fun getItemColorFamilies(
+        itemIds: List<Long>
+    ): DataResult<List<ItemColorFamily>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getItemColorFamilies(itemIds)
+        }.toDataResult("getItemColorFamilies")
+    }
+
+    /**
+     * Returns pattern name rows for each item in [itemIds].
+     *
+     * One row per (item, pattern_name) pair — items with no patterns are omitted.
+     * The ViewModel groups these into a per-item list of pattern names and derives
+     * [com.closet.features.recommendations.engine.EngineItem.isPatternSolid]:
+     * solid when the list is empty or every name equals "Solid".
+     *
+     * @param itemIds Candidate item IDs from [getCandidates].
+     */
+    suspend fun getItemPatternNames(
+        itemIds: List<Long>
+    ): DataResult<List<ItemPatternName>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getItemPatternNames(itemIds)
+        }.toDataResult("getItemPatternNames")
     }
 
     // ---------------------------------------------------------------------------

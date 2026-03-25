@@ -109,6 +109,35 @@ data class ItemLastWorn(
     @ColumnInfo(name = "last_worn_date") val lastWornDate: String?
 )
 
+/**
+ * A single (clothing_item_id, color_family) pair returned by the color-family bulk query.
+ *
+ * One row is returned per distinct color_family tagged on the item. The ViewModel groups
+ * rows by [clothingItemId] and collects the families into a [Set].
+ *
+ * @property clothingItemId FK to clothing_items.
+ * @property colorFamily Value of colors.color_family (Neutral/Earth/Cool/Warm/Bright).
+ */
+data class ItemColorFamily(
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "color_family") val colorFamily: String
+)
+
+/**
+ * A single (clothing_item_id, pattern_name) pair returned by the pattern bulk query.
+ *
+ * One row is returned per pattern tagged on the item. The ViewModel groups rows by
+ * [clothingItemId] and checks whether every pattern name equals "Solid" (or the list
+ * is empty) to derive [com.closet.features.recommendations.engine.EngineItem.isPatternSolid].
+ *
+ * @property clothingItemId FK to clothing_items.
+ * @property patternName Value of patterns.name (e.g. "Solid", "Striped", "Floral").
+ */
+data class ItemPatternName(
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "pattern_name") val patternName: String
+)
+
 // ---------------------------------------------------------------------------
 // DAO
 // ---------------------------------------------------------------------------
@@ -267,6 +296,46 @@ interface RecommendationDao {
         GROUP BY oli.clothing_item_id
     """)
     suspend fun getWindSuitability(itemIds: List<Long>): List<ItemWindSuitability>
+
+    /**
+     * Returns one row per (clothing_item_id, color_family) pair for items in [itemIds].
+     *
+     * An item appears once per distinct color_family across all its tagged colors.
+     * Items with no colors are not returned; the engine treats a missing item as Neutral.
+     *
+     * Used by the ViewModel to build the [com.closet.features.recommendations.engine.EngineItem]
+     * colorFamilies set before invoking the engine.
+     */
+    @Query("""
+        SELECT DISTINCT
+            cic.clothing_item_id,
+            co.color_family
+        FROM clothing_item_colors cic
+        JOIN colors co ON cic.color_id = co.id
+        WHERE cic.clothing_item_id IN (:itemIds)
+        ORDER BY cic.clothing_item_id ASC
+    """)
+    suspend fun getItemColorFamilies(itemIds: List<Long>): List<ItemColorFamily>
+
+    /**
+     * Returns one row per (clothing_item_id, pattern_name) pair for items in [itemIds].
+     *
+     * An item appears once per distinct pattern it has tagged. Items with no patterns
+     * are not returned; the ViewModel treats a missing item as solid.
+     *
+     * Used to derive [com.closet.features.recommendations.engine.EngineItem.isPatternSolid]:
+     * an item is solid when it has no patterns, or every pattern name equals "Solid".
+     */
+    @Query("""
+        SELECT
+            cip.clothing_item_id,
+            p.name AS pattern_name
+        FROM clothing_item_patterns cip
+        JOIN patterns p ON cip.pattern_id = p.id
+        WHERE cip.clothing_item_id IN (:itemIds)
+        ORDER BY cip.clothing_item_id ASC
+    """)
+    suspend fun getItemPatternNames(itemIds: List<Long>): List<ItemPatternName>
 
     /**
      * Returns the most recent wear date for each item in [itemIds].

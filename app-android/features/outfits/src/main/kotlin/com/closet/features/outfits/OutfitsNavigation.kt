@@ -35,10 +35,14 @@ fun NavController.navigateToWardrobePicker() {
 }
 
 /** Registers the [OutfitsRoute] composable destination in the [NavGraphBuilder]. */
-fun NavGraphBuilder.outfitsScreen(navController: NavController) {
+fun NavGraphBuilder.outfitsScreen(
+    navController: NavController,
+    onGetSuggestions: () -> Unit = {},
+) {
     composable<OutfitsRoute> {
         OutfitsScreen(
-            onCreateOutfit = { navController.navigateToOutfitBuilder() }
+            onCreateOutfit = { navController.navigateToOutfitBuilder() },
+            onGetSuggestions = onGetSuggestions,
         )
     }
 }

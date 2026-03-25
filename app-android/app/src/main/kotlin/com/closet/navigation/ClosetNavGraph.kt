@@ -29,6 +29,8 @@ import com.closet.features.outfits.journalScreen
 import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.outfitsScreen
 import com.closet.features.outfits.wardrobePickerScreen
+import com.closet.features.recommendations.navigateToRecommendations
+import com.closet.features.recommendations.recommendationScreen
 import com.closet.features.settings.navigateToSettings
 import com.closet.features.settings.settingsScreen
 import com.closet.features.stats.StatsRoute
@@ -146,9 +148,23 @@ fun ClosetNavGraph(
                 BrandManagementScreen(onBack = { navController.popBackStack() })
             }
 
-            outfitsScreen(navController)
+            outfitsScreen(
+                navController = navController,
+                onGetSuggestions = { navController.navigateToRecommendations() },
+            )
             outfitBuilderScreen(navController)
             wardrobePickerScreen(navController)
+
+            recommendationScreen(
+                onNavigateUp = { navController.popBackStack() },
+                // TODO: wire "Log it" — OutfitBuilderDestination is currently a plain object with no
+                //  support for pre-selected items. To implement this:
+                //  1. Convert OutfitBuilderDestination to a data class with an optional
+                //     `preselectedItemIds: List<Long>` parameter (default empty).
+                //  2. Update OutfitBuilderViewModel to accept and pre-populate those IDs.
+                //  3. Replace null below with: { itemIds -> navController.navigateToOutfitBuilder(itemIds) }
+                onNavigateToLog = null,
+            )
             journalScreen()
 
             statsScreen(

@@ -67,53 +67,53 @@ Reference: `outfit-recs-overview.md`
 
 ### ViewModel
 
-- [ ] `RecommendationViewModel` (`@HiltViewModel`) with `StateFlow<RecommendationUiState>`
-- [ ] States: `Idle → OccasionSheet → WeatherSheet → Loading → Results(combos) → Error`
-- [ ] Handle occasion selected / skipped
-- [ ] Handle weather confirmed / skipped / autofill from `WeatherRepository`
-- [ ] Handle regenerate (re-runs engine, replaces all 3 combos)
-- [ ] Handle "Log it" (passes selected combo IDs to outfit logging flow)
-- [ ] Handle "Save for later" (creates a named outfit from combo)
+- [x] `RecommendationViewModel` (`@HiltViewModel`) with `StateFlow<RecommendationUiState>`
+- [x] States: `Idle → OccasionSheet → WeatherSheet → Loading → Results(combos) → Error`
+- [x] Handle occasion selected / skipped
+- [x] Handle weather confirmed / skipped / autofill from `WeatherRepository`
+- [x] Handle regenerate (re-runs engine, replaces all 3 combos)
+- [x] Handle "Log it" (passes selected combo IDs to outfit logging flow)
+- [x] Handle "Save for later" (creates a named outfit from combo)
 
 ---
 
 ### UI — pre-suggestion sheets
 
-- [ ] `OccasionSheet` — single-select bottom sheet, skippable; uses existing `OccasionEntity` list from `LookupDao`
-- [ ] `WeatherSheet` — bottom sheet with:
-  - [ ] Temp range inputs (low/high °C)
-  - [ ] Condition picker (Sunny / Cloudy / Rainy / Snowy / Windy)
-  - [ ] Precipitation toggle
-  - [ ] Wind toggle
-  - [ ] Autofill from `WeatherRepository` cache on open; show "Pulled from location data" chip when autofilled
-  - [ ] All fields user-overridable; sheet submittable with partial data
+- [x] `OccasionSheet` — single-select bottom sheet, skippable; uses existing `OccasionEntity` list from `LookupDao`
+- [x] `WeatherSheet` — bottom sheet with:
+  - [x] Temp range inputs (low/high °C)
+  - [x] Condition picker (Sunny / Cloudy / Rainy / Snowy / Windy)
+  - [x] Precipitation toggle
+  - [x] Wind toggle
+  - [x] Autofill from `WeatherRepository` cache on open; show "Pulled from location data" chip when autofilled
+  - [x] All fields user-overridable; sheet submittable with partial data
 
 ---
 
 ### UI — suggestions screen
 
-- [ ] `RecommendationScreen` composable (Idle/Loading/Results/Error states)
-- [ ] Horizontal pager carousel — 3 cards, page indicators
-- [ ] `OutfitComboCard` composable — grid of item images (or placeholder) for the combo
-- [ ] "Log it" action — navigates to outfit logging with combo preloaded
-- [ ] "Save for later" action — saves combo as outfit, shows confirmation snackbar
-- [ ] "Regenerate" action — triggers full re-run for all 3 slots
+- [x] `RecommendationScreen` composable (Idle/Loading/Results/Error states)
+- [x] Horizontal pager carousel — 3 cards, page indicators
+- [x] `OutfitComboCard` composable — grid of item images (or placeholder) for the combo
+- [x] "Log it" action — navigates to outfit logging with combo preloaded
+- [x] "Save for later" action — saves combo as outfit, shows confirmation snackbar
+- [x] "Regenerate" action — triggers full re-run for all 3 slots
 
 ---
 
 ### Outfit gallery & entry point
 
-- [ ] Restyle outfit gallery to 3-column grid (currently 1-column list)
-- [ ] Expand existing FAB into a two-option menu: **Add outfit** + **Get suggestions**
-- [ ] Wire "Get suggestions" → occasion sheet → weather sheet → `RecommendationScreen`
+- [x] Restyle outfit gallery to 3-column grid (currently 1-column list)
+- [x] Expand existing FAB into a two-option menu: **Add outfit** + **Get suggestions**
+- [x] Wire "Get suggestions" → occasion sheet → weather sheet → `RecommendationScreen`
 
 ---
 
 ### Navigation
 
-- [ ] Define `RecommendationDestination` (`@Serializable`) in `app/navigation/`
-- [ ] Add `RecommendationNavigation.kt` extension in `features/recommendations/`
-- [ ] Register route in `ClosetNavGraph.kt`
+- [x] Define `RecommendationDestination` (`@Serializable`) in `app/navigation/`
+- [x] Add `RecommendationNavigation.kt` extension in `features/recommendations/`
+- [x] Register route in `ClosetNavGraph.kt`
 
 ---
 
