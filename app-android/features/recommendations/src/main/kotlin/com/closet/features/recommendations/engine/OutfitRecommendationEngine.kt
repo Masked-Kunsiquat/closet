@@ -382,16 +382,30 @@ class OutfitRecommendationEngine {
     // -------------------------------------------------------------------------
 
     /**
-     * Returns a tie-break key for a combo: the oldest last-worn date among its items.
-     * "Never worn" items have an empty string key which sorts before any YYYY-MM-DD date,
-     * so combos containing them are preferred in ties (oldest / never worn first).
+     * Returns a tie-break key for a combo used for ascending sort (smallest key wins).
+     *
+     * Rule: among tied combos, the one whose *most-recently-worn item* is the oldest
+     * (i.e. least recently worn overall) wins — favouring combos that haven't been
+     * worn in a while.
+     *
+     * Implementation:
+     * 1. Map each item to its last-worn date string, or [NEVER_WORN_SENTINEL] ("") if
+     *    the item has never been logged.
+     * 2. Take the maximum date string across the combo's items — this represents the
+     *    combo's most-recently-worn item. YYYY-MM-DD lexicographic order equals
+     *    chronological order, so `maxOrNull()` is correct.
+     * 3. The combo with the *smallest* max date (i.e. the most-recently-worn item is
+     *    furthest in the past) wins the tie.
+     *
+     * NEVER_WORN_SENTINEL semantics: "" < any YYYY-MM-DD string, so a combo that
+     * contains at least one never-worn item will have a max of "" only when *all*
+     * items are never-worn. Mixed combos (some worn, some not) correctly rank by the
+     * worn item's date.
      */
     private fun comboTieBreakKey(combo: OutfitCombo, input: EngineInput): String {
         val dates = combo.items.map { item ->
             input.lastWornDates[item.id]?.lastWornDate ?: NEVER_WORN_SENTINEL
         }
-        // The combo whose *most recently worn* item is oldest wins (least recently worn first).
-        // Take the max date string among item last-worn dates; "" < any date string.
         return dates.maxOrNull() ?: NEVER_WORN_SENTINEL
     }
 }

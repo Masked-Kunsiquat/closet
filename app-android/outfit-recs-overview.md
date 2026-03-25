@@ -46,7 +46,7 @@ Dependencies: `core/data`, `core/ui`. No other feature module depends on it.
 
 ### Pre-suggestion sheets (shown in order, both optional)
 1. **Occasion sheet** — single-select. User picks one occasion (Casual, Formal, etc.).
-   Can be dismissed/skipped; engine runs without an occasion filter if skipped.
+   It can be dismissed or skipped; the engine runs without an occasion filter if skipped.
 2. **Weather sheet** — shows today's conditions for the engine to use:
    - Auto-filled from `WeatherRepository` when a cached forecast is available. A small
      chip indicates "Pulled from location data" when auto-filled.

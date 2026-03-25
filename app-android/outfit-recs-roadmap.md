@@ -70,7 +70,7 @@ Reference: `outfit-recs-overview.md`
 - [ ] `RecommendationViewModel` (`@HiltViewModel`) with `StateFlow<RecommendationUiState>`
 - [ ] States: `Idle → OccasionSheet → WeatherSheet → Loading → Results(combos) → Error`
 - [ ] Handle occasion selected / skipped
-- [ ] Handle weather confirmed / skipped / auto-filled from `WeatherRepository`
+- [ ] Handle weather confirmed / skipped / autofill from `WeatherRepository`
 - [ ] Handle regenerate (re-runs engine, replaces all 3 combos)
 - [ ] Handle "Log it" (passes selected combo IDs to outfit logging flow)
 - [ ] Handle "Save for later" (creates a named outfit from combo)
@@ -85,7 +85,7 @@ Reference: `outfit-recs-overview.md`
   - [ ] Condition picker (Sunny / Cloudy / Rainy / Snowy / Windy)
   - [ ] Precipitation toggle
   - [ ] Wind toggle
-  - [ ] Auto-fill from `WeatherRepository` cache on open; show "Pulled from location data" chip when auto-filled
+  - [ ] Autofill from `WeatherRepository` cache on open; show "Pulled from location data" chip when autofilled
   - [ ] All fields user-overridable; sheet submittable with partial data
 
 ---
@@ -95,7 +95,7 @@ Reference: `outfit-recs-overview.md`
 - [ ] `RecommendationScreen` composable (Idle/Loading/Results/Error states)
 - [ ] Horizontal pager carousel — 3 cards, page indicators
 - [ ] `OutfitComboCard` composable — grid of item images (or placeholder) for the combo
-- [ ] "Log it" action — navigates to outfit logging with combo pre-loaded
+- [ ] "Log it" action — navigates to outfit logging with combo preloaded
 - [ ] "Save for later" action — saves combo as outfit, shows confirmation snackbar
 - [ ] "Regenerate" action — triggers full re-run for all 3 slots
 
@@ -164,4 +164,4 @@ Reference: `outfit-recs-overview.md`
 - [ ] Thumbs up/down feedback loop (requires new `recommendation_feedback` table)
 - [ ] Per-item suitability scores surfaced in item detail view
 - [ ] `general notes` fed as context to Nano
-- [ ] Category & subcategory auto-fill from clothing image (separate AI ticket)
+- [ ] Category & subcategory autofill from clothing image (separate AI ticket)

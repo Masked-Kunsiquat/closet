@@ -2,4 +2,6 @@
 <resources>
     <!-- Screen title -->
     <string name="recommendations_title">Outfit Suggestions</string>
+    <!-- Placeholder shown while ViewModel and UI are not yet implemented -->
+    <string name="outfit_recommendations_coming_soon">Outfit recommendations coming soon</string>
 </resources>
