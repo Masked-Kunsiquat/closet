@@ -60,6 +60,48 @@ enum class TemperatureUnit(val label: String) {
 }
 
 /**
+ * Outfit role for a top-level clothing category.
+ * Stored as TEXT in `categories.outfit_role`. Used by the recommendation engine's
+ * category completeness check — never string-match on `categories.name`.
+ *
+ * A valid outfit is (Top + Bottom) OR (OnePiece), with optional Outerwear/Footwear/Accessory.
+ */
+enum class OutfitRole(val label: String) {
+    Top("Top"),
+    Bottom("Bottom"),
+    OnePiece("OnePiece"),
+    Outerwear("Outerwear"),
+    Footwear("Footwear"),
+    Accessory("Accessory"),
+    Other("Other");
+
+    companion object {
+        fun fromString(value: String): OutfitRole =
+            entries.find { it.label == value } ?: Other
+    }
+}
+
+/**
+ * Color family for a color lookup value.
+ * Stored as TEXT in `colors.color_family`. Used by color harmony scoring in the
+ * recommendation engine's outfit-level multiplier step.
+ *
+ * Values: Neutral | Earth | Cool | Warm | Bright.
+ */
+enum class ColorFamily(val label: String) {
+    Neutral("Neutral"),
+    Earth("Earth"),
+    Cool("Cool"),
+    Warm("Warm"),
+    Bright("Bright");
+
+    companion object {
+        fun fromString(value: String): ColorFamily =
+            entries.find { it.label == value } ?: Neutral
+    }
+}
+
+/**
  * Weather condition options. Stored in the DB as [label] strings — adding new
  * entries is non-breaking for existing rows.
  *

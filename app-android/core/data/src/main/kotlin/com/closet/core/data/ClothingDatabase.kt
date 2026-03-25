@@ -8,6 +8,7 @@ import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.closet.core.data.dao.*
 import com.closet.core.data.migrations.MIGRATION_1_2
+import com.closet.core.data.migrations.MIGRATION_2_3
 import com.closet.core.data.model.*
 
 /**
@@ -38,7 +39,7 @@ import com.closet.core.data.model.*
         ClothingItemOccasionEntity::class,
         ClothingItemPatternEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -55,6 +56,8 @@ abstract class ClothingDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     /** @return [StatsDao] for wardrobe analytics. */
     abstract fun statsDao(): StatsDao
+    /** @return [RecommendationDao] for the outfit recommendation pipeline. */
+    abstract fun recommendationDao(): RecommendationDao
 
     companion object {
         private const val DATABASE_NAME = "closet.db"
@@ -90,7 +93,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
                     }
                 })
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
                 INSTANCE = instance
                 instance

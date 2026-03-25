@@ -4,6 +4,7 @@ import android.content.Context
 import com.closet.core.data.BuildConfig
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.*
+import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import dagger.Module
 import dagger.Provides
@@ -68,6 +69,18 @@ object DataModule {
     @Provides
     @Singleton
     fun provideBrandDao(db: ClothingDatabase): BrandDao = db.brandDao()
+
+    /** Provides the [RecommendationDao] singleton from the shared database instance. */
+    @Provides
+    @Singleton
+    fun provideRecommendationDao(db: ClothingDatabase): RecommendationDao = db.recommendationDao()
+
+    /** Provides the [RecommendationRepository] singleton. */
+    @Provides
+    @Singleton
+    fun provideRecommendationRepository(
+        recommendationDao: RecommendationDao,
+    ): RecommendationRepository = RecommendationRepository(recommendationDao)
 
     /** Provides the [WeatherPreferencesRepository] singleton backed by its own DataStore file. */
     @Provides

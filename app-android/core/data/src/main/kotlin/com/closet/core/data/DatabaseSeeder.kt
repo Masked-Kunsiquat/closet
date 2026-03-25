@@ -35,23 +35,23 @@ object DatabaseSeeder {
 
     /** Seeds the 10 top-level clothing categories with stable IDs (1–10). */
     private fun seedCategories(db: SupportSQLiteDatabase) {
-        // name, icon, sort_order, warmth_layer
+        // name, icon, sort_order, warmth_layer, outfit_role
         val categories = listOf(
-            listOf("Tops",                  "t-shirt",               1, "None"),
-            listOf("Bottoms",               "pants",                 2, "None"),
-            listOf("Outerwear",             "hoodie",                3, "Outer"),
-            listOf("Dresses & Jumpsuits",   "dress",                 4, "None"),
-            listOf("Footwear",              "sneaker",               5, "None"),
-            listOf("Accessories",           "watch",                 6, "None"),
-            listOf("Bags",                  "handbag",               7, "None"),
-            listOf("Activewear",            "person-simple-running", 8, "None"),
-            listOf("Underwear & Intimates", "sock",                  9, "Base"),
-            listOf("Swimwear",              "goggles",               10, "None"),
+            listOf("Tops",                  "t-shirt",               1, "None",  "Top"),
+            listOf("Bottoms",               "pants",                 2, "None",  "Bottom"),
+            listOf("Outerwear",             "hoodie",                3, "Outer", "Outerwear"),
+            listOf("Dresses & Jumpsuits",   "dress",                 4, "None",  "OnePiece"),
+            listOf("Footwear",              "sneaker",               5, "None",  "Footwear"),
+            listOf("Accessories",           "watch",                 6, "None",  "Accessory"),
+            listOf("Bags",                  "handbag",               7, "None",  "Other"),
+            listOf("Activewear",            "person-simple-running", 8, "None",  "Other"),
+            listOf("Underwear & Intimates", "sock",                  9, "Base",  "Other"),
+            listOf("Swimwear",              "goggles",               10, "None", "Other"),
         )
         categories.forEachIndexed { index, row ->
             db.execSQL(
-                "INSERT OR IGNORE INTO categories (id, name, icon, sort_order, warmth_layer) VALUES (?, ?, ?, ?, ?)",
-                arrayOf<Any>(index + 1, row[0], row[1], row[2], row[3])
+                "INSERT OR IGNORE INTO categories (id, name, icon, sort_order, warmth_layer, outfit_role) VALUES (?, ?, ?, ?, ?, ?)",
+                arrayOf<Any>(index + 1, row[0], row[1], row[2], row[3], row[4])
             )
         }
     }
@@ -120,34 +120,39 @@ object DatabaseSeeder {
     }
 
     /**
-     * Seeds 18 named colors with hex codes.
+     * Seeds 18 named colors with hex codes and color families.
      * Public so it can be called independently in migrations that backfill color data.
+     *
+     * color_family values: Neutral | Earth | Cool | Warm | Bright.
+     * Added in Migration 2→3; the column has DEFAULT 'Neutral' so this insert always
+     * supplies the correct family explicitly.
      */
     fun seedColors(db: SupportSQLiteDatabase) {
+        // name, hex, color_family
         val colors = listOf(
-            "Black" to "#000000",
-            "White" to "#FFFFFF",
-            "Grey" to "#808080",
-            "Beige" to "#F5F5DC",
-            "Navy" to "#000080",
-            "Red" to "#FF0000",
-            "Royal Blue" to "#4169E1",
-            "Sky Blue" to "#87CEEB",
-            "Forest Green" to "#228B22",
-            "Olive" to "#808000",
-            "Mint" to "#98FF98",
-            "Burgundy" to "#800020",
-            "Pink" to "#FFC0CB",
-            "Orange" to "#FFA500",
-            "Yellow" to "#FFFF00",
-            "Purple" to "#800080",
-            "Brown" to "#A52A2A",
-            "Tan" to "#D2B48C"
+            Triple("Black",        "#000000", "Neutral"),
+            Triple("White",        "#FFFFFF", "Neutral"),
+            Triple("Grey",         "#808080", "Neutral"),
+            Triple("Beige",        "#F5F5DC", "Neutral"),
+            Triple("Navy",         "#000080", "Neutral"),
+            Triple("Red",          "#FF0000", "Warm"),
+            Triple("Royal Blue",   "#4169E1", "Cool"),
+            Triple("Sky Blue",     "#87CEEB", "Cool"),
+            Triple("Forest Green", "#228B22", "Cool"),
+            Triple("Olive",        "#808000", "Earth"),
+            Triple("Mint",         "#98FF98", "Cool"),
+            Triple("Burgundy",     "#800020", "Warm"),
+            Triple("Pink",         "#FFC0CB", "Warm"),
+            Triple("Orange",       "#FFA500", "Warm"),
+            Triple("Yellow",       "#FFFF00", "Warm"),
+            Triple("Purple",       "#800080", "Cool"),
+            Triple("Brown",        "#A52A2A", "Earth"),
+            Triple("Tan",          "#D2B48C", "Earth"),
         )
-        colors.forEach { (name, hex) ->
+        colors.forEach { (name, hex, family) ->
             db.execSQL(
-                "INSERT OR IGNORE INTO colors (name, hex) VALUES (?, ?)",
-                arrayOf<Any>(name, hex)
+                "INSERT OR IGNORE INTO colors (name, hex, color_family) VALUES (?, ?, ?)",
+                arrayOf<Any>(name, hex, family)
             )
         }
     }
