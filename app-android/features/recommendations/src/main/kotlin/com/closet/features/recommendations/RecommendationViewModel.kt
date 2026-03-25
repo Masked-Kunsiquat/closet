@@ -9,9 +9,11 @@ import com.closet.core.data.dao.ItemPatternName
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
-import com.closet.core.data.model.WeatherCondition
+import com.closet.core.data.model.OccasionEntity
+import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.RecommendationRepository
+import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.repository.WeatherRepository
 import com.closet.core.data.util.DataResult
 import com.closet.features.recommendations.engine.EngineInput
@@ -63,7 +65,24 @@ class RecommendationViewModel @Inject constructor(
     private val engine: OutfitRecommendationEngine,
     private val weatherRepository: WeatherRepository,
     private val outfitRepository: OutfitRepository,
+    private val lookupRepository: LookupRepository,
+    private val storageRepository: StorageRepository,
 ) : ViewModel() {
+
+    // -------------------------------------------------------------------------
+    // Occasions list — loaded once, used by OccasionSheet
+    // -------------------------------------------------------------------------
+
+    /**
+     * Full list of occasions from the lookup table.
+     * Collected in [RecommendationScreen] and passed to [OccasionSheet].
+     */
+    val occasions: StateFlow<List<OccasionEntity>> = lookupRepository.getOccasions()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
     // -------------------------------------------------------------------------
     // UI state
@@ -389,6 +408,14 @@ class RecommendationViewModel @Inject constructor(
         isRaining = isRaining,
         isWindy = isWindy
     )
+
+    /**
+     * Resolves a relative image path to an absolute [java.io.File] for Coil.
+     *
+     * Mirrors the pattern used in [ClosetViewModel] and [ClothingDetailViewModel].
+     * Returns null when [path] is null so the UI can show a placeholder.
+     */
+    fun resolveImage(path: String): java.io.File = storageRepository.getFile(path)
 
     /**
      * Unwraps a [DataResult.Success] payload or throws an [IllegalStateException] with

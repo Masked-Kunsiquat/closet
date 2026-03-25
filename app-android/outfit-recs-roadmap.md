@@ -92,12 +92,12 @@ Reference: `outfit-recs-overview.md`
 
 ### UI — suggestions screen
 
-- [ ] `RecommendationScreen` composable (Idle/Loading/Results/Error states)
-- [ ] Horizontal pager carousel — 3 cards, page indicators
-- [ ] `OutfitComboCard` composable — grid of item images (or placeholder) for the combo
-- [ ] "Log it" action — navigates to outfit logging with combo preloaded
-- [ ] "Save for later" action — saves combo as outfit, shows confirmation snackbar
-- [ ] "Regenerate" action — triggers full re-run for all 3 slots
+- [x] `RecommendationScreen` composable (Idle/Loading/Results/Error states)
+- [x] Horizontal pager carousel — 3 cards, page indicators
+- [x] `OutfitComboCard` composable — grid of item images (or placeholder) for the combo
+- [x] "Log it" action — navigates to outfit logging with combo preloaded
+- [x] "Save for later" action — saves combo as outfit, shows confirmation snackbar
+- [x] "Regenerate" action — triggers full re-run for all 3 slots
 
 ---
 

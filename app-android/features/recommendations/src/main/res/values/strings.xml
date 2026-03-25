@@ -30,4 +30,28 @@
     <string name="recs_weather_toggle_raining">Raining</string>
     <string name="recs_weather_toggle_windy">Windy</string>
     <string name="recs_weather_confirm">Use these conditions</string>
+
+    <!-- Suggestions screen — idle -->
+    <string name="recs_get_suggestions">Get Suggestions</string>
+
+    <!-- Suggestions screen — loading -->
+    <string name="recs_loading_description">Finding outfit combinations…</string>
+
+    <!-- Suggestions screen — error -->
+    <string name="recs_error_title">Something went wrong</string>
+    <string name="recs_retry">Try Again</string>
+
+    <!-- Suggestions screen — results -->
+    <string name="recs_page_indicator_description">Page %1$d of %2$d</string>
+
+    <!-- OutfitComboCard -->
+    <string name="recs_combo_item_placeholder">No image</string>
+    <string name="recs_combo_score_label">Score: %.2f</string>
+    <string name="recs_action_log_it">Log it</string>
+    <string name="recs_action_save_for_later">Save for later</string>
+    <string name="recs_action_regenerate">Regenerate</string>
+    <string name="recs_combo_item_image_description">%1$s</string>
+
+    <!-- Save for later snackbar -->
+    <string name="recs_saved_confirmation">Outfit saved</string>
 </resources>
