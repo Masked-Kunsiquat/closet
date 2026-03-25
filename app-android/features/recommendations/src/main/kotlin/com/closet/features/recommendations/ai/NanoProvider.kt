@@ -5,6 +5,7 @@ import com.closet.core.data.ai.ClothingItemDto
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
+import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSuggestion
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,17 @@ internal interface NanoInferenceEngine {
     fun isAvailable(): Boolean
 
     /**
+     * Counts the number of tokens in [prompt] as reported by the on-device model.
+     *
+     * Used by [OutfitCoherenceScorer] to gate candidate payload size before inference.
+     * Returns [Int.MAX_VALUE] in the stub implementation so the gate never trims the
+     * payload until the real MLKit engine lands.
+     *
+     * TODO: replace stub return with real MLKit countTokens() when genai-inference lands.
+     */
+    suspend fun countTokens(prompt: String): Int
+
+    /**
      * Runs inference and returns the raw model output text.
      * Throws on model error or [com.google.mlkit.common.MlKitException].
      */
@@ -57,6 +69,8 @@ internal interface NanoInferenceEngine {
  */
 internal class StubNanoInferenceEngine : NanoInferenceEngine {
     override fun isAvailable(): Boolean = false
+    /** Returns [Int.MAX_VALUE] so the token-count gate in [OutfitCoherenceScorer] never trims. */
+    override suspend fun countTokens(prompt: String): Int = Int.MAX_VALUE
     override suspend fun generate(prompt: String): String =
         error("Gemini Nano not yet available — MLKit genai-inference artifact not published")
 }
@@ -101,24 +115,8 @@ class NanoProvider @Inject constructor(
     companion object {
         private const val TAG = "NanoProvider"
 
-        /**
-         * System prompt prefix — reused across requests.
-         * Instructs the model on output format and selection constraints.
-         */
-        private val SYSTEM_PROMPT = """
-            You are an outfit coherence scorer. You will be given a JSON array of clothing items.
-            Select the best combination for a complete, coherent outfit.
-
-            Rules:
-            - Only select IDs from the list provided. Never invent new IDs.
-            - A valid outfit requires: (one Top + one Bottom) OR (one OnePiece),
-              with optional Outerwear, Footwear, or Accessory.
-            - Prefer color harmony and avoid pattern clashes.
-            - Higher suitability_score items are statistically better matches for today's conditions.
-
-            Respond with ONLY valid JSON in this exact format — no preamble, no text outside the JSON:
-            {"selected_ids": [<id1>, <id2>, ...], "reason": "<one sentence>"}
-        """.trimIndent()
+        /** Shared system prompt from [OutfitPromptPrefix] — identical contract for all providers. */
+        private val SYSTEM_PROMPT get() = OutfitPromptPrefix.SYSTEM_PROMPT
     }
 
     // ── NanoInitializer ───────────────────────────────────────────────────────
@@ -158,6 +156,21 @@ class NanoProvider @Inject constructor(
             emit(NanoInitResult.Failed(e.message ?: "Unknown error during Nano init"))
         }
     }
+
+    // ── Token count gate (used by OutfitCoherenceScorer) ─────────────────────
+
+    /**
+     * Counts the number of tokens in [prompt] using the on-device Nano engine.
+     *
+     * Delegates to [NanoInferenceEngine.countTokens]. The stub returns [Int.MAX_VALUE]
+     * so the gate in [OutfitCoherenceScorer] never trims the payload until the real
+     * MLKit implementation is wired.
+     *
+     * Note: this method is intentionally exposed on [NanoProvider] (not on [OutfitAiProvider])
+     * because token counting is Nano-specific. The coherence scorer casts to [NanoProvider]
+     * only when the selected provider is [AiProvider.Nano].
+     */
+    suspend fun countTokens(prompt: String): Int = engine.countTokens(prompt)
 
     // ── OutfitAiProvider ──────────────────────────────────────────────────────
 

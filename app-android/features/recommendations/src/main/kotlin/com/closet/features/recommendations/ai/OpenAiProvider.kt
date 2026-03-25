@@ -2,6 +2,7 @@ package com.closet.features.recommendations.ai
 
 import com.closet.core.data.ai.ClothingItemDto
 import com.closet.core.data.ai.OutfitAiProvider
+import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSuggestion
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
@@ -61,24 +62,8 @@ class OpenAiProvider @Inject constructor(
         private const val DEFAULT_MODEL = "gpt-4o-mini"
         private const val CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 
-        /**
-         * System message — identical role/format contract as [NanoProvider.SYSTEM_PROMPT].
-         * Instructs the model on output format and selection constraints.
-         */
-        private val SYSTEM_PROMPT = """
-            You are an outfit coherence scorer. You will be given a JSON array of clothing items.
-            Select the best combination for a complete, coherent outfit.
-
-            Rules:
-            - Only select IDs from the list provided. Never invent new IDs.
-            - A valid outfit requires: (one Top + one Bottom) OR (one OnePiece),
-              with optional Outerwear, Footwear, or Accessory.
-            - Prefer color harmony and avoid pattern clashes.
-            - Higher suitability_score items are statistically better matches for today's conditions.
-
-            Respond with ONLY valid JSON in this exact format — no preamble, no text outside the JSON:
-            {"selected_ids": [<id1>, <id2>, ...], "reason": "<one sentence>"}
-        """.trimIndent()
+        /** Shared system prompt from [OutfitPromptPrefix] — identical contract for all providers. */
+        private val SYSTEM_PROMPT get() = OutfitPromptPrefix.SYSTEM_PROMPT
     }
 
     override suspend fun suggestOutfit(candidates: List<ClothingItemDto>): Result<OutfitSuggestion> {
