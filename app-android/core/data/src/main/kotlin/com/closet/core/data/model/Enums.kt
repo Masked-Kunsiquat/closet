@@ -34,7 +34,7 @@ enum class WashStatus(val label: String) {
  * Weather service provider options.
  */
 enum class WeatherService(val label: String) {
-    OpenMeteo("Open-Meteo"),
+    OpenMeteo("Open\u2011Meteo"),
     Nws("NWS"),
     Google("Google");
 
