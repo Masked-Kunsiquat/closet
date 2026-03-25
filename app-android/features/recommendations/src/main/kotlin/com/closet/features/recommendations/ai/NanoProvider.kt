@@ -34,7 +34,7 @@ import javax.inject.Singleton
  */
 internal interface NanoInferenceEngine {
     /** Returns the current feature availability status from AICore. */
-    fun checkStatus(): FeatureStatus
+    suspend fun checkStatus(): Int
 
     /**
      * Starts (or attaches to an in-progress) model download.
@@ -63,7 +63,7 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
 
     private val model by lazy { Generation.getClient() }
 
-    override fun checkStatus(): FeatureStatus = model.checkStatus()
+    override suspend fun checkStatus(): Int = model.checkStatus()
 
     override fun downloadFlow(): Flow<DownloadStatus> = model.download()
 
