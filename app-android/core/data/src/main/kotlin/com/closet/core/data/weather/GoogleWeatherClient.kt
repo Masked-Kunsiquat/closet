@@ -8,6 +8,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import java.time.LocalDate
 import javax.inject.Inject
@@ -48,7 +49,7 @@ class GoogleWeatherClient @Inject constructor(
                 parameter("pageSize", 7)
             }.body()
             response.toForecasts()
-        }.onFailure { Timber.e(it, "GoogleWeatherClient: fetch failed") }
+        }.onFailure { if (it is CancellationException) throw it else Timber.e(it, "GoogleWeatherClient: fetch failed") }
 
     // ── Response DTOs ─────────────────────────────────────────────────────────
 

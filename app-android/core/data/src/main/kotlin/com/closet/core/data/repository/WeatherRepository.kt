@@ -53,19 +53,18 @@ class WeatherRepository @Inject constructor(
      */
     suspend fun getForecast(): DataResult<List<DailyForecast>> {
         return try {
-            val cachedJson = weatherPrefsRepo.getCachedForecastJson().first()
-            val cachedTimestamp = weatherPrefsRepo.getCachedForecastTimestamp().first()
-            val cachedService = weatherPrefsRepo.getCachedForecastService().first()
+            // Read all cache keys in one atomic snapshot to avoid observing partially-cleared state.
+            val cache = weatherPrefsRepo.getCacheSnapshot()
             val currentService = weatherPrefsRepo.getWeatherService().first()
-            val age = System.currentTimeMillis() - cachedTimestamp
+            val age = System.currentTimeMillis() - cache.timestamp
 
-            if (cachedJson.isNotEmpty() && age < FORECAST_CACHE_TTL_MS && cachedService == currentService) {
-                val parsed = parseCached(cachedJson)
+            if (cache.forecastJson.isNotEmpty() && age < FORECAST_CACHE_TTL_MS && cache.service == currentService) {
+                val parsed = parseCached(cache.forecastJson)
                 if (parsed != null) return DataResult.Success(parsed)
                 Timber.w("WeatherRepository: stale cache unreadable, fetching fresh")
             }
 
-            fetchFresh(cachedJson)
+            fetchFresh(cache.forecastJson)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -86,10 +85,10 @@ class WeatherRepository @Inject constructor(
             ?: run {
                 val cachedLat = weatherPrefsRepo.getCachedLatitude().first()
                 val cachedLon = weatherPrefsRepo.getCachedLongitude().first()
-                if (cachedLat != 0.0 || cachedLon != 0.0) Pair(cachedLat, cachedLon) else null
+                if (cachedLat != null && cachedLon != null) Pair(cachedLat, cachedLon) else null
             }
             ?: return DataResult.Error(
-                AppError.Unexpected(IllegalStateException("No location available — grant location permission and try again."))
+                AppError.ValidationError.InvalidInput("No location available — grant location permission and try again.")
             )
 
         val (lat, lon) = location
@@ -100,7 +99,7 @@ class WeatherRepository @Inject constructor(
             val key = weatherPrefsRepo.getGoogleApiKey().first()
             if (key.isBlank()) {
                 return DataResult.Error(
-                    AppError.Unexpected(IllegalStateException("Google Weather API key is not set. Add it in Settings → Weather."))
+                    AppError.ValidationError.InvalidInput("Google Weather API key is not set. Add it in Settings → Weather.")
                 )
             }
         }
@@ -130,6 +129,7 @@ class WeatherRepository @Inject constructor(
         return result.fold(
             onSuccess = { DataResult.Success(it) },
             onFailure = { error ->
+                if (error is CancellationException) throw error
                 // Fetch failed — return stale cache rather than an error if we have one.
                 if (cachedJson.isNotEmpty()) {
                     val parsed = parseCached(cachedJson)

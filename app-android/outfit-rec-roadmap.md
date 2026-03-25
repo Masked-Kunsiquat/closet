@@ -9,7 +9,7 @@ An opt-in outfit suggestion feature that uses a two-layer architecture:
    color/pattern rules, and candidate trimming. SQL only, no AI.
 
 2. **Gemini Nano coherence scorer** — sees only a small, clean, constrained candidate
-   pool. Acts as a last-mile style coherence scorer, not a generative engine.
+   pool. Acts as a last-mile-style coherence scorer, not a generative engine.
 
 AI is entirely optional. The programmatic pipeline alone is a useful feature.
 Coherence scoring is an enhancement layered on top when the device supports it.

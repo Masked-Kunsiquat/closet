@@ -102,17 +102,41 @@ class WeatherPreferencesRepository @Inject constructor(
         prefs[cachedForecastTimestampKey] ?: 0L
     }
 
-    fun getCachedLatitude(): Flow<Double> = context.weatherDataStore.data.map { prefs ->
-        prefs[cachedLatitudeKey] ?: 0.0
+    fun getCachedLatitude(): Flow<Double?> = context.weatherDataStore.data.map { prefs ->
+        prefs[cachedLatitudeKey]
     }
 
-    fun getCachedLongitude(): Flow<Double> = context.weatherDataStore.data.map { prefs ->
-        prefs[cachedLongitudeKey] ?: 0.0
+    fun getCachedLongitude(): Flow<Double?> = context.weatherDataStore.data.map { prefs ->
+        prefs[cachedLongitudeKey]
     }
 
     /** Returns the [WeatherService] that produced the current cached forecast, or null if no cache. */
     fun getCachedForecastService(): Flow<WeatherService?> = context.weatherDataStore.data.map { prefs ->
         prefs[cachedForecastServiceKey]?.let { WeatherService.fromString(it) }
+    }
+
+    /**
+     * Reads all cache-related keys in a single atomic DataStore snapshot.
+     * Use this instead of multiple individual [first] calls to avoid observing
+     * a partially-cleared or partially-written cache state.
+     */
+    data class CacheSnapshot(
+        val forecastJson: String,
+        val timestamp: Long,
+        val service: WeatherService?,
+        val latitude: Double?,
+        val longitude: Double?,
+    )
+
+    suspend fun getCacheSnapshot(): CacheSnapshot {
+        val prefs = context.weatherDataStore.data.first()
+        return CacheSnapshot(
+            forecastJson = prefs[cachedForecastJsonKey] ?: "",
+            timestamp = prefs[cachedForecastTimestampKey] ?: 0L,
+            service = prefs[cachedForecastServiceKey]?.let { WeatherService.fromString(it) },
+            latitude = prefs[cachedLatitudeKey],
+            longitude = prefs[cachedLongitudeKey],
+        )
     }
 
     /**

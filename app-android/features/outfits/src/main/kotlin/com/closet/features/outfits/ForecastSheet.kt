@@ -15,6 +15,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -28,13 +29,10 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
-private fun LocalDate.toForecastLabelComposable(): String {
-    val today = LocalDate.now()
-    return when (this) {
-        today -> stringResource(R.string.journal_forecast_today)
-        today.plusDays(1) -> stringResource(R.string.journal_forecast_tomorrow)
-        else -> "${dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())} $dayOfMonth"
-    }
+private fun LocalDate.toForecastLabelComposable(today: LocalDate): String = when (this) {
+    today -> stringResource(R.string.journal_forecast_today)
+    today.plusDays(1) -> stringResource(R.string.journal_forecast_tomorrow)
+    else -> "${dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())} $dayOfMonth"
 }
 
 /**
@@ -69,11 +67,14 @@ internal fun ForecastSheet(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
-            forecasts.forEach { forecast ->
-                DailyForecastRow(forecast = forecast, temperatureUnit = temperatureUnit)
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                )
+            val today = remember { LocalDate.now() }
+            forecasts.forEachIndexed { index, forecast ->
+                DailyForecastRow(forecast = forecast, temperatureUnit = temperatureUnit, today = today)
+                if (index < forecasts.lastIndex) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    )
+                }
             }
         }
     }
@@ -83,6 +84,7 @@ internal fun ForecastSheet(
 private fun DailyForecastRow(
     forecast: DailyForecast,
     temperatureUnit: TemperatureUnit,
+    today: LocalDate,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -92,7 +94,7 @@ private fun DailyForecastRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = forecast.date.toForecastLabelComposable(),
+            text = forecast.date.toForecastLabelComposable(today),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
         )
