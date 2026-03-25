@@ -164,6 +164,7 @@ fun ClosetNavGraph(
                 //  2. Update OutfitBuilderViewModel to accept and pre-populate those IDs.
                 //  3. Replace null below with: { itemIds -> navController.navigateToOutfitBuilder(itemIds) }
                 onNavigateToLog = null,
+                onNavigateToSettings = { navController.navigateToSettings() },
             )
             journalScreen()
 

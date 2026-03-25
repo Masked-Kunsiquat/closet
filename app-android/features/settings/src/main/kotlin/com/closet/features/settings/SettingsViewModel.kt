@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.model.AiProvider
+import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.data.repository.AiPreferencesRepository
@@ -119,6 +120,14 @@ class SettingsViewModel @Inject constructor(
     /** The currently selected AI provider. */
     val selectedAiProvider: StateFlow<AiProvider> = aiPrefsRepo.getSelectedProvider()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AiProvider.Nano)
+
+    /** The user's selected style vibe. Defaults to [StyleVibe.SmartCasual]. */
+    val styleVibe: StateFlow<StyleVibe> = aiPrefsRepo.getStyleVibe()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StyleVibe.SmartCasual)
+
+    fun onStyleVibeSelected(vibe: StyleVibe) {
+        viewModelScope.launch { aiPrefsRepo.setStyleVibe(vibe) }
+    }
 
     // ── Nano init status ──────────────────────────────────────────────────────
 

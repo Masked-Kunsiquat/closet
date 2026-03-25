@@ -18,19 +18,23 @@ fun NavController.navigateToRecommendations(navOptions: NavOptions? = null) {
 /**
  * Registers the [RecommendationRoute] composable destination in the [NavGraphBuilder].
  *
- * @param onNavigateUp    Called when the user presses back from the Recommendations screen.
- * @param onNavigateToLog Called with item IDs when the user taps "Log it" on a combo.
- *                        Pass null (the default) to disable the "Log it" button until
- *                        [OutfitBuilderDestination] supports pre-selected item IDs.
+ * @param onNavigateUp         Called when the user presses back from the Recommendations screen.
+ * @param onNavigateToLog      Called with item IDs when the user taps "Log it" on a combo.
+ *                             Pass null (the default) to disable the "Log it" button until
+ *                             [OutfitBuilderDestination] supports pre-selected item IDs.
+ * @param onNavigateToSettings Called when the user taps "Change →" on the style-vibe shortcut
+ *                             row. Pass null (the default) to hide the shortcut entirely.
  */
 fun NavGraphBuilder.recommendationScreen(
     onNavigateUp: () -> Unit = {},
     onNavigateToLog: ((List<Long>) -> Unit)? = null,
+    onNavigateToSettings: (() -> Unit)? = null,
 ) {
     composable<RecommendationRoute> {
         RecommendationScreen(
             onNavigateUp = onNavigateUp,
             onNavigateToLog = onNavigateToLog,
+            onNavigateToSettings = onNavigateToSettings,
         )
     }
 }

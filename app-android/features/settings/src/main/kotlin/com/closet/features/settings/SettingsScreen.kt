@@ -79,6 +79,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import com.closet.core.data.model.AiProvider
+import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.ui.theme.ClosetAccent
@@ -109,6 +110,7 @@ fun SettingsScreen(
     val openAiKey by viewModel.openAiKey.collectAsStateWithLifecycle()
     val openAiBaseUrl by viewModel.openAiBaseUrl.collectAsStateWithLifecycle()
     val openAiModel by viewModel.openAiModel.collectAsStateWithLifecycle()
+    val styleVibe by viewModel.styleVibe.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val activity = LocalActivity.current
@@ -192,6 +194,8 @@ fun SettingsScreen(
         onOpenAiKeyChanged = viewModel::onOpenAiKeyChanged,
         onOpenAiBaseUrlChanged = viewModel::onOpenAiBaseUrlChanged,
         onOpenAiModelChanged = viewModel::onOpenAiModelChanged,
+        styleVibe = styleVibe,
+        onStyleVibeSelected = viewModel::onStyleVibeSelected,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
     )
@@ -234,6 +238,8 @@ internal fun SettingsContent(
     onOpenAiKeyChanged: (String) -> Unit,
     onOpenAiBaseUrlChanged: (String) -> Unit,
     onOpenAiModelChanged: (String) -> Unit,
+    styleVibe: StyleVibe,
+    onStyleVibeSelected: (StyleVibe) -> Unit,
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -331,6 +337,12 @@ internal fun SettingsContent(
                     AiProviderItem(
                         selected = selectedAiProvider,
                         onSelect = onAiProviderSelected,
+                    )
+                }
+                item {
+                    StyleVibeItem(
+                        selected = styleVibe,
+                        onSelect = onStyleVibeSelected,
                     )
                 }
                 when (selectedAiProvider) {
@@ -585,6 +597,39 @@ private fun ClearCacheItem(onClick: () -> Unit) {
 }
 
 // ── AI items ──────────────────────────────────────────────────────────────────
+
+/**
+ * Style vibe picker using a horizontally scrollable [SingleChoiceSegmentedButtonRow].
+ * Visible only when AI is enabled. The selected vibe is passed to [OutfitCoherenceScorer]
+ * so the AI provider can tailor its curation instruction.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StyleVibeItem(
+    selected: StyleVibe,
+    onSelect: (StyleVibe) -> Unit,
+) {
+    val vibes = StyleVibe.entries
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_ai_style_vibe)) },
+        supportingContent = {
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(top = 8.dp),
+            ) {
+                vibes.forEachIndexed { index, vibe ->
+                    SegmentedButton(
+                        selected = vibe == selected,
+                        onClick = { onSelect(vibe) },
+                        shape = SegmentedButtonDefaults.itemShape(index, vibes.size),
+                        label = { Text(vibe.label) },
+                    )
+                }
+            }
+        },
+    )
+}
 
 /**
  * Master AI toggle. Default OFF.
@@ -877,6 +922,8 @@ private fun SettingsContentDefaultPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -912,6 +959,8 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -947,6 +996,8 @@ private fun SettingsContentWeatherGooglePreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -982,6 +1033,8 @@ private fun SettingsContentAiNanoCheckingPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1017,6 +1070,8 @@ private fun SettingsContentAiNanoDownloadingPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1052,6 +1107,8 @@ private fun SettingsContentAiNanoNotSupportedPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1087,6 +1144,8 @@ private fun SettingsContentAiOpenAiPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )

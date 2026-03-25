@@ -41,6 +41,7 @@
 
     <!-- AI suggestions section -->
     <string name="settings_section_ai">AI suggestions</string>
+    <string name="settings_ai_style_vibe">Style vibe</string>
     <string name="settings_ai_enabled">AI coherence scoring</string>
     <string name="settings_ai_enabled_summary">Use AI to re-rank outfit suggestions for style coherence</string>
     <string name="settings_ai_provider">AI provider</string>

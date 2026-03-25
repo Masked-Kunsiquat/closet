@@ -102,6 +102,27 @@ enum class ColorFamily(val label: String) {
 }
 
 /**
+ * Style aesthetic vibe selected by the user.
+ * Stored as the enum [name] string in DataStore; passed to [OutfitCoherenceScorer] as a
+ * plain label string so the AI provider can tailor its curation instruction.
+ *
+ * Defaults to [SmartCasual] when no value has been saved.
+ */
+enum class StyleVibe(val label: String) {
+    SmartCasual("Smart Casual"),
+    Minimalist("Minimalist"),
+    Streetwear("Streetwear"),
+    Business("Business"),
+    Casual("Casual"),
+    Formal("Formal");
+
+    companion object {
+        fun fromString(value: String): StyleVibe =
+            entries.find { it.name == value } ?: SmartCasual
+    }
+}
+
+/**
  * AI inference provider for outfit coherence scoring (Phase 2).
  * Stored as the enum [name] string in DataStore.
  *

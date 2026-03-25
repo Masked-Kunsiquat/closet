@@ -36,8 +36,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.closet.core.data.model.StyleVibe
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.Month
@@ -79,6 +81,29 @@ class RecommendationViewModel @Inject constructor(
     // -------------------------------------------------------------------------
     // Occasions list — loaded once, used by OccasionSheet
     // -------------------------------------------------------------------------
+
+    /**
+     * Whether AI coherence scoring is currently enabled.
+     * Exposed so the UI can conditionally show the style vibe shortcut row.
+     */
+    val aiEnabled: StateFlow<Boolean> = aiPrefsRepo.getAiEnabled()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false
+        )
+
+    /**
+     * The current style vibe label string ("Smart Casual", "Minimalist", etc.) for display.
+     * Used by the shortcut row in [RecommendationScreen] to show the active vibe.
+     */
+    val styleVibeLabel: StateFlow<String> = aiPrefsRepo.getStyleVibe()
+        .map { it.label }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = StyleVibe.SmartCasual.label
+        )
 
     /**
      * Full list of occasions from the lookup table.
@@ -405,11 +430,13 @@ class RecommendationViewModel @Inject constructor(
         }
 
         // 8. Optional AI coherence scoring — replaces top-3 with AI-curated combos if successful
+        val styleVibeLabel = aiPrefsRepo.getStyleVibe().first().label
         val aiCombos = try {
             scorer.score(
                 combos = programmaticCombos,
                 engineInput = input,
                 itemScores = itemScoresForScorer,
+                styleVibe = styleVibeLabel,
             )
         } catch (e: CancellationException) {
             throw e

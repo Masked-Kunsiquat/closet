@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.closet.core.data.model.AiProvider
+import com.closet.core.data.model.StyleVibe
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -47,6 +48,7 @@ class AiPreferencesRepository @Inject constructor(
     private val anthropicApiKeyKey = stringPreferencesKey("ai_anthropic_api_key")
     private val nanoAiReadyKey = booleanPreferencesKey("ai_nano_ready")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
+    private val styleVibeKey = stringPreferencesKey("ai_style_vibe")
 
     // ── Master AI toggle ─────────────────────────────────────────────────────
 
@@ -185,6 +187,20 @@ class AiPreferencesRepository @Inject constructor(
         context.aiDataStore.edit { prefs ->
             prefs[nanoTokenLimitKey] = limit
         }
+    }
+
+    // ── Style vibe ───────────────────────────────────────────────────────────
+
+    /**
+     * The user's preferred style aesthetic, used by [OutfitCoherenceScorer] to tailor
+     * AI curation instructions. Defaults to [StyleVibe.SmartCasual] when not set.
+     */
+    fun getStyleVibe(): Flow<StyleVibe> = context.aiDataStore.data.map { prefs ->
+        StyleVibe.fromString(prefs[styleVibeKey] ?: StyleVibe.SmartCasual.name)
+    }
+
+    suspend fun setStyleVibe(vibe: StyleVibe) {
+        context.aiDataStore.edit { prefs -> prefs[styleVibeKey] = vibe.name }
     }
 
     // ── Composite helpers ────────────────────────────────────────────────────
