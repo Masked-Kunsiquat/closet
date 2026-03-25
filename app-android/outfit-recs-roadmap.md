@@ -17,9 +17,9 @@ Reference: `outfit-recs-overview.md`
 
 ### Module scaffolding
 
-- [ ] Create `features/recommendations/` module (mirror structure of `features/stats/`)
-- [ ] Wire module into `settings.gradle.kts` and `app/build.gradle.kts`
-- [ ] Set up Hilt `RecommendationModule` in `features/recommendations/di/`
+- [x] Create `features/recommendations/` module (mirror structure of `features/stats/`)
+- [x] Wire module into `settings.gradle.kts` and `app/build.gradle.kts`
+- [x] Set up Hilt `RecommendationModule` in `features/recommendations/di/`
 
 ---
 

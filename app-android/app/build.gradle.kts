@@ -61,6 +61,7 @@ dependencies {
     implementation(project(":features:outfits"))
     implementation(project(":features:stats"))
     implementation(project(":features:settings"))
+    implementation(project(":features:recommendations"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
