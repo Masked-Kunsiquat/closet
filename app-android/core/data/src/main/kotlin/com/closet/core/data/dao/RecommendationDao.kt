@@ -307,7 +307,7 @@ interface RecommendationDao {
      * colorFamilies set before invoking the engine.
      */
     @Query("""
-        SELECT
+        SELECT DISTINCT
             cic.clothing_item_id,
             co.color_family
         FROM clothing_item_colors cic

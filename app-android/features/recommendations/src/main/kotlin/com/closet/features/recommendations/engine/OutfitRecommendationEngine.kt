@@ -1,7 +1,11 @@
 package com.closet.features.recommendations.engine
 
 /**
- * Pure outfit recommendation engine — no Android, no Hilt, no coroutines, no Room.
+ * Pure outfit recommendation engine — no Android, no coroutines, no Room.
+ *
+ * The class uses `javax.inject.Inject` constructor injection and is scoped as a
+ * `@Singleton` so Hilt creates exactly one instance for the app's lifetime. It remains
+ * fully unit-testable without Hilt — just call the constructor directly in tests.
  *
  * Takes pre-fetched data as [EngineInput] and returns the top 3 ranked [OutfitCombo]s
  * (or fewer if the wardrobe cannot form 3 valid combos).
@@ -20,6 +24,7 @@ package com.closet.features.recommendations.engine
  * 7. Sort + tie-break — descending score; ties broken by oldest last-worn date.
  * 8. Return top 3.
  */
+@javax.inject.Singleton
 class OutfitRecommendationEngine @javax.inject.Inject constructor() {
 
     companion object {

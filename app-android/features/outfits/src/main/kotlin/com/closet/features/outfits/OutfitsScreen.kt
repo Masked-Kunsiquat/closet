@@ -98,19 +98,6 @@ internal fun OutfitsContent(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        // Dismiss the FAB menu when tapping outside it
-        if (fabExpanded) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { fabExpanded = false }
-                    )
-            )
-        }
-
         if (outfits.isEmpty()) {
             OutfitsEmptyState(
                 onCreateOutfit = onCreateOutfit,
@@ -141,6 +128,19 @@ internal fun OutfitsContent(
                     )
                 }
             }
+        }
+
+        // Scrim — drawn on top of content so it intercepts taps and collapses the FAB menu
+        if (fabExpanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { fabExpanded = false }
+                    )
+            )
         }
     }
 }
