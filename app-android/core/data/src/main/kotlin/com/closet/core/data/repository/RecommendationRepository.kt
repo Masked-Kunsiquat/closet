@@ -71,15 +71,16 @@ class RecommendationRepository @Inject constructor(
         if (itemIds.isEmpty()) return DataResult.Success(emptyList())
         return runCatching {
             val rows = recommendationDao.getTempLogs(itemIds)
-            // Rows are already ordered by (clothing_item_id ASC, temperature_low ASC)
+            // Rows are ordered by (clothing_item_id ASC, temperature_low ASC)
             rows.groupBy { it.clothingItemId }.map { (itemId, logs) ->
                 val count = logs.size
                 val p10Index = (count * 0.10).toInt().coerceIn(0, count - 1)
                 val p90Index = (count * 0.90).toInt().coerceIn(0, count - 1)
-                // temperature_low is sorted ASC → p10 is at p10Index
+                // p10TempLow: use rows sorted by temperature_low (already the DAO order)
                 val p10TempLow = logs[p10Index].temperatureLow
-                // temperature_high shares the same ASC sort order; p90 is at p90Index
-                val p90TempHigh = logs[p90Index].temperatureHigh
+                // p90TempHigh: must sort by temperature_high independently — the low-sort
+                // order does not guarantee high values are in the same rank position.
+                val p90TempHigh = logs.sortedBy { it.temperatureHigh }[p90Index].temperatureHigh
                 ItemTempPercentiles(
                     clothingItemId = itemId,
                     p10TempLow = p10TempLow,

@@ -1,37 +1,20 @@
 package com.closet.features.recommendations.di
 
-import com.closet.core.data.dao.RecommendationDao
-import com.closet.core.data.repository.RecommendationRepository
 import dagger.Module
-import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Singleton
 
 /**
  * Hilt module for the recommendations feature.
  *
- * [RecommendationDao] is provided by [com.closet.core.data.di.DataModule] from the
- * shared [com.closet.core.data.ClothingDatabase] instance. This module binds
- * [RecommendationRepository] so ViewModels and the engine can inject it via Hilt
- * without a direct dependency on the core/data DI module internals.
+ * [com.closet.core.data.repository.RecommendationRepository] and
+ * [com.closet.core.data.dao.RecommendationDao] are provided by
+ * [com.closet.core.data.di.DataModule] per project convention — all DAOs and
+ * repositories that live in core/data are provided there.
  *
- * Installed in [SingletonComponent] so the repository shares the same database
- * instance for the app's lifetime.
+ * This module is reserved for future feature-level bindings (e.g. use-case
+ * classes or mappers that are specific to this feature module).
  */
 @Module
 @InstallIn(SingletonComponent::class)
-object RecommendationModule {
-
-    /**
-     * Provides the [RecommendationRepository] singleton.
-     *
-     * [RecommendationDao] is resolved from [com.closet.core.data.di.DataModule]
-     * which is also installed in [SingletonComponent].
-     */
-    @Provides
-    @Singleton
-    fun provideRecommendationRepository(
-        recommendationDao: RecommendationDao
-    ): RecommendationRepository = RecommendationRepository(recommendationDao)
-}
+object RecommendationModule
