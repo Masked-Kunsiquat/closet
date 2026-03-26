@@ -80,7 +80,6 @@ private enum class WeatherConditionOption(val labelRes: Int) {
  *
  * @param prefill Pre-populated values from the WeatherRepository cache, or null
  *   if no cached forecast is available.
- * @param isAutofilled When true, shows a "Pulled from location data" indicator chip.
  * @param onConfirm Called with the current form values when the user taps
  *   "Use these conditions". Temp fields left blank produce null in [WeatherConditions].
  * @param onSkip Called when the user taps the "Skip" text button.
@@ -90,7 +89,6 @@ private enum class WeatherConditionOption(val labelRes: Int) {
 @Composable
 fun WeatherSheet(
     prefill: WeatherConditions?,
-    isAutofilled: Boolean,
     onConfirm: (WeatherConditions) -> Unit,
     onSkip: () -> Unit,
     onDismiss: () -> Unit,
@@ -105,7 +103,6 @@ fun WeatherSheet(
     ) {
         WeatherSheetContent(
             prefill = prefill,
-            isAutofilled = isAutofilled,
             onConfirm = onConfirm,
             onSkip = onSkip,
         )
@@ -119,7 +116,6 @@ fun WeatherSheet(
 @Composable
 internal fun WeatherSheetContent(
     prefill: WeatherConditions?,
-    isAutofilled: Boolean,
     onConfirm: (WeatherConditions) -> Unit,
     onSkip: () -> Unit,
 ) {
@@ -210,7 +206,7 @@ internal fun WeatherSheetContent(
                 label = { Text(stringResource(R.string.recs_weather_temp_low)) },
                 suffix = { Text(stringResource(R.string.recs_weather_temp_unit)) },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
+                    keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Next,
                 ),
                 singleLine = true,
@@ -223,7 +219,7 @@ internal fun WeatherSheetContent(
                 label = { Text(stringResource(R.string.recs_weather_temp_high)) },
                 suffix = { Text(stringResource(R.string.recs_weather_temp_unit)) },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
+                    keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Done,
                 ),
                 singleLine = true,
@@ -375,7 +371,6 @@ private fun WeatherSheetEmptyPreview() {
         Surface(color = MaterialTheme.colorScheme.surface) {
             WeatherSheetContent(
                 prefill = null,
-                isAutofilled = false,
                 onConfirm = {},
                 onSkip = {},
             )
@@ -395,7 +390,6 @@ private fun WeatherSheetAutofilledPreview() {
                     isRaining = false,
                     isWindy = true,
                 ),
-                isAutofilled = true,
                 onConfirm = {},
                 onSkip = {},
             )

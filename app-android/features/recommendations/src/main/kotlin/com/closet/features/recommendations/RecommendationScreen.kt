@@ -176,7 +176,6 @@ fun RecommendationScreen(
                 is RecommendationUiState.WeatherSheet -> {
                     WeatherSheet(
                         prefill = state.prefill,
-                        isAutofilled = state.prefill != null,
                         onConfirm = viewModel::onWeatherConfirmed,
                         onSkip = viewModel::onWeatherSkipped,
                         onDismiss = viewModel::onDismiss,
