@@ -158,7 +158,7 @@ class NanoProvider @Inject constructor(
                         when (status) {
                             is DownloadStatus.DownloadStarted -> {
                                 Timber.tag(TAG).d("initNanoFlow: download started")
-                                totalDownloadBytes = status.getBytesToDownload()
+                                totalDownloadBytes = status.bytesToDownload
                                 emit(NanoInitResult.Downloading(0))
                             }
                             is DownloadStatus.DownloadProgress -> {

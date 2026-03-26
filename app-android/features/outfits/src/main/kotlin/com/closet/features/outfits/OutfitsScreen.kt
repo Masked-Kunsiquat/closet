@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +32,7 @@ import java.io.File
 @Composable
 fun OutfitsScreen(
     onCreateOutfit: () -> Unit,
+    onEditOutfit: (Long) -> Unit,
     onGetSuggestions: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: OutfitsViewModel = hiltViewModel()
@@ -39,12 +42,16 @@ fun OutfitsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val wearSuccess = stringResource(R.string.outfits_wear_success)
     val wearError = stringResource(R.string.outfits_wear_error)
+    val deleteSuccess = stringResource(R.string.outfits_delete_success)
+    val deleteError = stringResource(R.string.outfits_delete_error)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 OutfitsEvent.WearSuccess -> snackbarHostState.showSnackbar(wearSuccess)
                 OutfitsEvent.WearError -> snackbarHostState.showSnackbar(wearError)
+                OutfitsEvent.DeleteSuccess -> snackbarHostState.showSnackbar(deleteSuccess)
+                OutfitsEvent.DeleteError -> snackbarHostState.showSnackbar(deleteError)
             }
         }
     }
@@ -54,8 +61,10 @@ fun OutfitsScreen(
         wearingOutfitId = wearingOutfitId,
         resolveImagePath = viewModel::resolveImagePath,
         onCreateOutfit = onCreateOutfit,
+        onEditOutfit = onEditOutfit,
         onGetSuggestions = onGetSuggestions,
         onWearOutfit = viewModel::wearOutfit,
+        onDeleteOutfit = viewModel::deleteOutfit,
         snackbarHostState = snackbarHostState,
         modifier = modifier
     )
@@ -68,12 +77,16 @@ internal fun OutfitsContent(
     wearingOutfitId: Long?,
     resolveImagePath: (String?) -> File?,
     onCreateOutfit: () -> Unit,
+    onEditOutfit: (Long) -> Unit,
     onGetSuggestions: () -> Unit,
     onWearOutfit: (Long) -> Unit,
+    onDeleteOutfit: (Long) -> Unit,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     var fabExpanded by remember { mutableStateOf(false) }
+    var selectedForMenu by remember { mutableStateOf<OutfitWithItems?>(null) }
+    var outfitToDelete by remember { mutableStateOf<OutfitWithItems?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -124,7 +137,8 @@ internal fun OutfitsContent(
                         resolveImagePath = resolveImagePath,
                         isWearing = wearingOutfitId == outfitWithItems.outfit.id,
                         wearEnabled = wearingOutfitId == null,
-                        onWear = { onWearOutfit(outfitWithItems.outfit.id) }
+                        onWear = { onWearOutfit(outfitWithItems.outfit.id) },
+                        onClick = { selectedForMenu = outfitWithItems }
                     )
                 }
             }
@@ -142,6 +156,93 @@ internal fun OutfitsContent(
                     )
             )
         }
+    }
+
+    // Outfit actions bottom sheet
+    selectedForMenu?.let { outfit ->
+        ModalBottomSheet(onDismissRequest = { selectedForMenu = null }) {
+            OutfitActionsSheetContent(
+                outfitName = outfit.outfit.name,
+                onEdit = {
+                    selectedForMenu = null
+                    onEditOutfit(outfit.outfit.id)
+                },
+                onDelete = {
+                    outfitToDelete = outfit
+                    selectedForMenu = null
+                }
+            )
+        }
+    }
+
+    // Delete confirmation dialog
+    outfitToDelete?.let { outfit ->
+        AlertDialog(
+            onDismissRequest = { outfitToDelete = null },
+            title = { Text(stringResource(R.string.outfits_actions_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.outfits_actions_delete_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteOutfit(outfit.outfit.id)
+                        outfitToDelete = null
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.outfits_actions_confirm_delete),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { outfitToDelete = null }) {
+                    Text(stringResource(R.string.outfits_actions_cancel))
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun OutfitActionsSheetContent(
+    outfitName: String?,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        outfitName?.let { name ->
+            Text(
+                text = name,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+            HorizontalDivider()
+        }
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.outfits_actions_edit)) },
+            leadingContent = {
+                Icon(Icons.Outlined.Edit, contentDescription = null)
+            },
+            modifier = Modifier.clickable(onClick = onEdit)
+        )
+        ListItem(
+            headlineContent = {
+                Text(
+                    text = stringResource(R.string.outfits_actions_delete),
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            leadingContent = {
+                Icon(
+                    Icons.Outlined.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            modifier = Modifier.clickable(onClick = onDelete)
+        )
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -240,9 +341,13 @@ private fun OutfitGridCell(
     isWearing: Boolean,
     wearEnabled: Boolean,
     onWear: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(modifier = modifier.fillMaxWidth()) {
+    ElevatedCard(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth()
+    ) {
         OutfitPreview(
             items = outfitWithItems.items,
             resolveImagePath = resolveImagePath,

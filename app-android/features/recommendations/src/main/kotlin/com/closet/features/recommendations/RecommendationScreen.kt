@@ -516,7 +516,7 @@ private fun ResultsContentPreview() {
                 onSaveForLater = {},
                 onRegenerate = {},
                 aiEnabled = false,
-                styleVibeLabel = kotlinx.coroutines.flow.MutableStateFlow("Smart Casual"),
+                styleVibeLabel = "Smart Casual",
                 onNavigateToSettings = null,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -532,7 +532,7 @@ private fun IdleContentPreview() {
             IdleContent(
                 onGetSuggestions = {},
                 aiEnabled = false,
-                styleVibeLabel = kotlinx.coroutines.flow.MutableStateFlow("Smart Casual"),
+                styleVibeLabel = "Smart Casual",
                 onNavigateToSettings = null,
                 modifier = Modifier.fillMaxSize(),
             )
