@@ -86,7 +86,8 @@ fun OutfitComboCard(
     modifier: Modifier = Modifier,
 ) {
     // Local state for the "why?" expand/collapse — not surfaced to the ViewModel.
-    var reasonExpanded by remember { mutableStateOf(false) }
+    // Keyed on combo so the state resets when the pager swipes to a different combo.
+    var reasonExpanded by remember(key1 = combo) { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),

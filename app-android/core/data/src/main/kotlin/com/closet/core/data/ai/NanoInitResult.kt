@@ -1,7 +1,7 @@
 package com.closet.core.data.ai
 
 /**
- * Result type returned by [NanoInitializer.initNano].
+ * Result type returned by [NanoInitializer.initNanoFlow].
  *
  * The init sequence is: isAvailable() → download() (streaming progress) → getTokenLimit().
  * Progress events are emitted as a [kotlinx.coroutines.flow.Flow] of [Downloading] from

@@ -178,9 +178,15 @@ class OpenAiProvider @Inject constructor(
         append("}")
     }
 
-    /** Wraps a string in JSON double-quotes, escaping internal quotes and backslashes. */
+    /** Wraps a string in JSON double-quotes, escaping backslashes, quotes, and control characters. */
     private fun String.asJsonString(): String =
-        "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        "\"${replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+            .replace("\b", "\\b")
+            .replace("\u000C", "\\f")}\""
 
     /**
      * Parses the OpenAI Chat Completions response.

@@ -153,14 +153,23 @@ class NanoProvider @Inject constructor(
             FeatureStatus.DOWNLOADING -> {
                 Timber.tag(TAG).d("initNanoFlow: starting Nano model download")
                 try {
+                    var totalDownloadBytes = 0L
                     engine.downloadFlow().collect { status ->
                         when (status) {
                             is DownloadStatus.DownloadStarted -> {
                                 Timber.tag(TAG).d("initNanoFlow: download started")
+                                totalDownloadBytes = status.getBytesToDownload()
                                 emit(NanoInitResult.Downloading(0))
                             }
                             is DownloadStatus.DownloadProgress -> {
-                                emit(NanoInitResult.Downloading(50))
+                                val percent = if (totalDownloadBytes > 0L) {
+                                    (status.totalBytesDownloaded * 100L / totalDownloadBytes)
+                                        .toInt()
+                                        .coerceAtMost(99)
+                                } else {
+                                    0
+                                }
+                                emit(NanoInitResult.Downloading(percent))
                             }
                             is DownloadStatus.DownloadCompleted -> {
                                 Timber.tag(TAG).d("initNanoFlow: download complete")

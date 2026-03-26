@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -202,8 +203,10 @@ class SettingsViewModel @Inject constructor(
                 nanoInitJob = null
                 _nanoStatus.value = NanoStatus.Idle
             }
-            // Start Nano init if switching to Nano while the master toggle is already on
-            if (provider == AiProvider.Nano && aiEnabled.value) {
+            // Start Nano init if switching to Nano while the master toggle is already on.
+            // Read the authoritative value from the repository rather than the potentially
+            // stale StateFlow snapshot.
+            if (provider == AiProvider.Nano && aiPrefsRepo.getAiEnabled().first()) {
                 startNanoInit()
             }
         }
@@ -246,10 +249,12 @@ class SettingsViewModel @Inject constructor(
                         _nanoStatus.value = NanoStatus.Ready
                     }
                     is NanoInitResult.NotSupported -> {
+                        aiPrefsRepo.setAiEnabled(false)
                         aiPrefsRepo.clearNanoState()
                         _nanoStatus.value = NanoStatus.NotSupported
                     }
                     is NanoInitResult.Failed -> {
+                        aiPrefsRepo.setAiEnabled(false)
                         aiPrefsRepo.clearNanoState()
                         _nanoStatus.value = NanoStatus.Failed(result.reason)
                     }

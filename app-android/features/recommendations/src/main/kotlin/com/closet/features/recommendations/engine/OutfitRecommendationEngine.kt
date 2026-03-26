@@ -102,6 +102,8 @@ class OutfitRecommendationEngine @javax.inject.Inject constructor() {
         topN: Int = TOP_N,
         candidatesPerSlot: Int = CANDIDATES_PER_SLOT,
     ): List<OutfitCombo> {
+        require(topN >= 0) { "topN must be >= 0, was $topN" }
+        require(candidatesPerSlot >= 0) { "candidatesPerSlot must be >= 0, was $candidatesPerSlot" }
         // 1. Hard filter — redundant safety guard on top of DAO filter
         val safeItems = input.candidates.filter { isActiveAndClean(it) }
         if (safeItems.isEmpty()) return emptyList()

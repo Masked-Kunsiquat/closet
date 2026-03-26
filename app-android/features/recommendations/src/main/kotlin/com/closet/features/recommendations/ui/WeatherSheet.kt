@@ -132,6 +132,7 @@ internal fun WeatherSheetContent(
     var selectedCondition by rememberSaveable { mutableStateOf<WeatherConditionOption?>(null) }
     var isRaining by rememberSaveable { mutableStateOf(false) }
     var isWindy by rememberSaveable { mutableStateOf(false) }
+    var didApplyPrefill by rememberSaveable { mutableStateOf(false) }
 
     // Apply autofill in an effect (not during composition) to avoid mutating
     // rememberSaveable state mid-recomposition. The pristine check ensures a
@@ -146,10 +147,12 @@ internal fun WeatherSheetContent(
             isRaining = prefill.isRaining
             isWindy = prefill.isWindy
             selectedCondition = when {
+                prefill.isRaining && prefill.isWindy -> null
                 prefill.isRaining -> WeatherConditionOption.Rainy
                 prefill.isWindy -> WeatherConditionOption.Windy
                 else -> null
             }
+            didApplyPrefill = true
         }
     }
 
@@ -174,7 +177,7 @@ internal fun WeatherSheetContent(
         }
 
         // ── Autofill chip ─────────────────────────────────────────────────────
-        if (isAutofilled) {
+        if (didApplyPrefill) {
             AssistChip(
                 onClick = {},
                 label = { Text(stringResource(R.string.recs_weather_autofill_chip)) },
@@ -186,7 +189,7 @@ internal fun WeatherSheetContent(
             )
         }
 
-        HorizontalDivider(modifier = Modifier.padding(top = if (isAutofilled) 4.dp else 0.dp))
+        HorizontalDivider(modifier = Modifier.padding(top = if (didApplyPrefill) 4.dp else 0.dp))
 
         // ── Temp range inputs ─────────────────────────────────────────────────
         Text(
@@ -248,7 +251,7 @@ internal fun WeatherSheetContent(
                     onClick = {
                         val newCondition = if (selectedCondition == option) null else option
                         selectedCondition = newCondition
-                        // Bidirectional sync: selecting clears the other toggle, deselecting clears both
+                        // Syncing toggles from chip: Rainy/Windy set that toggle; others clear both
                         isRaining = newCondition == WeatherConditionOption.Rainy
                         isWindy = newCondition == WeatherConditionOption.Windy
                     },
@@ -279,11 +282,11 @@ internal fun WeatherSheetContent(
                 checked = isRaining,
                 onCheckedChange = { checked ->
                     isRaining = checked
-                    if (checked) {
-                        isWindy = false
-                        selectedCondition = WeatherConditionOption.Rainy
-                    } else if (selectedCondition == WeatherConditionOption.Rainy) {
-                        selectedCondition = null
+                    selectedCondition = when {
+                        checked && isWindy -> null
+                        checked -> WeatherConditionOption.Rainy
+                        isWindy -> WeatherConditionOption.Windy
+                        else -> null
                     }
                 },
             )
@@ -304,11 +307,11 @@ internal fun WeatherSheetContent(
                 checked = isWindy,
                 onCheckedChange = { checked ->
                     isWindy = checked
-                    if (checked) {
-                        isRaining = false
-                        selectedCondition = WeatherConditionOption.Windy
-                    } else if (selectedCondition == WeatherConditionOption.Windy) {
-                        selectedCondition = null
+                    selectedCondition = when {
+                        isRaining && checked -> null
+                        checked -> WeatherConditionOption.Windy
+                        isRaining -> WeatherConditionOption.Rainy
+                        else -> null
                     }
                 },
             )

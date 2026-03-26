@@ -44,7 +44,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.flow.StateFlow
 import com.closet.core.ui.theme.ClosetTheme
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitCombo
@@ -82,6 +81,7 @@ fun RecommendationScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val occasions by viewModel.occasions.collectAsStateWithLifecycle()
     val aiEnabled by viewModel.aiEnabled.collectAsStateWithLifecycle()
+    val styleVibeLabel by viewModel.styleVibeLabel.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // ── One-shot: "Log it" — navigate to log screen ──────────────────────────
@@ -123,7 +123,7 @@ fun RecommendationScreen(
                 RecommendationUiState.Idle -> IdleContent(
                     onGetSuggestions = viewModel::onGetSuggestionsClicked,
                     aiEnabled = aiEnabled,
-                    styleVibeLabel = viewModel.styleVibeLabel,
+                    styleVibeLabel = styleVibeLabel,
                     onNavigateToSettings = onNavigateToSettings,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -140,7 +140,7 @@ fun RecommendationScreen(
                     onSaveForLater = viewModel::onSaveForLater,
                     onRegenerate = viewModel::onRegenerate,
                     aiEnabled = aiEnabled,
-                    styleVibeLabel = viewModel.styleVibeLabel,
+                    styleVibeLabel = styleVibeLabel,
                     onNavigateToSettings = onNavigateToSettings,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -199,7 +199,7 @@ fun RecommendationScreen(
 private fun IdleContent(
     onGetSuggestions: () -> Unit,
     aiEnabled: Boolean,
-    styleVibeLabel: StateFlow<String>,
+    styleVibeLabel: String,
     onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -251,7 +251,7 @@ private fun ResultsContent(
     onSaveForLater: (OutfitCombo) -> Unit,
     onRegenerate: () -> Unit,
     aiEnabled: Boolean,
-    styleVibeLabel: StateFlow<String>,
+    styleVibeLabel: String,
     onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
@@ -385,11 +385,10 @@ private fun ErrorContent(
  */
 @Composable
 private fun StyleVibeShortcutRow(
-    styleVibeLabel: StateFlow<String>,
+    styleVibeLabel: String,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val vibe by styleVibeLabel.collectAsStateWithLifecycle()
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -405,7 +404,7 @@ private fun StyleVibeShortcutRow(
         )
         Spacer(modifier = Modifier.size(6.dp))
         Text(
-            text = stringResource(R.string.recs_style_vibe_label, vibe),
+            text = stringResource(R.string.recs_style_vibe_label, styleVibeLabel),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
