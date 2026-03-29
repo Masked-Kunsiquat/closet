@@ -131,6 +131,7 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showRationaleDialog by remember { mutableStateOf(false) }
+    var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
 
     val deniedMessage = stringResource(R.string.settings_location_snackbar)
 
@@ -168,6 +169,27 @@ fun SettingsScreen(
                 permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
             }
         }
+    }
+
+    // Reset dismissed flag if nanoStatus moves away from NotSupported (e.g. user switched provider)
+    if (nanoStatus !is NanoStatus.NotSupported) {
+        nanoNotSupportedDismissed = false
+    }
+
+    if (nanoStatus is NanoStatus.NotSupported && !nanoNotSupportedDismissed) {
+        NanoNotSupportedDialog(
+            onSwitchToOpenAi = {
+                nanoNotSupportedDismissed = true
+                viewModel.onAiProviderSelected(AiProvider.OpenAi)
+                viewModel.onAiToggled(true)
+            },
+            onSwitchToAnthropic = {
+                nanoNotSupportedDismissed = true
+                viewModel.onAiProviderSelected(AiProvider.Anthropic)
+                viewModel.onAiToggled(true)
+            },
+            onDismiss = { nanoNotSupportedDismissed = true },
+        )
     }
 
     if (showRationaleDialog) {
@@ -1081,6 +1103,38 @@ private fun PermissionRationaleDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.settings_location_dialog_cancel))
+            }
+        },
+    )
+}
+
+/**
+ * Dialog shown when Gemini Nano is not supported on the current device.
+ * Offers to switch to OpenAI or Anthropic, or dismiss and stay on (disabled) On-Device.
+ */
+@Composable
+private fun NanoNotSupportedDialog(
+    onSwitchToOpenAi: () -> Unit,
+    onSwitchToAnthropic: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_ai_nano_not_supported_dialog_title)) },
+        text = { Text(stringResource(R.string.settings_ai_nano_not_supported_dialog_message)) },
+        confirmButton = {
+            TextButton(onClick = onSwitchToOpenAi) {
+                Text(stringResource(R.string.settings_ai_nano_not_supported_use_openai))
+            }
+        },
+        dismissButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onSwitchToAnthropic) {
+                    Text(stringResource(R.string.settings_ai_nano_not_supported_use_anthropic))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.settings_ai_nano_not_supported_dismiss))
+                }
             }
         },
     )

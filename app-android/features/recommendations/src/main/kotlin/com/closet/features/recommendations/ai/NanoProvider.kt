@@ -138,7 +138,15 @@ class NanoProvider @Inject constructor(
      */
     override fun initNanoFlow(): Flow<NanoInitResult> = flow {
         Timber.tag(TAG).d("initNanoFlow: checking Nano availability")
-        when (engine.checkStatus()) {
+        val status = try {
+            engine.checkStatus()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Timber.tag(TAG).w(e, "initNanoFlow: checkStatus threw — AICore unavailable on this device")
+            emit(NanoInitResult.NotSupported)
+            return@flow
+        }
+        when (status) {
             FeatureStatus.UNAVAILABLE -> {
                 Timber.tag(TAG).d("initNanoFlow: Nano not supported on this device")
                 emit(NanoInitResult.NotSupported)

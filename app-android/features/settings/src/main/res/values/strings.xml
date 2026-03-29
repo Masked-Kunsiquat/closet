@@ -56,6 +56,11 @@
     <string name="settings_ai_nano_downloading">Downloading model (%d%%)…</string>
     <string name="settings_ai_nano_ready">Model ready</string>
     <string name="settings_ai_nano_not_supported">Not supported on this device</string>
+    <string name="settings_ai_nano_not_supported_dialog_title">On-Device AI not available</string>
+    <string name="settings_ai_nano_not_supported_dialog_message">Gemini Nano isn\'t supported on this device. Switch to OpenAI or Anthropic to use AI outfit scoring.</string>
+    <string name="settings_ai_nano_not_supported_use_openai">Use OpenAI</string>
+    <string name="settings_ai_nano_not_supported_use_anthropic">Use Anthropic</string>
+    <string name="settings_ai_nano_not_supported_dismiss">Dismiss</string>
     <string name="settings_ai_nano_failed">Setup failed: %s</string>
 
     <!-- OpenAI-compatible fields -->
