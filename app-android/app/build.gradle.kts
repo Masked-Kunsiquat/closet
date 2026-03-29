@@ -24,6 +24,21 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        // Full build: includes GMS-backed features (Gemini Nano, future segmentation, etc.)
+        // Use this for local dev, GitHub releases, and sideload APKs.
+        create("full") {
+            dimension = "distribution"
+        }
+        // FOSS build: no Google Play Services dependencies.
+        // GMS features are stubbed to no-ops; everything else is identical.
+        // Target: F-Droid distribution.
+        create("foss") {
+            dimension = "distribution"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
