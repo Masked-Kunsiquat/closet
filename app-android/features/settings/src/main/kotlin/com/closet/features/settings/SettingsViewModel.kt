@@ -146,12 +146,7 @@ class SettingsViewModel @Inject constructor(
 
     // ── OpenAI-compatible fields ───────────────────────────────────────────────
 
-    /**
-     * API key for OpenAI-compatible providers.
-     *
-     * TODO: Keys are stored as plain strings in DataStore for now. Migrate to
-     *   EncryptedSharedPreferences or Android Keystore before shipping to production.
-     */
+    /** API key for OpenAI-compatible providers. Stored encrypted via [EncryptedKeyStore]. */
     val openAiKey: StateFlow<String> = aiPrefsRepo.getOpenAiApiKey()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 

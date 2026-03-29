@@ -139,7 +139,7 @@ Reference: `outfit-recs-overview.md`
 - [x] For OpenAI-compatible: API key input + optional base URL override (for Ollama / Groq / self-hosted)
 - [x] For Anthropic: API key input (greyed out — AnthropicProvider not yet implemented)
 - [x] Style Vibe picker — `StyleVibe` enum (Smart Casual / Minimalist / Streetwear / Business / Casual / Formal) stored in `AiPreferencesRepository`; `SingleChoiceSegmentedButtonRow` in Settings AI section; read-only shortcut row in Idle + Results states of `RecommendationScreen` with "Change →" link to Settings; vibe label passed to `OutfitCoherenceScorer`
-- [ ] No key stored in plaintext — use `EncryptedSharedPreferences` or Android Keystore
+- [x] No key stored in plaintext — use `EncryptedSharedPreferences` or Android Keystore
 
 ---
 

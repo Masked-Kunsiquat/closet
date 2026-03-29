@@ -19,33 +19,27 @@ import javax.inject.Singleton
 private val Context.aiDataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_prefs")
 
 /**
- * Repository for persisting AI provider preferences via [DataStore].
+ * Repository for persisting AI provider preferences.
  *
- * Backed by a dedicated DataStore file (`ai_prefs`), isolated from the weather and app
- * preference stores. Mirrors the pattern established by [WeatherPreferencesRepository].
- *
- * Stores:
- * - Selected [AiProvider] (enum name as string; defaults to [AiProvider.Nano])
- * - Per-provider API keys (plain strings in DataStore — encryption via EncryptedSharedPreferences
- *   or Android Keystore is a Phase 2 Settings UI concern; the repository API is key-agnostic)
- * - Nano-specific: [aiReady] flag and [tokenLimit] (populated by the background init worker)
- *
- * All AI-dependent features must gate on [getAiReady] returning `true` before invoking an
- * [com.closet.features.recommendations.ai.OutfitAiProvider].
+ * **Storage split:**
+ * - **API keys** (OpenAI, Anthropic) — stored encrypted via [EncryptedKeyStore], backed by
+ *   AES-256-GCM/Android Keystore. Never written to DataStore.
+ * - **Everything else** (provider selection, model names, Nano ready flag, token limit,
+ *   style vibe, master AI toggle) — stored in plain DataStore (`ai_prefs`). These values
+ *   are non-sensitive configuration, not credentials.
  *
  * Provided as a [Singleton] — inject anywhere via Hilt.
  */
 @Singleton
 class AiPreferencesRepository @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val encryptedKeyStore: EncryptedKeyStore,
 ) {
-    // Keys
+    // Non-sensitive DataStore keys (no API keys here)
     private val aiEnabledKey = booleanPreferencesKey("ai_enabled")
     private val selectedProviderKey = stringPreferencesKey("ai_selected_provider")
-    private val openAiApiKeyKey = stringPreferencesKey("ai_openai_api_key")
     private val openAiBaseUrlKey = stringPreferencesKey("ai_openai_base_url")
     private val openAiModelKey = stringPreferencesKey("ai_openai_model")
-    private val anthropicApiKeyKey = stringPreferencesKey("ai_anthropic_api_key")
     private val anthropicModelKey = stringPreferencesKey("ai_anthropic_model")
     private val nanoAiReadyKey = booleanPreferencesKey("ai_nano_ready")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
@@ -83,24 +77,25 @@ class AiPreferencesRepository @Inject constructor(
         }
     }
 
-    // ── API keys ─────────────────────────────────────────────────────────────
+    // ── API keys (encrypted) ─────────────────────────────────────────────────
 
     /**
      * API key for OpenAI-compatible providers (OpenAI, Gemini cloud, Ollama, Groq, etc.).
-     * Returns an empty string when no key has been set.
-     *
-     * Note: stored as plain text in DataStore for now. The Settings UI (Phase 2) will
-     * layer EncryptedSharedPreferences or Android Keystore on top of this if required.
+     * Stored encrypted via [EncryptedKeyStore]. Returns an empty string when not set.
      */
-    fun getOpenAiApiKey(): Flow<String> = context.aiDataStore.data.map { prefs ->
-        prefs[openAiApiKeyKey] ?: ""
-    }
+    fun getOpenAiApiKey(): Flow<String> = encryptedKeyStore.openAiKeyFlow()
 
-    suspend fun setOpenAiApiKey(key: String) {
-        context.aiDataStore.edit { prefs ->
-            prefs[openAiApiKeyKey] = key
-        }
-    }
+    suspend fun setOpenAiApiKey(key: String) = encryptedKeyStore.setOpenAiKey(key)
+
+    /**
+     * API key for the Anthropic provider (Claude).
+     * Stored encrypted via [EncryptedKeyStore]. Returns an empty string when not set.
+     */
+    fun getAnthropicApiKey(): Flow<String> = encryptedKeyStore.anthropicKeyFlow()
+
+    suspend fun setAnthropicApiKey(key: String) = encryptedKeyStore.setAnthropicKey(key)
+
+    // ── OpenAI-compatible non-sensitive config ────────────────────────────────
 
     /**
      * Base URL for OpenAI-compatible providers. Defaults to `https://api.openai.com` when not set.
@@ -120,9 +115,6 @@ class AiPreferencesRepository @Inject constructor(
 
     /**
      * Model identifier for the OpenAI-compatible provider. Defaults to `gpt-4o-mini` when not set.
-     *
-     * Set to any model name accepted by the configured endpoint — e.g. `gemini-2.0-flash`,
-     * `llama3`, `mixtral-8x7b-32768` (Groq), etc.
      */
     fun getOpenAiModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
         prefs[openAiModelKey] ?: ""
@@ -134,23 +126,10 @@ class AiPreferencesRepository @Inject constructor(
         }
     }
 
-    /**
-     * API key for the Anthropic provider (Claude).
-     * Returns an empty string when no key has been set.
-     */
-    fun getAnthropicApiKey(): Flow<String> = context.aiDataStore.data.map { prefs ->
-        prefs[anthropicApiKeyKey] ?: ""
-    }
-
-    suspend fun setAnthropicApiKey(key: String) {
-        context.aiDataStore.edit { prefs ->
-            prefs[anthropicApiKeyKey] = key
-        }
-    }
+    // ── Anthropic non-sensitive config ────────────────────────────────────────
 
     /**
-     * Model identifier for the Anthropic provider. Defaults to [AnthropicProvider.DEFAULT_MODEL]
-     * when not set.
+     * Model identifier for the Anthropic provider. Defaults to Haiku when not set.
      */
     fun getAnthropicModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
         prefs[anthropicModelKey] ?: ""
@@ -166,13 +145,6 @@ class AiPreferencesRepository @Inject constructor(
 
     /**
      * Whether Gemini Nano is downloaded and ready for inference on this device.
-     *
-     * Set to `true` by the background init worker after:
-     * 1. [checkStatus()] confirms the model is supported.
-     * 2. [download()] completes successfully (if the model was not already present).
-     * 3. [getTokenLimit()] has been fetched and stored.
-     *
-     * All callers must check this flag before invoking [NanoProvider].
      */
     fun getAiReady(): Flow<Boolean> = context.aiDataStore.data.map { prefs ->
         prefs[nanoAiReadyKey] ?: false
@@ -187,10 +159,7 @@ class AiPreferencesRepository @Inject constructor(
     // ── Nano — token limit ───────────────────────────────────────────────────
 
     /**
-     * The maximum token count supported by the on-device Nano model, as reported by
-     * `getTokenLimit()` at init time. Stored here so the coherence scorer can gate
-     * candidate payload size without re-querying the model on every request.
-     *
+     * The maximum token count supported by the on-device Nano model.
      * Returns 0 when not yet populated (i.e. [getAiReady] is false).
      * Never hardcode a token limit — always read from DataStore.
      */
@@ -207,8 +176,7 @@ class AiPreferencesRepository @Inject constructor(
     // ── Style vibe ───────────────────────────────────────────────────────────
 
     /**
-     * The user's preferred style aesthetic, used by [OutfitCoherenceScorer] to tailor
-     * AI curation instructions. Defaults to [StyleVibe.SmartCasual] when not set.
+     * The user's preferred style aesthetic. Defaults to [StyleVibe.SmartCasual] when not set.
      */
     fun getStyleVibe(): Flow<StyleVibe> = context.aiDataStore.data.map { prefs ->
         StyleVibe.fromString(prefs[styleVibeKey] ?: StyleVibe.SmartCasual.name)
