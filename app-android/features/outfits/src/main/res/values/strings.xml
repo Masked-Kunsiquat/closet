@@ -37,6 +37,8 @@
     <string name="journal_ootd_set">Set as outfit of the day</string>
     <string name="journal_ootd_unset">Remove outfit of the day</string>
     <string name="journal_delete_log">Delete log entry</string>
+    <string name="journal_delete_log_confirm_title">Delete log entry?</string>
+    <string name="journal_delete_log_confirm_message">This will permanently remove this outfit log and its wear count.</string>
     <string name="journal_log_outfit">Log outfit</string>
     <string name="journal_picker_title">Log an outfit</string>
     <string name="journal_picker_back">Back to day detail</string>
