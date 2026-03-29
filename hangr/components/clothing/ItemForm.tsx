@@ -759,35 +759,29 @@ export function ItemForm({ initialValues = EMPTY_FORM, onSubmit, submitLabel, su
       />
 
       {/* ── Picker sheets ── */}
-      <PickerSheet
+      <ColorSheet
         visible={openSheet === 'colors'}
-        onClose={() => setOpenSheet(null)}
-        title="Colors"
-        items={colors}
+        colors={colors}
         selectedIds={values.colorIds}
         onToggle={(id) => toggleMulti('colorIds', id)}
-        renderDot={(color) => color.hex ? (
-          <View style={[styles.colorDot, { backgroundColor: color.hex }]} />
-        ) : null}
-      />
-      <PickerSheet
-        visible={openSheet === 'materials'}
         onClose={() => setOpenSheet(null)}
-        title="Materials"
-        items={materials}
+        accentPrimary={accent.primary}
+      />
+      <MaterialSheet
+        visible={openSheet === 'materials'}
+        materials={materials}
         selectedIds={values.materialIds}
         onToggle={(id) => toggleMulti('materialIds', id)}
-      />
-      <PickerSheet
-        visible={openSheet === 'patterns'}
         onClose={() => setOpenSheet(null)}
-        title="Pattern"
-        items={patterns}
+        accentPrimary={accent.primary}
+      />
+      <PatternSheet
+        visible={openSheet === 'patterns'}
+        patterns={patterns}
         selectedIds={values.patternIds}
         onToggle={(id) => toggleMulti('patternIds', id)}
-        renderDot={(pattern) => (
-          <PatternIcon name={pattern.name} size={16} color={Palette.textSecondary} />
-        )}
+        onClose={() => setOpenSheet(null)}
+        accentPrimary={accent.primary}
       />
       <PickerSheet
         visible={openSheet === 'seasons'}
@@ -1034,6 +1028,165 @@ function SubcategorySheet({
 }
 
 // ---------------------------------------------------------------------------
+// ColorSheet
+// ---------------------------------------------------------------------------
+
+function ColorSheet({
+  visible,
+  colors,
+  selectedIds,
+  onToggle,
+  onClose,
+  accentPrimary,
+}: {
+  visible: boolean;
+  colors: Color[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  onClose: () => void;
+  accentPrimary: string;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Colors</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {colors.map((color, i) => {
+            const active = selectedIds.includes(color.id);
+            return (
+              <Pressable
+                key={color.id}
+                style={[styles.sheetOption, i < colors.length - 1 && styles.sheetOptionBorder]}
+                onPress={() => onToggle(color.id)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: active }}
+              >
+                <View style={styles.sheetOptionLeft}>
+                  <View style={[styles.colorSwatch, color.hex ? { backgroundColor: color.hex } : styles.colorSwatchNull]} />
+                  <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                    {color.name}
+                  </Text>
+                </View>
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MaterialSheet
+// ---------------------------------------------------------------------------
+
+function MaterialSheet({
+  visible,
+  materials,
+  selectedIds,
+  onToggle,
+  onClose,
+  accentPrimary,
+}: {
+  visible: boolean;
+  materials: Material[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  onClose: () => void;
+  accentPrimary: string;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Materials</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {materials.map((material, i) => {
+            const active = selectedIds.includes(material.id);
+            return (
+              <Pressable
+                key={material.id}
+                style={[styles.sheetOption, i < materials.length - 1 && styles.sheetOptionBorder]}
+                onPress={() => onToggle(material.id)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: active }}
+              >
+                <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                  {material.name}
+                </Text>
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PatternSheet
+// ---------------------------------------------------------------------------
+
+function PatternSheet({
+  visible,
+  patterns,
+  selectedIds,
+  onToggle,
+  onClose,
+  accentPrimary,
+}: {
+  visible: boolean;
+  patterns: Pattern[];
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+  onClose: () => void;
+  accentPrimary: string;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <Text style={styles.sheetTitle}>Pattern</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {patterns.map((pattern, i) => {
+            const active = selectedIds.includes(pattern.id);
+            return (
+              <Pressable
+                key={pattern.id}
+                style={[styles.sheetOption, i < patterns.length - 1 && styles.sheetOptionBorder]}
+                onPress={() => onToggle(pattern.id)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: active }}
+              >
+                <View style={styles.sheetOptionLeft}>
+                  <PatternIcon name={pattern.name} size={20} color={active ? accentPrimary : Palette.textSecondary} />
+                  <Text style={[styles.sheetOptionText, active && { color: accentPrimary, fontWeight: FontWeight.semibold }]}>
+                    {pattern.name}
+                  </Text>
+                </View>
+                {active && <PhosphorIcon name="check" size={16} color={accentPrimary} />}
+              </Pressable>
+            );
+          })}
+          <View style={{ height: Math.max(Spacing[4], insets.bottom) }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Styles
 // ---------------------------------------------------------------------------
 
@@ -1112,12 +1265,15 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     fontWeight: FontWeight.semibold,
   },
-  colorDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  colorSwatch: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.sm,
     borderWidth: 1,
     borderColor: Palette.dotBorder,
+  },
+  colorSwatchNull: {
+    backgroundColor: Palette.surface3,
   },
 
   // Photo

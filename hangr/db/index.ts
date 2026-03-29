@@ -28,6 +28,7 @@ export function getDatabase(): Promise<Db> {
   if (_ready) return _ready;
 
   _ready = (async () => {
+    const t0 = Date.now();
     try {
       _db = openDatabaseSync(DB_NAME);
 
@@ -37,8 +38,10 @@ export function getDatabase(): Promise<Db> {
       await runMigrations(_db);
       await runSeeds(_db);
 
+      if (__DEV__) console.log(`[db] initialized in ${Date.now() - t0}ms`);
       return _db;
     } catch (e) {
+      if (__DEV__) console.error('[db] init failed', e);
       // Reset so the next call can retry initialization from scratch.
       _db?.closeSync?.();
       _db = null;

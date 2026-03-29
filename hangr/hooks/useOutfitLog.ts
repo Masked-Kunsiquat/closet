@@ -34,6 +34,7 @@ export function useLogsForDate(date: string) {
       const logs = await getLogsByDate(db, date);
       setState({ logs, loading: false, error: null });
     } catch (e) {
+      if (__DEV__) console.error('[useLogsForDate] load failed', e);
       setState((s) => ({ ...s, loading: false, error: String(e) }));
     }
   }, [date]);
@@ -69,6 +70,7 @@ export function useLogsForOutfit(outfitId: number) {
       const logs = await getLogsForOutfit(db, outfitId);
       setState({ logs, loading: false, error: null });
     } catch (e) {
+      if (__DEV__) console.error('[useLogsForOutfit] load failed', e);
       setState((s) => ({ ...s, loading: false, error: String(e) }));
     }
   }, [outfitId]);
@@ -108,6 +110,7 @@ export function useCalendarMonth(yearMonth: string) {
       const days = await getCalendarDaysForMonth(db, yearMonth);
       setState({ days, loading: false, error: null });
     } catch (e) {
+      if (__DEV__) console.error('[useCalendarMonth] load failed', e);
       setState((s) => ({ ...s, loading: false, error: String(e) }));
     }
   }, [yearMonth]);

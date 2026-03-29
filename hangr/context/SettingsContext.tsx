@@ -113,7 +113,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const db = await getDatabase();
         const rows = await getAllSettings(db);
         setSettings(rowsToSettings(rows));
-      } catch {
+      } catch (e) {
+        if (__DEV__) console.error('[SettingsContext] load failed', e);
         // Use defaults on error — app still works
       } finally {
         setLoaded(true);
@@ -134,7 +135,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = await getDatabase();
       await setSetting(db, DB_KEY[key], settingToRow(key, value));
-    } catch {
+    } catch (e) {
+      if (__DEV__) console.error('[SettingsContext] save failed', e);
       // Rollback to the state captured before this specific call
       setSettings(prev);
     }

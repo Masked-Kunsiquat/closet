@@ -9,6 +9,7 @@ import { AccentProvider } from '@/context/AccentContext';
 import { SettingsProvider, useSettings } from '@/context/SettingsContext';
 import { AccentKey, FontSize, FontWeight, Palette, Radius, Spacing } from '@/constants/tokens';
 import { getDatabase } from '@/db';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -85,9 +86,11 @@ export default function RootLayout() {
   if (isInitializing || !dbReady) return null;
 
   return (
-    <SettingsProvider>
-      <AppLayout />
-    </SettingsProvider>
+    <ErrorBoundary>
+      <SettingsProvider>
+        <AppLayout />
+      </SettingsProvider>
+    </ErrorBoundary>
   );
 }
 

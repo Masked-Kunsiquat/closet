@@ -25,6 +25,7 @@ export function useClothingItems() {
       const items = await getAllClothingItems(db);
       setState({ items, loading: false, error: null });
     } catch (e) {
+      if (__DEV__) console.error('[useClothingItems] load failed', e);
       setState({ items: [], loading: false, error: String(e) });
     }
   }, []);

@@ -1,5 +1,6 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
+import { runQuery, runTransaction } from './logger';
 import {
   BreakdownRow,
   CalendarDay,
@@ -41,7 +42,7 @@ import {
 export async function getAllClothingItems(
   db: SQLiteDatabase
 ): Promise<ClothingItemWithMeta[]> {
-  return db.getAllAsync<ClothingItemWithMeta>(`
+  return runQuery('getAllClothingItems', () => db.getAllAsync<ClothingItemWithMeta>(`
     SELECT
       ci.*,
       c.name  AS category_name,
@@ -56,7 +57,7 @@ export async function getAllClothingItems(
     LEFT JOIN categories    c  ON ci.category_id    = c.id
     LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
     ORDER BY ci.created_at DESC
-  `);
+  `));
 }
 
 /**
@@ -68,7 +69,7 @@ export async function getClothingItemById(
   db: SQLiteDatabase,
   id: number
 ): Promise<ClothingItemWithMeta | null> {
-  return db.getFirstAsync<ClothingItemWithMeta>(`
+  return runQuery('getClothingItemById', () => db.getFirstAsync<ClothingItemWithMeta>(`
     SELECT
       ci.*,
       c.name  AS category_name,
@@ -83,7 +84,7 @@ export async function getClothingItemById(
     LEFT JOIN categories    c  ON ci.category_id    = c.id
     LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
     WHERE ci.id = ?
-  `, [id]);
+  `, [id]));
 }
 
 
@@ -99,7 +100,7 @@ export async function insertClothingItem(
   db: SQLiteDatabase,
   item: NewClothingItem
 ): Promise<number> {
-  const result = await db.runAsync(
+  const result = await runQuery('insertClothingItem', () => db.runAsync(
     `INSERT INTO clothing_items
        (name, brand, category_id, subcategory_id, size_value_id,
         waist, inseam, purchase_price, purchase_date, purchase_location,
@@ -122,7 +123,7 @@ export async function insertClothingItem(
       item.wash_status,
       item.is_favorite,
     ]
-  );
+  ));
   return result.lastInsertRowId;
 }
 
@@ -142,7 +143,7 @@ export async function updateClothingItem(
   id: number,
   item: Partial<NewClothingItem>
 ): Promise<void> {
-  await db.runAsync(
+  await runQuery('updateClothingItem', () => db.runAsync(
     `UPDATE clothing_items SET
        name              = COALESCE(?, name),
        brand             = ?,
@@ -179,7 +180,7 @@ export async function updateClothingItem(
       item.is_favorite ?? null,
       id,
     ]
-  );
+  ));
 }
 
 /**
@@ -194,7 +195,7 @@ export async function deleteClothingItem(
   id: number
 ): Promise<void> {
   // Junction rows cascade via ON DELETE CASCADE in the schema.
-  await db.runAsync(`DELETE FROM clothing_items WHERE id = ?`, [id]);
+  await runQuery('deleteClothingItem', () => db.runAsync(`DELETE FROM clothing_items WHERE id = ?`, [id]));
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +215,7 @@ export async function setClothingItemColors(
   itemId: number,
   colorIds: number[]
 ): Promise<void> {
-  await db.withTransactionAsync(async () => {
+  await runTransaction('setClothingItemColors', () => db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM clothing_item_colors WHERE clothing_item_id = ?`, [itemId]);
     for (const colorId of colorIds) {
       await db.runAsync(
@@ -222,7 +223,7 @@ export async function setClothingItemColors(
         [itemId, colorId]
       );
     }
-  });
+  }));
 }
 
 /**
@@ -239,7 +240,7 @@ export async function setClothingItemMaterials(
   itemId: number,
   materialIds: number[]
 ): Promise<void> {
-  await db.withTransactionAsync(async () => {
+  await runTransaction('setClothingItemMaterials', () => db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM clothing_item_materials WHERE clothing_item_id = ?`, [itemId]);
     for (const id of materialIds) {
       await db.runAsync(
@@ -247,7 +248,7 @@ export async function setClothingItemMaterials(
         [itemId, id]
       );
     }
-  });
+  }));
 }
 
 /**
@@ -261,7 +262,7 @@ export async function setClothingItemSeasons(
   itemId: number,
   seasonIds: number[]
 ): Promise<void> {
-  await db.withTransactionAsync(async () => {
+  await runTransaction('setClothingItemSeasons', () => db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM clothing_item_seasons WHERE clothing_item_id = ?`, [itemId]);
     for (const id of seasonIds) {
       await db.runAsync(
@@ -269,7 +270,7 @@ export async function setClothingItemSeasons(
         [itemId, id]
       );
     }
-  });
+  }));
 }
 
 /**
@@ -285,7 +286,7 @@ export async function setClothingItemOccasions(
   itemId: number,
   occasionIds: number[]
 ): Promise<void> {
-  await db.withTransactionAsync(async () => {
+  await runTransaction('setClothingItemOccasions', () => db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM clothing_item_occasions WHERE clothing_item_id = ?`, [itemId]);
     for (const id of occasionIds) {
       await db.runAsync(
@@ -293,7 +294,7 @@ export async function setClothingItemOccasions(
         [itemId, id]
       );
     }
-  });
+  }));
 }
 
 /**
@@ -309,7 +310,7 @@ export async function setClothingItemPatterns(
   itemId: number,
   patternIds: number[]
 ): Promise<void> {
-  await db.withTransactionAsync(async () => {
+  await runTransaction('setClothingItemPatterns', () => db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM clothing_item_patterns WHERE clothing_item_id = ?`, [itemId]);
     for (const id of patternIds) {
       await db.runAsync(
@@ -317,7 +318,7 @@ export async function setClothingItemPatterns(
         [itemId, id]
       );
     }
-  });
+  }));
 }
 
 /**
@@ -330,10 +331,10 @@ export async function getClothingItemColorIds(
   db: SQLiteDatabase,
   itemId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ color_id: number }>(
+  const rows = await runQuery('getClothingItemColorIds', () => db.getAllAsync<{ color_id: number }>(
     `SELECT color_id FROM clothing_item_colors WHERE clothing_item_id = ?`,
     [itemId]
-  );
+  ));
   return rows.map((r) => r.color_id);
 }
 
@@ -347,10 +348,10 @@ export async function getClothingItemMaterialIds(
   db: SQLiteDatabase,
   itemId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ material_id: number }>(
+  const rows = await runQuery('getClothingItemMaterialIds', () => db.getAllAsync<{ material_id: number }>(
     `SELECT material_id FROM clothing_item_materials WHERE clothing_item_id = ?`,
     [itemId]
-  );
+  ));
   return rows.map((r) => r.material_id);
 }
 
@@ -363,10 +364,10 @@ export async function getClothingItemSeasonIds(
   db: SQLiteDatabase,
   itemId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ season_id: number }>(
+  const rows = await runQuery('getClothingItemSeasonIds', () => db.getAllAsync<{ season_id: number }>(
     `SELECT season_id FROM clothing_item_seasons WHERE clothing_item_id = ?`,
     [itemId]
-  );
+  ));
   return rows.map((r) => r.season_id);
 }
 
@@ -380,10 +381,10 @@ export async function getClothingItemOccasionIds(
   db: SQLiteDatabase,
   itemId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ occasion_id: number }>(
+  const rows = await runQuery('getClothingItemOccasionIds', () => db.getAllAsync<{ occasion_id: number }>(
     `SELECT occasion_id FROM clothing_item_occasions WHERE clothing_item_id = ?`,
     [itemId]
-  );
+  ));
   return rows.map((r) => r.occasion_id);
 }
 
@@ -397,10 +398,10 @@ export async function getClothingItemPatternIds(
   db: SQLiteDatabase,
   itemId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ pattern_id: number }>(
+  const rows = await runQuery('getClothingItemPatternIds', () => db.getAllAsync<{ pattern_id: number }>(
     `SELECT pattern_id FROM clothing_item_patterns WHERE clothing_item_id = ?`,
     [itemId]
-  );
+  ));
   return rows.map((r) => r.pattern_id);
 }
 
@@ -413,7 +414,7 @@ export async function getClothingItemPatternIds(
  */
 
 export async function getCategories(db: SQLiteDatabase): Promise<Category[]> {
-  return db.getAllAsync<Category>(`SELECT * FROM categories ORDER BY sort_order`);
+  return runQuery('getCategories', () => db.getAllAsync<Category>(`SELECT * FROM categories ORDER BY sort_order`));
 }
 
 /**
@@ -426,10 +427,10 @@ export async function getSubcategories(
   db: SQLiteDatabase,
   categoryId: number
 ): Promise<Subcategory[]> {
-  return db.getAllAsync<Subcategory>(
+  return runQuery('getSubcategories', () => db.getAllAsync<Subcategory>(
     `SELECT * FROM subcategories WHERE category_id = ? ORDER BY sort_order`,
     [categoryId]
-  );
+  ));
 }
 
 /**
@@ -438,7 +439,7 @@ export async function getSubcategories(
  * @returns All seasons ordered by `id`.
  */
 export async function getSeasons(db: SQLiteDatabase): Promise<Season[]> {
-  return db.getAllAsync<Season>(`SELECT * FROM seasons ORDER BY id`);
+  return runQuery('getSeasons', () => db.getAllAsync<Season>(`SELECT * FROM seasons ORDER BY id`));
 }
 
 /**
@@ -447,7 +448,7 @@ export async function getSeasons(db: SQLiteDatabase): Promise<Season[]> {
  * @returns An array of `Occasion` records sorted by `id`.
  */
 export async function getOccasions(db: SQLiteDatabase): Promise<Occasion[]> {
-  return db.getAllAsync<Occasion>(`SELECT * FROM occasions ORDER BY id`);
+  return runQuery('getOccasions', () => db.getAllAsync<Occasion>(`SELECT * FROM occasions ORDER BY id`));
 }
 
 /**
@@ -456,7 +457,7 @@ export async function getOccasions(db: SQLiteDatabase): Promise<Occasion[]> {
  * @returns An array of Color records ordered by name
  */
 export async function getColors(db: SQLiteDatabase): Promise<Color[]> {
-  return db.getAllAsync<Color>(`SELECT * FROM colors ORDER BY name`);
+  return runQuery('getColors', () => db.getAllAsync<Color>(`SELECT * FROM colors ORDER BY name`));
 }
 
 /**
@@ -465,7 +466,7 @@ export async function getColors(db: SQLiteDatabase): Promise<Color[]> {
  * @returns An array of Material records ordered by `name`.
  */
 export async function getMaterials(db: SQLiteDatabase): Promise<Material[]> {
-  return db.getAllAsync<Material>(`SELECT * FROM materials ORDER BY name`);
+  return runQuery('getMaterials', () => db.getAllAsync<Material>(`SELECT * FROM materials ORDER BY name`));
 }
 
 /**
@@ -474,7 +475,7 @@ export async function getMaterials(db: SQLiteDatabase): Promise<Material[]> {
  * @returns An array of Pattern records ordered by `name`
  */
 export async function getPatterns(db: SQLiteDatabase): Promise<Pattern[]> {
-  return db.getAllAsync<Pattern>(`SELECT * FROM patterns ORDER BY name`);
+  return runQuery('getPatterns', () => db.getAllAsync<Pattern>(`SELECT * FROM patterns ORDER BY name`));
 }
 
 /**
@@ -483,7 +484,7 @@ export async function getPatterns(db: SQLiteDatabase): Promise<Pattern[]> {
  * @returns An array of size system records ordered by `id`
  */
 export async function getSizeSystems(db: SQLiteDatabase): Promise<SizeSystem[]> {
-  return db.getAllAsync<SizeSystem>(`SELECT * FROM size_systems ORDER BY id`);
+  return runQuery('getSizeSystems', () => db.getAllAsync<SizeSystem>(`SELECT * FROM size_systems ORDER BY id`));
 }
 
 /**
@@ -496,10 +497,10 @@ export async function getSizeValues(
   db: SQLiteDatabase,
   systemId: number
 ): Promise<SizeValue[]> {
-  return db.getAllAsync<SizeValue>(
+  return runQuery('getSizeValues', () => db.getAllAsync<SizeValue>(
     `SELECT * FROM size_values WHERE size_system_id = ? ORDER BY sort_order`,
     [systemId]
-  );
+  ));
 }
 
 // ---------------------------------------------------------------------------
@@ -516,10 +517,10 @@ export async function getItemIdsByColor(
   db: SQLiteDatabase,
   colorId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ clothing_item_id: number }>(
+  const rows = await runQuery('getItemIdsByColor', () => db.getAllAsync<{ clothing_item_id: number }>(
     `SELECT clothing_item_id FROM clothing_item_colors WHERE color_id = ?`,
     [colorId]
-  );
+  ));
   return rows.map((r) => r.clothing_item_id);
 }
 
@@ -533,10 +534,10 @@ export async function getItemIdsBySeason(
   db: SQLiteDatabase,
   seasonId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ clothing_item_id: number }>(
+  const rows = await runQuery('getItemIdsBySeason', () => db.getAllAsync<{ clothing_item_id: number }>(
     `SELECT clothing_item_id FROM clothing_item_seasons WHERE season_id = ?`,
     [seasonId]
-  );
+  ));
   return rows.map((r) => r.clothing_item_id);
 }
 
@@ -550,10 +551,10 @@ export async function getItemIdsByOccasion(
   db: SQLiteDatabase,
   occasionId: number
 ): Promise<number[]> {
-  const rows = await db.getAllAsync<{ clothing_item_id: number }>(
+  const rows = await runQuery('getItemIdsByOccasion', () => db.getAllAsync<{ clothing_item_id: number }>(
     `SELECT clothing_item_id FROM clothing_item_occasions WHERE occasion_id = ?`,
     [occasionId]
-  );
+  ));
   return rows.map((r) => r.clothing_item_id);
 }
 
@@ -563,9 +564,9 @@ export async function getItemIdsByOccasion(
  * @returns An array of distinct, non-null, non-empty brand strings from the clothing_items table, ordered by brand.
  */
 export async function getDistinctBrands(db: SQLiteDatabase): Promise<string[]> {
-  const rows = await db.getAllAsync<{ brand: string }>(
+  const rows = await runQuery('getDistinctBrands', () => db.getAllAsync<{ brand: string }>(
     `SELECT DISTINCT brand FROM clothing_items WHERE brand IS NOT NULL AND brand != '' ORDER BY brand`
-  );
+  ));
   return rows.map((r) => r.brand);
 }
 
@@ -580,7 +581,7 @@ export async function getDistinctBrands(db: SQLiteDatabase): Promise<string[]> {
  */
 
 export async function getAllOutfits(db: SQLiteDatabase): Promise<OutfitWithMeta[]> {
-  return db.getAllAsync<OutfitWithMeta>(`
+  return runQuery('getAllOutfits', () => db.getAllAsync<OutfitWithMeta>(`
     SELECT
       o.*,
       COUNT(oi.clothing_item_id)                              AS item_count,
@@ -593,7 +594,7 @@ export async function getAllOutfits(db: SQLiteDatabase): Promise<OutfitWithMeta[
     LEFT JOIN outfit_items oi ON oi.outfit_id = o.id
     GROUP BY o.id
     ORDER BY o.created_at DESC
-  `);
+  `));
 }
 
 /**
@@ -608,13 +609,13 @@ export async function getOutfitWithItems(
   db: SQLiteDatabase,
   outfitId: number
 ): Promise<OutfitWithItems | null> {
-  const outfit = await db.getFirstAsync<Outfit>(
+  const outfit = await runQuery('getOutfitWithItems:outfit', () => db.getFirstAsync<Outfit>(
     `SELECT * FROM outfits WHERE id = ?`,
     [outfitId]
-  );
+  ));
   if (!outfit) return null;
 
-  const items = await db.getAllAsync<ClothingItemWithMeta>(`
+  const items = await runQuery('getOutfitWithItems:items', () => db.getAllAsync<ClothingItemWithMeta>(`
     SELECT
       ci.*,
       c.name  AS category_name,
@@ -631,7 +632,7 @@ export async function getOutfitWithItems(
     LEFT JOIN subcategories sc ON ci.subcategory_id = sc.id
     WHERE oi.outfit_id = ?
     ORDER BY c.sort_order, ci.name
-  `, [outfitId]);
+  `, [outfitId]));
 
   return { ...outfit, items };
 }
@@ -651,7 +652,7 @@ export async function insertOutfit(
   itemIds: number[]
 ): Promise<number> {
   let outfitId = 0;
-  await db.withTransactionAsync(async () => {
+  await runTransaction('insertOutfit', () => db.withTransactionAsync(async () => {
     const result = await db.runAsync(
       `INSERT INTO outfits (name, notes) VALUES (?, ?)`,
       [outfit.name, outfit.notes]
@@ -663,7 +664,7 @@ export async function insertOutfit(
         [outfitId, itemId]
       );
     }
-  });
+  }));
   return outfitId;
 }
 
@@ -681,7 +682,7 @@ export async function updateOutfit(
   outfit: NewOutfit,
   itemIds: number[]
 ): Promise<void> {
-  await db.withTransactionAsync(async () => {
+  await runTransaction('updateOutfit', () => db.withTransactionAsync(async () => {
     await db.runAsync(
       `UPDATE outfits SET name = ?, notes = ?, updated_at = datetime('now') WHERE id = ?`,
       [outfit.name, outfit.notes, outfitId]
@@ -693,7 +694,7 @@ export async function updateOutfit(
         [outfitId, itemId]
       );
     }
-  });
+  }));
 }
 
 /**
@@ -705,7 +706,7 @@ export async function updateOutfit(
  */
 export async function deleteOutfit(db: SQLiteDatabase, outfitId: number): Promise<void> {
   // outfit_items cascade via ON DELETE CASCADE
-  await db.runAsync(`DELETE FROM outfits WHERE id = ?`, [outfitId]);
+  await runQuery('deleteOutfit', () => db.runAsync(`DELETE FROM outfits WHERE id = ?`, [outfitId]));
 }
 
 // ---------------------------------------------------------------------------
@@ -721,7 +722,7 @@ export async function getLogsByDate(
   db: SQLiteDatabase,
   date: string
 ): Promise<OutfitLogWithMeta[]> {
-  return db.getAllAsync<OutfitLogWithMeta>(`
+  return runQuery('getLogsByDate', () => db.getAllAsync<OutfitLogWithMeta>(`
     SELECT
       ol.*,
       o.name AS outfit_name,
@@ -737,7 +738,7 @@ export async function getLogsByDate(
     WHERE ol.date = ?
     GROUP BY ol.id
     ORDER BY ol.is_ootd DESC, ol.created_at ASC
-  `, [date]);
+  `, [date]));
 }
 
 /**
@@ -750,10 +751,10 @@ export async function getLogById(
   db: SQLiteDatabase,
   logId: number
 ): Promise<OutfitLog | null> {
-  return db.getFirstAsync<OutfitLog>(
+  return runQuery('getLogById', () => db.getFirstAsync<OutfitLog>(
     `SELECT * FROM outfit_logs WHERE id = ?`,
     [logId]
-  );
+  ));
 }
 
 /**
@@ -774,12 +775,12 @@ export async function insertOutfitLog(
     weather_condition: WeatherCondition | null;
   }
 ): Promise<number> {
-  const result = await db.runAsync(
+  const result = await runQuery('insertOutfitLog', () => db.runAsync(
     `INSERT INTO outfit_logs
        (outfit_id, date, is_ootd, notes, temperature_low, temperature_high, weather_condition)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [log.outfit_id, log.date, log.is_ootd, log.notes, log.temperature_low, log.temperature_high, log.weather_condition]
-  );
+  ));
   return result.lastInsertRowId;
 }
 
@@ -803,12 +804,12 @@ export async function updateOutfitLog(
     weather_condition: WeatherCondition | null;
   }
 ): Promise<void> {
-  await db.runAsync(
+  await runQuery('updateOutfitLog', () => db.runAsync(
     `UPDATE outfit_logs
      SET date = ?, notes = ?, temperature_low = ?, temperature_high = ?, weather_condition = ?
      WHERE id = ?`,
     [log.date, log.notes, log.temperature_low, log.temperature_high, log.weather_condition, logId]
-  );
+  ));
 }
 
 /**
@@ -821,10 +822,10 @@ export async function getLogsForOutfit(
   db: SQLiteDatabase,
   outfitId: number
 ): Promise<OutfitLog[]> {
-  return db.getAllAsync<OutfitLog>(
+  return runQuery('getLogsForOutfit', () => db.getAllAsync<OutfitLog>(
     `SELECT * FROM outfit_logs WHERE outfit_id = ? ORDER BY date DESC`,
     [outfitId]
-  );
+  ));
 }
 
 /**
@@ -837,7 +838,7 @@ export async function getOutfitsForItem(
   db: SQLiteDatabase,
   itemId: number
 ): Promise<OutfitWithMeta[]> {
-  return db.getAllAsync<OutfitWithMeta>(`
+  return runQuery('getOutfitsForItem', () => db.getAllAsync<OutfitWithMeta>(`
     SELECT
       o.*,
       COUNT(oi2.clothing_item_id) AS item_count,
@@ -852,7 +853,7 @@ export async function getOutfitsForItem(
     WHERE oi.clothing_item_id = ?
     GROUP BY o.id
     ORDER BY o.created_at DESC
-  `, [itemId]);
+  `, [itemId]));
 }
 
 /**
@@ -868,7 +869,7 @@ export async function getLogsForItem(
   db: SQLiteDatabase,
   itemId: number
 ): Promise<OutfitLogWithMeta[]> {
-  return db.getAllAsync<OutfitLogWithMeta>(`
+  return runQuery('getLogsForItem', () => db.getAllAsync<OutfitLogWithMeta>(`
     SELECT
       ol.*,
       o.name AS outfit_name,
@@ -885,7 +886,7 @@ export async function getLogsForItem(
     WHERE oi.clothing_item_id = ?
     GROUP BY ol.id
     ORDER BY ol.date DESC
-  `, [itemId]);
+  `, [itemId]));
 }
 
 /**
@@ -894,7 +895,7 @@ export async function getLogsForItem(
  * @param logId - The id of the outfit log to delete
  */
 export async function deleteOutfitLog(db: SQLiteDatabase, logId: number): Promise<void> {
-  await db.runAsync(`DELETE FROM outfit_logs WHERE id = ?`, [logId]);
+  await runQuery('deleteOutfitLog', () => db.runAsync(`DELETE FROM outfit_logs WHERE id = ?`, [logId]));
 }
 
 /**
@@ -910,7 +911,7 @@ export async function setOotd(
   logId: number,
   date: string
 ): Promise<void> {
-  await db.withTransactionAsync(async () => {
+  await runTransaction('setOotd', () => db.withTransactionAsync(async () => {
     await db.runAsync(
       `UPDATE outfit_logs SET is_ootd = 0 WHERE date = ? AND is_ootd = 1`,
       [date]
@@ -919,14 +920,14 @@ export async function setOotd(
       `UPDATE outfit_logs SET is_ootd = 1 WHERE id = ?`,
       [logId]
     );
-  });
+  }));
 }
 
 /**
  * Clears OOTD status for a given log (sets is_ootd = 0).
  */
 export async function clearOotd(db: SQLiteDatabase, logId: number): Promise<void> {
-  await db.runAsync(`UPDATE outfit_logs SET is_ootd = 0 WHERE id = ?`, [logId]);
+  await runQuery('clearOotd', () => db.runAsync(`UPDATE outfit_logs SET is_ootd = 0 WHERE id = ?`, [logId]));
 }
 
 /**
@@ -939,7 +940,7 @@ export async function getCalendarDaysForMonth(
   db: SQLiteDatabase,
   yearMonth: string   // e.g. '2025-03'
 ): Promise<CalendarDay[]> {
-  return db.getAllAsync<CalendarDay>(`
+  return runQuery('getCalendarDaysForMonth', () => db.getAllAsync<CalendarDay>(`
     SELECT
       date,
       COUNT(*)                  AS log_count,
@@ -948,7 +949,7 @@ export async function getCalendarDaysForMonth(
     WHERE date LIKE ?
     GROUP BY date
     ORDER BY date
-  `, [`${yearMonth}-%`]);
+  `, [`${yearMonth}-%`]));
 }
 
 // ---------------------------------------------------------------------------
@@ -968,7 +969,7 @@ export async function getStatsOverview(
   db: SQLiteDatabase,
   fromDate: string | null
 ): Promise<StatsOverview> {
-  const row = await db.getFirstAsync<StatsOverview>(`
+  const row = await runQuery('getStatsOverview', () => db.getFirstAsync<StatsOverview>(`
     SELECT
       COUNT(*) AS total_items,
       COUNT(CASE WHEN EXISTS (
@@ -986,7 +987,7 @@ export async function getStatsOverview(
       SUM(purchase_price) AS total_value
     FROM clothing_items ci
     WHERE ci.status = 'Active'
-  `, [fromDate, fromDate, fromDate, fromDate]);
+  `, [fromDate, fromDate, fromDate, fromDate]));
 
   return row ?? { total_items: 0, worn_items: 0, never_worn_items: 0, total_value: null };
 }
@@ -1005,7 +1006,7 @@ export async function getMostWornItems(
   fromDate: string | null,
   limit = 15
 ): Promise<StatItem[]> {
-  return db.getAllAsync<StatItem>(`
+  return runQuery('getMostWornItems', () => db.getAllAsync<StatItem>(`
     SELECT
       ci.id,
       ci.name,
@@ -1019,7 +1020,7 @@ export async function getMostWornItems(
     GROUP BY ci.id
     ORDER BY wear_count DESC
     LIMIT ?
-  `, [fromDate, fromDate, limit]);
+  `, [fromDate, fromDate, limit]));
 }
 
 /**
@@ -1036,7 +1037,7 @@ export async function getLeastWornItems(
   fromDate: string | null,
   limit = 15
 ): Promise<StatItem[]> {
-  return db.getAllAsync<StatItem>(`
+  return runQuery('getLeastWornItems', () => db.getAllAsync<StatItem>(`
     SELECT
       ci.id,
       ci.name,
@@ -1051,7 +1052,7 @@ export async function getLeastWornItems(
     HAVING wear_count > 0
     ORDER BY wear_count ASC
     LIMIT ?
-  `, [fromDate, fromDate, limit]);
+  `, [fromDate, fromDate, limit]));
 }
 
 /**
@@ -1067,7 +1068,7 @@ export async function getNeverWornItems(
   fromDate: string | null,
   limit = 15
 ): Promise<StatItem[]> {
-  return db.getAllAsync<StatItem>(`
+  return runQuery('getNeverWornItems', () => db.getAllAsync<StatItem>(`
     SELECT ci.id, ci.name, ci.image_path, 0 AS wear_count
     FROM clothing_items ci
     WHERE ci.status = 'Active'
@@ -1079,7 +1080,7 @@ export async function getNeverWornItems(
       )
     ORDER BY ci.name ASC
     LIMIT ?
-  `, [fromDate, fromDate, limit]);
+  `, [fromDate, fromDate, limit]));
 }
 
 /**
@@ -1088,14 +1089,14 @@ export async function getNeverWornItems(
  * This reflects current inventory — it is not filtered by date range.
  */
 export async function getBreakdownByCategory(db: SQLiteDatabase): Promise<BreakdownRow[]> {
-  return db.getAllAsync<BreakdownRow>(`
+  return runQuery('getBreakdownByCategory', () => db.getAllAsync<BreakdownRow>(`
     SELECT c.name AS label, COUNT(DISTINCT ci.id) AS count
     FROM clothing_items ci
     JOIN categories c ON c.id = ci.category_id
     WHERE ci.status = 'Active'
     GROUP BY c.id
     ORDER BY count DESC
-  `);
+  `));
 }
 
 /**
@@ -1104,7 +1105,7 @@ export async function getBreakdownByCategory(db: SQLiteDatabase): Promise<Breakd
  * This reflects current inventory — it is not filtered by date range.
  */
 export async function getBreakdownByColor(db: SQLiteDatabase): Promise<ColorBreakdownRow[]> {
-  return db.getAllAsync<ColorBreakdownRow>(`
+  return runQuery('getBreakdownByColor', () => db.getAllAsync<ColorBreakdownRow>(`
     SELECT col.name AS label, col.hex, COUNT(DISTINCT ci.id) AS count
     FROM clothing_items ci
     JOIN clothing_item_colors cic ON cic.clothing_item_id = ci.id
@@ -1112,7 +1113,7 @@ export async function getBreakdownByColor(db: SQLiteDatabase): Promise<ColorBrea
     WHERE ci.status = 'Active'
     GROUP BY col.id
     ORDER BY count DESC
-  `);
+  `));
 }
 
 /**
@@ -1122,13 +1123,13 @@ export async function getBreakdownByColor(db: SQLiteDatabase): Promise<ColorBrea
  * This reflects current inventory — it is not filtered by date range.
  */
 export async function getBreakdownByBrand(db: SQLiteDatabase): Promise<BreakdownRow[]> {
-  return db.getAllAsync<BreakdownRow>(`
+  return runQuery('getBreakdownByBrand', () => db.getAllAsync<BreakdownRow>(`
     SELECT COALESCE(NULLIF(ci.brand, ''), 'No Brand') AS label, COUNT(DISTINCT ci.id) AS count
     FROM clothing_items ci
     WHERE ci.status = 'Active'
     GROUP BY COALESCE(NULLIF(ci.brand, ''), 'No Brand')
     ORDER BY count DESC
-  `);
+  `));
 }
 
 /**
@@ -1137,7 +1138,7 @@ export async function getBreakdownByBrand(db: SQLiteDatabase): Promise<Breakdown
  * This reflects current inventory — it is not filtered by date range.
  */
 export async function getBreakdownByMaterial(db: SQLiteDatabase): Promise<BreakdownRow[]> {
-  return db.getAllAsync<BreakdownRow>(`
+  return runQuery('getBreakdownByMaterial', () => db.getAllAsync<BreakdownRow>(`
     SELECT m.name AS label, COUNT(DISTINCT ci.id) AS count
     FROM clothing_items ci
     JOIN clothing_item_materials cim ON cim.clothing_item_id = ci.id
@@ -1145,7 +1146,7 @@ export async function getBreakdownByMaterial(db: SQLiteDatabase): Promise<Breakd
     WHERE ci.status = 'Active'
     GROUP BY m.id
     ORDER BY count DESC
-  `);
+  `));
 }
 
 /**
@@ -1154,7 +1155,7 @@ export async function getBreakdownByMaterial(db: SQLiteDatabase): Promise<Breakd
  * This reflects current inventory — it is not filtered by date range.
  */
 export async function getBreakdownByOccasion(db: SQLiteDatabase): Promise<BreakdownRow[]> {
-  return db.getAllAsync<BreakdownRow>(`
+  return runQuery('getBreakdownByOccasion', () => db.getAllAsync<BreakdownRow>(`
     SELECT o.name AS label, COUNT(DISTINCT ci.id) AS count
     FROM clothing_items ci
     JOIN clothing_item_occasions cio ON cio.clothing_item_id = ci.id
@@ -1162,7 +1163,7 @@ export async function getBreakdownByOccasion(db: SQLiteDatabase): Promise<Breakd
     WHERE ci.status = 'Active'
     GROUP BY o.id
     ORDER BY count DESC
-  `);
+  `));
 }
 
 /**
@@ -1171,7 +1172,7 @@ export async function getBreakdownByOccasion(db: SQLiteDatabase): Promise<Breakd
  * This reflects current inventory — it is not filtered by date range.
  */
 export async function getBreakdownBySeason(db: SQLiteDatabase): Promise<BreakdownRow[]> {
-  return db.getAllAsync<BreakdownRow>(`
+  return runQuery('getBreakdownBySeason', () => db.getAllAsync<BreakdownRow>(`
     SELECT s.name AS label, COUNT(DISTINCT ci.id) AS count
     FROM clothing_items ci
     JOIN clothing_item_seasons cis ON cis.clothing_item_id = ci.id
@@ -1179,7 +1180,7 @@ export async function getBreakdownBySeason(db: SQLiteDatabase): Promise<Breakdow
     WHERE ci.status = 'Active'
     GROUP BY s.id
     ORDER BY count DESC
-  `);
+  `));
 }
 
 // ---------------------------------------------------------------------------
@@ -1190,9 +1191,9 @@ export async function getBreakdownBySeason(db: SQLiteDatabase): Promise<Breakdow
  * Returns all app settings as a key/value record.
  */
 export async function getAllSettings(db: SQLiteDatabase): Promise<Record<string, string>> {
-  const rows = await db.getAllAsync<{ key: string; value: string }>(
+  const rows = await runQuery('getAllSettings', () => db.getAllAsync<{ key: string; value: string }>(
     'SELECT key, value FROM app_settings'
-  );
+  ));
   const result: Record<string, string> = {};
   for (const row of rows) result[row.key] = row.value;
   return result;
@@ -1206,10 +1207,10 @@ export async function updateWashStatus(
   id: number,
   washStatus: 'Clean' | 'Dirty'
 ): Promise<void> {
-  await db.runAsync(
+  await runQuery('updateWashStatus', () => db.runAsync(
     `UPDATE clothing_items SET wash_status = ?, updated_at = datetime('now') WHERE id = ?`,
     [washStatus, id]
-  );
+  ));
 }
 
 /**
@@ -1220,8 +1221,8 @@ export async function setSetting(
   key: string,
   value: string
 ): Promise<void> {
-  await db.runAsync(
+  await runQuery('setSetting', () => db.runAsync(
     'INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
     [key, value]
-  );
+  ));
 }

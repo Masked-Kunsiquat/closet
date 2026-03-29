@@ -51,8 +51,8 @@ export default function ItemDetailScreen() {
           setOutfits(o);
           setItemLogs(l);
         }
-      } catch {
-        // Non-critical — sections simply won't render
+      } catch (e) {
+        if (__DEV__) console.error('[item/[id]] outfits+logs fetch failed', e);
       }
     })();
     return () => { cancelled = true; };
