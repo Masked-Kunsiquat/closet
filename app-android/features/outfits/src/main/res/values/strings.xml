@@ -55,6 +55,7 @@
     <string name="journal_forecast_temp_range">%1$s / %2$s</string>
 
     <!-- Outfit Actions Sheet -->
+    <string name="outfits_actions_open">Open outfit actions</string>
     <string name="outfits_actions_edit">Edit outfit</string>
     <string name="outfits_actions_delete">Delete outfit</string>
     <string name="outfits_actions_delete_confirm_title">Delete outfit?</string>

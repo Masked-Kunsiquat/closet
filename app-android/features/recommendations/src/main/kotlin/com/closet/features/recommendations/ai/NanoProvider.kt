@@ -183,6 +183,7 @@ class NanoProvider @Inject constructor(
                         }
                     }
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     Timber.tag(TAG).w(e, "initNanoFlow: download error")
                     emit(NanoInitResult.Failed(e.message ?: "Unknown error during Nano download"))
                 }
@@ -259,7 +260,13 @@ class NanoProvider @Inject constructor(
     }
 
     private fun String.asJsonString(): String =
-        "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        "\"${replace("\\", "\\\\")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+            .replace("\b", "\\b")
+            .replace("\u000C", "\\f")
+            .replace("\"", "\\\"")}\""
 
     private fun parseResponse(responseText: String, combos: List<OutfitComboPayload>): List<OutfitSelection> {
         val validComboIds = combos.map { it.comboId }.toSet()
@@ -275,9 +282,10 @@ class NanoProvider @Inject constructor(
             }
             OutfitSelection(comboId = comboId, reason = reason)
         }
-        check(selections.size >= 3) {
-            "Nano returned only ${selections.size} valid selections — need at least 3"
+        val distinct = selections.distinctBy { it.comboId }
+        check(distinct.size >= 3) {
+            "Nano returned only ${distinct.size} distinct valid selections — need at least 3"
         }
-        return selections.take(3)
+        return distinct.take(3)
     }
 }

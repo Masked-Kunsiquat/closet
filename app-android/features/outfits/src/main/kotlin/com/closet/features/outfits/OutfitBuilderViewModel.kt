@@ -74,6 +74,7 @@ class OutfitBuilderViewModel @Inject constructor(
     private val editOutfitId: Long = savedStateHandle.get<Long>("outfitId") ?: NO_OUTFIT
 
     private val _name = MutableStateFlow("")
+    private val _notes = MutableStateFlow("")
     private val _memberIds = MutableStateFlow<List<Long>>(emptyList())
     private val _isSaving = MutableStateFlow(false)
 
@@ -123,6 +124,7 @@ class OutfitBuilderViewModel @Inject constructor(
             viewModelScope.launch {
                 outfitRepository.getOutfitById(editOutfitId).first()?.let { outfit ->
                     _name.value = outfit.name ?: ""
+                    _notes.value = outfit.notes ?: ""
                     _memberIds.value = outfit.items
                         .sortedBy { it.zIndex }
                         .map { it.clothingItem.id }
@@ -181,7 +183,7 @@ class OutfitBuilderViewModel @Inject constructor(
                 outfitRepository.updateOutfit(
                     outfitId = editOutfitId,
                     name = name,
-                    notes = null,
+                    notes = _notes.value.trim().ifEmpty { null },
                     items = outfitItems
                 )
             }

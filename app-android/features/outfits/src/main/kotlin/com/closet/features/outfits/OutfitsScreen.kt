@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -138,7 +139,8 @@ internal fun OutfitsContent(
                         isWearing = wearingOutfitId == outfitWithItems.outfit.id,
                         wearEnabled = wearingOutfitId == null,
                         onWear = { onWearOutfit(outfitWithItems.outfit.id) },
-                        onClick = { selectedForMenu = outfitWithItems }
+                        onClick = { selectedForMenu = outfitWithItems },
+                        onMenuClick = { selectedForMenu = outfitWithItems }
                     )
                 }
             }
@@ -342,6 +344,7 @@ private fun OutfitGridCell(
     wearEnabled: Boolean,
     onWear: () -> Unit,
     onClick: () -> Unit,
+    onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
@@ -358,13 +361,30 @@ private fun OutfitGridCell(
                 .fillMaxWidth()
                 .padding(horizontal = 6.dp, vertical = 6.dp)
         ) {
-            Text(
-                text = outfitWithItems.outfit.name
-                    ?: stringResource(R.string.outfits_gallery_untitled),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = outfitWithItems.outfit.name
+                        ?: stringResource(R.string.outfits_gallery_untitled),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = onMenuClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.outfits_actions_open),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
