@@ -88,7 +88,7 @@ class AnthropicProvider @Inject constructor(
         val model = aiPreferencesRepository.getAnthropicModel().first()
             .takeIf { it.isNotBlank() } ?: DEFAULT_MODEL
 
-        return runCatching {
+        return try {
             val comboJson = buildComboJson(combos)
             val requestBody = buildRequestBody(model, styleVibe, comboJson)
 
@@ -99,9 +99,11 @@ class AnthropicProvider @Inject constructor(
                 setBody(requestBody)
             }.body<String>()
 
-            parseResponse(responseText, combos)
-        }.onFailure { e ->
+            Result.success(parseResponse(responseText, combos))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Timber.tag(TAG).w(e, "AnthropicProvider inference failed")
+            Result.failure(e)
         }
     }
 

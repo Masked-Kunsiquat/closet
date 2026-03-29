@@ -41,13 +41,15 @@ class ModelDiscoveryRepository @Inject constructor(
      */
     suspend fun fetchOpenAiModels(apiKey: String, baseUrl: String): Result<List<String>> {
         val base = if (baseUrl.isBlank()) DEFAULT_OPENAI_BASE else baseUrl.trimEnd('/')
+        // Avoid /v1/v1/models when the caller's baseUrl already ends with /v1
+        val modelsUrl = if (base.endsWith("/v1")) "$base/models" else "$base/v1/models"
         return runCatching {
-            val responseText: String = client.get("$base/v1/models") {
+            val responseText: String = client.get(modelsUrl) {
                 header("Authorization", "Bearer $apiKey")
             }.body()
             parseModelIds(responseText)
         }.onFailure { e ->
-            Timber.tag(TAG).w(e, "fetchOpenAiModels failed (base=%s)", base)
+            Timber.tag(TAG).w(e, "fetchOpenAiModels failed (url=%s)", modelsUrl)
         }
     }
 

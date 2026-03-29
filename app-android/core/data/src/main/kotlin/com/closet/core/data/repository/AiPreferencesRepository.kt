@@ -15,8 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private val Context.aiDataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_prefs")
 
@@ -32,8 +30,7 @@ private val Context.aiDataStore: DataStore<Preferences> by preferencesDataStore(
  *
  * Provided as a [Singleton] — inject anywhere via Hilt.
  */
-@Singleton
-class AiPreferencesRepository @Inject constructor(
+class AiPreferencesRepository(
     @ApplicationContext private val context: Context,
     private val encryptedKeyStore: EncryptedKeyStore,
 ) {

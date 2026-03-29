@@ -74,6 +74,8 @@
     <string name="settings_ai_openai_hide_key">Hide API key</string>
 
     <!-- Anthropic provider config -->
+    <string name="settings_ai_anthropic_show_key">Show API key</string>
+    <string name="settings_ai_anthropic_hide_key">Hide API key</string>
     <string name="settings_ai_anthropic_key">API key</string>
     <string name="settings_ai_anthropic_key_placeholder">Paste your sk-ant-… key here</string>
     <string name="settings_ai_anthropic_model">Model</string>

@@ -983,8 +983,8 @@ private fun AnthropicFieldsItem(
                     ),
                     trailingIcon = {
                         val cd = stringResource(
-                            if (keyVisible) R.string.settings_ai_openai_hide_key
-                            else R.string.settings_ai_openai_show_key,
+                            if (keyVisible) R.string.settings_ai_anthropic_hide_key
+                            else R.string.settings_ai_anthropic_show_key,
                         )
                         IconButton(onClick = { keyVisible = !keyVisible }) {
                             Icon(

@@ -208,7 +208,9 @@ class SettingsViewModel @Inject constructor(
 
         viewModelScope.launch {
             aiPrefsRepo.setAiEnabled(true)
-            if (selectedAiProvider.value == AiProvider.Nano) {
+            // Read the persisted provider rather than the StateFlow to avoid a race where
+            // onAiProviderSelected() is in-flight and the StateFlow hasn't yet reflected the write.
+            if (aiPrefsRepo.getSelectedProvider().first() == AiProvider.Nano) {
                 startNanoInit()
             }
             // Cloud providers are ready as soon as a key is present — no download step.

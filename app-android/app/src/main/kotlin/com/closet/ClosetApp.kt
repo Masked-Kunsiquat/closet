@@ -29,7 +29,8 @@ class ClosetApp : Application() {
         // Migrate any API keys previously stored as plaintext in DataStore to EncryptedKeyStore.
         // No-op after the first run or if keys were never set.
         applicationScope.launch {
-            aiPreferencesRepository.migrateKeysFromPlainDataStore()
+            runCatching { aiPreferencesRepository.migrateKeysFromPlainDataStore() }
+                .onFailure { Timber.tag("ClosetApp").e(it, "Key migration failed — app will continue without migrated keys") }
         }
     }
 }

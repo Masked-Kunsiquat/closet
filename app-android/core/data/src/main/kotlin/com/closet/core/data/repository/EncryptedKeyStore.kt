@@ -59,14 +59,22 @@ class EncryptedKeyStore @Inject constructor(
 
     /** Persists [key] for the OpenAI-compatible provider and updates the in-memory flow. */
     suspend fun setOpenAiKey(key: String) = withContext(Dispatchers.IO) {
-        prefs.edit().putString(KEY_OPENAI, key).apply()
-        _openAiKey.value = key
+        val committed = prefs.edit().putString(KEY_OPENAI, key).commit()
+        if (committed) {
+            _openAiKey.value = key
+        } else {
+            Timber.tag(TAG).e("setOpenAiKey: commit() returned false — key not persisted")
+        }
     }
 
     /** Persists [key] for the Anthropic provider and updates the in-memory flow. */
     suspend fun setAnthropicKey(key: String) = withContext(Dispatchers.IO) {
-        prefs.edit().putString(KEY_ANTHROPIC, key).apply()
-        _anthropicKey.value = key
+        val committed = prefs.edit().putString(KEY_ANTHROPIC, key).commit()
+        if (committed) {
+            _anthropicKey.value = key
+        } else {
+            Timber.tag(TAG).e("setAnthropicKey: commit() returned false — key not persisted")
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

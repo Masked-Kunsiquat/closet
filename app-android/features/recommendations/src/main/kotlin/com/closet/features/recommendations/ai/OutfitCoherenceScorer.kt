@@ -167,9 +167,10 @@ class OutfitCoherenceScorer @Inject constructor(
 
         val selections = result.getOrNull() ?: return null
 
-        // 8. Validate combo_ids against the payload index range
+        // 8. Validate combo_ids against the payload index range; dedupe to catch AI returning
+        // the same combo_id multiple times (would inflate the count past the size check).
         val validIdRange = payloads.map { it.comboId }.toSet()
-        val validSelections = selections.filter { it.comboId in validIdRange }
+        val validSelections = selections.filter { it.comboId in validIdRange }.distinctBy { it.comboId }
         if (validSelections.size < 3) {
             Timber.tag(TAG).w(
                 "AI returned only %d valid combo_ids (raw=%s) — discarding",
@@ -276,7 +277,13 @@ class OutfitCoherenceScorer @Inject constructor(
     }
 
     private fun String.asJsonString(): String =
-        "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        "\"${replace("\\", "\\\\")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+            .replace("\b", "\\b")
+            .replace("\u000C", "\\f")
+            .replace("\"", "\\\"")}\""
 }
 
 // -------------------------------------------------------------------------

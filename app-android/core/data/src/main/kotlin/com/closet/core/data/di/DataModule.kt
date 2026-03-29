@@ -133,7 +133,18 @@ object DataModule {
         }
         install(Logging) {
             logger = object : Logger {
-                override fun log(message: String) = Timber.tag("Ktor").d(message)
+                private val sensitiveHeaders = setOf("authorization", "x-api-key")
+                override fun log(message: String) {
+                    val redacted = message.lines().joinToString("\n") { line ->
+                        val colon = line.indexOf(':')
+                        if (colon > 0 && line.substring(0, colon).trim().lowercase() in sensitiveHeaders) {
+                            "${line.substring(0, colon)}: <REDACTED>"
+                        } else {
+                            line
+                        }
+                    }
+                    Timber.tag("Ktor").d(redacted)
+                }
             }
             level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
         }
