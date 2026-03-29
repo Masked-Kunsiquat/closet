@@ -32,7 +32,7 @@ import javax.inject.Singleton
  * [AiPreferencesRepository.getSelectedProvider]. Readiness is checked per-provider:
  * - [AiProvider.Nano]      — [AiPreferencesRepository.getAiReady] must be true.
  * - [AiProvider.OpenAi]    — [AiPreferencesRepository.getOpenAiApiKey] must be non-blank.
- * - [AiProvider.Anthropic] — always returns null (not yet implemented).
+ * - [AiProvider.Anthropic] — [AiPreferencesRepository.getAnthropicApiKey] must be non-blank.
  *
  * ### Token gate (Nano only)
  * Before calling [NanoProvider.selectOutfits], the full prompt (system prefix +
@@ -57,6 +57,7 @@ import javax.inject.Singleton
 class OutfitCoherenceScorer @Inject constructor(
     private val nanoProvider: NanoProvider,
     private val openAiProvider: OpenAiProvider,
+    private val anthropicProvider: AnthropicProvider,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val recommendationRepository: RecommendationRepository,
 ) {
@@ -112,8 +113,12 @@ class OutfitCoherenceScorer @Inject constructor(
                 openAiProvider
             }
             AiProvider.Anthropic -> {
-                Timber.tag(TAG).d("Anthropic not yet implemented — falling back to programmatic result")
-                return null
+                val key = aiPreferencesRepository.getAnthropicApiKey().first()
+                if (key.isBlank()) {
+                    Timber.tag(TAG).d("Anthropic key not set — falling back to programmatic result")
+                    return null
+                }
+                anthropicProvider
             }
         }
 
