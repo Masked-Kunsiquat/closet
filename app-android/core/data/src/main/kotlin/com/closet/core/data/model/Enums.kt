@@ -34,7 +34,7 @@ enum class WashStatus(val label: String) {
  * Weather service provider options.
  */
 enum class WeatherService(val label: String) {
-    OpenMeteo("Open-Meteo"),
+    OpenMeteo("OpenMeteo"),
     Nws("NWS"),
     Google("Google");
 
@@ -98,6 +98,46 @@ enum class ColorFamily(val label: String) {
     companion object {
         fun fromString(value: String): ColorFamily =
             entries.find { it.label == value } ?: Neutral
+    }
+}
+
+/**
+ * Style aesthetic vibe selected by the user.
+ * Stored as the enum [name] string in DataStore; passed to [OutfitCoherenceScorer] as a
+ * plain label string so the AI provider can tailor its curation instruction.
+ *
+ * Defaults to [SmartCasual] when no value has been saved.
+ */
+enum class StyleVibe(val label: String) {
+    SmartCasual("Smart Casual"),
+    Minimalist("Minimalist"),
+    Streetwear("Streetwear"),
+    Business("Business"),
+    Casual("Casual"),
+    Formal("Formal");
+
+    companion object {
+        fun fromString(value: String): StyleVibe =
+            entries.find { it.name == value } ?: SmartCasual
+    }
+}
+
+/**
+ * AI inference provider for outfit coherence scoring (Phase 2).
+ * Stored as the enum [name] string in DataStore.
+ *
+ * - [Nano]     — on-device MLKit GenAI Prompt API; no API key, default/F-Droid option.
+ * - [OpenAi]   — OpenAI-compatible HTTP endpoint; covers OpenAI, Gemini cloud, Ollama, Groq.
+ * - [Anthropic] — Claude via Anthropic API; different endpoint structure (x-api-key header).
+ */
+enum class AiProvider(val label: String) {
+    Nano("On-device (Nano)"),
+    OpenAi("OpenAI-compatible"),
+    Anthropic("Anthropic (Claude)");
+
+    companion object {
+        fun fromString(value: String): AiProvider =
+            entries.find { it.name == value } ?: Nano
     }
 }
 

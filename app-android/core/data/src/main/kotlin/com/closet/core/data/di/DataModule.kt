@@ -4,6 +4,8 @@ import android.content.Context
 import com.closet.core.data.BuildConfig
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.*
+import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.repository.EncryptedKeyStore
 import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import dagger.Module
@@ -13,6 +15,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
@@ -89,6 +92,14 @@ object DataModule {
         @ApplicationContext context: Context,
     ): WeatherPreferencesRepository = WeatherPreferencesRepository(context)
 
+    /** Provides the [AiPreferencesRepository] singleton backed by DataStore + [EncryptedKeyStore]. */
+    @Provides
+    @Singleton
+    fun provideAiPreferencesRepository(
+        @ApplicationContext context: Context,
+        encryptedKeyStore: EncryptedKeyStore,
+    ): AiPreferencesRepository = AiPreferencesRepository(context, encryptedKeyStore)
+
     /**
      * Provides the shared [Json] instance used for both HTTP content negotiation
      * and DataStore cache serialization.
@@ -112,6 +123,11 @@ object DataModule {
     @Provides
     @Singleton
     fun provideHttpClient(json: Json): HttpClient = HttpClient(OkHttp) {
+        install(HttpTimeout) {
+            connectTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+            requestTimeoutMillis = 30_000
+        }
         install(ContentNegotiation) {
             json(json)
         }

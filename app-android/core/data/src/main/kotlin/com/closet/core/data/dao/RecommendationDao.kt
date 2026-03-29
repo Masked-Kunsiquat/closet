@@ -138,6 +138,36 @@ data class ItemPatternName(
     @ColumnInfo(name = "pattern_name") val patternName: String
 )
 
+/**
+ * Subcategory name hint for AI prompt enrichment.
+ *
+ * Used to provide human-readable subcategory labels (e.g. "Button-down", "Chinos")
+ * to the AI stylist prompt builder. One row per item — items with no subcategory
+ * assigned are not returned.
+ *
+ * @property clothingItemId FK to clothing_items.
+ * @property subcategoryName Value of subcategories.name.
+ */
+data class ItemSubcategoryHint(
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "subcategory_name") val subcategoryName: String,
+)
+
+/**
+ * Primary material hint for AI prompt enrichment.
+ *
+ * Used to provide the first material name (e.g. "Cotton", "Wool") for each item
+ * to the AI stylist prompt builder. One row per (item, material) pair — items with
+ * no materials tagged are not returned. The repository takes [firstOrNull] per item.
+ *
+ * @property clothingItemId FK to clothing_items.
+ * @property materialName Value of materials.name.
+ */
+data class ItemMaterialHint(
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "material_name") val materialName: String,
+)
+
 // ---------------------------------------------------------------------------
 // DAO
 // ---------------------------------------------------------------------------
@@ -356,4 +386,38 @@ interface RecommendationDao {
         GROUP BY oli.clothing_item_id
     """)
     suspend fun getLastWornDates(itemIds: List<Long>): List<ItemLastWorn>
+
+    /**
+     * Returns the subcategory name for each item in [itemIds] that has a subcategory assigned.
+     *
+     * One row per item. Items with no subcategory (subcategory_id IS NULL) are not returned;
+     * the repository represents them as null in [ItemAiContextHint.subcategoryName].
+     *
+     * Used exclusively for AI prompt enrichment — not consumed by the scoring engine.
+     */
+    @Query("""
+        SELECT ci.id AS clothing_item_id, sc.name AS subcategory_name
+        FROM clothing_items ci
+        JOIN subcategories sc ON ci.subcategory_id = sc.id
+        WHERE ci.id IN (:itemIds)
+        ORDER BY ci.id ASC
+    """)
+    suspend fun getItemSubcategoryHints(itemIds: List<Long>): List<ItemSubcategoryHint>
+
+    /**
+     * Returns all material names for each item in [itemIds] that has at least one material tagged.
+     *
+     * One row per (clothing_item_id, material) pair. Items with no materials are not returned.
+     * The repository takes [firstOrNull] per item to derive the primary material for AI prompts.
+     *
+     * Used exclusively for AI prompt enrichment — not consumed by the scoring engine.
+     */
+    @Query("""
+        SELECT cim.clothing_item_id, m.name AS material_name
+        FROM clothing_item_materials cim
+        JOIN materials m ON cim.material_id = m.id
+        WHERE cim.clothing_item_id IN (:itemIds)
+        ORDER BY cim.clothing_item_id ASC
+    """)
+    suspend fun getItemMaterialHints(itemIds: List<Long>): List<ItemMaterialHint>
 }

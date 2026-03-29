@@ -20,13 +20,17 @@ import java.io.File
 import javax.inject.Inject
 
 /**
- * One-time events emitted by [OutfitsViewModel] after a wear-log operation completes.
+ * One-time events emitted by [OutfitsViewModel] after a wear-log or delete operation completes.
  */
 sealed interface OutfitsEvent {
     /** Emitted when the outfit was successfully logged as worn today. */
     data object WearSuccess : OutfitsEvent
     /** Emitted when the wear-log operation failed. */
     data object WearError : OutfitsEvent
+    /** Emitted when the outfit was successfully deleted. */
+    data object DeleteSuccess : OutfitsEvent
+    /** Emitted when the delete operation failed. */
+    data object DeleteError : OutfitsEvent
 }
 
 /**
@@ -63,6 +67,17 @@ class OutfitsViewModel @Inject constructor(
 
     /** Resolves a stored relative image [path] to a [File], or null if [path] is null. */
     fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
+
+    /** Permanently deletes the outfit with [outfitId]. */
+    fun deleteOutfit(outfitId: Long) {
+        viewModelScope.launch {
+            when (outfitRepository.deleteOutfit(outfitId)) {
+                is DataResult.Success -> _events.send(OutfitsEvent.DeleteSuccess)
+                is DataResult.Error -> _events.send(OutfitsEvent.DeleteError)
+                else -> Unit
+            }
+        }
+    }
 
     /**
      * Logs [outfitId] as worn today. Only one log operation runs at a time;

@@ -63,6 +63,15 @@ dependencies {
     // Logging
     implementation(libs.timber)
 
+    // Ktor HTTP client (OpenAI-compatible provider — Phase 2)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.logging)
+
+    // MLKit GenAI Prompt API — Gemini Nano on-device inference
+    implementation(libs.mlkit.genai.prompt)
+
     // Unit tests
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

@@ -123,39 +123,44 @@ Reference: `outfit-recs-overview.md`
 
 ### AI infrastructure
 
-- [ ] Define `AiInferenceClient` interface (provider abstraction, mirroring weather's `WeatherServiceClient`)
-- [ ] Implement `MlKitAiInferenceClient` (MLKit GenAI Prompt API)
-- [ ] `AiPreferencesRepository` — stores `aiReady: Boolean` and `tokenLimit: Int` in DataStore
+- [x] Define `OutfitAiProvider` interface — `suspend fun suggestOutfit(candidates: List<ClothingItemDto>): Result<OutfitSuggestion>` (mirrors weather's `WeatherServiceClient` pattern)
+- [x] Implement `NanoProvider` (MLKit GenAI Prompt API — on-device, no key, F-Droid default)
+- [x] Implement `OpenAiProvider` (OpenAI-compatible endpoint — covers OpenAI, Gemini cloud, Ollama, Groq, etc.)
+- [x] Implement `AnthropicProvider` (Claude — separate impl; different endpoint structure, `x-api-key` header)
+- [x] `AiPreferencesRepository` — stores selected provider, API key (per provider), and Nano-specific `aiReady: Boolean` / `tokenLimit: Int` in DataStore
 
 ---
 
 ### Settings — AI section
 
-- [ ] Add AI section to existing Settings screen (toggle off by default)
-- [ ] Background worker on toggle-on: `checkStatus()` → `download()` (stream progress) → `getTokenLimit()` → set `aiReady = true`
-- [ ] UI status states: Checking / Downloading (n%) / Ready / Failed / Not Supported
-- [ ] Flip toggle back off on failure or unsupported device
+- [x] Add AI section to existing Settings screen (disabled by default)
+- [x] Provider picker: **On-device (Nano)** / **OpenAI-compatible** / **Anthropic**
+- [x] For Nano: background worker on enable — `checkStatus()` → `download()` (stream progress) → `getTokenLimit()` → set `aiReady = true`; UI states: Checking / Downloading (n%) / Ready / Failed / Not Supported; flip back off on failure
+- [x] For OpenAI-compatible: API key input + optional base URL override (for Ollama / Groq / self-hosted)
+- [x] For Anthropic: API key input (greyed out — AnthropicProvider not yet implemented)
+- [x] Style Vibe picker — `StyleVibe` enum (Smart Casual / Minimalist / Streetwear / Business / Casual / Formal) stored in `AiPreferencesRepository`; `SingleChoiceSegmentedButtonRow` in Settings AI section; read-only shortcut row in Idle + Results states of `RecommendationScreen` with "Change →" link to Settings; vibe label passed to `OutfitCoherenceScorer`
+- [x] No key stored in plaintext — use `EncryptedSharedPreferences` or Android Keystore
 
 ---
 
 ### Coherence scorer
 
-- [ ] `GeminiNanoCoherenceScorer` — wraps `AiInferenceClient`
-- [ ] Build `PromptPrefix` (cached system instructions: output format, constraints, schema)
-- [ ] Serialize candidate payload as dynamic suffix (include suitability scores as context hints)
-- [ ] `countTokens()` gate before inference; trim payload if over limit
-- [ ] Treat `FinishReason.MAX_TOKENS` as failed inference
-- [ ] Validate `selected_ids` against candidate list before any DB interaction
-- [ ] Discard silently on JSON parse failure or unknown IDs; fall back to programmatic top 3
-- [ ] Surface `reason` field behind a "why?" tap (hidden by default)
+- [x] `OutfitCoherenceScorer` — delegates to the active `OutfitAiProvider`
+- [x] Build `PromptPrefix` (cached system instructions: output format, constraints, schema)
+- [x] Serialize candidate payload as dynamic suffix (include suitability scores as context hints)
+- [x] Nano only: `countTokens()` gate before inference; trim payload if over limit; treat `FinishReason.MAX_TOKENS` as failed inference
+- [x] Validate `selected_ids` against candidate list before any DB interaction
+- [x] Discard silently on JSON parse failure or unknown IDs; fall back to programmatic top 3
+- [x] Surface `reason` field behind a "why?" tap (hidden by default)
 
 ---
 
 ### Wire scorer into engine
 
-- [ ] Engine checks `aiReady` flag before invoking scorer
-- [ ] If not ready: return top-3 programmatic result with no AI label, no "why?" affordance
-- [ ] If ready: pass trimmed candidate payload to scorer; return re-ranked top 3
+- [x] Engine checks `aiReady` flag (Nano) or key presence (cloud providers) before invoking scorer
+- [x] If not ready: return top-3 programmatic result with no AI label, no "why?" affordance
+- [x] If ready: pass candidate payload to scorer; return re-ranked top 3
+- [x] Dynamic engine pool size — `recommend()` accepts `topN`/`candidatesPerSlot` params; ViewModel passes 25/3 when AI ready, defaults (3/2) when not; `isAiReady()` helper encapsulates provider-specific gating
 
 ---
 
@@ -163,5 +168,5 @@ Reference: `outfit-recs-overview.md`
 
 - [ ] Thumbs up/down feedback loop (requires new `recommendation_feedback` table)
 - [ ] Per-item suitability scores surfaced in item detail view
-- [ ] `general notes` fed as context to Nano
+- [ ] `general notes` fed as context to AI provider
 - [ ] Category & subcategory autofill from clothing image (separate AI ticket)

@@ -55,4 +55,13 @@
 
     <!-- Save for later snackbar -->
     <string name="recs_saved_confirmation">Outfit saved</string>
+
+    <!-- Style vibe shortcut row -->
+    <string name="recs_style_vibe_label">Style: %s</string>
+    <string name="recs_style_vibe_change">Change →</string>
+
+    <!-- AI pick badge and "why?" affordance -->
+    <string name="recs_ai_pick_badge">AI pick — why?</string>
+    <string name="recs_ai_pick_collapse">Hide reason</string>
+    <string name="recs_ai_pick_reason_description">AI explanation for this outfit selection</string>
 </resources>

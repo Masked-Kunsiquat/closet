@@ -99,15 +99,24 @@ data class EngineWeather(
 // ---------------------------------------------------------------------------
 
 /**
- * A single recommended outfit combination produced by [OutfitRecommendationEngine].
+ * A single recommended outfit combination produced by [OutfitRecommendationEngine]
+ * or the AI coherence scorer.
  *
- * @property items  The items that form this outfit. Guaranteed to satisfy category
- *                  completeness: (Top + Bottom) OR (OnePiece), with optional
- *                  Outerwear / Footwear / Accessory.
- * @property score  Final outfit score: mean of item suitability scores × outfit-level
- *                  multipliers. Higher is better. Always > 0.
+ * @property items        The items that form this outfit. Guaranteed to satisfy category
+ *                        completeness: (Top + Bottom) OR (OnePiece), with optional
+ *                        Outerwear / Footwear / Accessory.
+ * @property score        Final outfit score: mean of item suitability scores × outfit-level
+ *                        multipliers. Higher is better. Always > 0.
+ * @property isAiSelected True when this combo was selected by the AI coherence scorer
+ *                        (surfaced as an "AI pick" badge in the UI). False for programmatic
+ *                        results.
+ * @property reason       Optional explanation from the AI model for why this combination
+ *                        was chosen. Non-null only when [isAiSelected] is true and the
+ *                        model produced a reason. Surfaced behind a "why?" tap in the UI.
  */
 data class OutfitCombo(
     val items: List<EngineItem>,
-    val score: Double
+    val score: Double,
+    val isAiSelected: Boolean = false,
+    val reason: String? = null,
 )

@@ -56,6 +56,9 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
+    // Encrypted storage for API keys
+    implementation(libs.androidx.security.crypto)
+
     // Serialization (for cache DTOs + service response parsing)
     implementation(libs.kotlinx.serialization.json)
 

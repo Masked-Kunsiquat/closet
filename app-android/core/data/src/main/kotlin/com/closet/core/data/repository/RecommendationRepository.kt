@@ -11,9 +11,28 @@ import com.closet.core.data.dao.RecommendationDao
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Combined AI context hint for a single clothing item.
+ *
+ * Holds the human-readable strings needed by the AI stylist prompt builder that are
+ * not available on [com.closet.features.recommendations.engine.EngineItem]. Merged
+ * from two separate DAO queries by [RecommendationRepository.getAiContextHints].
+ *
+ * @property clothingItemId  FK to clothing_items.
+ * @property subcategoryName Subcategory label (e.g. "Button-down"), or null if none assigned.
+ * @property primaryMaterial First material name (e.g. "Cotton"), or null if none tagged.
+ */
+data class ItemAiContextHint(
+    val clothingItemId: Long,
+    val subcategoryName: String?,
+    val primaryMaterial: String?,
+)
 
 /**
  * Repository for the outfit recommendation data layer.
@@ -175,6 +194,50 @@ class RecommendationRepository @Inject constructor(
         return runCatching {
             recommendationDao.getItemPatternNames(itemIds)
         }.toDataResult("getItemPatternNames")
+    }
+
+    /**
+     * Returns AI prompt enrichment context for each item in [itemIds].
+     *
+     * Runs [RecommendationDao.getItemSubcategoryHints] and
+     * [RecommendationDao.getItemMaterialHints] in parallel, then merges the results
+     * into a map keyed by clothing item ID. Items absent from either query (no
+     * subcategory assigned / no materials tagged) are represented with null fields
+     * rather than being omitted from the map.
+     *
+     * @param itemIds Clothing item IDs to enrich (typically the engine's output set).
+     * @return Map from clothing_item_id to [ItemAiContextHint] for every ID in [itemIds].
+     */
+    suspend fun getAiContextHints(
+        itemIds: List<Long>
+    ): DataResult<Map<Long, ItemAiContextHint>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyMap())
+        return try {
+            coroutineScope {
+                val subcategoryDeferred = async { recommendationDao.getItemSubcategoryHints(itemIds) }
+                val materialDeferred = async { recommendationDao.getItemMaterialHints(itemIds) }
+
+                val subcategoryRows = subcategoryDeferred.await()
+                val materialRows = materialDeferred.await()
+
+                val subcategoryByItem = subcategoryRows.associateBy { it.clothingItemId }
+                val materialByItem = materialRows.groupBy { it.clothingItemId }
+
+                val result = itemIds.associateWith { id ->
+                    ItemAiContextHint(
+                        clothingItemId = id,
+                        subcategoryName = subcategoryByItem[id]?.subcategoryName,
+                        primaryMaterial = materialByItem[id]?.firstOrNull()?.materialName,
+                    )
+                }
+                DataResult.Success(result)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, "RecommendationRepository.getAiContextHints failed")
+            DataResult.Error(AppError.DatabaseError.QueryError(e))
+        }
     }
 
     // ---------------------------------------------------------------------------
