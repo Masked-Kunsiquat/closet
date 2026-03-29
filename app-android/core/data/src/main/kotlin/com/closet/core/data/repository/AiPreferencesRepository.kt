@@ -12,7 +12,9 @@ import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -187,6 +189,36 @@ class AiPreferencesRepository @Inject constructor(
     }
 
     // ── Composite helpers ────────────────────────────────────────────────────
+
+    /**
+     * One-time migration: moves API keys previously stored as plain strings in DataStore
+     * (before encryption was introduced) into [EncryptedKeyStore], then removes them from
+     * DataStore. Safe to call on every app start — if the legacy DataStore keys are absent
+     * (migration already ran, or keys were never set), this is a no-op.
+     */
+    suspend fun migrateKeysFromPlainDataStore() {
+        val legacyOpenAiKey = stringPreferencesKey("ai_openai_api_key")
+        val legacyAnthropicKey = stringPreferencesKey("ai_anthropic_api_key")
+
+        val snapshot = context.aiDataStore.data.first()
+        val oldOpenAiKey = snapshot[legacyOpenAiKey] ?: ""
+        val oldAnthropicKey = snapshot[legacyAnthropicKey] ?: ""
+
+        if (oldOpenAiKey.isBlank() && oldAnthropicKey.isBlank()) return
+
+        if (oldOpenAiKey.isNotBlank()) encryptedKeyStore.setOpenAiKey(oldOpenAiKey)
+        if (oldAnthropicKey.isNotBlank()) encryptedKeyStore.setAnthropicKey(oldAnthropicKey)
+
+        context.aiDataStore.edit { prefs ->
+            prefs.remove(legacyOpenAiKey)
+            prefs.remove(legacyAnthropicKey)
+        }
+
+        Timber.tag("AiPrefsRepo").i(
+            "Migrated %d key(s) from plain DataStore to EncryptedKeyStore",
+            listOf(oldOpenAiKey, oldAnthropicKey).count { it.isNotBlank() },
+        )
+    }
 
     /**
      * Clears the Nano ready flag and token limit.
