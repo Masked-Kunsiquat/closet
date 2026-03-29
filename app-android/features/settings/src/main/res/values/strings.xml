@@ -49,7 +49,7 @@
     <!-- AI provider segment labels -->
     <string name="settings_ai_provider_nano">On-device</string>
     <string name="settings_ai_provider_openai">OpenAI</string>
-    <string name="settings_ai_provider_anthropic">Anthropic\n(coming soon)</string>
+    <string name="settings_ai_provider_anthropic">Anthropic</string>
 
     <!-- Nano status messages -->
     <string name="settings_ai_nano_checking">Checking device compatibility…</string>
@@ -67,4 +67,10 @@
     <string name="settings_ai_openai_model_placeholder">Leave blank for gpt-4o-mini default</string>
     <string name="settings_ai_openai_show_key">Show API key</string>
     <string name="settings_ai_openai_hide_key">Hide API key</string>
+
+    <!-- Anthropic provider config -->
+    <string name="settings_ai_anthropic_key">API key</string>
+    <string name="settings_ai_anthropic_key_placeholder">Paste your sk-ant-… key here</string>
+    <string name="settings_ai_anthropic_model">Model</string>
+    <string name="settings_ai_anthropic_model_placeholder">Leave blank for Haiku default</string>
 </resources>

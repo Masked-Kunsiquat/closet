@@ -9,15 +9,19 @@ import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.repository.ModelDiscoveryRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -34,12 +38,14 @@ import javax.inject.Inject
  * [MainActivity][com.closet.MainActivity]'s collected flows, causing the entire
  * app theme to recompose.
  */
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefsRepo: PreferencesRepository,
     private val weatherPrefsRepo: WeatherPreferencesRepository,
     private val aiPrefsRepo: AiPreferencesRepository,
     private val nanoInitializer: NanoInitializer,
+    private val modelDiscovery: ModelDiscoveryRepository,
 ) : ViewModel() {
 
     // ── Appearance ────────────────────────────────────────────────────────────
@@ -157,6 +163,32 @@ class SettingsViewModel @Inject constructor(
     val openAiModel: StateFlow<String> = aiPrefsRepo.getOpenAiModel()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
+    // ── Anthropic fields ──────────────────────────────────────────────────────
+
+    /** API key for the Anthropic provider. */
+    val anthropicKey: StateFlow<String> = aiPrefsRepo.getAnthropicApiKey()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    /** Model identifier for the Anthropic provider. Empty = default (Haiku). */
+    val anthropicModel: StateFlow<String> = aiPrefsRepo.getAnthropicModel()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    // ── Model discovery ───────────────────────────────────────────────────────
+
+    private val _openAiModels = MutableStateFlow<List<String>>(emptyList())
+    /** Available OpenAI-compatible model IDs fetched from the configured endpoint. */
+    val openAiModels: StateFlow<List<String>> = _openAiModels.asStateFlow()
+
+    private val _anthropicModels = MutableStateFlow<List<String>>(emptyList())
+    /** Available Anthropic model IDs fetched from the Anthropic API. */
+    val anthropicModels: StateFlow<List<String>> = _anthropicModels.asStateFlow()
+
+    private val _openAiModelsLoading = MutableStateFlow(false)
+    val openAiModelsLoading: StateFlow<Boolean> = _openAiModelsLoading.asStateFlow()
+
+    private val _anthropicModelsLoading = MutableStateFlow(false)
+    val anthropicModelsLoading: StateFlow<Boolean> = _anthropicModelsLoading.asStateFlow()
+
     // ── AI event handlers ─────────────────────────────────────────────────────
 
     /**
@@ -224,6 +256,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { aiPrefsRepo.setOpenAiModel(model) }
     }
 
+    fun onAnthropicKeyChanged(key: String) {
+        viewModelScope.launch { aiPrefsRepo.setAnthropicApiKey(key) }
+    }
+
+    fun onAnthropicModelChanged(model: String) {
+        viewModelScope.launch { aiPrefsRepo.setAnthropicModel(model) }
+    }
+
     // ── Nano init sequence ────────────────────────────────────────────────────
 
     /**
@@ -261,5 +301,57 @@ class SettingsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    init {
+        // Debounced model discovery: fetch models 800ms after the key (or base URL) settles,
+        // if the key is long enough to be a real key. Clear models when key is cleared.
+        viewModelScope.launch {
+            combine(openAiKey, openAiBaseUrl) { key, url -> key to url }
+                .debounce(800)
+                .collect { (key, url) ->
+                    when {
+                        key.length >= MIN_KEY_LENGTH -> fetchOpenAiModels(key, url)
+                        key.isEmpty() -> _openAiModels.value = emptyList()
+                    }
+                }
+        }
+        viewModelScope.launch {
+            anthropicKey
+                .debounce(800)
+                .collect { key ->
+                    when {
+                        key.length >= MIN_KEY_LENGTH -> fetchAnthropicModels(key)
+                        key.isEmpty() -> _anthropicModels.value = emptyList()
+                    }
+                }
+        }
+    }
+
+    private fun fetchOpenAiModels(key: String, baseUrl: String) {
+        if (_openAiModelsLoading.value) return
+        viewModelScope.launch {
+            _openAiModelsLoading.value = true
+            modelDiscovery.fetchOpenAiModels(key, baseUrl).onSuccess { models ->
+                _openAiModels.value = models
+            }
+            _openAiModelsLoading.value = false
+        }
+    }
+
+    private fun fetchAnthropicModels(key: String) {
+        if (_anthropicModelsLoading.value) return
+        viewModelScope.launch {
+            _anthropicModelsLoading.value = true
+            modelDiscovery.fetchAnthropicModels(key).onSuccess { models ->
+                _anthropicModels.value = models
+            }
+            _anthropicModelsLoading.value = false
+        }
+    }
+
+    private companion object {
+        /** Minimum API key length before triggering a model discovery fetch. */
+        const val MIN_KEY_LENGTH = 20
     }
 }

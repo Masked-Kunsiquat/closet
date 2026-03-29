@@ -46,6 +46,7 @@ class AiPreferencesRepository @Inject constructor(
     private val openAiBaseUrlKey = stringPreferencesKey("ai_openai_base_url")
     private val openAiModelKey = stringPreferencesKey("ai_openai_model")
     private val anthropicApiKeyKey = stringPreferencesKey("ai_anthropic_api_key")
+    private val anthropicModelKey = stringPreferencesKey("ai_anthropic_model")
     private val nanoAiReadyKey = booleanPreferencesKey("ai_nano_ready")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
     private val styleVibeKey = stringPreferencesKey("ai_style_vibe")
@@ -144,6 +145,20 @@ class AiPreferencesRepository @Inject constructor(
     suspend fun setAnthropicApiKey(key: String) {
         context.aiDataStore.edit { prefs ->
             prefs[anthropicApiKeyKey] = key
+        }
+    }
+
+    /**
+     * Model identifier for the Anthropic provider. Defaults to [AnthropicProvider.DEFAULT_MODEL]
+     * when not set.
+     */
+    fun getAnthropicModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
+        prefs[anthropicModelKey] ?: ""
+    }
+
+    suspend fun setAnthropicModel(model: String) {
+        context.aiDataStore.edit { prefs ->
+            prefs[anthropicModelKey] = model
         }
     }
 

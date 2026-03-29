@@ -62,7 +62,8 @@ class AnthropicProvider @Inject constructor(
         private const val ANTHROPIC_VERSION_HEADER = "anthropic-version"
         private const val ANTHROPIC_VERSION = "2023-06-01"
         private const val API_KEY_HEADER = "x-api-key"
-        private const val DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+        /** Fallback model used when no model is configured in prefs. */
+        internal const val DEFAULT_MODEL = "claude-haiku-4-5-20251001"
         private const val MAX_OUTPUT_TOKENS = 512
 
         /** Shared system prompt from [OutfitPromptPrefix] — identical contract for all providers. */
@@ -84,9 +85,12 @@ class AnthropicProvider @Inject constructor(
             )
         }
 
+        val model = aiPreferencesRepository.getAnthropicModel().first()
+            .takeIf { it.isNotBlank() } ?: DEFAULT_MODEL
+
         return runCatching {
             val comboJson = buildComboJson(combos)
-            val requestBody = buildRequestBody(styleVibe, comboJson)
+            val requestBody = buildRequestBody(model, styleVibe, comboJson)
 
             val responseText: String = client.post(MESSAGES_ENDPOINT) {
                 contentType(ContentType.Application.Json)
@@ -122,10 +126,10 @@ class AnthropicProvider @Inject constructor(
      * }
      * ```
      */
-    private fun buildRequestBody(styleVibe: String, comboJson: String): String =
+    private fun buildRequestBody(model: String, styleVibe: String, comboJson: String): String =
         buildString {
             append("{")
-            append("\"model\":${DEFAULT_MODEL.asJsonString()},")
+            append("\"model\":${model.asJsonString()},")
             append("\"max_tokens\":$MAX_OUTPUT_TOKENS,")
             append("\"system\":${SYSTEM_PROMPT.asJsonString()},")
             append("\"messages\":[")

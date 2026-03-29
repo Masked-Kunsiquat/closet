@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,12 +36,17 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -48,6 +54,8 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -111,6 +119,12 @@ fun SettingsScreen(
     val openAiBaseUrl by viewModel.openAiBaseUrl.collectAsStateWithLifecycle()
     val openAiModel by viewModel.openAiModel.collectAsStateWithLifecycle()
     val styleVibe by viewModel.styleVibe.collectAsStateWithLifecycle()
+    val anthropicKey by viewModel.anthropicKey.collectAsStateWithLifecycle()
+    val anthropicModel by viewModel.anthropicModel.collectAsStateWithLifecycle()
+    val openAiModels by viewModel.openAiModels.collectAsStateWithLifecycle()
+    val openAiModelsLoading by viewModel.openAiModelsLoading.collectAsStateWithLifecycle()
+    val anthropicModels by viewModel.anthropicModels.collectAsStateWithLifecycle()
+    val anthropicModelsLoading by viewModel.anthropicModelsLoading.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val activity = LocalActivity.current
@@ -196,6 +210,14 @@ fun SettingsScreen(
         onOpenAiModelChanged = viewModel::onOpenAiModelChanged,
         styleVibe = styleVibe,
         onStyleVibeSelected = viewModel::onStyleVibeSelected,
+        anthropicKey = anthropicKey,
+        anthropicModel = anthropicModel,
+        onAnthropicKeyChanged = viewModel::onAnthropicKeyChanged,
+        onAnthropicModelChanged = viewModel::onAnthropicModelChanged,
+        openAiModels = openAiModels,
+        openAiModelsLoading = openAiModelsLoading,
+        anthropicModels = anthropicModels,
+        anthropicModelsLoading = anthropicModelsLoading,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
     )
@@ -238,6 +260,14 @@ internal fun SettingsContent(
     onOpenAiKeyChanged: (String) -> Unit,
     onOpenAiBaseUrlChanged: (String) -> Unit,
     onOpenAiModelChanged: (String) -> Unit,
+    anthropicKey: String,
+    anthropicModel: String,
+    onAnthropicKeyChanged: (String) -> Unit,
+    onAnthropicModelChanged: (String) -> Unit,
+    openAiModels: List<String>,
+    openAiModelsLoading: Boolean,
+    anthropicModels: List<String>,
+    anthropicModelsLoading: Boolean,
     styleVibe: StyleVibe,
     onStyleVibeSelected: (StyleVibe) -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -354,14 +384,22 @@ internal fun SettingsContent(
                             apiKey = openAiKey,
                             baseUrl = openAiBaseUrl,
                             model = openAiModel,
+                            models = openAiModels,
+                            modelsLoading = openAiModelsLoading,
                             onApiKeyChanged = onOpenAiKeyChanged,
                             onBaseUrlChanged = onOpenAiBaseUrlChanged,
                             onModelChanged = onOpenAiModelChanged,
                         )
                     }
-                    AiProvider.Anthropic -> {
-                        // Anthropic provider not yet implemented — segment is greyed out,
-                        // so this branch is unreachable in practice. No fields shown.
+                    AiProvider.Anthropic -> item {
+                        AnthropicFieldsItem(
+                            apiKey = anthropicKey,
+                            model = anthropicModel,
+                            models = anthropicModels,
+                            modelsLoading = anthropicModelsLoading,
+                            onApiKeyChanged = onAnthropicKeyChanged,
+                            onModelChanged = onAnthropicModelChanged,
+                        )
                     }
                 }
             }
@@ -651,12 +689,6 @@ private fun AiToggleItem(
     )
 }
 
-/**
- * Provider picker: On-device (Nano) / OpenAI / Anthropic.
- *
- * The Anthropic segment is always [enabled = false] — [AnthropicProvider] is not yet
- * implemented. A "(coming soon)" note is embedded in its label string.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AiProviderItem(
@@ -672,11 +704,9 @@ private fun AiProviderItem(
                     .padding(top = 8.dp),
             ) {
                 AiProvider.entries.forEachIndexed { index, provider ->
-                    val isAnthropic = provider == AiProvider.Anthropic
                     SegmentedButton(
                         selected = provider == selected,
-                        onClick = { if (!isAnthropic) onSelect(provider) },
-                        enabled = !isAnthropic,
+                        onClick = { onSelect(provider) },
                         shape = SegmentedButtonDefaults.itemShape(index, AiProvider.entries.size),
                         label = {
                             Text(
@@ -775,25 +805,26 @@ private fun NanoStatusItem(status: NanoStatus) {
 /**
  * OpenAI-compatible provider config fields:
  * - API key (password field with toggleable visibility)
- * - Base URL override (optional; hint for default)
- * - Model override (optional; hint for default)
+ * - Base URL override with preset chips for common providers
+ * - Model selector: ExposedDropdownMenuBox pre-populated from the models API,
+ *   falling back to free-text if discovery fails or hasn't run yet
  *
  * All changes persist on every keystroke via the provided callbacks.
- *
- * TODO: Keys are stored as plain strings in DataStore for now. Before shipping to
- *   production, migrate to EncryptedSharedPreferences or Android Keystore to avoid
- *   storing credentials in cleartext on-device.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun OpenAiFieldsItem(
     apiKey: String,
     baseUrl: String,
     model: String,
+    models: List<String>,
+    modelsLoading: Boolean,
     onApiKeyChanged: (String) -> Unit,
     onBaseUrlChanged: (String) -> Unit,
     onModelChanged: (String) -> Unit,
 ) {
     var keyVisible by remember { mutableStateOf(false) }
+    var modelDropdownExpanded by remember { mutableStateOf(false) }
 
     ListItem(
         headlineContent = {
@@ -805,11 +836,7 @@ private fun OpenAiFieldsItem(
                     label = { Text(stringResource(R.string.settings_ai_openai_key)) },
                     placeholder = { Text(stringResource(R.string.settings_ai_openai_key_placeholder)) },
                     singleLine = true,
-                    visualTransformation = if (keyVisible) {
-                        VisualTransformation.None
-                    } else {
-                        PasswordVisualTransformation()
-                    },
+                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Next,
@@ -821,8 +848,7 @@ private fun OpenAiFieldsItem(
                         )
                         IconButton(onClick = { keyVisible = !keyVisible }) {
                             Icon(
-                                imageVector = if (keyVisible) Icons.Default.VisibilityOff
-                                else Icons.Default.Visibility,
+                                imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = cd,
                             )
                         }
@@ -830,7 +856,7 @@ private fun OpenAiFieldsItem(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // Base URL override
+                // Base URL override + preset chips
                 OutlinedTextField(
                     value = baseUrl,
                     onValueChange = onBaseUrlChanged,
@@ -843,24 +869,193 @@ private fun OpenAiFieldsItem(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 )
-
-                // Model override
-                OutlinedTextField(
-                    value = model,
-                    onValueChange = onModelChanged,
-                    label = { Text(stringResource(R.string.settings_ai_openai_model)) },
-                    placeholder = { Text(stringResource(R.string.settings_ai_openai_model_placeholder)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Done,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
+                UrlPresetChips(
+                    presets = OPENAI_URL_PRESETS,
+                    currentUrl = baseUrl,
+                    onSelect = onBaseUrlChanged,
                 )
+
+                // Model selector — dropdown when models are fetched, free-text otherwise
+                ExposedDropdownMenuBox(
+                    expanded = modelDropdownExpanded && models.isNotEmpty(),
+                    onExpandedChange = { if (models.isNotEmpty()) modelDropdownExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = model,
+                        onValueChange = onModelChanged,
+                        label = { Text(stringResource(R.string.settings_ai_openai_model)) },
+                        placeholder = { Text(stringResource(R.string.settings_ai_openai_model_placeholder)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Done,
+                        ),
+                        trailingIcon = {
+                            if (modelsLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else if (models.isNotEmpty()) {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelDropdownExpanded)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryEditable),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = modelDropdownExpanded && models.isNotEmpty(),
+                        onDismissRequest = { modelDropdownExpanded = false },
+                        modifier = Modifier.heightIn(max = 280.dp),
+                    ) {
+                        models.forEach { modelId ->
+                            DropdownMenuItem(
+                                text = { Text(modelId, style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    onModelChanged(modelId)
+                                    modelDropdownExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
             }
         },
     )
 }
+
+/**
+ * Anthropic provider config fields:
+ * - API key (password field with toggleable visibility)
+ * - Model selector: ExposedDropdownMenuBox pre-populated from the Anthropic models API,
+ *   falling back to free-text entry. Default is claude-haiku-4-5-20251001 when blank.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AnthropicFieldsItem(
+    apiKey: String,
+    model: String,
+    models: List<String>,
+    modelsLoading: Boolean,
+    onApiKeyChanged: (String) -> Unit,
+    onModelChanged: (String) -> Unit,
+) {
+    var keyVisible by remember { mutableStateOf(false) }
+    var modelDropdownExpanded by remember { mutableStateOf(false) }
+
+    ListItem(
+        headlineContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // API key field with toggleable visibility
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = onApiKeyChanged,
+                    label = { Text(stringResource(R.string.settings_ai_anthropic_key)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_anthropic_key_placeholder)) },
+                    singleLine = true,
+                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next,
+                    ),
+                    trailingIcon = {
+                        val cd = stringResource(
+                            if (keyVisible) R.string.settings_ai_openai_hide_key
+                            else R.string.settings_ai_openai_show_key,
+                        )
+                        IconButton(onClick = { keyVisible = !keyVisible }) {
+                            Icon(
+                                imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = cd,
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // Model selector — dropdown when models are fetched, free-text otherwise
+                ExposedDropdownMenuBox(
+                    expanded = modelDropdownExpanded && models.isNotEmpty(),
+                    onExpandedChange = { if (models.isNotEmpty()) modelDropdownExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = model,
+                        onValueChange = onModelChanged,
+                        label = { Text(stringResource(R.string.settings_ai_anthropic_model)) },
+                        placeholder = { Text(stringResource(R.string.settings_ai_anthropic_model_placeholder)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Done,
+                        ),
+                        trailingIcon = {
+                            if (modelsLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else if (models.isNotEmpty()) {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelDropdownExpanded)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryEditable),
+                    )
+                    ExposedDropdownMenu(
+                        expanded = modelDropdownExpanded && models.isNotEmpty(),
+                        onDismissRequest = { modelDropdownExpanded = false },
+                        modifier = Modifier.heightIn(max = 280.dp),
+                    ) {
+                        models.forEach { modelId ->
+                            DropdownMenuItem(
+                                text = { Text(modelId, style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    onModelChanged(modelId)
+                                    modelDropdownExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
+
+/** URL preset chip strip shown below the base URL field. Tapping a chip fills in the URL. */
+@Composable
+private fun UrlPresetChips(
+    presets: List<Pair<String, String>>,
+    currentUrl: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        presets.forEach { (label, url) ->
+            SuggestionChip(
+                onClick = { onSelect(url) },
+                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                colors = if (currentUrl == url) SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ) else SuggestionChipDefaults.suggestionChipColors(),
+            )
+        }
+    }
+}
+
+/** Well-known base URLs for OpenAI-compatible providers. */
+private val OPENAI_URL_PRESETS = listOf(
+    "OpenAI" to "https://api.openai.com",
+    "Groq" to "https://api.groq.com/openai",
+    "Gemini" to "https://generativelanguage.googleapis.com/v1beta/openai",
+    "Mistral" to "https://api.mistral.ai",
+    "Ollama" to "http://localhost:11434",
+)
 
 // ── Dialogs ───────────────────────────────────────────────────────────────────
 
@@ -922,6 +1117,14 @@ private fun SettingsContentDefaultPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            anthropicKey = "",
+            anthropicModel = "",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = emptyList(),
+            anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -959,6 +1162,14 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            anthropicKey = "",
+            anthropicModel = "",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = emptyList(),
+            anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -996,6 +1207,14 @@ private fun SettingsContentWeatherGooglePreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            anthropicKey = "",
+            anthropicModel = "",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = emptyList(),
+            anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -1033,6 +1252,14 @@ private fun SettingsContentAiNanoCheckingPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            anthropicKey = "",
+            anthropicModel = "",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = emptyList(),
+            anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -1070,6 +1297,14 @@ private fun SettingsContentAiNanoDownloadingPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            anthropicKey = "",
+            anthropicModel = "",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = emptyList(),
+            anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -1107,6 +1342,14 @@ private fun SettingsContentAiNanoNotSupportedPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            anthropicKey = "",
+            anthropicModel = "",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = emptyList(),
+            anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
             snackbarHostState = remember { SnackbarHostState() },
@@ -1144,8 +1387,61 @@ private fun SettingsContentAiOpenAiPreview() {
             onOpenAiKeyChanged = {},
             onOpenAiBaseUrlChanged = {},
             onOpenAiModelChanged = {},
+            anthropicKey = "",
+            anthropicModel = "",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = emptyList(),
+            anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            snackbarHostState = remember { SnackbarHostState() },
+            onNavigateUp = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "AI on / Anthropic fields")
+@Composable
+private fun SettingsContentAiAnthropicPreview() {
+    ClosetTheme {
+        SettingsContent(
+            currentAccent = ClosetAccent.Rose,
+            dynamicColor = false,
+            onSetAccent = {},
+            onSetDynamicColor = {},
+            weatherEnabled = false,
+            weatherService = WeatherService.OpenMeteo,
+            googleApiKey = "",
+            temperatureUnit = TemperatureUnit.Celsius,
+            onWeatherEnabledChange = {},
+            onWeatherServiceChange = {},
+            onGoogleApiKeyChange = {},
+            onTemperatureUnitChange = {},
+            onClearCache = {},
+            aiEnabled = true,
+            selectedAiProvider = AiProvider.Anthropic,
+            nanoStatus = NanoStatus.Idle,
+            openAiKey = "",
+            openAiBaseUrl = "",
+            openAiModel = "",
+            onAiToggled = {},
+            onAiProviderSelected = {},
+            onOpenAiKeyChanged = {},
+            onOpenAiBaseUrlChanged = {},
+            onOpenAiModelChanged = {},
+            styleVibe = StyleVibe.SmartCasual,
+            onStyleVibeSelected = {},
+            anthropicKey = "sk-ant-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+            anthropicModel = "claude-haiku-4-5-20251001",
+            onAnthropicKeyChanged = {},
+            onAnthropicModelChanged = {},
+            openAiModels = emptyList(),
+            openAiModelsLoading = false,
+            anthropicModels = listOf("claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"),
+            anthropicModelsLoading = false,
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
