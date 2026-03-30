@@ -306,6 +306,9 @@ class ClothingFormViewModel @Inject constructor(
                         purchaseLocation = entity.purchaseLocation ?: "",
                         notes = entity.notes ?: "",
                         imagePath = entity.imagePath,
+                        // PNG suffix means the image was previously segmented; hide the
+                        // "Remove background" button and suppress "Undo" (no revert target)
+                        hasSegmentedImage = entity.imagePath?.endsWith(".png") == true,
                         category = selectedCat,
                         subcategory = selectedSub,
                         selectedColors = colors,

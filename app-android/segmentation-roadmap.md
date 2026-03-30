@@ -137,7 +137,7 @@ the detail screen hero). No changes required to display code.
 When the user opens an existing item with a segmented PNG in edit mode, the
 "Remove background" button must not reappear (the image is already clean).
 
-- [ ] In `loadItemForEditing()`, if the stored `imagePath` ends with `.png`,
+- [x] In `loadItemForEditing()`, if the stored `imagePath` ends with `.png`,
   set `hasSegmentedImage = true` in the initial state so the button stays hidden
   and "Undo" is not shown (the original is gone — no revert target)
 
