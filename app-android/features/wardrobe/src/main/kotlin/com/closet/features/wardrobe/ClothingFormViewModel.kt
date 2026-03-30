@@ -383,12 +383,22 @@ class ClothingFormViewModel @Inject constructor(
             _form.update { it.copy(isLoading = true) }
             try {
                 val previousPath = _form.value.imagePath
+                val segOrigPath = _form.value.originalSegmentationImagePath
                 val path = storageRepository.saveImage(uri)
                 // Delete the previously staged file (skip if it's the persisted original)
                 if (previousPath != null && previousPath != originalImagePath) {
                     withContext(NonCancellable) { storageRepository.deleteImage(previousPath) }
                 }
-                _form.update { it.copy(imagePath = path, isLoading = false) }
+                // Clean up the pre-segmentation intermediate file if the user picks a new image
+                if (segOrigPath != null && segOrigPath != originalImagePath && segOrigPath != previousPath) {
+                    withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) }
+                }
+                _form.update { it.copy(
+                    imagePath = path,
+                    isLoading = false,
+                    hasSegmentedImage = false,
+                    originalSegmentationImagePath = null,
+                ) }
                 val file = storageRepository.getFile(path)
                 extractColorsFromFile(file)
             } catch (e: Exception) {

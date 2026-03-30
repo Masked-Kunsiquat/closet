@@ -292,7 +292,7 @@ internal fun ClothingFormContent(
                     }
                 }
 
-                if (uiState.hasSegmentedImage && !uiState.isSegmenting) {
+                if (uiState.hasSegmentedImage && !uiState.isSegmenting && uiState.originalImageFile != null) {
                     TextButton(
                         onClick = onRevertSegmentation,
                         modifier = Modifier.fillMaxWidth()
