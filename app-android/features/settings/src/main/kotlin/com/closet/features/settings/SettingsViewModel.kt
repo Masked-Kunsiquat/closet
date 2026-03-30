@@ -16,6 +16,8 @@ import com.closet.core.ui.theme.ClosetAccent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -145,6 +147,17 @@ class SettingsViewModel @Inject constructor(
     /** Tracks the in-progress Nano init coroutine so it can be cancelled on toggle-off. */
     private var nanoInitJob: Job? = null
 
+    /**
+     * Serializes concurrent AI state mutations.
+     *
+     * [onAiToggled] and [onAiProviderSelected] each read persisted state after writing it.
+     * Without a lock a rapid toggle-then-provider-switch could interleave: the toggle coroutine
+     * reads the old provider (Nano) after the provider write has already switched it to OpenAI,
+     * causing a spurious [startNanoInit] for the wrong provider. The mutex ensures only one
+     * mutation/check runs at a time without blocking the main thread.
+     */
+    private val aiMutex = Mutex()
+
     // ── OpenAI-compatible fields ───────────────────────────────────────────────
 
     /** API key for OpenAI-compatible providers. Stored encrypted via [EncryptedKeyStore]. */
@@ -201,20 +214,24 @@ class SettingsViewModel @Inject constructor(
             nanoInitJob = null
             _nanoStatus.value = NanoStatus.Idle
             viewModelScope.launch {
-                aiPrefsRepo.setAiEnabled(false)
-                aiPrefsRepo.clearNanoState()
+                aiMutex.withLock {
+                    aiPrefsRepo.setAiEnabled(false)
+                    aiPrefsRepo.clearNanoState()
+                }
             }
             return
         }
 
         viewModelScope.launch {
-            aiPrefsRepo.setAiEnabled(true)
-            // Read the persisted provider rather than the StateFlow to avoid a race where
-            // onAiProviderSelected() is in-flight and the StateFlow hasn't yet reflected the write.
-            if (aiPrefsRepo.getSelectedProvider().first() == AiProvider.Nano) {
-                startNanoInit()
+            aiMutex.withLock {
+                aiPrefsRepo.setAiEnabled(true)
+                // Read the persisted provider inside the lock — onAiProviderSelected cannot
+                // interleave between setAiEnabled and this read, so the provider state is stable.
+                if (aiPrefsRepo.getSelectedProvider().first() == AiProvider.Nano) {
+                    startNanoInit()
+                }
+                // Cloud providers are ready as soon as a key is present — no download step.
             }
-            // Cloud providers are ready as soon as a key is present — no download step.
         }
     }
 
@@ -226,18 +243,19 @@ class SettingsViewModel @Inject constructor(
      */
     fun onAiProviderSelected(provider: AiProvider) {
         viewModelScope.launch {
-            aiPrefsRepo.setSelectedProvider(provider)
-            // Cancel Nano init if we're leaving Nano
-            if (provider != AiProvider.Nano) {
-                nanoInitJob?.cancel()
-                nanoInitJob = null
-                _nanoStatus.value = NanoStatus.Idle
-            }
-            // Start Nano init if switching to Nano while the master toggle is already on.
-            // Read the authoritative value from the repository rather than the potentially
-            // stale StateFlow snapshot.
-            if (provider == AiProvider.Nano && aiPrefsRepo.getAiEnabled().first()) {
-                startNanoInit()
+            aiMutex.withLock {
+                aiPrefsRepo.setSelectedProvider(provider)
+                // Cancel Nano init if we're leaving Nano
+                if (provider != AiProvider.Nano) {
+                    nanoInitJob?.cancel()
+                    nanoInitJob = null
+                    _nanoStatus.value = NanoStatus.Idle
+                }
+                // Start Nano init if switching to Nano while the master toggle is already on.
+                // Read within the lock — setAiEnabled from onAiToggled cannot interleave.
+                if (provider == AiProvider.Nano && aiPrefsRepo.getAiEnabled().first()) {
+                    startNanoInit()
+                }
             }
         }
     }

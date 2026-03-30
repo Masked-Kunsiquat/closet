@@ -454,7 +454,7 @@ class RecommendationViewModel @Inject constructor(
      * Readiness rules per provider:
      * - [AiProvider.Nano]      — [AiPreferencesRepository.getAiReady] must be true (model downloaded).
      * - [AiProvider.OpenAi]   — an API key must have been stored.
-     * - [AiProvider.Anthropic] — always false (not yet implemented).
+     * - [AiProvider.Anthropic] — an API key must have been stored.
      *
      * The master [AiPreferencesRepository.getAiEnabled] toggle is checked first; if the
      * user has AI off, this returns false without reading provider-specific state.

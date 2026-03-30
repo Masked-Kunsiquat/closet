@@ -122,9 +122,9 @@ class OutfitCoherenceScorer @Inject constructor(
             }
         }
 
-        // 3. Cap the combo pool at MAX_COMBOS
+        // 3. Cap the combo pool at MAX_COMBOS; providers require at least 3 combos to select from.
         val pool = combos.take(MAX_COMBOS)
-        if (pool.isEmpty()) return null
+        if (pool.size < 3) return null
 
         // 4. Fetch AI context hints for all items across all combos in the pool
         val allItemIds = pool.flatMap { combo -> combo.items.map { it.id } }.distinct()
@@ -152,8 +152,8 @@ class OutfitCoherenceScorer @Inject constructor(
         // 6. Nano-only: token count gate — trim combos if over limit
         if (provider == AiProvider.Nano) {
             payloads = trimCombosToTokenLimit(payloads, styleVibe)
-            if (payloads.isEmpty()) {
-                Timber.tag(TAG).w("All combos trimmed by token gate — falling back")
+            if (payloads.size < 3) {
+                Timber.tag(TAG).w("Token gate trimmed below 3 combos — falling back")
                 return null
             }
         }
