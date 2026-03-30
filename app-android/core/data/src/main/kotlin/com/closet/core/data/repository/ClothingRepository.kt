@@ -8,7 +8,11 @@ import com.closet.core.data.model.*
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.ItemVectorizer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +30,10 @@ class ClothingRepository @Inject constructor(
     private val clothingDao: ClothingDao
 ) {
     private val converters = Converters()
+
+    // Singleton scope for fire-and-forget work (e.g. vectorization after insert/update).
+    // SupervisorJob ensures one failed launch doesn't cancel the others.
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Retrieves all clothing items as a stream.
@@ -113,7 +121,7 @@ class ClothingRepository @Inject constructor(
         colors: List<ColorEntity>
     ): DataResult<Long> {
         val result = insertItem(item, colors.map { it.id })
-        if (result is DataResult.Success) vectorizeItem(result.data)
+        if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(result.data) }
         return result
     }
 

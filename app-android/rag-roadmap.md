@@ -121,7 +121,7 @@ pattern used for `mlkit-genai-prompt` in `features/recommendations`.
 **New file (full):**
 `features/wardrobe/src/full/kotlin/…/repository/ImageCaptionRepository.kt`
 
-```
+```kotlin
 @Singleton class ImageCaptionRepository @Inject constructor(
     @ApplicationContext val context: Context
 ) {
@@ -137,7 +137,6 @@ pattern used for `mlkit-genai-prompt` in `features/recommendations`.
 - **Actual entry point:** `ImageDescription.getClient(ImageDescriberOptions)` — the factory is on
   `ImageDescription`, not `ImageDescriber`. Returns `ListenableFuture<T>` (not a GMS `Task`);
   wrap via `suspendCancellableCoroutine` + `future.addListener({ ... }, { it.run() })`.
-- Return `result.description` trimmed; throw `IllegalStateException` if null
 - Return `result.description` trimmed; throw `IllegalStateException` if null
 - **`isSupported`**: same pattern as `SegmentationRepository` — exposes the flag so
   the ViewModel can gate the caption path on FOSS builds
@@ -427,7 +426,7 @@ passing to `NanoProvider` (the Gemini Nano Prompt API already wired in
 
 Prompt structure:
 
-```
+```text
 [SYSTEM]
 You are a personal wardrobe assistant. The user's relevant clothing items are:
 

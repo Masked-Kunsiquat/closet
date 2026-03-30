@@ -60,6 +60,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,6 +84,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
@@ -152,8 +154,6 @@ fun SettingsScreen(
     // Show a snackbar once per completed batch run. lastHandledBatchId lives in the
     // ViewModel so it survives the screen leaving composition and coming back — a
     // local `remember` would reset to null and re-fire the snackbar on re-entry.
-    val batchResultMsg = stringResource(R.string.settings_wardrobe_batch_result)
-    val batchResultWithFailuresMsg = stringResource(R.string.settings_wardrobe_batch_result_with_failures)
     val lastHandledBatchId by viewModel.lastHandledBatchId.collectAsStateWithLifecycle()
     LaunchedEffect(batchSegWorkInfo?.id, batchSegWorkInfo?.state) {
         val info = batchSegWorkInfo ?: return@LaunchedEffect
@@ -162,28 +162,30 @@ fun SettingsScreen(
             val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
             val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
             val msg = if (failed > 0) {
-                String.format(batchResultWithFailuresMsg, done, failed)
+                context.resources.getQuantityString(R.plurals.settings_wardrobe_batch_result_with_failures, done, done, failed)
             } else {
-                String.format(batchResultMsg, done)
+                context.resources.getQuantityString(R.plurals.settings_wardrobe_batch_result, done, done)
             }
             snackbarHostState.showSnackbar(msg)
         }
     }
 
     // Keep screen on while batch caption enrichment is running (Image Description API requirement).
+    // LaunchedEffect handles the reactive set; DisposableEffect guarantees reset on composition exit.
     LaunchedEffect(batchCaptionProgress) {
         view.keepScreenOn = batchCaptionProgress != null
     }
+    DisposableEffect(Unit) {
+        onDispose { view.keepScreenOn = false }
+    }
 
-    val captionResultMsg = stringResource(R.string.settings_wardrobe_caption_result)
-    val captionResultWithFailuresMsg = stringResource(R.string.settings_wardrobe_caption_result_with_failures)
     LaunchedEffect(captionResult) {
         val result = captionResult ?: return@LaunchedEffect
         viewModel.onCaptionResultConsumed()
         val msg = if (result.failed > 0) {
-            String.format(captionResultWithFailuresMsg, result.done, result.failed)
+            context.resources.getQuantityString(R.plurals.settings_wardrobe_caption_result_with_failures, result.done, result.done, result.failed)
         } else {
-            String.format(captionResultMsg, result.done)
+            context.resources.getQuantityString(R.plurals.settings_wardrobe_caption_result, result.done, result.done)
         }
         snackbarHostState.showSnackbar(msg)
     }
@@ -1242,8 +1244,9 @@ private fun BatchSegmentationItem(
             },
             supportingContent = {
                 Text(
-                    stringResource(
-                        R.string.settings_wardrobe_remove_backgrounds_summary,
+                    pluralStringResource(
+                        R.plurals.settings_wardrobe_remove_backgrounds_summary,
+                        eligibleCount,
                         eligibleCount,
                     ),
                 )
@@ -1296,8 +1299,9 @@ private fun BatchCaptionItem(
             },
             supportingContent = {
                 Text(
-                    stringResource(
-                        R.string.settings_wardrobe_enrich_descriptions_summary,
+                    pluralStringResource(
+                        R.plurals.settings_wardrobe_enrich_descriptions_summary,
+                        eligibleCount,
                         eligibleCount,
                     ),
                 )

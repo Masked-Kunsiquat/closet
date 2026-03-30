@@ -89,10 +89,10 @@ data class ClothingItemEntity(
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Int = 0, // 0 | 1
     
-    @ColumnInfo(name = "semantic_description", defaultValue = "")
+    @ColumnInfo(name = "semantic_description")
     val semanticDescription: String? = null,
 
-    @ColumnInfo(name = "image_caption", defaultValue = "")
+    @ColumnInfo(name = "image_caption")
     val imageCaption: String? = null,
 
     @ColumnInfo(name = "created_at")

@@ -449,15 +449,19 @@ class SettingsViewModel @Inject constructor(
         _captionResult.value = null
     }
 
+    private var batchEnrichmentJob: Job? = null
+
     /**
      * Runs batch caption enrichment for all items with an image but no caption.
      *
+     * Cancels any in-flight run before starting a new one (guard against double-tap).
      * Must run on the main thread — the Image Description API requires a live UI context.
      * Process items sequentially to avoid overloading the on-device model.
      */
     fun startBatchEnrichment() {
         if (!captionEnrichmentProvider.isSupported) return
-        viewModelScope.launch(Dispatchers.Main) {
+        batchEnrichmentJob?.cancel()
+        batchEnrichmentJob = viewModelScope.launch(Dispatchers.Main) {
             val items = clothingDao.getItemsNeedingCaption()
             val total = items.size
             if (total == 0) return@launch
@@ -475,6 +479,7 @@ class SettingsViewModel @Inject constructor(
                     done++
                 } catch (e: CancellationException) {
                     _batchCaptionProgress.value = null
+                    batchEnrichmentJob = null
                     throw e
                 } catch (e: Exception) {
                     Timber.d(e, "batch caption failed for item ${item.id} — skipped")
@@ -484,6 +489,7 @@ class SettingsViewModel @Inject constructor(
             }
             _batchCaptionProgress.value = null
             _captionResult.value = BatchCaptionProgress(done, total, failed)
+            batchEnrichmentJob = null
         }
     }
 

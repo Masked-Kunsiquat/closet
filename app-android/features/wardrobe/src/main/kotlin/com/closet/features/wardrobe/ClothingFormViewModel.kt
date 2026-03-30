@@ -437,20 +437,22 @@ class ClothingFormViewModel @Inject constructor(
                 if (imageCaptionRepository.isSupported) {
                     captionJob = viewModelScope.launch(Dispatchers.Main) {
                         _form.update { it.copy(isCaptioning = true) }
+                        val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                        if (bitmap == null) {
+                            _form.update { it.copy(isCaptioning = false) }
+                            return@launch
+                        }
                         try {
-                            val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
-                            if (bitmap != null) {
-                                val caption = imageCaptionRepository.describe(bitmap)
-                                _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
-                            } else {
-                                _form.update { it.copy(isCaptioning = false) }
-                            }
+                            val caption = imageCaptionRepository.describe(bitmap)
+                            _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
                         } catch (e: CancellationException) {
                             _form.update { it.copy(isCaptioning = false) }
                             throw e
                         } catch (e: Exception) {
                             Timber.d(e, "at-capture caption failed — ignored")
                             _form.update { it.copy(isCaptioning = false) }
+                        } finally {
+                            if (!bitmap.isRecycled) bitmap.recycle()
                         }
                     }
                 }
@@ -620,8 +622,11 @@ class ClothingFormViewModel @Inject constructor(
                     isFavorite = originalEntity?.isFavorite ?: 0,
                     status = originalEntity?.status ?: ClothingStatus.Active,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
-                    // Prefer any caption generated this session; fall back to the previously stored one.
-                    imageCaption = state.imageCaption ?: originalEntity?.imageCaption,
+                    // Use the caption generated this session if available. Fall back to the stored
+                    // caption only when the image path hasn't changed (i.e. no new image was picked).
+                    // If the user replaced the image, treat the old caption as stale and set null.
+                    imageCaption = state.imageCaption
+                        ?: if (state.imagePath == originalEntity?.imagePath) originalEntity?.imageCaption else null,
                     createdAt = originalEntity?.createdAt ?: Instant.now(),
                     updatedAt = Instant.now()
                 )

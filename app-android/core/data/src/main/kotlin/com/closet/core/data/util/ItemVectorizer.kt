@@ -82,12 +82,15 @@ object ItemVectorizer {
             }
         }
 
-        // Wear count: always included
-        append(" Worn ${detail.wearCount} times.")
+        // Wear count: always included; grammatically correct singular/plural
+        val timeWord = if (detail.wearCount == 1) "time" else "times"
+        append(" Worn ${detail.wearCount} $timeWord.")
 
-        // Notes: only when non-blank
+        // Notes: only when non-blank; avoid double punctuation if note already ends with one
         if (!item.notes.isNullOrBlank()) {
-            append(" Notes: ${item.notes}.")
+            val trimmed = item.notes.trimEnd()
+            val needsPeriod = trimmed.last() !in setOf('.', '!', '?', '。')
+            append(" Notes: $trimmed${if (needsPeriod) "." else ""}")
         }
     }.trim()
 }

@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "058460fed4a5967b793f865c3816ab29",
+    "identityHash": "cc199a4a504378d05707235f919cb20d",
     "entities": [
       {
         "tableName": "clothing_items",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `brand_id` INTEGER, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL DEFAULT 'Active', `wash_status` TEXT NOT NULL DEFAULT 'Clean', `is_favorite` INTEGER NOT NULL, `semantic_description` TEXT DEFAULT '', `image_caption` TEXT DEFAULT '', `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`brand_id`) REFERENCES `brands`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `brand_id` INTEGER, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL DEFAULT 'Active', `wash_status` TEXT NOT NULL DEFAULT 'Clean', `is_favorite` INTEGER NOT NULL, `semantic_description` TEXT, `image_caption` TEXT, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`brand_id`) REFERENCES `brands`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -103,14 +103,12 @@
           {
             "fieldPath": "semanticDescription",
             "columnName": "semantic_description",
-            "affinity": "TEXT",
-            "defaultValue": "''"
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "imageCaption",
             "columnName": "image_caption",
-            "affinity": "TEXT",
-            "defaultValue": "''"
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -1245,7 +1243,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '058460fed4a5967b793f865c3816ab29')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cc199a4a504378d05707235f919cb20d')"
     ]
   }
 }
