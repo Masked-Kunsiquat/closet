@@ -26,6 +26,9 @@
     <string name="wardrobe_delete">Delete</string>
     <string name="wardrobe_usage">Usage</string>
     <string name="wardrobe_cost_per_wear">Cost per wear</string>
+    <string name="wardrobe_stat_wash">Wash</string>
+    <string name="wardrobe_stat_wears">Wears</string>
+    <string name="wardrobe_stat_price">Price</string>
     <string name="wardrobe_delete_item_title">Delete Item</string>
     <string name="wardrobe_delete_item_confirmation">Are you sure you want to delete this item? This action cannot be undone.</string>
     <string name="wardrobe_cancel">Cancel</string>

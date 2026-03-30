@@ -232,6 +232,7 @@ fun ClothingDetailScreen(
                                 .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            // Wash status card — tappable to toggle
                             OutlinedCard(
                                 onClick = { viewModel.toggleWashStatus() },
                                 modifier = Modifier
@@ -245,20 +246,37 @@ fun ClothingDetailScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center,
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = CoreR.drawable.ic_icon_washing_machine),
-                                        contentDescription = null,
-                                        tint = if (detail.item.washStatus == WashStatus.Dirty) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center,
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = CoreR.drawable.ic_icon_washing_machine),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.wardrobe_stat_wash),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         text = detail.item.washStatus.label,
-                                        style = MaterialTheme.typography.labelMedium,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = if (detail.item.washStatus == WashStatus.Dirty)
+                                            MaterialTheme.colorScheme.error
+                                        else
+                                            MaterialTheme.colorScheme.primary,
                                         textAlign = TextAlign.Center,
                                     )
                                 }
                             }
 
+                            // Wear count card
                             OutlinedCard(
                                 modifier = Modifier
                                     .weight(1f)
@@ -271,24 +289,34 @@ fun ClothingDetailScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center,
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Numbers,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Numbers,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.wardrobe_stat_wears),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = pluralStringResource(
-                                            R.plurals.wardrobe_worn_times,
-                                            detail.wearCount,
-                                            detail.wearCount
-                                        ),
-                                        style = MaterialTheme.typography.labelMedium,
+                                        text = detail.wearCount.toString(),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.primary,
                                         textAlign = TextAlign.Center,
                                     )
                                 }
                             }
 
+                            // Purchase price card
                             detail.item.purchasePrice?.let { price ->
                                 OutlinedCard(
                                     modifier = Modifier
@@ -302,15 +330,28 @@ fun ClothingDetailScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Center,
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.AttachMoney,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.AttachMoney,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = stringResource(R.string.wardrobe_stat_price),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Text(
                                             text = "$${String.format(Locale.getDefault(), "%.2f", price)}",
-                                            style = MaterialTheme.typography.labelMedium,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.primary,
                                             textAlign = TextAlign.Center,
                                         )
                                     }
