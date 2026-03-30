@@ -213,10 +213,15 @@ class AiPreferencesRepository(
         val anthropicMigrated = oldAnthropicKey.isNotBlank() && currentAnthropicKey.isBlank() &&
             encryptedKeyStore.setAnthropicKey(oldAnthropicKey)
 
-        // Only remove the plaintext entry when the encrypted write succeeded.
+        // Remove the plaintext entry when the encrypted slot is populated — either because
+        // we just wrote it this run OR it was already populated by an earlier migration run.
+        // This cleans up stale plaintext left behind when a previous run skipped writing
+        // (encrypted was non-blank) but forgot to delete the legacy key.
+        val shouldRemoveOpenAi = oldOpenAiKey.isNotBlank() && (currentOpenAiKey.isNotBlank() || openAiMigrated)
+        val shouldRemoveAnthropic = oldAnthropicKey.isNotBlank() && (currentAnthropicKey.isNotBlank() || anthropicMigrated)
         context.aiDataStore.edit { prefs ->
-            if (openAiMigrated) prefs.remove(legacyOpenAiKey)
-            if (anthropicMigrated) prefs.remove(legacyAnthropicKey)
+            if (shouldRemoveOpenAi) prefs.remove(legacyOpenAiKey)
+            if (shouldRemoveAnthropic) prefs.remove(legacyAnthropicKey)
         }
 
         val migratedCount = listOf(openAiMigrated, anthropicMigrated).count { it }

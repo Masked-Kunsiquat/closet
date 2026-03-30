@@ -1070,13 +1070,19 @@ private fun UrlPresetChips(
     }
 }
 
-/** Well-known base URLs for OpenAI-compatible providers. */
+/**
+ * Well-known base URLs for OpenAI-compatible providers.
+ *
+ * Ollama preset uses the Android emulator host alias (10.0.2.2). On a physical device,
+ * replace with the host machine's LAN IP, or use `adb reverse tcp:11434 tcp:11434` and
+ * type http://localhost:11434 manually in the field.
+ */
 private val OPENAI_URL_PRESETS = listOf(
     "OpenAI" to "https://api.openai.com",
     "Groq" to "https://api.groq.com/openai",
     "Gemini" to "https://generativelanguage.googleapis.com/v1beta/openai",
     "Mistral" to "https://api.mistral.ai",
-    "Ollama" to "http://localhost:11434",
+    "Ollama (Emulator)" to "http://10.0.2.2:11434",
 )
 
 // ── Dialogs ───────────────────────────────────────────────────────────────────

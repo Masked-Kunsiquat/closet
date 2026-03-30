@@ -320,18 +320,17 @@ class SettingsViewModel @Inject constructor(
     }
 
     init {
-        // Debounced model discovery: fetch models 800ms after the key (or base URL) settles.
-        // collectLatest cancels any in-flight fetch when a newer emission arrives, so a key
-        // or URL change while loading always triggers a fresh request instead of being dropped.
-        // Models are cleared whenever the key is shorter than MIN_KEY_LENGTH (not just when
-        // it is empty) so stale results aren't retained while the user is still typing.
+        // Debounced model discovery: fetch models 800ms after any upstream input settles.
+        // Gated by aiEnabled + selectedAiProvider so no network requests fire when AI is
+        // off or when the other provider's panel is active. collectLatest cancels in-flight
+        // fetches when a newer emission arrives.
         viewModelScope.launch {
-            combine(openAiKey, openAiBaseUrl) { key, url -> key to url }
+            combine(openAiKey, openAiBaseUrl, aiEnabled, selectedAiProvider) { key, url, enabled, provider ->
+                Triple(key, url, enabled && provider == AiProvider.OpenAi)
+            }
                 .debounce(800)
-                .collectLatest { (key, url) ->
-                    // Any blank key clears the list; non-blank but short keys (e.g. "ollama"
-                    // for local endpoints) are valid and should still trigger discovery.
-                    if (key.isBlank()) {
+                .collectLatest { (key, url, shouldFetch) ->
+                    if (!shouldFetch || key.isBlank()) {
                         _openAiModels.value = emptyList()
                         return@collectLatest
                     }
@@ -346,10 +345,12 @@ class SettingsViewModel @Inject constructor(
                 }
         }
         viewModelScope.launch {
-            anthropicKey
+            combine(anthropicKey, aiEnabled, selectedAiProvider) { key, enabled, provider ->
+                Pair(key, enabled && provider == AiProvider.Anthropic)
+            }
                 .debounce(800)
-                .collectLatest { key ->
-                    if (key.isBlank()) {
+                .collectLatest { (key, shouldFetch) ->
+                    if (!shouldFetch || key.isBlank()) {
                         _anthropicModels.value = emptyList()
                         return@collectLatest
                     }

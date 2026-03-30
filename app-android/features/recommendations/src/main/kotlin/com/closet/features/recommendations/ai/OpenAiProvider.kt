@@ -62,7 +62,6 @@ class OpenAiProvider @Inject constructor(
         private const val TAG = "OpenAiProvider"
         private const val DEFAULT_BASE_URL = "https://api.openai.com"
         private const val DEFAULT_MODEL = "gpt-4o-mini"
-        private const val CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 
         /** Shared system prompt from [OutfitPromptPrefix] — identical contract for all providers. */
         private val SYSTEM_PROMPT get() = OutfitPromptPrefix.SYSTEM_PROMPT
@@ -84,7 +83,7 @@ class OpenAiProvider @Inject constructor(
         }
 
         val rawBaseUrl = aiPreferencesRepository.getOpenAiBaseUrl().first()
-        val baseUrl = resolveBaseUrl(rawBaseUrl)
+        val completionsUrl = buildCompletionsUrl(rawBaseUrl)
         val model = aiPreferencesRepository.getOpenAiModel().first().takeIf { it.isNotBlank() }
             ?: DEFAULT_MODEL
 
@@ -92,7 +91,7 @@ class OpenAiProvider @Inject constructor(
             val comboJson = buildComboJson(combos)
             val requestBody = buildRequestBody(model, styleVibe, comboJson)
 
-            val responseText: String = client.post("$baseUrl$CHAT_COMPLETIONS_PATH") {
+            val responseText: String = client.post(completionsUrl) {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $apiKey")
                 setBody(requestBody)
@@ -101,18 +100,26 @@ class OpenAiProvider @Inject constructor(
             Result.success(parseResponse(responseText, combos))
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Timber.tag(TAG).w(e, "OpenAiProvider inference failed (base=%s, model=%s)", baseUrl, model)
+            Timber.tag(TAG).w(e, "OpenAiProvider inference failed (url=%s, model=%s)", completionsUrl, model)
             Result.failure(e)
         }
     }
 
     /**
-     * Normalizes the user-supplied base URL:
-     * - Falls back to [DEFAULT_BASE_URL] when blank.
-     * - Strips a trailing slash so path concatenation is always `baseUrl + "/v1/chat/completions"`.
+     * Builds the full chat-completions endpoint URL from the user-supplied base.
+     *
+     * Rules:
+     * - Blank → use [DEFAULT_BASE_URL] + `/v1/chat/completions`.
+     * - Base has no path (or only `/`) → append `/v1/chat/completions` (standard OpenAI layout).
+     * - Base already has a non-trivial path (e.g. `/v1beta/openai` for Gemini,
+     *   `/openai` for Groq) → append only `/chat/completions` to avoid duplicating
+     *   the version segment and producing `.../v1beta/openai/v1/chat/completions`.
      */
-    private fun resolveBaseUrl(raw: String): String =
-        (if (raw.isBlank()) DEFAULT_BASE_URL else raw).trimEnd('/')
+    private fun buildCompletionsUrl(raw: String): String {
+        val base = (if (raw.isBlank()) DEFAULT_BASE_URL else raw).trimEnd('/')
+        val path = try { java.net.URI(base).path ?: "" } catch (e: Exception) { "" }
+        return if (path.isBlank() || path == "/") "$base/v1/chat/completions" else "$base/chat/completions"
+    }
 
     /**
      * Builds the OpenAI Chat Completions request body as a raw JSON string.
