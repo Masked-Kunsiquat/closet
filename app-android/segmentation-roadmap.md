@@ -230,6 +230,55 @@ No flavor split needed — WorkManager and system notifications are AOSP; no GMS
 
 ---
 
+## Phase 7 — Model readiness (first-run download gate)
+
+The Play Services ML Kit model (`mobile_bg_removal_v8.f16.tflite`) is **not bundled in
+the APK** — it is downloaded in the background by Google Play Services on first use.
+If the user taps "Remove background" before the download completes, the Task fails
+silently. This phase adds an explicit download gate so the UI reflects true readiness.
+
+### `RemoteModelManager` helper (`SegmentationRepository`, full flavor only)
+
+- [ ] Add `suspend fun isModelDownloaded(): Boolean` — calls
+  `RemoteModelManager.getInstance().isModelDownloaded(CustomRemoteModel(…)).await()`
+  using the same `CustomModelDownloadConditions` / model name the SDK resolves at runtime
+  (name: `"subject_segmentation"` — match the module resolved by `DynamiteModule`)
+- [ ] Add `suspend fun ensureModelDownloaded()` — calls
+  `RemoteModelManager.getInstance().download(model, conditions).await()`; no-op if
+  already downloaded; throws on failure (caller catches)
+- [ ] FOSS stub: `isModelDownloaded()` returns `false`; `ensureModelDownloaded()` no-ops
+
+### `ClothingFormViewModel` changes
+
+- [ ] On `removeBackground()` entry: call `isModelDownloaded()` before setting
+  `isSegmenting = true`
+  - If not downloaded: set a new `isDownloadingModel: Boolean = true` state flag,
+    call `ensureModelDownloaded()`, then proceed
+  - On download failure: emit error snackbar ("Couldn't download segmentation model");
+    clear `isDownloadingModel`; return early without segmenting
+- [ ] Add `val isDownloadingModel: Boolean = false` to `ClothingFormUiState`
+
+### UI changes (`ClothingFormScreen.kt`)
+
+- [ ] While `isDownloadingModel == true`: show an indeterminate `CircularProgressIndicator`
+  over the photo with label "Downloading model…" (reuse existing segmenting overlay,
+  swap the label)
+- [ ] Disable "Remove background" button while `isDownloadingModel == true`
+
+### `BatchSegmentationWorker` changes
+
+- [ ] At the start of `doWork()`, before the item loop: call `ensureModelDownloaded()`
+  - On failure: return `Result.failure(workDataOf("error" to "model_download_failed"))`
+  - This prevents starting the foreground service + notification for a run that will
+    immediately fail on every item
+
+### String resources
+
+- [ ] `wardrobe_downloading_model` — "Downloading segmentation model…"
+- [ ] `wardrobe_model_download_error` — "Couldn't download segmentation model. Check your connection and try again."
+
+---
+
 ## Deferred / out of scope
 
 - **Manual touch-up** (paint-to-include / paint-to-exclude brush strokes) — custom
