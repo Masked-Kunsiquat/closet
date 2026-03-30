@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon for the "Laundry Day" shortcut.
+    - background: amber accent (shown on non-themed launchers)
+    - foreground: inset washing-machine vector (15% padding for adaptive icon safe zone)
+    - monochrome: same vector, tinted by the launcher on API 33+ themed icon launchers
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/shortcut_icon_bg" />
+    <foreground>
+        <inset
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:drawable="@drawable/ic_icon_washing_machine"
+            android:inset="15%" />
+    </foreground>
+    <monochrome android:drawable="@drawable/ic_icon_washing_machine" />
+</adaptive-icon>

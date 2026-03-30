@@ -12,7 +12,7 @@
     <shortcut
         android:shortcutId="quick_add"
         android:enabled="true"
-        android:icon="@drawable/ic_icon_coat_hanger"
+        android:icon="@drawable/ic_shortcut_quick_add"
         android:shortcutShortLabel="@string/shortcut_quick_add_short"
         android:shortcutLongLabel="@string/shortcut_quick_add_long">
         <intent
@@ -26,7 +26,7 @@
     <shortcut
         android:shortcutId="log_fit"
         android:enabled="true"
-        android:icon="@drawable/ic_icon_t_shirt"
+        android:icon="@drawable/ic_shortcut_log_fit"
         android:shortcutShortLabel="@string/shortcut_log_fit_short"
         android:shortcutLongLabel="@string/shortcut_log_fit_long">
         <intent
@@ -40,7 +40,7 @@
     <shortcut
         android:shortcutId="laundry_day"
         android:enabled="true"
-        android:icon="@drawable/ic_icon_washing_machine"
+        android:icon="@drawable/ic_shortcut_laundry"
         android:shortcutShortLabel="@string/shortcut_laundry_short"
         android:shortcutLongLabel="@string/shortcut_laundry_long">
         <intent
