@@ -87,6 +87,7 @@ class BulkWashViewModel @Inject constructor(
         val ids = _selectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
+            _applyError.value = false
             val results = ids.map { id -> clothingRepository.updateWashStatus(id, status) }
             if (results.any { it is DataResult.Error }) {
                 _applyError.value = true

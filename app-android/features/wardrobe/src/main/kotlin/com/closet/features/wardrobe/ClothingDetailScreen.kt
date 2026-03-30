@@ -20,6 +20,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -346,15 +347,13 @@ internal fun DetailStatRow(
     onToggleWash: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val priceText = if (purchasePrice != null)
-        "$${String.format(Locale.getDefault(), "%.2f", purchasePrice)}"
-    else
-        stringResource(R.string.wardrobe_stat_cpw_na)
-
+    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())
+    val naText = stringResource(R.string.wardrobe_stat_cpw_na)
+    val priceText = if (purchasePrice != null) currencyFormat.format(purchasePrice) else naText
     val cpwText = if (purchasePrice != null && wearCount > 0)
-        "$${String.format(Locale.getDefault(), "%.2f", purchasePrice / wearCount)}"
+        currencyFormat.format(purchasePrice / wearCount)
     else
-        stringResource(R.string.wardrobe_stat_cpw_na)
+        naText
 
     Column(
         modifier = modifier.fillMaxWidth(),

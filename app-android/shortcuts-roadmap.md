@@ -194,11 +194,12 @@ at the moment the user completes the action the shortcut was designed for.
   Injected `@ApplicationContext appContext: Context`. In `logOutfitOnDate()`, calls
   `ShortcutManagerCompat.reportShortcutUsed(appContext, "log_fit")` on `DataResult.Success`.
 
-- [x] **§5.2 — Report after background removal completes**
+- [x] **§5.2 — Report after Quick Add item is saved**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/ClothingFormViewModel.kt`
-  Injected `@ApplicationContext appContext: Context`. In `removeBackground()`, calls
-  `ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")` after the PNG is
-  saved and `_form` is updated with `imagePath = savedPath`.
+  Injected `@ApplicationContext appContext: Context`. In `save()`, calls
+  `ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")` on `DataResult.Success`,
+  guarded by `addDestination?.openCamera == true` so the signal only fires for real
+  Quick Add-originated saves, not normal add/edit flows or background removals.
 
 - [x] **§5.3 — Report after bulk wash status is applied**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/BulkWashViewModel.kt`

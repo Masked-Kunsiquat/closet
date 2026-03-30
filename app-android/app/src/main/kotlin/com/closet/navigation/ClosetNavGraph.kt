@@ -100,16 +100,19 @@ fun ClosetNavGraph(
         when (action) {
             ShortcutActions.ACTION_QUICK_ADD -> {
                 navController.navigate(AddClothingDestination(openCamera = true)) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
                     launchSingleTop = true
                 }
             }
             ShortcutActions.ACTION_LOG_FIT -> {
                 navController.navigate(OutfitBuilderDestination()) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
                     launchSingleTop = true
                 }
             }
             ShortcutActions.ACTION_LAUNDRY_DAY -> {
                 navController.navigate(BulkWashDestination) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
                     launchSingleTop = true
                 }
             }
@@ -118,6 +121,7 @@ fun ClosetNavGraph(
                     .getLongExtra(ShortcutActions.EXTRA_CATEGORY_ID, -1L)
                     .takeIf { it != -1L }
                 navController.navigate(ClosetDestination(initialCategoryId = categoryId)) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
                     launchSingleTop = true
                 }
             }
