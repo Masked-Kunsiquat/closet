@@ -1,5 +1,7 @@
 package com.closet.features.wardrobe
 
+import android.content.Context
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.ClothingItemWithMeta
@@ -7,6 +9,7 @@ import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +39,7 @@ sealed interface BulkWashUiState {
  */
 @HiltViewModel
 class BulkWashViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val clothingRepository: ClothingRepository,
     private val storageRepository: StorageRepository,
 ) : ViewModel() {
@@ -77,6 +81,7 @@ class BulkWashViewModel @Inject constructor(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             ids.forEach { id -> clothingRepository.updateWashStatus(id, status) }
+            ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")
             clearSelection()
         }
     }

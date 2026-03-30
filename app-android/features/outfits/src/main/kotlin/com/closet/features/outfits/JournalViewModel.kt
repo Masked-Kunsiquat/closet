@@ -9,6 +9,8 @@ import com.closet.core.data.model.OutfitLogEntity
 import com.closet.core.data.model.OutfitWithItems
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherCondition
+import android.content.Context
+import androidx.core.content.pm.ShortcutManagerCompat
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.StorageRepository
@@ -20,6 +22,7 @@ import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import java.time.Instant
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
@@ -76,6 +79,7 @@ data class JournalUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class JournalViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val logRepository: LogRepository,
     private val outfitRepository: OutfitRepository,
     private val storageRepository: StorageRepository,
@@ -312,7 +316,10 @@ class JournalViewModel @Inject constructor(
                 precipitationMm = forecast?.precipitationMm,
                 windSpeedKmh = forecast?.windSpeedKmh,
             )) {
-                is DataResult.Success -> _showOutfitPicker.value = false
+                is DataResult.Success -> {
+                    ShortcutManagerCompat.reportShortcutUsed(appContext, "log_fit")
+                    _showOutfitPicker.value = false
+                }
                 is DataResult.Error -> {
                     Timber.e(result.throwable, "logOutfitOnDate: failed to log outfit $outfitId on $date")
                     handleActionError(result.throwable)

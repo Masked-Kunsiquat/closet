@@ -183,33 +183,27 @@ triggered, skipping the empty form state.
 
 ---
 
-## Phase 5 — `reportShortcutUsed()` instrumentation
+## Phase 5 — `reportShortcutUsed()` instrumentation ✅
 
 Android learns shortcut habits from usage signals. Call `ShortcutManagerCompat.reportShortcutUsed()`
 at the moment the user completes the action the shortcut was designed for.
 
-- [ ] **§5.1 — Report after outfit is logged**
+- [x] **§5.1 — Report after outfit is logged**
   File: `features/outfits/src/main/kotlin/com/closet/features/outfits/JournalViewModel.kt`
-  In `logOutfitOnDate()` / `saveLogEdit()`, after a successful repository write:
-  ```kotlin
-  ShortcutManagerCompat.reportShortcutUsed(appContext, "log_fit")
-  ```
-  Inject `@ApplicationContext context: Context` into `JournalViewModel` (already uses
-  `@HiltViewModel`; add it to the constructor).
+  Injected `@ApplicationContext appContext: Context`. In `logOutfitOnDate()`, calls
+  `ShortcutManagerCompat.reportShortcutUsed(appContext, "log_fit")` on `DataResult.Success`.
 
-- [ ] **§5.2 — Report after background removal completes**
+- [x] **§5.2 — Report after background removal completes**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/ClothingFormViewModel.kt`
-  In `removeBackground()`, after the segmented PNG is saved and `imagePath` is updated:
-  ```kotlin
-  ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")
-  ```
+  Injected `@ApplicationContext appContext: Context`. In `removeBackground()`, calls
+  `ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")` after the PNG is
+  saved and `_form` is updated with `imagePath = savedPath`.
 
-- [ ] **§5.3 — Report after bulk wash status is applied**
+- [x] **§5.3 — Report after bulk wash status is applied**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/BulkWashViewModel.kt`
-  In `applyWashStatus()`, after all updates succeed:
-  ```kotlin
-  ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")
-  ```
+  Injected `@ApplicationContext appContext: Context`. In `applyWashStatus()`, calls
+  `ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")` after all row
+  updates complete, before `clearSelection()`.
 
 ---
 

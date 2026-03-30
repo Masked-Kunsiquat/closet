@@ -1,6 +1,8 @@
 package com.closet.features.wardrobe
 
+import android.content.Context
 import android.net.Uri
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +30,7 @@ import java.util.UUID
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -116,6 +119,7 @@ private data class FormState(
  */
 @HiltViewModel
 class ClothingFormViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle,
     private val lookupRepository: LookupRepository,
     private val brandRepository: BrandRepository,
@@ -502,6 +506,7 @@ class ClothingFormViewModel @Inject constructor(
                     imageCaption = null,                      // old caption was for the un-segmented image
                     originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
+                ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")
                 // Re-extract colours from the segmented PNG. The Palette API filters out
                 // transparent pixels, so only subject colours are sampled — not the background.
                 extractColorsFromFile(segmentedFile)
