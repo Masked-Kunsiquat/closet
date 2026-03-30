@@ -260,6 +260,10 @@ class ClothingRepository @Inject constructor(
     /**
      * Public entry point for background workers (e.g. [com.closet.features.wardrobe.BatchSegmentationWorker])
      * that need to refresh the semantic description after updating an item's image.
+     *
+     * Returns [Unit] intentionally: [vectorizeItem] already catches and logs all non-cancellation
+     * exceptions, so there is no observable error state to surface. Callers should treat this as
+     * fire-and-forget (failures are visible in Logcat under the [ClothingRepository] tag).
      */
     suspend fun revectorizeItem(id: Long) = vectorizeItem(id)
 
