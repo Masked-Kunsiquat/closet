@@ -207,46 +207,38 @@ at the moment the user completes the action the shortcut was designed for.
 
 ---
 
-## Phase 6 — Pinned shortcuts: Category lookbooks
+## Phase 6 — Pinned shortcuts: Category lookbooks ✅
 
 Pinned shortcuts let users pin a specific category (e.g. "Gym Clothes") to their launcher.
 These are dynamic — created at runtime from DB data.
 
-- [ ] **§6.1 — Add a "Pin to home screen" action in the Closet filter UI**
+- [x] **§6.1 — Add a "Pin to home screen" action in the Closet filter UI**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/ClosetScreen.kt`
-  (or `FilterPanel.kt`)
-  Add a pin icon button next to each category chip/filter that calls the ViewModel action.
+  Added `onPinCategory: (Long, String) -> Unit` parameter to `ClosetContent` and
+  `CategoryFilterRow`. Each named category chip is wrapped in a `Row` with a 32dp
+  `IconButton(PushPin)` trailing it. Tapping the pin calls the ViewModel action.
 
-- [ ] **§6.2 — Add `pinCategoryShortcut(categoryId: Long, categoryName: String)` to `ClosetViewModel`**
+- [x] **§6.2 — Add `pinCategoryShortcut(categoryId: Long, categoryName: String)` to `ClosetViewModel`**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/ClosetViewModel.kt`
-  ```kotlin
-  fun pinCategoryShortcut(categoryId: Long, categoryName: String) {
-      val shortcutInfo = ShortcutInfoCompat.Builder(appContext, "category_$categoryId")
-          .setShortLabel(categoryName.take(10))
-          .setLongLabel(categoryName)
-          .setIcon(IconCompat.createWithResource(appContext, R.drawable.ic_shortcut_category))
-          .setIntent(
-              Intent(appContext, MainActivity::class.java).apply {
-                  action = ShortcutActions.ACTION_CATEGORY
-                  putExtra(ShortcutActions.EXTRA_CATEGORY_ID, categoryId)
-              }
-          )
-          .build()
+  Injected `@ApplicationContext appContext: Context`. Uses `ShortcutInfoCompat.Builder` with
+  `setClassName(packageName, "com.closet.MainActivity")` and inline action/extra strings
+  (avoids a `features/wardrobe` → `app` module dependency). Icon is
+  `R.drawable.ic_shortcut_category` from the wardrobe module.
 
-      if (ShortcutManagerCompat.isRequestPinShortcutSupported(appContext)) {
-          ShortcutManagerCompat.requestPinShortcut(appContext, shortcutInfo, null)
-      }
-  }
-  ```
+- [x] **§6.3 — Add `ic_shortcut_category.xml`**
+  Created `features/wardrobe/src/main/res/drawable/ic_shortcut_category.xml` — adaptive icon
+  (amber background + `ic_icon_dresser` foreground + monochrome layer). Placed in
+  `features/wardrobe` so `ClosetViewModel` can reference it without a reverse module dep.
+  Also created `features/wardrobe/src/main/res/values/colors.xml` with `shortcut_icon_bg`
+  (#F59E0B) to support the adaptive icon background reference.
 
-- [ ] **§6.3 — Add `ic_shortcut_category.xml`**
-  Reuse `ic_icon_coat_hanger.xml` from `core/ui` or create a distinct category icon
-  in `app/src/main/res/drawable/`.
-
-- [ ] **§6.4 — Filter the Closet screen by `categoryId` when launched from shortcut**
-  File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/ClosetViewModel.kt`
-  - Accept `initialCategoryId: Long?` from `SavedStateHandle`.
-  - Pre-populate the active category filter on init when the value is present.
+- [x] **§6.4 — Filter the Closet screen by `categoryId` when launched from shortcut**
+  `ClosetDestination` changed from `object` to
+  `data class ClosetDestination(val initialCategoryId: Long? = null)`.
+  `ClosetViewModel` now accepts `SavedStateHandle` and initialises `_selectedCategoryId`
+  from `savedStateHandle.toRoute<ClosetDestination>().initialCategoryId` in its constructor.
+  `ClosetNavGraph` extracts `EXTRA_CATEGORY_ID` from the shortcut intent and navigates to
+  `ClosetDestination(initialCategoryId = categoryId)`.
 
 ---
 

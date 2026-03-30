@@ -65,7 +65,7 @@ private data class TopLevelRoute(
 )
 
 private val topLevelRoutes = listOf(
-    TopLevelRoute(ClosetDestination, ClosetDestination::class, R.string.nav_closet, CoreUiR.drawable.ic_icon_coat_hanger),
+    TopLevelRoute(ClosetDestination(), ClosetDestination::class, R.string.nav_closet, CoreUiR.drawable.ic_icon_coat_hanger),
     TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, CoreUiR.drawable.ic_icon_t_shirt),
     TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, CoreUiR.drawable.ic_icon_calendar_dots),
     TopLevelRoute(StatsRoute, StatsRoute::class, R.string.nav_stats, CoreUiR.drawable.ic_icon_chart_bar),
@@ -113,8 +113,10 @@ fun ClosetNavGraph(
                 }
             }
             ShortcutActions.ACTION_CATEGORY -> {
-                // Navigate to ClosetDestination; category filter wired in Phase 6.
-                navController.navigate(ClosetDestination) {
+                val categoryId = pendingIntent
+                    .getLongExtra(ShortcutActions.EXTRA_CATEGORY_ID, -1L)
+                    .takeIf { it != -1L }
+                navController.navigate(ClosetDestination(initialCategoryId = categoryId)) {
                     launchSingleTop = true
                 }
             }
@@ -146,7 +148,7 @@ fun ClosetNavGraph(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = ClosetDestination,
+            startDestination = ClosetDestination(),
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)

@@ -99,6 +99,9 @@
     <string name="wardrobe_wear_history_untitled">Untitled outfit</string>
     <string name="wardrobe_wear_history_ootd">Outfit of the day</string>
 
+    <!-- Category pin shortcut -->
+    <string name="wardrobe_pin_category">Pin %1$s to home screen</string>
+
     <!-- Bulk Wash / Laundry Day screen -->
     <string name="bulk_wash_title">Laundry Day</string>
     <string name="bulk_wash_select_all">Select all</string>
