@@ -16,7 +16,7 @@ import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import com.closet.core.data.util.BitmapUtils
 import com.closet.features.wardrobe.R
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
@@ -437,7 +437,7 @@ class ClothingFormViewModel @Inject constructor(
                 if (imageCaptionRepository.isSupported) {
                     captionJob = viewModelScope.launch(Dispatchers.Main) {
                         _form.update { it.copy(isCaptioning = true) }
-                        val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                        val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                         if (bitmap == null) {
                             _form.update { it.copy(isCaptioning = false) }
                             return@launch
@@ -494,7 +494,7 @@ class ClothingFormViewModel @Inject constructor(
                 val file = storageRepository.getFile(path)
                 // Decode at reduced resolution so the full-res bitmap never hits memory.
                 // The repo's own downsample() becomes a no-op when the bitmap is already ≤1024px.
-                val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                     ?: throw IllegalStateException("Could not decode image file: $path")
                 val masked = segmentationRepository.removeBackground(bitmap)
                 val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
@@ -534,20 +534,6 @@ class ClothingFormViewModel @Inject constructor(
 
     fun onErrorConsumed() {
         _form.update { it.copy(errorMessage = null) }
-    }
-
-    /**
-     * Decodes [path] into a [Bitmap] at a sample size that keeps the longest side ≤ [maxDim].
-     * Uses a two-pass decode (bounds-only then sampled) so the full-resolution image is never
-     * allocated in memory.
-     */
-    private fun decodeSampledBitmap(path: String, maxDim: Int): Bitmap? {
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, opts)
-        val longest = maxOf(opts.outWidth, opts.outHeight)
-        var sampleSize = 1
-        while (longest / sampleSize > maxDim) sampleSize *= 2
-        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sampleSize })
     }
 
     private suspend fun extractColorsFromFile(file: File) {

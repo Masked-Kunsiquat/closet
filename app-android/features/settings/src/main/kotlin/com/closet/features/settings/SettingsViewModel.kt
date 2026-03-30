@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import android.graphics.BitmapFactory
+import com.closet.core.data.util.BitmapUtils
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.dao.ClothingDao
@@ -469,11 +469,20 @@ class SettingsViewModel @Inject constructor(
             var done = 0
             var failed = 0
             for (item in items) {
+                val imagePath = item.imagePath
+                if (imagePath == null) {
+                    failed++
+                    _batchCaptionProgress.value = BatchCaptionProgress(done, total, failed)
+                    continue
+                }
+                val file = storageRepository.getFile(imagePath)
+                val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                if (bitmap == null) {
+                    failed++
+                    _batchCaptionProgress.value = BatchCaptionProgress(done, total, failed)
+                    continue
+                }
                 try {
-                    val imagePath = item.imagePath ?: run { failed++; continue }
-                    val file = storageRepository.getFile(imagePath)
-                    val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
-                        ?: run { failed++; continue }
                     val caption = captionEnrichmentProvider.describe(bitmap)
                     clothingDao.updateImageCaption(item.id, caption, Instant.now())
                     done++
@@ -484,6 +493,8 @@ class SettingsViewModel @Inject constructor(
                 } catch (e: Exception) {
                     Timber.d(e, "batch caption failed for item ${item.id} — skipped")
                     failed++
+                } finally {
+                    if (!bitmap.isRecycled) bitmap.recycle()
                 }
                 _batchCaptionProgress.value = BatchCaptionProgress(done, total, failed)
             }
@@ -491,15 +502,6 @@ class SettingsViewModel @Inject constructor(
             _captionResult.value = BatchCaptionProgress(done, total, failed)
             batchEnrichmentJob = null
         }
-    }
-
-    private fun decodeSampledBitmap(path: String, maxDim: Int): android.graphics.Bitmap? {
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, opts)
-        val longest = maxOf(opts.outWidth, opts.outHeight)
-        var sampleSize = 1
-        while (longest / sampleSize > maxDim) sampleSize *= 2
-        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sampleSize })
     }
 
     private companion object {
