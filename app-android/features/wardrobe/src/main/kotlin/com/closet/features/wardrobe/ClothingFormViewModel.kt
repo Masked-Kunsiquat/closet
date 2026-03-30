@@ -485,6 +485,7 @@ class ClothingFormViewModel @Inject constructor(
                     ?: throw IllegalStateException("Could not decode image file: $path")
                 val masked = segmentationRepository.removeBackground(bitmap)
                 val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
+                val segmentedFile = storageRepository.getFile(savedPath)
                 _form.update { it.copy(
                     imagePath = savedPath,
                     hasSegmentedImage = true,
@@ -492,9 +493,12 @@ class ClothingFormViewModel @Inject constructor(
                     imageCaption = null,                      // old caption was for the un-segmented image
                     originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
+                // Re-extract colours from the segmented PNG. The Palette API filters out
+                // transparent pixels, so only subject colours are sampled — not the background.
+                extractColorsFromFile(segmentedFile)
                 // Re-caption the segmented image on Main (Image Description API requirement).
                 if (imageCaptionRepository.isSupported) {
-                    launchCaptionJob(savedPath, storageRepository.getFile(savedPath))
+                    launchCaptionJob(savedPath, segmentedFile)
                 }
             } catch (e: CancellationException) {
                 throw e
