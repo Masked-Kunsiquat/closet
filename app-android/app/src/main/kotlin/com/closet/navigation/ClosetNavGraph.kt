@@ -95,7 +95,8 @@ fun ClosetNavGraph(
     val pendingIntent by shortcutIntent.collectAsStateWithLifecycle()
 
     LaunchedEffect(pendingIntent) {
-        val action = pendingIntent?.action ?: return@LaunchedEffect
+        val intent = pendingIntent ?: return@LaunchedEffect
+        val action = intent.action ?: return@LaunchedEffect
         when (action) {
             ShortcutActions.ACTION_QUICK_ADD -> {
                 navController.navigate(AddClothingDestination(openCamera = true)) {
@@ -113,7 +114,7 @@ fun ClosetNavGraph(
                 }
             }
             ShortcutActions.ACTION_CATEGORY -> {
-                val categoryId = pendingIntent
+                val categoryId = intent
                     .getLongExtra(ShortcutActions.EXTRA_CATEGORY_ID, -1L)
                     .takeIf { it != -1L }
                 navController.navigate(ClosetDestination(initialCategoryId = categoryId)) {
