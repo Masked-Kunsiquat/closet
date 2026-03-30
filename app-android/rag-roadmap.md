@@ -334,11 +334,14 @@ onnx-runtime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntim
 
 No flavor split needed — ONNX Runtime is Apache-2 with no GMS dependency.
 
-### Model: `all-MiniLM-L6-v2` (quantized INT8)
+### Model: `snowflake-arctic-embed-xs` (quantized INT8)
 
-- Produces 384-dimensional sentence embeddings; well-suited to short prose descriptions
-- INT8 quantized `.onnx` file: ~22 MB (ships in `core/data/src/main/assets/models/`)
-- Tokenizer vocab file (≈ 250 KB) alongside the model
+- Produces 384-dimensional sentence embeddings; Apache 2.0 license, no GMS dependency
+- Stronger retrieval quality than `all-MiniLM-L6-v2` at the same dimension / size point —
+  meaningfully better Phase 4+ chat relevance with zero schema or pipeline changes
+- INT8 quantized `.onnx` file: ~23 MB (ships in `core/data/src/main/assets/models/arctic-embed-xs-q8.onnx`)
+- Tokenizer vocab file (≈ 250 KB) at `core/data/src/main/assets/models/vocab.txt`
+- BERT WordPiece tokenizer (same as MiniLM) — `input_ids`, `attention_mask`, `token_type_ids`
 - Mean-pooling of token embeddings → L2-normalise → 384-float vector
 
 ### `EmbeddingWorker`

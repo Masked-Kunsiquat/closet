@@ -1,6 +1,11 @@
 package com.closet.core.data.di
 
 import android.content.Context
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.closet.core.data.BuildConfig
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.*
@@ -8,12 +13,16 @@ import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.EncryptedKeyStore
 import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
+import com.closet.core.data.worker.EmbeddingScheduler
+import com.closet.core.data.worker.EmbeddingWork
+import com.closet.core.data.worker.EmbeddingWorker
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.ktor.client.HttpClient
+import java.util.concurrent.TimeUnit
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -82,6 +91,40 @@ object DataModule {
     @Provides
     @Singleton
     fun provideEmbeddingDao(db: ClothingDatabase): EmbeddingDao = db.embeddingDao()
+
+    /**
+     * Provides the [EmbeddingScheduler] singleton.
+     *
+     * Schedules [EmbeddingWorker] as unique periodic work (1-hour interval) constrained to
+     * charging + idle so it never competes with foreground activity.
+     * [WorkManager] is provided by `WardrobeModule`; Hilt resolves the binding automatically.
+     */
+    @Provides
+    @Singleton
+    fun provideEmbeddingScheduler(workManager: WorkManager): EmbeddingScheduler =
+        object : EmbeddingScheduler {
+            private val constraints = Constraints.Builder()
+                .setRequiresCharging(true)
+                .setRequiresDeviceIdle(true)
+                .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .build()
+
+            private val request = PeriodicWorkRequestBuilder<EmbeddingWorker>(1L, TimeUnit.HOURS)
+                .setConstraints(constraints)
+                .build()
+
+            override fun schedule() {
+                workManager.enqueueUniquePeriodicWork(
+                    EmbeddingWork.NAME,
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    request,
+                )
+            }
+
+            override fun cancel() {
+                workManager.cancelUniqueWork(EmbeddingWork.NAME)
+            }
+        }
 
     /** Provides the [RecommendationRepository] singleton. */
     @Provides

@@ -1,10 +1,24 @@
 package com.closet.core.data.dao
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.closet.core.data.model.ItemEmbeddingEntity
+
+/**
+ * Lightweight projection of the text fields needed to produce an embedding.
+ * Returned by [EmbeddingDao.getTextsForEmbedding] so [EmbeddingWorker] avoids
+ * loading the full [ClothingItemEntity].
+ */
+data class ItemTextForEmbedding(
+    @ColumnInfo(name = "id") val id: Long,
+    /** Structured prose paragraph from `ItemVectorizer` — guaranteed non-null by the query. */
+    @ColumnInfo(name = "semantic_description") val semanticDescription: String,
+    /** AI photo caption from `ImageCaptionRepository`; null if not yet enriched. */
+    @ColumnInfo(name = "image_caption") val imageCaption: String?,
+)
 
 /**
  * DAO for the `item_embeddings` table (Phase 2A vector storage).
@@ -48,4 +62,16 @@ interface EmbeddingDao {
           AND (ie.item_id IS NULL OR ie.model_version != :modelVersion)
     """)
     suspend fun getItemIdsNeedingEmbedding(modelVersion: String): List<Long>
+
+    /**
+     * Fetches the text fields needed to produce an embedding for the given item IDs.
+     * Only returns rows where `semantic_description IS NOT NULL` — the caller can pass
+     * any list of IDs and null-description rows are silently excluded.
+     */
+    @Query("""
+        SELECT id, semantic_description, image_caption
+        FROM clothing_items
+        WHERE id IN (:ids) AND semantic_description IS NOT NULL
+    """)
+    suspend fun getTextsForEmbedding(ids: List<Long>): List<ItemTextForEmbedding>
 }

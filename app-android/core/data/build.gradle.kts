@@ -68,6 +68,14 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.logging)
 
+    // WorkManager + Hilt-Work (for EmbeddingWorker)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
+    // ONNX Runtime (sentence embedding inference, Phase 3)
+    implementation(libs.onnx.runtime.android)
+
     // Logging
     implementation(libs.timber)
 
