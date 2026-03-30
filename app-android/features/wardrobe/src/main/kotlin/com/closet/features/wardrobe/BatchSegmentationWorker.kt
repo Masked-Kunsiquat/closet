@@ -131,9 +131,37 @@ class BatchSegmentationWorker @AssistedInject constructor(
     }
 
     private fun buildNotification(done: Int, total: Int): Notification {
-        // TODO(Phase 6): on API 36+ replace with Notification.ProgressStyle for the
-        //   standardised Live Update appearance in the system notification shade.
-        //   ref: https://developer.android.com/develop/ui/views/notifications/live-update
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            buildLiveUpdateNotification(done, total)
+        } else {
+            buildLegacyNotification(done, total)
+        }
+    }
+
+    /**
+     * API 36+ (Android 16): uses [Notification.ProgressStyle] for the standardised
+     * Live Update appearance in the system notification shade.
+     * ref: https://developer.android.com/develop/ui/views/notifications/live-update
+     */
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    private fun buildLiveUpdateNotification(done: Int, total: Int): Notification {
+        val progress = if (total > 0) done * 10_000 / total else 0
+        return Notification.Builder(context, CHANNEL_ID)
+            .setContentTitle("Removing backgrounds")
+            .setContentText("$done of $total items")
+            .setSmallIcon(android.R.drawable.ic_menu_gallery)
+            .setStyle(
+                Notification.ProgressStyle()
+                    .setProgress(progress)
+                    .setProgressIndeterminate(total == 0)
+            )
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+    }
+
+    /** API < 36 fallback: standard determinate progress bar in the notification shade. */
+    private fun buildLegacyNotification(done: Int, total: Int): Notification {
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("Removing backgrounds")
             .setContentText("$done of $total items")

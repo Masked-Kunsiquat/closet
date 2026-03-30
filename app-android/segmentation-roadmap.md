@@ -199,14 +199,13 @@ No flavor split needed — WorkManager and system notifications are AOSP; no GMS
 
 ### Live Update notification (`createForegroundInfo`)
 
-- [ ] **API 36+ (Android 16)**: use `Notification.LiveUpdateExtras` / the
-  Live Update notification style to show determinate progress in the system
-  notification shade with the standardised look
+- [x] **API 36+ (Android 16)**: `Notification.Builder` + `Notification.ProgressStyle`
+  with `setProgress(done * 10_000 / total)` — standardised Live Update appearance
   (ref: https://developer.android.com/develop/ui/views/notifications/live-update)
-- [ ] **API < 36 fallback**: `NotificationCompat.Builder` with
+- [x] **API < 36 fallback**: `NotificationCompat.Builder` with
   `setProgress(total, done, false)` — standard determinate progress bar
-- [ ] Branch at runtime: `if (Build.VERSION.SDK_INT >= 36) { … } else { … }`
-- [ ] Notification channel: `"segmentation_batch"` — importance LOW (silent, no sound)
+- [x] Branch at runtime via `Build.VERSION_CODES.BAKLAVA` (= 36)
+- [x] Notification channel: `"segmentation_batch"` — importance LOW (silent, no sound)
 
 ### Settings integration (`features/settings`)
 
