@@ -377,6 +377,9 @@ class SettingsViewModel @Inject constructor(
 
     // ── Batch segmentation ────────────────────────────────────────────────────
 
+    /** `false` on FOSS builds — hides the batch segmentation row entirely. */
+    val segmentationSupported: Boolean = batchSegmentationScheduler.isSupported
+
     /**
      * Count of wardrobe items still eligible for background removal (non-PNG images).
      * Updates reactively whenever the clothing_items table changes.
@@ -396,6 +399,7 @@ class SettingsViewModel @Inject constructor(
 
     /** Enqueues a one-time batch segmentation run. Idempotent — duplicate taps are ignored. */
     fun startBatchSegmentation() {
+        if (!batchSegmentationScheduler.isSupported) return
         batchSegmentationScheduler.schedule()
     }
 

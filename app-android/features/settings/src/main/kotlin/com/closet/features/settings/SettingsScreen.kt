@@ -128,6 +128,7 @@ fun SettingsScreen(
     val anthropicModels by viewModel.anthropicModels.collectAsStateWithLifecycle()
     val anthropicModelsLoading by viewModel.anthropicModelsLoading.collectAsStateWithLifecycle()
 
+    val segmentationSupported = viewModel.segmentationSupported
     val segmentationEligibleCount by viewModel.segmentationEligibleCount.collectAsStateWithLifecycle()
     val batchSegWorkInfo by viewModel.batchSegWorkInfo.collectAsStateWithLifecycle()
 
@@ -140,13 +141,18 @@ fun SettingsScreen(
 
     val deniedMessage = stringResource(R.string.settings_location_snackbar)
 
-    // Show a snackbar whenever a batch segmentation run completes.
+    // Show a snackbar once per completed batch run. Track the last-handled WorkInfo ID
+    // so the snackbar doesn't re-fire if the screen leaves and comes back while the
+    // same SUCCEEDED WorkInfo is still the most recent result.
     val batchResultMsg = stringResource(R.string.settings_wardrobe_batch_result)
     val batchResultWithFailuresMsg = stringResource(R.string.settings_wardrobe_batch_result_with_failures)
+    var lastHandledBatchId by remember { mutableStateOf<java.util.UUID?>(null) }
     LaunchedEffect(batchSegWorkInfo?.id, batchSegWorkInfo?.state) {
-        if (batchSegWorkInfo?.state == WorkInfo.State.SUCCEEDED) {
-            val done = batchSegWorkInfo?.outputData?.getInt("done", 0) ?: 0
-            val failed = batchSegWorkInfo?.outputData?.getInt("failed", 0) ?: 0
+        val info = batchSegWorkInfo ?: return@LaunchedEffect
+        if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledBatchId) {
+            lastHandledBatchId = info.id
+            val done = info.outputData.getInt("done", 0)
+            val failed = info.outputData.getInt("failed", 0)
             val msg = if (failed > 0) {
                 String.format(batchResultWithFailuresMsg, done, failed)
             } else {
@@ -261,6 +267,7 @@ fun SettingsScreen(
         openAiModelsLoading = openAiModelsLoading,
         anthropicModels = anthropicModels,
         anthropicModelsLoading = anthropicModelsLoading,
+        segmentationSupported = segmentationSupported,
         segmentationEligibleCount = segmentationEligibleCount,
         batchSegWorkInfo = batchSegWorkInfo,
         onStartBatchSegmentation = viewModel::startBatchSegmentation,
@@ -316,6 +323,7 @@ internal fun SettingsContent(
     anthropicModelsLoading: Boolean,
     styleVibe: StyleVibe,
     onStyleVibeSelected: (StyleVibe) -> Unit,
+    segmentationSupported: Boolean,
     segmentationEligibleCount: Int,
     batchSegWorkInfo: WorkInfo?,
     onStartBatchSegmentation: () -> Unit,
@@ -454,15 +462,17 @@ internal fun SettingsContent(
             }
 
             // ── Wardrobe ──────────────────────────────────────────────────────
-            item {
-                SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
-            }
-            item {
-                BatchSegmentationItem(
-                    eligibleCount = segmentationEligibleCount,
-                    workInfo = batchSegWorkInfo,
-                    onStart = onStartBatchSegmentation,
-                )
+            if (segmentationSupported) {
+                item {
+                    SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
+                }
+                item {
+                    BatchSegmentationItem(
+                        eligibleCount = segmentationEligibleCount,
+                        workInfo = batchSegWorkInfo,
+                        onStart = onStartBatchSegmentation,
+                    )
+                }
             }
         }
     }
@@ -1134,6 +1144,28 @@ private fun BatchSegmentationItem(
 ) {
     val isRunning = workInfo?.state == WorkInfo.State.RUNNING ||
         workInfo?.state == WorkInfo.State.ENQUEUED
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirmDialog = false
+                    onStart()
+                }) {
+                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_cancel))
+                }
+            },
+        )
+    }
 
     if (isRunning) {
         val done = workInfo?.progress?.getInt("done", 0) ?: 0
@@ -1171,7 +1203,7 @@ private fun BatchSegmentationItem(
                     ),
                 )
             },
-            modifier = Modifier.clickable(onClick = onStart),
+            modifier = Modifier.clickable { showConfirmDialog = true },
         )
     } else {
         ListItem(
@@ -1287,6 +1319,7 @@ private fun SettingsContentDefaultPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
@@ -1335,6 +1368,7 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
@@ -1383,6 +1417,7 @@ private fun SettingsContentWeatherGooglePreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
@@ -1431,6 +1466,7 @@ private fun SettingsContentAiNanoCheckingPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
@@ -1479,6 +1515,7 @@ private fun SettingsContentAiNanoDownloadingPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
@@ -1527,6 +1564,7 @@ private fun SettingsContentAiNanoNotSupportedPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
@@ -1575,6 +1613,7 @@ private fun SettingsContentAiOpenAiPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
@@ -1623,6 +1662,7 @@ private fun SettingsContentAiAnthropicPreview() {
             openAiModelsLoading = false,
             anthropicModels = listOf("claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"),
             anthropicModelsLoading = false,
+            segmentationSupported = true,
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},

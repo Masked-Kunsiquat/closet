@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -83,7 +84,10 @@ class StorageRepository @Inject constructor(
     suspend fun saveBitmap(bitmap: Bitmap, filename: String): String = withContext(Dispatchers.IO) {
         val destFile = File(imagesDir, filename)
         destFile.outputStream().use { out ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
+                destFile.delete()
+                throw IOException("Bitmap.compress returned false for $filename")
+            }
         }
         filename
     }

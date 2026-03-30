@@ -84,6 +84,9 @@ class BatchSegmentationWorker @AssistedInject constructor(
                     ?: run {
                         Timber.w("BatchSeg: could not decode item ${item.id} ($originalPath)")
                         failed++
+                        done++
+                        setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total))
+                        setForeground(createForegroundInfo(done, total))
                         continue
                     }
 

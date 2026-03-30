@@ -388,20 +388,24 @@ class ClothingFormViewModel @Inject constructor(
                 val previousPath = _form.value.imagePath
                 val segOrigPath = _form.value.originalSegmentationImagePath
                 val path = storageRepository.saveImage(uri)
-                // Delete the previously staged file (skip if it's the persisted original)
-                if (previousPath != null && previousPath != originalImagePath) {
-                    withContext(NonCancellable) { storageRepository.deleteImage(previousPath) }
-                }
-                // Clean up the pre-segmentation intermediate file if the user picks a new image
-                if (segOrigPath != null && segOrigPath != originalImagePath && segOrigPath != previousPath) {
-                    withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) }
-                }
+                // Point the UI at the new file before any cleanup so the form always
+                // references a valid path even if a subsequent deletion fails.
                 _form.update { it.copy(
                     imagePath = path,
                     isLoading = false,
                     hasSegmentedImage = false,
                     originalSegmentationImagePath = null,
                 ) }
+                // Best-effort cleanup — failures must not block the form update above.
+                if (previousPath != null && previousPath != originalImagePath) {
+                    runCatching { withContext(NonCancellable) { storageRepository.deleteImage(previousPath) } }
+                        .onFailure { Timber.e(it, "onImageSelected: failed to delete previous $previousPath") }
+                }
+                // Clean up the pre-segmentation intermediate file if the user picks a new image
+                if (segOrigPath != null && segOrigPath != originalImagePath && segOrigPath != previousPath) {
+                    runCatching { withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) } }
+                        .onFailure { Timber.e(it, "onImageSelected: failed to delete seg original $segOrigPath") }
+                }
                 val file = storageRepository.getFile(path)
                 extractColorsFromFile(file)
             } catch (e: Exception) {
@@ -587,11 +591,13 @@ class ClothingFormViewModel @Inject constructor(
         val segOrigPath = _form.value.originalSegmentationImagePath
         viewModelScope.launch {
             if (currentPath != null && currentPath != originalImagePath) {
-                withContext(NonCancellable) { storageRepository.deleteImage(currentPath) }
+                runCatching { withContext(NonCancellable) { storageRepository.deleteImage(currentPath) } }
+                    .onFailure { Timber.e(it, "cancel: failed to delete staged image $currentPath") }
             }
             // Also clean up the pre-segmentation file if it wasn't the persisted original
             if (segOrigPath != null && segOrigPath != originalImagePath && segOrigPath != currentPath) {
-                withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) }
+                runCatching { withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) } }
+                    .onFailure { Timber.e(it, "cancel: failed to delete seg original $segOrigPath") }
             }
             _events.send(ClothingFormEvent.NavigateBack)
         }

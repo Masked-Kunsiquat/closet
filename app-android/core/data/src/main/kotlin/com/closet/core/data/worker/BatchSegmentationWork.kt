@@ -17,5 +17,7 @@ object BatchSegmentationWork {
  * by `WardrobeModule` in `features/wardrobe`.
  */
 interface BatchSegmentationScheduler {
+    /** `false` on FOSS builds where ML Kit segmentation is unavailable. */
+    val isSupported: Boolean
     fun schedule()
 }

@@ -7,6 +7,7 @@ import androidx.work.WorkManager
 import com.closet.core.data.worker.BatchSegmentationScheduler
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.BatchSegmentationWorker
+import com.closet.features.wardrobe.repository.SegmentationRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,8 +26,12 @@ object WardrobeModule {
 
     @Provides
     @Singleton
-    fun provideBatchSegmentationScheduler(workManager: WorkManager): BatchSegmentationScheduler =
+    fun provideBatchSegmentationScheduler(
+        workManager: WorkManager,
+        segmentationRepository: SegmentationRepository,
+    ): BatchSegmentationScheduler =
         object : BatchSegmentationScheduler {
+            override val isSupported: Boolean get() = segmentationRepository.isSupported
             override fun schedule() {
                 workManager.enqueueUniqueWork(
                     BatchSegmentationWork.NAME,

@@ -90,4 +90,8 @@
     <string name="settings_wardrobe_all_done">All backgrounds already removed</string>
     <string name="settings_wardrobe_batch_result">%1$d items updated</string>
     <string name="settings_wardrobe_batch_result_with_failures">%1$d items updated, %2$d skipped</string>
+    <string name="settings_wardrobe_batch_confirm_title">Remove backgrounds?</string>
+    <string name="settings_wardrobe_batch_confirm_message">Original photos will be replaced with background-removed versions. This cannot be undone.</string>
+    <string name="settings_wardrobe_batch_confirm_ok">Remove</string>
+    <string name="settings_wardrobe_batch_confirm_cancel">Cancel</string>
 </resources>
