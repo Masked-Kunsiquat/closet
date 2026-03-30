@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Static shortcuts — always visible to launchers without any runtime code.
+    Max 3 declared here to leave 1 slot for dynamic shortcuts (launchers cap at 4 total).
+
+    Icon drawables are sourced from :core:ui (merged into the APK resource table at build time).
+    Short labels must be ≤ 10 characters per Android shortcut guidelines.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Shortcut 1: Quick Add — opens the Add Item form (camera pre-select in Phase 4) -->
+    <shortcut
+        android:shortcutId="quick_add"
+        android:enabled="true"
+        android:icon="@drawable/ic_icon_coat_hanger"
+        android:shortcutShortLabel="@string/shortcut_quick_add_short"
+        android:shortcutLongLabel="@string/shortcut_quick_add_long">
+        <intent
+            android:action="com.closet.shortcut.QUICK_ADD"
+            android:targetPackage="com.closet"
+            android:targetClass="com.closet.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Shortcut 2: Log Fit — opens the Outfit Builder for a new outfit -->
+    <shortcut
+        android:shortcutId="log_fit"
+        android:enabled="true"
+        android:icon="@drawable/ic_icon_t_shirt"
+        android:shortcutShortLabel="@string/shortcut_log_fit_short"
+        android:shortcutLongLabel="@string/shortcut_log_fit_long">
+        <intent
+            android:action="com.closet.shortcut.LOG_FIT"
+            android:targetPackage="com.closet"
+            android:targetClass="com.closet.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <!-- Shortcut 3: Laundry Day — opens Bulk Wash screen (destination added in Phase 3) -->
+    <shortcut
+        android:shortcutId="laundry_day"
+        android:enabled="true"
+        android:icon="@drawable/ic_icon_washing_machine"
+        android:shortcutShortLabel="@string/shortcut_laundry_short"
+        android:shortcutLongLabel="@string/shortcut_laundry_long">
+        <intent
+            android:action="com.closet.shortcut.LAUNDRY_DAY"
+            android:targetPackage="com.closet"
+            android:targetClass="com.closet.MainActivity" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+</shortcuts>

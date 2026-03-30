@@ -8,4 +8,14 @@
     <string name="nav_stats">Stats</string>
     <string name="worn_times">Worn %d times</string>
     <string name="empty_closet">Your closet is empty. Add some clothes!</string>
+
+    <!-- App shortcut labels (short ≤ 10 chars, long ≤ 25 chars) -->
+    <string name="shortcut_quick_add_short">Quick Add</string>
+    <string name="shortcut_quick_add_long">Add item to wardrobe</string>
+    <string name="shortcut_log_fit_short">Log Fit</string>
+    <string name="shortcut_log_fit_long">Log today\'s outfit</string>
+    <string name="shortcut_laundry_short">Laundry</string>
+    <string name="shortcut_laundry_long">Bulk mark wash status</string>
+    <string name="shortcut_category_short">Category</string>
+    <string name="shortcut_category_long">Browse category</string>
 </resources>

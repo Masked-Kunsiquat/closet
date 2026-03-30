@@ -8,65 +8,39 @@ API reference: `ShortcutManagerCompat` (androidx.core, already on classpath via 
 
 ---
 
-## Phase 1 — Intent routing infrastructure
+## Phase 1 — Intent routing infrastructure ✅
 
 The app uses a single `MainActivity` with Compose Navigation. Shortcuts must encode their
 target destination as an intent extra so `MainActivity` can drive the `NavController` to the
 right screen on cold-start and on re-launch (`onNewIntent`).
 
-- [ ] **§1.1 — Define shortcut action constants**
-  Create `app/src/main/kotlin/com/closet/shortcuts/ShortcutActions.kt`:
-  ```kotlin
-  object ShortcutActions {
-      const val ACTION_QUICK_ADD   = "com.closet.shortcut.QUICK_ADD"
-      const val ACTION_LOG_FIT     = "com.closet.shortcut.LOG_FIT"
-      const val ACTION_LAUNDRY_DAY = "com.closet.shortcut.LAUNDRY_DAY"
-      const val ACTION_CATEGORY    = "com.closet.shortcut.CATEGORY"
-      const val EXTRA_CATEGORY_ID  = "com.closet.shortcut.extra.CATEGORY_ID"
-  }
-  ```
+- [x] **§1.1 — Define shortcut action constants**
+  Created `app/src/main/kotlin/com/closet/shortcuts/ShortcutActions.kt`.
+  Also added `ID_*` shortcut ID constants alongside the action strings, used by
+  `reportShortcutUsed()` calls in Phase 5.
 
-- [ ] **§1.2 — Handle shortcut intents in `MainActivity`**
-  File: `app/src/main/kotlin/com/closet/MainActivity.kt`
-  - Override `onNewIntent(intent)` and forward it to a `MutableStateFlow<Intent?>` so the
-    Composable tree can react when the app is already running.
-  - Pass the initial `intent` and the flow into `ClosetNavGraph` so it can call
-    `navController.navigate(...)` in a `LaunchedEffect` keyed on the intent action.
-  - Pattern:
-    ```kotlin
-    private val shortcutIntent = MutableStateFlow<Intent?>(null)
+- [x] **§1.2 — Handle shortcut intents in `MainActivity`**
+  Added `_shortcutIntent: MutableStateFlow<Intent?>` + `onNewIntent` override.
+  Intent is published only when `savedInstanceState == null` (fresh start) to prevent
+  re-navigation on rotation. `ClosetNavGraph` receives the flow and an `onShortcutConsumed`
+  callback that resets it to `null`.
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        // … existing setup …
-        shortcutIntent.value = intent
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        shortcutIntent.value = intent
-    }
-    ```
-
-- [ ] **§1.3 — Consume shortcut intents in `ClosetNavGraph`**
-  File: `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt`
-  - Accept `shortcutIntent: StateFlow<Intent?>` as a parameter.
-  - Add a `LaunchedEffect(intentAction)` that maps each `ShortcutActions.*` constant to the
-    correct `navController.navigate(destination)` call and then resets the flow to `null`.
-  - Destinations to wire:
-    | Action | Destination |
-    |--------|-------------|
-    | `ACTION_QUICK_ADD` | `AddClothingDestination` (pass extra `OPEN_CAMERA = true`) |
-    | `ACTION_LOG_FIT` | `OutfitBuilderDestination(outfitId = -1L)` |
-    | `ACTION_LAUNDRY_DAY` | `BulkWashDestination` (created in Phase 3) |
-    | `ACTION_CATEGORY` | `ClosetDestination` (apply category filter via `EXTRA_CATEGORY_ID`) |
+- [x] **§1.3 — Consume shortcut intents in `ClosetNavGraph`**
+  `LaunchedEffect(pendingIntent)` routes each action via `collectAsStateWithLifecycle()`:
+  | Action | Destination | Notes |
+  |--------|-------------|-------|
+  | `ACTION_QUICK_ADD` | `AddClothingDestination` | Camera pre-select wired in Phase 4 |
+  | `ACTION_LOG_FIT` | `OutfitBuilderDestination(-1L)` | ✅ fully wired |
+  | `ACTION_LAUNDRY_DAY` | *(placeholder)* | Destination added in Phase 3 |
+  | `ACTION_CATEGORY` | `ClosetDestination` | Category filter wired in Phase 6 |
 
 ---
 
-## Phase 2 — Static shortcuts (`shortcuts.xml`)
+## Phase 2 — Static shortcuts (`shortcuts.xml`) ✅
 
 Static shortcuts are declared in XML, shipped with the APK, and always visible to launchers.
 
-- [ ] **§2.1 — Create `shortcuts.xml`**
+- [x] **§2.1 — Create `shortcuts.xml`**
   Create `app/src/main/res/xml/shortcuts.xml`.
   Declare **3 static shortcuts** (leaving 1 slot for dynamic/pinned use):
 
@@ -118,7 +92,7 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
   </shortcuts>
   ```
 
-- [ ] **§2.2 — Register `shortcuts.xml` in the manifest**
+- [x] **§2.2 — Register `shortcuts.xml` in the manifest**
   File: `app/src/main/AndroidManifest.xml`
   Add `<meta-data>` inside the `<activity>` block for `MainActivity`:
   ```xml
@@ -127,7 +101,7 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
       android:resource="@xml/shortcuts" />
   ```
 
-- [ ] **§2.3 — Add string resources**
+- [x] **§2.3 — Add string resources**
   File: `app/src/main/res/values/strings.xml`
   All short labels must be ≤ 10 characters:
   ```xml
@@ -142,14 +116,13 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
   <string name="shortcut_category_long">Browse category</string>
   ```
 
-- [ ] **§2.4 — Add shortcut icons**
-  Create 3 vector drawables in `app/src/main/res/drawable/`:
-  - `ic_shortcut_add.xml` — plus / camera icon (24dp, adaptive-icon-safe)
-  - `ic_shortcut_outfit.xml` — t-shirt / hanger icon
-  - `ic_shortcut_laundry.xml` — wash / water-drop icon
-
-  > Reuse vectors from `core/ui/src/main/res/drawable/` where possible
-  > (e.g. `ic_icon_coat_hanger.xml`, `ic_icon_t_shirt.xml`).
+- [x] **§2.4 — Add shortcut icons**
+  No new drawables needed. `core/ui` already has exact matches and library resources
+  merge into the final APK, so `shortcuts.xml` can reference them directly:
+  - Quick Add → `@drawable/ic_icon_coat_hanger`
+  - Log Fit → `@drawable/ic_icon_t_shirt`
+  - Laundry Day → `@drawable/ic_icon_washing_machine`
+  - Category (Phase 6) → `@drawable/ic_icon_dresser`
 
 ---
 
@@ -307,18 +280,15 @@ Shortcuts must be disabled when the content they reference no longer exists.
 
 | Status | File | Change |
 |--------|------|--------|
-| 🆕 Create | `app/src/main/res/xml/shortcuts.xml` | Static shortcut declarations |
-| 🆕 Create | `app/src/main/kotlin/com/closet/shortcuts/ShortcutActions.kt` | Action/extra constants |
+| ✅ Done | `app/src/main/kotlin/com/closet/shortcuts/ShortcutActions.kt` | Action/extra/ID constants |
+| ✅ Done | `app/src/main/kotlin/com/closet/MainActivity.kt` | `onNewIntent` + shortcut flow |
+| ✅ Done | `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt` | Shortcut intent routing |
+| ✅ Done | `app/src/main/res/xml/shortcuts.xml` | Static shortcut declarations |
+| ✅ Done | `app/src/main/AndroidManifest.xml` | Register shortcuts.xml meta-data |
+| ✅ Done | `app/src/main/res/values/strings.xml` | Shortcut label strings |
+| *(n/a)* | ~~New shortcut icon drawables~~ | Reused existing `core/ui` vectors |
 | 🆕 Create | `features/wardrobe/src/main/kotlin/.../BulkWashViewModel.kt` | Bulk status ViewModel |
 | 🆕 Create | `features/wardrobe/src/main/kotlin/.../BulkWashScreen.kt` | Laundry Day UI |
-| 🆕 Create | `app/src/main/res/drawable/ic_shortcut_add.xml` | Quick Add icon |
-| 🆕 Create | `app/src/main/res/drawable/ic_shortcut_outfit.xml` | Log Fit icon |
-| 🆕 Create | `app/src/main/res/drawable/ic_shortcut_laundry.xml` | Laundry Day icon |
-| 🆕 Create | `app/src/main/res/drawable/ic_shortcut_category.xml` | Category pin icon |
-| ✏️ Modify | `app/src/main/AndroidManifest.xml` | Register shortcuts.xml meta-data |
-| ✏️ Modify | `app/src/main/res/values/strings.xml` | Shortcut label strings |
-| ✏️ Modify | `app/src/main/kotlin/com/closet/MainActivity.kt` | `onNewIntent` + shortcut flow |
-| ✏️ Modify | `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt` | Shortcut intent routing |
 | ✏️ Modify | `features/wardrobe/src/main/kotlin/.../WardrobeNavigation.kt` | `BulkWashDestination`, `AddClothingDestination(openCamera)` |
 | ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClothingFormViewModel.kt` | `openCamera` param + `OpenImagePicker` event |
 | ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClothingFormScreen.kt` | Consume `OpenImagePicker` event |
