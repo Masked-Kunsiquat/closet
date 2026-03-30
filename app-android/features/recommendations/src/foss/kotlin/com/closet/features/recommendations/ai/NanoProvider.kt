@@ -23,6 +23,9 @@ import javax.inject.Singleton
  *   device takes.
  * - [selectOutfits] returns failure, causing [OutfitCoherenceScorer] to fall
  *   back to the programmatic top-3 result unchanged.
+ * - [countTokens] returns [Int.MAX_VALUE] — the sentinel that keeps the token-trim
+ *   gate in [OutfitCoherenceScorer] inactive, matching the full-flavor behaviour
+ *   on devices where the beta countTokens API is not yet exposed.
  */
 @Singleton
 class NanoProvider @Inject constructor() : OutfitAiProvider, NanoInitializer {
@@ -36,4 +39,7 @@ class NanoProvider @Inject constructor() : OutfitAiProvider, NanoInitializer {
     ): Result<List<OutfitSelection>> = Result.failure(
         UnsupportedOperationException("On-device AI is not available in the FOSS build")
     )
+
+    /** Returns [Int.MAX_VALUE] so the token-trim gate in [OutfitCoherenceScorer] never fires. */
+    suspend fun countTokens(prompt: String): Int = Int.MAX_VALUE
 }

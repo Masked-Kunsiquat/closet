@@ -43,7 +43,8 @@ class ModelDiscoveryRepository @Inject constructor(
      * endpoint. [baseUrl] is normalized (trailing slash stripped; defaults to OpenAI when blank).
      */
     suspend fun fetchOpenAiModels(apiKey: String, baseUrl: String): Result<List<String>> {
-        val base = if (baseUrl.isBlank()) DEFAULT_OPENAI_BASE else baseUrl.trimEnd('/')
+        val trimmed = baseUrl.trim()
+        val base = if (trimmed.isBlank()) DEFAULT_OPENAI_BASE else trimmed.trimEnd('/')
         // Avoid /v1/v1/models when the caller's baseUrl already ends with /v1
         val modelsUrl = if (base.endsWith("/v1")) "$base/models" else "$base/v1/models"
         return try {
