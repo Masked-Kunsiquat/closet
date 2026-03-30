@@ -93,7 +93,7 @@ class EmbeddingWorker @AssistedInject constructor(
         val total   = itemIds.size
         if (total == 0) {
             Timber.d("EmbeddingWorker: nothing to embed")
-            return@withContext Result.success(workDataOf(KEY_DONE to 0, KEY_FAILED to 0))
+            return@withContext Result.success(workDataOf(KEY_DONE to 0, KEY_TOTAL to 0, KEY_FAILED to 0))
         }
 
         val items = embeddingDao.getTextsForEmbedding(itemIds)
@@ -104,35 +104,37 @@ class EmbeddingWorker @AssistedInject constructor(
 
         val env = OrtEnvironment.getEnvironment()
         try {
-            env.createSession(modelBytes, OrtSession.SessionOptions()).use { session ->
-                for (item in items) {
-                    try {
-                        val text = buildString {
-                            append(item.semanticDescription)
-                            item.imageCaption?.let { append(' ').append(it) }
+            OrtSession.SessionOptions().use { options ->
+                env.createSession(modelBytes, options).use { session ->
+                    for (item in items) {
+                        try {
+                            val text = buildString {
+                                append(item.semanticDescription)
+                                item.imageCaption?.let { append(' ').append(it) }
+                            }
+
+                            val tokens = tokenizer.encode(text, MAX_SEQ_LEN)
+                            val vector = embed(env, session, tokens)
+
+                            embeddingDao.upsert(
+                                ItemEmbeddingEntity(
+                                    itemId        = item.id,
+                                    embeddingBlob = floatsToBlob(vector),
+                                    modelVersion  = MODEL_VERSION,
+                                    inputSnapshot = text,
+                                    embeddedAt    = Instant.now(),
+                                )
+                            )
+                            done++
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Timber.e(e, "EmbeddingWorker: failed to embed item ${item.id}")
+                            failed++
                         }
 
-                        val tokens = tokenizer.encode(text, MAX_SEQ_LEN)
-                        val vector = embed(env, session, tokens)
-
-                        embeddingDao.upsert(
-                            ItemEmbeddingEntity(
-                                itemId        = item.id,
-                                embeddingBlob = floatsToBlob(vector),
-                                modelVersion  = MODEL_VERSION,
-                                inputSnapshot = text,
-                                embeddedAt    = Instant.now(),
-                            )
-                        )
-                        done++
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Timber.e(e, "EmbeddingWorker: failed to embed item ${item.id}")
-                        failed++
+                        setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
                     }
-
-                    setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
                 }
             }
         } catch (e: CancellationException) {
@@ -143,7 +145,7 @@ class EmbeddingWorker @AssistedInject constructor(
         }
 
         Timber.d("EmbeddingWorker: done=$done failed=$failed total=$total")
-        return@withContext Result.success(workDataOf(KEY_DONE to done, KEY_FAILED to failed))
+        return@withContext Result.success(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
     }
 
     // ─── Inference helpers ────────────────────────────────────────────────────
