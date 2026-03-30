@@ -162,24 +162,21 @@ class EmbeddingWorker @AssistedInject constructor(
         val seqLen = tokens.inputIds.size.toLong()
         val shape  = longArrayOf(1L, seqLen)
 
-        val inputIdsTensor  = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.inputIds),      shape)
-        val maskTensor      = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.attentionMask),  shape)
-        val typesTensor     = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.tokenTypeIds),   shape)
-        try {
-            val inputs = mapOf(
-                "input_ids"      to inputIdsTensor,
-                "attention_mask" to maskTensor,
-                "token_type_ids" to typesTensor,
-            )
-            session.run(inputs).use { result ->
-                @Suppress("UNCHECKED_CAST")
-                val hidden = (result[0].value as Array<Array<FloatArray>>)[0] // [seqLen][384]
-                return l2Normalize(meanPool(hidden, tokens.attentionMask))
+        OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.inputIds), shape).use { inputIdsTensor ->
+            OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.attentionMask), shape).use { maskTensor ->
+                OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.tokenTypeIds), shape).use { typesTensor ->
+                    val inputs = mapOf(
+                        "input_ids"      to inputIdsTensor,
+                        "attention_mask" to maskTensor,
+                        "token_type_ids" to typesTensor,
+                    )
+                    session.run(inputs).use { result ->
+                        @Suppress("UNCHECKED_CAST")
+                        val hidden = (result[0].value as Array<Array<FloatArray>>)[0] // [seqLen][384]
+                        return l2Normalize(meanPool(hidden, tokens.attentionMask))
+                    }
+                }
             }
-        } finally {
-            inputIdsTensor.close()
-            maskTensor.close()
-            typesTensor.close()
         }
     }
 
