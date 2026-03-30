@@ -28,22 +28,36 @@ class SegmentationRepository @Inject constructor() {
     val isSupported: Boolean = true
 
     /**
-     * Removes the background from [bitmap] and returns a new [Bitmap] with a transparent
-     * background (`ARGB_8888`).
+     * Removes the background from [bitmap] and returns a new `ARGB_8888` [Bitmap] where
+     * each pixel's alpha channel is set from the ML Kit confidence mask (0.0 = background,
+     * 1.0 = foreground). Edge pixels receive partial alpha for natural feathering.
      *
-     * @throws IllegalStateException if the segmenter returns a null foreground bitmap.
+     * @throws IllegalStateException if the segmenter returns a null confidence mask.
      */
     suspend fun removeBackground(bitmap: Bitmap): Bitmap = withContext(Dispatchers.IO) {
         val input = downsample(bitmap)
         val options = SubjectSegmenterOptions.Builder()
-            .enableForegroundBitmap()
+            .enableForegroundConfidenceMask()
             .build()
         val client = SubjectSegmentation.getClient(options)
         try {
             val image = InputImage.fromBitmap(input, 0)
             val result = client.process(image).await()
-            result.foregroundBitmap
-                ?: throw IllegalStateException("SubjectSegmenter returned null foregroundBitmap")
+            val mask = result.foregroundConfidenceMask
+                ?: throw IllegalStateException("SubjectSegmenter returned null foregroundConfidenceMask")
+
+            // Apply the per-pixel confidence values as alpha so edge pixels (collar, cuffs,
+            // loose fabric) get partial transparency rather than a hard binary cut.
+            val out = input.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+            val pixels = IntArray(out.width * out.height)
+            out.getPixels(pixels, 0, out.width, 0, 0, out.width, out.height)
+            for (i in pixels.indices) {
+                val alpha = (mask.get() * 255).toInt().coerceIn(0, 255)
+                pixels[i] = (pixels[i] and 0x00FFFFFF) or (alpha shl 24)
+            }
+            out.setPixels(pixels, 0, out.width, 0, 0, out.width, out.height)
+            mask.rewind()
+            out
         } finally {
             client.close()
         }

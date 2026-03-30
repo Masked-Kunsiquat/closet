@@ -151,16 +151,16 @@ No new dependency needed — same `play-services-mlkit-subject-segmentation` lib
 
 ### SegmentationRepository (full flavor)
 
-- [ ] Change `SubjectSegmenterOptions` to use `.enableForegroundConfidenceMask()` instead
+- [x] Change `SubjectSegmenterOptions` to use `.enableForegroundConfidenceMask()` instead
   of `.enableForegroundBitmap()`
-- [ ] After `.await()`, read `result.foregroundConfidenceMask!!` (a `FloatBuffer`, row-major)
-- [ ] Build the output bitmap manually:
+- [x] After `.await()`, read `result.foregroundConfidenceMask!!` (a `FloatBuffer`, row-major)
+- [x] Build the output bitmap manually:
   - Copy input to an `ARGB_8888` mutable bitmap
   - `getPixels()` into an `IntArray`
   - For each pixel `i`: `alpha = (mask.get() * 255).toInt().coerceIn(0, 255)`
   - Write alpha: `pixels[i] = (pixels[i] and 0x00FFFFFF) or (alpha shl 24)`
   - `setPixels()` back; `mask.rewind()`
-- [ ] Remove the `foregroundBitmap` null-check (no longer used)
+- [x] Remove the `foregroundBitmap` null-check (no longer used)
 
 ---
 
