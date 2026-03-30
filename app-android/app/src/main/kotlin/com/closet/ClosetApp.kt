@@ -1,6 +1,8 @@
 package com.closet
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.closet.core.data.repository.AiPreferencesRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -13,11 +15,19 @@ import javax.inject.Inject
 /**
  * The Application class for the Closet app.
  * Required by Hilt for dependency injection.
+ *
+ * Implements [Configuration.Provider] so WorkManager uses [HiltWorkerFactory] instead of the
+ * default factory. The default WorkManager initializer is disabled in AndroidManifest.xml;
+ * WorkManager initializes on-demand on the first [androidx.work.WorkManager.getInstance] call.
  */
 @HiltAndroidApp
-class ClosetApp : Application() {
+class ClosetApp : Application(), Configuration.Provider {
 
     @Inject lateinit var aiPreferencesRepository: AiPreferencesRepository
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

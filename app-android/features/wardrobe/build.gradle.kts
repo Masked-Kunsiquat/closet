@@ -73,6 +73,11 @@ dependencies {
     "fullImplementation"(libs.mlkit.subject.segmentation)
     "fullImplementation"(libs.kotlinx.coroutines.play.services)
 
+    // WorkManager + Hilt integration for BatchSegmentationWorker
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
     // Logging
     implementation(libs.timber)
 
