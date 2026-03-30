@@ -60,11 +60,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.work.WorkInfo
+import com.closet.core.data.worker.BatchSegmentationWork
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -126,6 +129,10 @@ fun SettingsScreen(
     val anthropicModels by viewModel.anthropicModels.collectAsStateWithLifecycle()
     val anthropicModelsLoading by viewModel.anthropicModelsLoading.collectAsStateWithLifecycle()
 
+    val segmentationSupported = viewModel.segmentationSupported
+    val segmentationEligibleCount by viewModel.segmentationEligibleCount.collectAsStateWithLifecycle()
+    val batchSegWorkInfo by viewModel.batchSegWorkInfo.collectAsStateWithLifecycle()
+
     val context = LocalContext.current
     val activity = LocalActivity.current
     val coroutineScope = rememberCoroutineScope()
@@ -134,6 +141,27 @@ fun SettingsScreen(
     var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
 
     val deniedMessage = stringResource(R.string.settings_location_snackbar)
+
+    // Show a snackbar once per completed batch run. lastHandledBatchId lives in the
+    // ViewModel so it survives the screen leaving composition and coming back — a
+    // local `remember` would reset to null and re-fire the snackbar on re-entry.
+    val batchResultMsg = stringResource(R.string.settings_wardrobe_batch_result)
+    val batchResultWithFailuresMsg = stringResource(R.string.settings_wardrobe_batch_result_with_failures)
+    val lastHandledBatchId by viewModel.lastHandledBatchId.collectAsStateWithLifecycle()
+    LaunchedEffect(batchSegWorkInfo?.id, batchSegWorkInfo?.state) {
+        val info = batchSegWorkInfo ?: return@LaunchedEffect
+        if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledBatchId) {
+            viewModel.onBatchResultHandled(info.id)
+            val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
+            val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
+            val msg = if (failed > 0) {
+                String.format(batchResultWithFailuresMsg, done, failed)
+            } else {
+                String.format(batchResultMsg, done)
+            }
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -240,6 +268,10 @@ fun SettingsScreen(
         openAiModelsLoading = openAiModelsLoading,
         anthropicModels = anthropicModels,
         anthropicModelsLoading = anthropicModelsLoading,
+        segmentationSupported = segmentationSupported,
+        segmentationEligibleCount = segmentationEligibleCount,
+        batchSegWorkInfo = batchSegWorkInfo,
+        onStartBatchSegmentation = viewModel::startBatchSegmentation,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
     )
@@ -292,6 +324,10 @@ internal fun SettingsContent(
     anthropicModelsLoading: Boolean,
     styleVibe: StyleVibe,
     onStyleVibeSelected: (StyleVibe) -> Unit,
+    segmentationSupported: Boolean,
+    segmentationEligibleCount: Int,
+    batchSegWorkInfo: WorkInfo?,
+    onStartBatchSegmentation: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -423,6 +459,20 @@ internal fun SettingsContent(
                             onModelChanged = onAnthropicModelChanged,
                         )
                     }
+                }
+            }
+
+            // ── Wardrobe ──────────────────────────────────────────────────────
+            if (segmentationSupported) {
+                item {
+                    SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
+                }
+                item {
+                    BatchSegmentationItem(
+                        eligibleCount = segmentationEligibleCount,
+                        workInfo = batchSegWorkInfo,
+                        onStart = onStartBatchSegmentation,
+                    )
                 }
             }
         }
@@ -1085,6 +1135,89 @@ private val OPENAI_URL_PRESETS = listOf(
     "Ollama (Emulator)" to "http://10.0.2.2:11434",
 )
 
+// ── Wardrobe items ────────────────────────────────────────────────────────────
+
+@Composable
+private fun BatchSegmentationItem(
+    eligibleCount: Int,
+    workInfo: WorkInfo?,
+    onStart: () -> Unit,
+) {
+    val isRunning = workInfo?.state == WorkInfo.State.RUNNING ||
+        workInfo?.state == WorkInfo.State.ENQUEUED
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showConfirmDialog = false
+                    onStart()
+                }) {
+                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_cancel))
+                }
+            },
+        )
+    }
+
+    if (isRunning) {
+        val done = workInfo?.progress?.getInt(BatchSegmentationWork.KEY_DONE, 0) ?: 0
+        val total = workInfo?.progress?.getInt(BatchSegmentationWork.KEY_TOTAL, 0) ?: 0
+        ListItem(
+            headlineContent = {
+                Text(stringResource(R.string.settings_wardrobe_removing_backgrounds))
+            },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(
+                            R.string.settings_wardrobe_removing_backgrounds_progress,
+                            done,
+                            total,
+                        ),
+                    )
+                    LinearProgressIndicator(
+                        progress = { if (total > 0) done.toFloat() / total else 0f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+        )
+    } else if (eligibleCount > 0) {
+        ListItem(
+            headlineContent = {
+                Text(stringResource(R.string.settings_wardrobe_remove_backgrounds))
+            },
+            supportingContent = {
+                Text(
+                    stringResource(
+                        R.string.settings_wardrobe_remove_backgrounds_summary,
+                        eligibleCount,
+                    ),
+                )
+            },
+            modifier = Modifier.clickable { showConfirmDialog = true },
+        )
+    } else {
+        ListItem(
+            headlineContent = {
+                Text(
+                    stringResource(R.string.settings_wardrobe_all_done),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+        )
+    }
+}
+
 // ── Dialogs ───────────────────────────────────────────────────────────────────
 
 /**
@@ -1187,6 +1320,10 @@ private fun SettingsContentDefaultPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1232,6 +1369,10 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1277,6 +1418,10 @@ private fun SettingsContentWeatherGooglePreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1322,6 +1467,10 @@ private fun SettingsContentAiNanoCheckingPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1367,6 +1516,10 @@ private fun SettingsContentAiNanoDownloadingPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1412,6 +1565,10 @@ private fun SettingsContentAiNanoNotSupportedPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1457,6 +1614,10 @@ private fun SettingsContentAiOpenAiPreview() {
             anthropicModelsLoading = false,
             styleVibe = StyleVibe.SmartCasual,
             onStyleVibeSelected = {},
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1502,6 +1663,10 @@ private fun SettingsContentAiAnthropicPreview() {
             openAiModelsLoading = false,
             anthropicModels = listOf("claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"),
             anthropicModelsLoading = false,
+            segmentationSupported = true,
+            segmentationEligibleCount = 3,
+            batchSegWorkInfo = null,
+            onStartBatchSegmentation = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )

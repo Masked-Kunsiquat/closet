@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -68,6 +69,27 @@ class StorageRepository @Inject constructor(
     @Suppress("unused")
     fun exists(relativePath: String): Boolean {
         return File(imagesDir, relativePath).exists()
+    }
+
+    /**
+     * Saves a [Bitmap] as a PNG to the app's internal images directory.
+     *
+     * The PNG encoder ignores the quality parameter, so lossless transparency is
+     * preserved — required for segmented images with transparent backgrounds.
+     *
+     * @param bitmap The bitmap to save (should be ARGB_8888 for transparency support).
+     * @param filename The target filename including extension (e.g. `"uuid.png"`).
+     * @return The relative path (filename only, no leading slash) — same convention as [saveImage].
+     */
+    suspend fun saveBitmap(bitmap: Bitmap, filename: String): String = withContext(Dispatchers.IO) {
+        val destFile = File(imagesDir, filename)
+        destFile.outputStream().use { out ->
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
+                destFile.delete()
+                throw IOException("Bitmap.compress returned false for $filename")
+            }
+        }
+        filename
     }
 
     /**

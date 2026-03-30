@@ -2,8 +2,11 @@ package com.closet.features.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
+import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
@@ -11,6 +14,8 @@ import com.closet.core.data.model.WeatherService
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.ModelDiscoveryRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
+import com.closet.core.data.worker.BatchSegmentationScheduler
+import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +31,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -49,6 +55,9 @@ class SettingsViewModel @Inject constructor(
     private val aiPrefsRepo: AiPreferencesRepository,
     private val nanoInitializer: NanoInitializer,
     private val modelDiscovery: ModelDiscoveryRepository,
+    private val clothingDao: ClothingDao,
+    private val workManager: WorkManager,
+    private val batchSegmentationScheduler: BatchSegmentationScheduler,
 ) : ViewModel() {
 
     // ── Appearance ────────────────────────────────────────────────────────────
@@ -364,6 +373,47 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    // ── Batch segmentation ────────────────────────────────────────────────────
+
+    /** `false` on FOSS builds — hides the batch segmentation row entirely. */
+    val segmentationSupported: Boolean = batchSegmentationScheduler.isSupported
+
+    /**
+     * Count of wardrobe items still eligible for background removal (non-PNG images).
+     * Updates reactively whenever the clothing_items table changes.
+     */
+    val segmentationEligibleCount: StateFlow<Int> = clothingDao.getSegmentationEligibleCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /**
+     * Live [WorkInfo] for the unique batch segmentation job. `null` when no run has
+     * been enqueued yet in this install. Use [WorkInfo.state] to drive UI and
+     * [WorkInfo.outputData] / [WorkInfo.progress] to read done/total/failed counts.
+     */
+    val batchSegWorkInfo: StateFlow<WorkInfo?> =
+        workManager.getWorkInfosForUniqueWorkFlow(BatchSegmentationWork.NAME)
+            .map { it.firstOrNull() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Enqueues a one-time batch segmentation run. Idempotent — duplicate taps are ignored. */
+    fun startBatchSegmentation() {
+        if (!batchSegmentationScheduler.isSupported) return
+        batchSegmentationScheduler.schedule()
+    }
+
+    /**
+     * Tracks the [WorkInfo.id] of the last batch run whose completion snackbar has
+     * already been shown. Stored in the ViewModel (not Compose local state) so it
+     * survives the screen leaving composition and coming back, preventing the snackbar
+     * from re-firing for an already-handled SUCCEEDED WorkInfo.
+     */
+    private val _lastHandledBatchId = MutableStateFlow<java.util.UUID?>(null)
+    val lastHandledBatchId: StateFlow<java.util.UUID?> = _lastHandledBatchId.asStateFlow()
+
+    fun onBatchResultHandled(id: java.util.UUID) {
+        _lastHandledBatchId.value = id
     }
 
     private companion object {

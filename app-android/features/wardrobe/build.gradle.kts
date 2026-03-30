@@ -16,6 +16,12 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("full") { dimension = "distribution" }
+        create("foss") { dimension = "distribution" }
+    }
+
     buildFeatures {
         compose = true
     }
@@ -62,6 +68,15 @@ dependencies {
 
     // Palette
     implementation(libs.androidx.palette.ktx)
+
+    // ML Kit Subject Segmentation — full flavor only; foss uses a stub (no GMS in F-Droid builds)
+    "fullImplementation"(libs.mlkit.subject.segmentation)
+    "fullImplementation"(libs.kotlinx.coroutines.play.services)
+
+    // WorkManager + Hilt integration for BatchSegmentationWorker
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     // Logging
     implementation(libs.timber)

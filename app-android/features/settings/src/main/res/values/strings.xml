@@ -80,4 +80,18 @@
     <string name="settings_ai_anthropic_key_placeholder">Paste your sk-ant-… key here</string>
     <string name="settings_ai_anthropic_model">Model</string>
     <string name="settings_ai_anthropic_model_placeholder">Leave blank for Haiku default</string>
+
+    <!-- Wardrobe section -->
+    <string name="settings_section_wardrobe">Wardrobe</string>
+    <string name="settings_wardrobe_remove_backgrounds">Remove backgrounds</string>
+    <string name="settings_wardrobe_remove_backgrounds_summary">%d items can be processed</string>
+    <string name="settings_wardrobe_removing_backgrounds">Removing backgrounds…</string>
+    <string name="settings_wardrobe_removing_backgrounds_progress">%1$d of %2$d items</string>
+    <string name="settings_wardrobe_all_done">All backgrounds already removed</string>
+    <string name="settings_wardrobe_batch_result">%1$d items updated</string>
+    <string name="settings_wardrobe_batch_result_with_failures">%1$d items updated, %2$d skipped</string>
+    <string name="settings_wardrobe_batch_confirm_title">Remove backgrounds?</string>
+    <string name="settings_wardrobe_batch_confirm_message">Original photos will be replaced with background-removed versions. This cannot be undone.</string>
+    <string name="settings_wardrobe_batch_confirm_ok">Remove</string>
+    <string name="settings_wardrobe_batch_confirm_cancel">Cancel</string>
 </resources>

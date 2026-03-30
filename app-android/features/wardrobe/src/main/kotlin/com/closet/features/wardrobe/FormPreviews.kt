@@ -104,6 +104,8 @@ private fun ClothingFormContentEmptyPreview() {
                 onLocationChange = {},
                 onNotesChange = {},
                 onImageClick = {},
+                onRemoveBackground = {},
+                onRevertSegmentation = {},
                 onColorToggle = {}
             )
         }
@@ -146,6 +148,8 @@ private fun ClothingFormContentFilledPreview() {
                 onLocationChange = {},
                 onNotesChange = {},
                 onImageClick = {},
+                onRemoveBackground = {},
+                onRevertSegmentation = {},
                 onColorToggle = {}
             )
         }

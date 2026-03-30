@@ -1,0 +1,104 @@
+package com.closet.features.wardrobe.repository
+
+import android.graphics.Bitmap
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Removes the background from clothing item photos using ML Kit Subject Segmentation.
+ *
+ * Uses the traditional Vision ML API (`play-services-mlkit-subject-segmentation`) which
+ * works on all devices via Google Play Services — no AICore or device-capability check
+ * required. The ~200 KB model is delivered automatically via Play Services on first use.
+ *
+ * Input bitmaps are downsampled to a maximum of 1024 px on the longest side before
+ * processing. The stored image will be the downsampled + masked PNG; original dimensions
+ * are not restored. (Minimum 512×512 is required for accuracy per ML Kit docs.)
+ */
+@Singleton
+class SegmentationRepository @Inject constructor() {
+
+    /** `true` in the full flavor; used by the ViewModel to hide the button in FOSS builds. */
+    val isSupported: Boolean = true
+
+    /**
+     * Returns `true` if the ML Kit Subject Segmentation model is ready for use.
+     *
+     * Play Services ML Kit manages model delivery automatically via GMS — there is no
+     * public synchronous API to query download status the way Firebase ML Kit's
+     * `RemoteModelManager` does for custom remote models. We optimistically return `true`
+     * here; [ensureModelDownloaded] serves as the actual gate and will throw if GMS cannot
+     * deliver the model (e.g. first cold-start with no network).
+     */
+    suspend fun isModelDownloaded(): Boolean = true
+
+    /**
+     * Ensures the Subject Segmentation model is available before inference begins.
+     *
+     * Creating the [SubjectSegmentation] client registers a GMS module dependency that
+     * triggers Play Services to prepare (and if necessary download) the model in the
+     * background. If GMS is unavailable or client creation fails for any other reason,
+     * this function throws so the caller can surface an appropriate error to the user
+     * rather than letting the first [removeBackground] call fail silently.
+     */
+    suspend fun ensureModelDownloaded(): Unit = withContext(Dispatchers.IO) {
+        val options = SubjectSegmenterOptions.Builder()
+            .enableForegroundConfidenceMask()
+            .build()
+        val client = SubjectSegmentation.getClient(options)
+        client.close()
+    }
+
+    /**
+     * Removes the background from [bitmap] and returns a new `ARGB_8888` [Bitmap] where
+     * each pixel's alpha channel is set from the ML Kit confidence mask (0.0 = background,
+     * 1.0 = foreground). Edge pixels receive partial alpha for natural feathering.
+     *
+     * @throws IllegalStateException if the segmenter returns a null confidence mask.
+     */
+    suspend fun removeBackground(bitmap: Bitmap): Bitmap = withContext(Dispatchers.IO) {
+        val input = downsample(bitmap)
+        val options = SubjectSegmenterOptions.Builder()
+            .enableForegroundConfidenceMask()
+            .build()
+        val client = SubjectSegmentation.getClient(options)
+        try {
+            val image = InputImage.fromBitmap(input, 0)
+            val result = client.process(image).await()
+            val mask = result.foregroundConfidenceMask
+                ?: throw IllegalStateException("SubjectSegmenter returned null foregroundConfidenceMask")
+
+            // Apply the per-pixel confidence values as alpha so edge pixels (collar, cuffs,
+            // loose fabric) get partial transparency rather than a hard binary cut.
+            val out = input.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+            val pixels = IntArray(out.width * out.height)
+            out.getPixels(pixels, 0, out.width, 0, 0, out.width, out.height)
+            for (i in pixels.indices) {
+                val alpha = (mask.get() * 255).toInt().coerceIn(0, 255)
+                pixels[i] = (pixels[i] and 0x00FFFFFF) or (alpha shl 24)
+            }
+            out.setPixels(pixels, 0, out.width, 0, 0, out.width, out.height)
+            mask.rewind()
+            out
+        } finally {
+            client.close()
+        }
+    }
+
+    /** Scales [bitmap] down so its longest side is at most 1024 px. Returns original if already small enough. */
+    private fun downsample(bitmap: Bitmap): Bitmap {
+        val maxDim = 1024
+        val longest = maxOf(bitmap.width, bitmap.height)
+        if (longest <= maxDim) return bitmap
+        val scale = maxDim.toFloat() / longest
+        val w = maxOf(1, (bitmap.width * scale).toInt())
+        val h = maxOf(1, (bitmap.height * scale).toInt())
+        return Bitmap.createScaledBitmap(bitmap, w, h, true)
+    }
+}
