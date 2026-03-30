@@ -334,11 +334,14 @@ onnx-runtime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntim
 
 No flavor split needed — ONNX Runtime is Apache-2 with no GMS dependency.
 
-### Model: `all-MiniLM-L6-v2` (quantized INT8)
+### Model: `snowflake-arctic-embed-xs` (quantized INT8)
 
-- Produces 384-dimensional sentence embeddings; well-suited to short prose descriptions
-- INT8 quantized `.onnx` file: ~22 MB (ships in `core/data/src/main/assets/models/`)
-- Tokenizer vocab file (≈ 250 KB) alongside the model
+- Produces 384-dimensional sentence embeddings; Apache 2.0 license, no GMS dependency
+- Stronger retrieval quality than `all-MiniLM-L6-v2` at the same dimension / size point —
+  meaningfully better Phase 4+ chat relevance with zero schema or pipeline changes
+- INT8 quantized `.onnx` file: ~23 MB (ships in `core/data/src/main/assets/models/arctic-embed-xs-q8.onnx`)
+- Tokenizer vocab file (≈ 250 KB) at `core/data/src/main/assets/models/vocab.txt`
+- BERT WordPiece tokenizer (same as MiniLM) — `input_ids`, `attention_mask`, `token_type_ids`
 - Mean-pooling of token embeddings → L2-normalise → 384-float vector
 
 ### `EmbeddingWorker`
@@ -369,7 +372,7 @@ Constants (same `BatchSegmentationWork` pattern):
 ```kotlin
 object EmbeddingWork {
     const val NAME = "embedding_worker"
-    const val MODEL_VERSION = "minilm-l6-v2-q8-v1"
+    const val MODEL_VERSION = "arctic-embed-xs-q8-v1"
     const val KEY_DONE = "done"
     const val KEY_TOTAL = "total"
     const val KEY_FAILED = "failed"
@@ -490,3 +493,183 @@ The chat history is in-memory only for the session (no persistence needed in v1)
 > Run migration tests (`./gradlew connectedAndroidTest`) before any PR that touches
 > the schema. The existing `MigrationTest.kt` pattern in `core/data/src/androidTest`
 > must be extended to cover Migration 3→4.
+
+---
+
+## Debug — Semantic Description Inspector (dev builds only)
+
+A lightweight diagnostic card on the Item Detail screen that surfaces
+`semantic_description` and `image_caption` directly, so you can inspect data
+quality as Phase 1 iterates without shipping any user-facing RAG UI.
+
+**Scope:** `BuildConfig.DEBUG` only. No Phase 2–4 dependencies. No new DB queries —
+reads from the `ClothingItemDetail` already loaded by `ItemDetailViewModel`.
+
+---
+
+### Behaviour
+
+- A subtly styled "Dev" card appears at the bottom of `ItemDetailScreen`, below all
+  production content. It is invisible in release builds (guarded by
+  `if (BuildConfig.DEBUG)`).
+- Tapping the card opens a `ModalBottomSheet` displaying:
+  - **Semantic description** — the structured prose from `ItemVectorizer`
+    (`ClothingItemDetail.semanticDescription`), or a muted placeholder
+    `"Not yet generated"` when null.
+  - **Image caption** — the AI photo caption (`ClothingItemDetail.imageCaption`),
+    or `"Not yet generated"` when null.
+- A "Copy" icon button next to each field copies the raw text to the clipboard
+  (`ClipboardManager`) so you can paste it into notes or compare revisions.
+- The sheet has no edit controls — it is read-only.
+
+---
+
+### Implementation sketch
+
+**`ItemDetailScreen.kt`**
+
+```kotlin
+// At the bottom of the screen content, inside a Column:
+if (BuildConfig.DEBUG) {
+    SemanticDebugCard(
+        semanticDescription = uiState.item?.semanticDescription,
+        imageCaption        = uiState.item?.imageCaption,
+    )
+}
+```
+
+**`SemanticDebugCard` composable** (can live in
+`features/wardrobe/src/main/kotlin/.../ui/component/SemanticDebugCard.kt` or
+inline in the screen file if you prefer to keep it local):
+
+```kotlin
+@Composable
+fun SemanticDebugCard(
+    semanticDescription: String?,
+    imageCaption: String?,
+) {
+    var showSheet by remember { mutableStateOf(false) }
+
+    // Trigger card — tappable row with a debug badge
+    OutlinedCard(
+        onClick = { showSheet = true },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Badge { Text("DEV") }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Semantic data",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    // Bottom sheet
+    if (showSheet) {
+        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
+            SemanticDebugSheetContent(
+                semanticDescription = semanticDescription,
+                imageCaption        = imageCaption,
+                onDismiss           = { showSheet = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SemanticDebugSheetContent(
+    semanticDescription: String?,
+    imageCaption: String?,
+    onDismiss: () -> Unit,
+) {
+    val clipboardManager = LocalClipboardManager.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Text(
+            "Semantic data inspector",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(vertical = 12.dp),
+        )
+        DebugTextField(
+            label = "Semantic description",
+            value = semanticDescription,
+            onCopy = { clipboardManager.setText(AnnotatedString(semanticDescription ?: "")) },
+        )
+        Spacer(Modifier.height(12.dp))
+        DebugTextField(
+            label = "Image caption",
+            value = imageCaption,
+            onCopy = { clipboardManager.setText(AnnotatedString(imageCaption ?: "")) },
+        )
+    }
+}
+
+@Composable
+private fun DebugTextField(label: String, value: String?, onCopy: () -> Unit) {
+    val display = value ?: "Not yet generated"
+    val muted   = value == null
+    OutlinedTextField(
+        value = display,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        textStyle = LocalTextStyle.current.copy(
+            color = if (muted) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+        ),
+        trailingIcon = {
+            if (value != null) {
+                IconButton(onClick = onCopy) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                }
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        minLines = 3,
+    )
+}
+```
+
+---
+
+### What to expose
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| `semanticDescription` | `ClothingItemDetail.semanticDescription` | Populated by `ItemVectorizer` on every save |
+| `imageCaption` | `ClothingItemDetail.imageCaption` | Populated at-capture or via Batch Enrichment |
+
+Both fields are already loaded by `ItemDetailViewModel` as part of the normal
+`ClothingItemDetail` fetch — no extra DAO query needed.
+
+---
+
+### Files to touch
+
+| File | Change |
+|------|--------|
+| `features/wardrobe/src/main/kotlin/.../ui/ItemDetailScreen.kt` | Add `if (BuildConfig.DEBUG)` guard + `SemanticDebugCard` call |
+| `features/wardrobe/src/main/kotlin/.../ui/component/SemanticDebugCard.kt` | New file — composable + sheet content (or inline in screen) |
+
+> This section can be implemented at any point during Phase 1 iteration.
+> Delete (or keep behind the debug flag permanently) once Phase 4 ships a real
+> data-quality workflow.

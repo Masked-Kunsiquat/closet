@@ -49,6 +49,13 @@ interface LookupDao {
     fun getColors(): Flow<List<ColorEntity>>
 
     /**
+     * One-shot fetch of all colors. Intended for background workers that cannot
+     * collect a [Flow] (e.g. [com.closet.features.wardrobe.BatchSegmentationWorker]).
+     */
+    @Query("SELECT * FROM colors ORDER BY name")
+    suspend fun getAllColors(): List<ColorEntity>
+
+    /**
      * Retrieves all materials ordered alphabetically by name.
      * @return A [Flow] emitting a list of [MaterialEntity].
      */

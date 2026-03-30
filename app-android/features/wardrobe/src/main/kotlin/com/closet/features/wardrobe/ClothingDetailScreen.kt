@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.closet.features.wardrobe.BuildConfig
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
 import com.closet.core.ui.R as CoreR
@@ -335,6 +336,13 @@ fun ClothingDetailScreen(
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        if (BuildConfig.DEBUG) {
+                            SemanticDebugCard(
+                                semanticDescription = detail.item.semanticDescription,
+                                imageCaption = detail.item.imageCaption,
+                            )
+                        }
                     }
                 }
             }

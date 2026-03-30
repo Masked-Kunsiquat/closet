@@ -258,6 +258,16 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * Public entry point for background workers (e.g. [com.closet.features.wardrobe.BatchSegmentationWorker])
+     * that need to refresh the semantic description after updating an item's image.
+     *
+     * Returns [Unit] intentionally: [vectorizeItem] already catches and logs all non-cancellation
+     * exceptions, so there is no observable error state to surface. Callers should treat this as
+     * fire-and-forget (failures are visible in Logcat under the [ClothingRepository] tag).
+     */
+    suspend fun revectorizeItem(id: Long) = vectorizeItem(id)
+
+    /**
      * Fetches the full [ClothingItemDetail] for [id] and writes its prose description
      * to [com.closet.core.data.dao.ClothingDao.updateSemanticDescription].
      * Failures are logged and swallowed — vectorization is best-effort and must never
@@ -268,6 +278,7 @@ class ClothingRepository @Inject constructor(
             val detail = clothingDao.getClothingItemDetailOnce(id) ?: return
             val description = ItemVectorizer.describe(detail)
             clothingDao.updateSemanticDescription(id, description, Instant.now())
+            Timber.d("vectorizeItem: wrote description for item $id (${description.length} chars)")
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Timber.d(e, "vectorizeItem: failed for item $id — ignored")
