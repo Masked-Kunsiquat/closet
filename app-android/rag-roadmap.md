@@ -103,7 +103,7 @@ the result back with `ClothingDao.updateSemanticDescription(id, text)`.
 
 ---
 
-### §3 — `ImageCaptionRepository` (full flavor / FOSS stub)
+### §3 — `ImageCaptionRepository` (full flavor / FOSS stub) ✓ DONE
 
 Wraps the ML Kit GenAI Image Description API to produce a one-sentence photo
 caption ("A white mesh sneaker on a neutral background.").
