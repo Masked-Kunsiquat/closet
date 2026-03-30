@@ -57,24 +57,35 @@ class EncryptedKeyStore @Inject constructor(
     /** A [Flow] of the stored Anthropic API key. Emits immediately on collection. */
     fun anthropicKeyFlow(): Flow<String> = _anthropicKey.asStateFlow()
 
-    /** Persists [key] for the OpenAI-compatible provider and updates the in-memory flow. */
-    suspend fun setOpenAiKey(key: String) = withContext(Dispatchers.IO) {
+    /**
+     * Persists [key] for the OpenAI-compatible provider and updates the in-memory flow.
+     * Returns `true` when the key was committed to disk; `false` on write failure (the
+     * in-memory flow is NOT updated on failure, keeping the stored and in-memory states
+     * consistent). Callers that need to act on failure (e.g., migration) should check
+     * the return value.
+     */
+    suspend fun setOpenAiKey(key: String): Boolean = withContext(Dispatchers.IO) {
         val committed = prefs.edit().putString(KEY_OPENAI, key).commit()
         if (committed) {
             _openAiKey.value = key
         } else {
             Timber.tag(TAG).e("setOpenAiKey: commit() returned false — key not persisted")
         }
+        committed
     }
 
-    /** Persists [key] for the Anthropic provider and updates the in-memory flow. */
-    suspend fun setAnthropicKey(key: String) = withContext(Dispatchers.IO) {
+    /**
+     * Persists [key] for the Anthropic provider and updates the in-memory flow.
+     * Returns `true` when committed; `false` on write failure.
+     */
+    suspend fun setAnthropicKey(key: String): Boolean = withContext(Dispatchers.IO) {
         val committed = prefs.edit().putString(KEY_ANTHROPIC, key).commit()
         if (committed) {
             _anthropicKey.value = key
         } else {
             Timber.tag(TAG).e("setAnthropicKey: commit() returned false — key not persisted")
         }
+        committed
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

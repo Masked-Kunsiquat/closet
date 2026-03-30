@@ -466,7 +466,7 @@ class RecommendationViewModel @Inject constructor(
         return when (aiPrefsRepo.getSelectedProvider().first()) {
             AiProvider.Nano -> aiPrefsRepo.getAiReady().first()
             AiProvider.OpenAi -> aiPrefsRepo.getOpenAiApiKey().first().isNotBlank()
-            AiProvider.Anthropic -> false
+            AiProvider.Anthropic -> aiPrefsRepo.getAnthropicApiKey().first().isNotBlank()
         }
     }
 

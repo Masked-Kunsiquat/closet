@@ -87,15 +87,21 @@ internal fun DayDetailSheet(
     var logPendingDelete by remember { mutableStateOf<Long?>(null) }
 
     logPendingDelete?.let { logId ->
+        var isDeleting by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { logPendingDelete = null },
             title = { Text(stringResource(R.string.journal_delete_log_confirm_title)) },
             text = { Text(stringResource(R.string.journal_delete_log_confirm_message)) },
             confirmButton = {
-                TextButton(onClick = {
-                    logPendingDelete = null
-                    onDeleteLog(logId)
-                }) {
+                TextButton(
+                    enabled = !isDeleting,
+                    onClick = {
+                        if (isDeleting) return@TextButton
+                        isDeleting = true
+                        logPendingDelete = null
+                        onDeleteLog(logId)
+                    },
+                ) {
                     Text(stringResource(R.string.outfits_actions_confirm_delete))
                 }
             },

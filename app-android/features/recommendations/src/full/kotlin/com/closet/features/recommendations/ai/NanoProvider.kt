@@ -218,19 +218,28 @@ class NanoProvider @Inject constructor(
             return Result.failure(IllegalArgumentException("Combo list is empty"))
         }
 
-        if (engine.checkStatus() != FeatureStatus.AVAILABLE) {
+        val status = try {
+            engine.checkStatus()
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Timber.tag(TAG).w(e, "selectOutfits: checkStatus threw — Nano unavailable")
+            return Result.failure(e)
+        }
+        if (status != FeatureStatus.AVAILABLE) {
             return Result.failure(
                 UnsupportedOperationException("Gemini Nano is not available on this device")
             )
         }
 
-        return runCatching {
+        return try {
             val comboJson = buildComboJson(combos)
             val prompt = "$SYSTEM_PROMPT\n\nStyle vibe: $styleVibe\n\nCombos:\n$comboJson"
             val responseText = engine.generate(prompt)
-            parseResponse(responseText, combos)
-        }.onFailure { e ->
+            Result.success(parseResponse(responseText, combos))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Timber.tag(TAG).w(e, "NanoProvider inference failed")
+            Result.failure(e)
         }
     }
 

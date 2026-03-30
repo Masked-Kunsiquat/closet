@@ -203,18 +203,29 @@ class AiPreferencesRepository(
 
         if (oldOpenAiKey.isBlank() && oldAnthropicKey.isBlank()) return
 
-        if (oldOpenAiKey.isNotBlank()) encryptedKeyStore.setOpenAiKey(oldOpenAiKey)
-        if (oldAnthropicKey.isNotBlank()) encryptedKeyStore.setAnthropicKey(oldAnthropicKey)
+        // Only backfill when the encrypted slot is currently empty — avoids overwriting a
+        // key the user may have set in the new encrypted store after a partial migration.
+        val currentOpenAiKey = encryptedKeyStore.openAiKeyFlow().first()
+        val currentAnthropicKey = encryptedKeyStore.anthropicKeyFlow().first()
 
+        val openAiMigrated = oldOpenAiKey.isNotBlank() && currentOpenAiKey.isBlank() &&
+            encryptedKeyStore.setOpenAiKey(oldOpenAiKey)
+        val anthropicMigrated = oldAnthropicKey.isNotBlank() && currentAnthropicKey.isBlank() &&
+            encryptedKeyStore.setAnthropicKey(oldAnthropicKey)
+
+        // Only remove the plaintext entry when the encrypted write succeeded.
         context.aiDataStore.edit { prefs ->
-            prefs.remove(legacyOpenAiKey)
-            prefs.remove(legacyAnthropicKey)
+            if (openAiMigrated) prefs.remove(legacyOpenAiKey)
+            if (anthropicMigrated) prefs.remove(legacyAnthropicKey)
         }
 
-        Timber.tag("AiPrefsRepo").i(
-            "Migrated %d key(s) from plain DataStore to EncryptedKeyStore",
-            listOf(oldOpenAiKey, oldAnthropicKey).count { it.isNotBlank() },
-        )
+        val migratedCount = listOf(openAiMigrated, anthropicMigrated).count { it }
+        if (migratedCount > 0) {
+            Timber.tag("AiPrefsRepo").i(
+                "Migrated %d key(s) from plain DataStore to EncryptedKeyStore",
+                migratedCount,
+            )
+        }
     }
 
     /**

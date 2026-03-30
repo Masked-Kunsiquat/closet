@@ -311,13 +311,17 @@ class SettingsViewModel @Inject constructor(
             combine(openAiKey, openAiBaseUrl) { key, url -> key to url }
                 .debounce(800)
                 .collectLatest { (key, url) ->
-                    if (key.length < MIN_KEY_LENGTH) {
+                    // Any blank key clears the list; non-blank but short keys (e.g. "ollama"
+                    // for local endpoints) are valid and should still trigger discovery.
+                    if (key.isBlank()) {
                         _openAiModels.value = emptyList()
                         return@collectLatest
                     }
                     _openAiModelsLoading.value = true
                     try {
-                        modelDiscovery.fetchOpenAiModels(key, url).onSuccess { _openAiModels.value = it }
+                        modelDiscovery.fetchOpenAiModels(key, url)
+                            .onSuccess { _openAiModels.value = it }
+                            .onFailure { _openAiModels.value = emptyList() }
                     } finally {
                         _openAiModelsLoading.value = false
                     }
@@ -327,13 +331,15 @@ class SettingsViewModel @Inject constructor(
             anthropicKey
                 .debounce(800)
                 .collectLatest { key ->
-                    if (key.length < MIN_KEY_LENGTH) {
+                    if (key.isBlank()) {
                         _anthropicModels.value = emptyList()
                         return@collectLatest
                     }
                     _anthropicModelsLoading.value = true
                     try {
-                        modelDiscovery.fetchAnthropicModels(key).onSuccess { _anthropicModels.value = it }
+                        modelDiscovery.fetchAnthropicModels(key)
+                            .onSuccess { _anthropicModels.value = it }
+                            .onFailure { _anthropicModels.value = emptyList() }
                     } finally {
                         _anthropicModelsLoading.value = false
                     }

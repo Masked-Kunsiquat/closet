@@ -88,7 +88,7 @@ class OpenAiProvider @Inject constructor(
         val model = aiPreferencesRepository.getOpenAiModel().first().takeIf { it.isNotBlank() }
             ?: DEFAULT_MODEL
 
-        return runCatching {
+        return try {
             val comboJson = buildComboJson(combos)
             val requestBody = buildRequestBody(model, styleVibe, comboJson)
 
@@ -98,9 +98,11 @@ class OpenAiProvider @Inject constructor(
                 setBody(requestBody)
             }.body<String>()
 
-            parseResponse(responseText, combos)
-        }.onFailure { e ->
+            Result.success(parseResponse(responseText, combos))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Timber.tag(TAG).w(e, "OpenAiProvider inference failed (base=%s, model=%s)", baseUrl, model)
+            Result.failure(e)
         }
     }
 
@@ -231,9 +233,10 @@ class OpenAiProvider @Inject constructor(
             }
             OutfitSelection(comboId = comboId, reason = reason)
         }
-        check(selections.size >= 3) {
-            "OpenAI returned only ${selections.size} valid selections — need at least 3"
+        val distinct = selections.distinctBy { it.comboId }
+        check(distinct.size >= 3) {
+            "OpenAI returned only ${distinct.size} distinct valid selections — need at least 3"
         }
-        return selections.take(3)
+        return distinct.take(3)
     }
 }
