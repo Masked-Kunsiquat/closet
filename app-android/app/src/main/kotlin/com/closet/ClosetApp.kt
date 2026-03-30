@@ -26,8 +26,8 @@ class ClosetApp : Application(), Configuration.Provider {
     @Inject lateinit var aiPreferencesRepository: AiPreferencesRepository
     @Inject lateinit var workerFactory: HiltWorkerFactory
 
-    override val workManagerConfiguration: Configuration
-        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
+    override fun getWorkManagerConfiguration(): Configuration =
+        Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
