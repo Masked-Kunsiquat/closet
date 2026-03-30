@@ -143,11 +143,98 @@ When the user opens an existing item with a segmented PNG in edit mode, the
 
 ---
 
+## Phase 5 — Edge quality (confidence mask)
+
+Replace the hard-cut `enableForegroundBitmap()` with `enableForegroundConfidenceMask()`
+so edge pixels (collar, cuffs, loose fabric) get partial alpha instead of a binary cut.
+No new dependency needed — same `play-services-mlkit-subject-segmentation` library.
+
+### SegmentationRepository (full flavor)
+
+- [ ] Change `SubjectSegmenterOptions` to use `.enableForegroundConfidenceMask()` instead
+  of `.enableForegroundBitmap()`
+- [ ] After `.await()`, read `result.foregroundConfidenceMask!!` (a `FloatBuffer`, row-major)
+- [ ] Build the output bitmap manually:
+  - Copy input to an `ARGB_8888` mutable bitmap
+  - `getPixels()` into an `IntArray`
+  - For each pixel `i`: `alpha = (mask.get() * 255).toInt().coerceIn(0, 255)`
+  - Write alpha: `pixels[i] = (pixels[i] and 0x00FFFFFF) or (alpha shl 24)`
+  - `setPixels()` back; `mask.rewind()`
+- [ ] Remove the `foregroundBitmap` null-check (no longer used)
+
+---
+
+## Phase 6 — Batch segmentation
+
+Process all existing wardrobe items in the background. Triggered from Settings;
+survives the app being killed via WorkManager. Progress is surfaced as a
+**Live Update** notification (Android 16 / API 36+) with a standard progress
+notification fallback for older devices.
+
+No flavor split needed — WorkManager and system notifications are AOSP; no GMS.
+
+### Dependencies (`gradle/libs.versions.toml` + `core/data/build.gradle.kts`)
+
+- [ ] `androidx.work:work-runtime-ktx` — `WorkManager` + `CoroutineWorker`
+- [ ] No new MLKit dependency — reuses `play-services-mlkit-subject-segmentation`
+  already on `features/wardrobe`
+
+### `BatchSegmentationWorker` (`features/wardrobe/src/main/kotlin/…`)
+
+- [ ] `class BatchSegmentationWorker(ctx, params) : CoroutineWorker`
+- [ ] Declare as a `ForegroundService` worker (required for long-running work):
+  `setForeground(createForegroundInfo(done, total))`
+- [ ] Query all clothing items where `imagePath IS NOT NULL AND imagePath NOT LIKE '%.png'`
+  via `ClothingDao` (inject via `HiltWorkerFactory`)
+- [ ] Create a **single** `SubjectSegmentation` client before the loop; `close()` in
+  `finally` — do not open/close per image (performance)
+- [ ] For each item:
+  - `setProgress(workDataOf(KEY_DONE to i, KEY_TOTAL to n))` — drives UI progress
+  - Decode → `removeBackground()` → `storageRepository.saveBitmap()` →
+    `clothingRepository.updateItemImagePath(id, newPath)`
+  - On exception: `Timber.e(...)` + `continue` — never abort the whole batch
+    for a single bad image; accumulate a failed-count
+  - Skip items whose `imagePath` already ends with `.png`
+- [ ] Return `Result.success(workDataOf(KEY_FAILED to failedCount))`
+
+### Live Update notification (`createForegroundInfo`)
+
+- [ ] **API 36+ (Android 16)**: use `Notification.LiveUpdateExtras` / the
+  Live Update notification style to show determinate progress in the system
+  notification shade with the standardised look
+  (ref: https://developer.android.com/develop/ui/views/notifications/live-update)
+- [ ] **API < 36 fallback**: `NotificationCompat.Builder` with
+  `setProgress(total, done, false)` — standard determinate progress bar
+- [ ] Branch at runtime: `if (Build.VERSION.SDK_INT >= 36) { … } else { … }`
+- [ ] Notification channel: `"segmentation_batch"` — importance LOW (silent, no sound)
+
+### Settings integration (`features/settings`)
+
+- [ ] Add a new "Wardrobe" section to `SettingsScreen`
+- [ ] Row: **"Remove backgrounds"** — subtitle shows item count eligible
+  (items with non-png images); tapping enqueues the worker via
+  `WorkManager.getInstance(ctx).enqueueUniqueWork("batch_seg", KEEP, request)`
+  so double-taps don't duplicate the job
+- [ ] While the worker is running, replace the row with a progress indicator
+  driven by `WorkManager.getWorkInfosForUniqueWorkLiveData("batch_seg")` →
+  collected as `StateFlow` in `SettingsViewModel`
+- [ ] On completion: show a snackbar with the result
+  (e.g. "42 items updated, 2 skipped")
+
+### `SettingsViewModel` additions
+
+- [ ] Inject `WorkManager` into `SettingsViewModel`
+- [ ] Expose `batchSegmentationState: StateFlow<WorkInfo.State?>` from
+  `workManager.getWorkInfosForUniqueWorkFlow("batch_seg")` mapped to the
+  first item's state
+- [ ] `fun startBatchSegmentation()` — builds and enqueues the `OneTimeWorkRequest`
+
+---
+
 ## Deferred / out of scope
 
-- **Batch segmentation** on existing wardrobe items — deferred; the UX for
-  applying this retroactively needs separate design work
-- **Edge refinement** (feathering, manual touch-up) — out of scope
+- **Manual touch-up** (paint-to-include / paint-to-exclude brush strokes) — custom
+  canvas compositing; significant UI work with no MLKit support
 - **AICore** — Subject Segmentation is a traditional ML Kit Vision API, not an
   AICore feature. There is no AICore variant of it. The `play-services-mlkit`
   implementation is the only backend and works on all devices (API 24+)
