@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.closet.core.data.migrations.MIGRATION_1_2
 import com.closet.core.data.migrations.MIGRATION_2_3
+import com.closet.core.data.migrations.MIGRATION_3_4
 import com.closet.core.data.migrations.columnExists
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -23,18 +24,20 @@ class MigrationTest {
     )
 
     /**
-     * Verifies that a fresh install (version 3 onCreate) produces the correct full schema.
+     * Verifies that a fresh install (version 4 onCreate) produces the correct full schema.
      * Spot-checks every major structural element so regressions are caught early.
      */
     @Test
     fun freshInstallCreatesCorrectSchema() {
-        val db = helper.createDatabase(TEST_DB, 3)
+        val db = helper.createDatabase(TEST_DB, 4)
 
-        // Clothing items
+        // Clothing items — including v4 additions
         assertTrue(columnExists(db, "clothing_items", "id"))
         assertTrue(columnExists(db, "clothing_items", "brand_id"))
         assertTrue(columnExists(db, "clothing_items", "is_favorite"))
         assertTrue(columnExists(db, "clothing_items", "wash_status"))
+        assertTrue(columnExists(db, "clothing_items", "semantic_description"))
+        assertTrue(columnExists(db, "clothing_items", "image_caption"))
 
         // Brands
         assertTrue(columnExists(db, "brands", "id"))
@@ -194,6 +197,43 @@ class MigrationTest {
     }
 
     /**
+     * Verifies that migrating from version 3 to 4 adds semantic_description and
+     * image_caption columns to clothing_items and the resulting schema matches the
+     * live entity definitions.
+     */
+    @Test
+    fun migrate3To4() {
+        // Build a v3 database, dropping the partial index first (AGENTS.md convention)
+        var db = helper.createDatabase(TEST_DB, 3)
+        db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+
+        // Seed a clothing item so we can verify existing rows survive the migration
+        // with NULL values for the new columns (no backfill expected).
+        db.execSQL(
+            "INSERT INTO clothing_items (id, name, status, wash_status, is_favorite, created_at, updated_at) " +
+            "VALUES (1, 'Test Shirt', 'Active', 'Clean', 0, 0, 0)"
+        )
+
+        db.close()
+
+        // Run the migration and validate against current entity definitions.
+        db = helper.runMigrationsAndValidate(TEST_DB, 4, true, MIGRATION_3_4)
+
+        // Schema: new columns must exist.
+        assertTrue(columnExists(db, "clothing_items", "semantic_description"))
+        assertTrue(columnExists(db, "clothing_items", "image_caption"))
+
+        // Existing rows should have NULL for both new columns (not enriched yet).
+        db.query("SELECT semantic_description, image_caption FROM clothing_items WHERE id = 1").use { c ->
+            assertTrue(c.moveToFirst())
+            assertTrue(c.isNull(0))
+            assertTrue(c.isNull(1))
+        }
+
+        db.close()
+    }
+
+    /**
      * Verifies that the full migration chain from version 1 to the current version
      * runs without errors and the final schema matches entity definitions.
      */
@@ -203,13 +243,15 @@ class MigrationTest {
         db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
         db.close()
 
-        db = helper.runMigrationsAndValidate(TEST_DB, 3, true, MIGRATION_1_2, MIGRATION_2_3)
+        db = helper.runMigrationsAndValidate(TEST_DB, 4, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         assertTrue(columnExists(db, "categories", "warmth_layer"))
         assertTrue(columnExists(db, "categories", "outfit_role"))
         assertTrue(columnExists(db, "colors", "color_family"))
         assertTrue(columnExists(db, "seasons", "temp_low_c"))
         assertTrue(columnExists(db, "outfit_logs", "precipitation_mm"))
+        assertTrue(columnExists(db, "clothing_items", "semantic_description"))
+        assertTrue(columnExists(db, "clothing_items", "image_caption"))
 
         db.close()
     }
