@@ -11,8 +11,8 @@ import java.time.Instant
  * Stores a pre-computed embedding vector for a clothing item.
  *
  * Vectors are stored as raw float32 little-endian bytes (384 dimensions for
- * `all-MiniLM-L6-v2`). The [modelVersion] field allows the embedding worker to
- * detect and re-embed items when the ONNX model is updated.
+ * `snowflake-arctic-embed-xs`). [modelVersion] triggers re-embedding when the ONNX
+ * model changes; [inputSnapshot] triggers re-embedding when the item's text changes.
  *
  * Cascade-deletes when the parent [ClothingItemEntity] is removed so orphan
  * vectors never accumulate.
@@ -61,6 +61,17 @@ data class ItemEmbeddingEntity(
      */
     @ColumnInfo(name = "model_version")
     val modelVersion: String,
+
+    /**
+     * The exact text string fed to the model (`semanticDescription + " " + imageCaption`).
+     * Stored so [EmbeddingDao.getItemIdsNeedingEmbedding] can detect stale embeddings via
+     * a SQL comparison without needing a separate hash function in the database.
+     *
+     * Null only on rows migrated from v5 before this column was added; the worker treats
+     * null as stale and re-embeds.
+     */
+    @ColumnInfo(name = "input_snapshot")
+    val inputSnapshot: String?,
 
     /** Timestamp of when this embedding was last computed. */
     @ColumnInfo(name = "embedded_at")

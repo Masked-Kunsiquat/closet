@@ -65,7 +65,7 @@ class EmbeddingWorker @AssistedInject constructor(
         private const val MODEL_ASSET = "models/arctic-embed-xs-q8.onnx"
         private const val VOCAB_ASSET  = "models/vocab.txt"
 
-        /** Embedding dimension of `all-MiniLM-L6-v2`. */
+        /** Embedding dimension of `snowflake-arctic-embed-xs`. */
         private const val HIDDEN_SIZE = 384
 
         /** Sequence length fed to the model — longer texts are truncated. */
@@ -117,9 +117,10 @@ class EmbeddingWorker @AssistedInject constructor(
 
                         embeddingDao.upsert(
                             ItemEmbeddingEntity(
-                                itemId       = item.id,
+                                itemId        = item.id,
                                 embeddingBlob = floatsToBlob(vector),
                                 modelVersion  = MODEL_VERSION,
+                                inputSnapshot = text,
                                 embeddedAt    = Instant.now(),
                             )
                         )
@@ -129,7 +130,6 @@ class EmbeddingWorker @AssistedInject constructor(
                     } catch (e: Exception) {
                         Timber.e(e, "EmbeddingWorker: failed to embed item ${item.id}")
                         failed++
-                        done++
                     }
 
                     setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
@@ -162,20 +162,24 @@ class EmbeddingWorker @AssistedInject constructor(
         val seqLen = tokens.inputIds.size.toLong()
         val shape  = longArrayOf(1L, seqLen)
 
-        val inputIdsTensor  = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.inputIds),     shape)
-        val maskTensor      = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.attentionMask), shape)
-        val typesTensor     = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.tokenTypeIds),  shape)
-
-        val inputs = mapOf(
-            "input_ids"      to inputIdsTensor,
-            "attention_mask" to maskTensor,
-            "token_type_ids" to typesTensor,
-        )
-
-        session.run(inputs).use { result ->
-            @Suppress("UNCHECKED_CAST")
-            val hidden = (result[0].value as Array<Array<FloatArray>>)[0] // [seqLen][384]
-            return l2Normalize(meanPool(hidden, tokens.attentionMask))
+        val inputIdsTensor  = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.inputIds),      shape)
+        val maskTensor      = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.attentionMask),  shape)
+        val typesTensor     = OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.tokenTypeIds),   shape)
+        try {
+            val inputs = mapOf(
+                "input_ids"      to inputIdsTensor,
+                "attention_mask" to maskTensor,
+                "token_type_ids" to typesTensor,
+            )
+            session.run(inputs).use { result ->
+                @Suppress("UNCHECKED_CAST")
+                val hidden = (result[0].value as Array<Array<FloatArray>>)[0] // [seqLen][384]
+                return l2Normalize(meanPool(hidden, tokens.attentionMask))
+            }
+        } finally {
+            inputIdsTensor.close()
+            maskTensor.close()
+            typesTensor.close()
         }
     }
 

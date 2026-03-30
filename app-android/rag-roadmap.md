@@ -372,7 +372,7 @@ Constants (same `BatchSegmentationWork` pattern):
 ```kotlin
 object EmbeddingWork {
     const val NAME = "embedding_worker"
-    const val MODEL_VERSION = "minilm-l6-v2-q8-v1"
+    const val MODEL_VERSION = "arctic-embed-xs-q8-v1"
     const val KEY_DONE = "done"
     const val KEY_TOTAL = "total"
     const val KEY_FAILED = "failed"

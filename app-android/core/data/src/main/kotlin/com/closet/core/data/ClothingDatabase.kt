@@ -11,6 +11,7 @@ import com.closet.core.data.migrations.MIGRATION_1_2
 import com.closet.core.data.migrations.MIGRATION_2_3
 import com.closet.core.data.migrations.MIGRATION_3_4
 import com.closet.core.data.migrations.MIGRATION_4_5
+import com.closet.core.data.migrations.MIGRATION_5_6
 import com.closet.core.data.model.*
 
 /**
@@ -42,7 +43,7 @@ import com.closet.core.data.model.*
         ClothingItemPatternEntity::class,
         ItemEmbeddingEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -98,7 +99,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
                     }
                 })
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
                 INSTANCE = instance
                 instance

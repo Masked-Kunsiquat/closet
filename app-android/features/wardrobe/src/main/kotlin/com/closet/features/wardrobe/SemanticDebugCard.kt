@@ -107,12 +107,14 @@ private fun SemanticDebugSheetContent(
             label = "Semantic description",
             value = semanticDescription,
             onCopy = { clipboardManager.setText(AnnotatedString(semanticDescription ?: "")) },
+            copyContentDescription = "Copy semantic description",
         )
         Spacer(Modifier.height(12.dp))
         DebugTextField(
             label = "Image caption",
             value = imageCaption,
             onCopy = { clipboardManager.setText(AnnotatedString(imageCaption ?: "")) },
+            copyContentDescription = "Copy image caption",
         )
         Spacer(Modifier.height(16.dp))
     }
@@ -123,6 +125,7 @@ private fun DebugTextField(
     label: String,
     value: String?,
     onCopy: () -> Unit,
+    copyContentDescription: String,
 ) {
     OutlinedTextField(
         value = value ?: "Not yet generated",
@@ -136,7 +139,7 @@ private fun DebugTextField(
         trailingIcon = {
             if (value != null) {
                 IconButton(onClick = onCopy) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                    Icon(Icons.Default.ContentCopy, contentDescription = copyContentDescription)
                 }
             }
         },

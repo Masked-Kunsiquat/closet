@@ -69,6 +69,9 @@ class WordPieceTokenizer(vocabStream: InputStream) {
      * Content tokens are truncated to `maxLength - 2` to leave room for CLS and SEP.
      */
     fun encode(text: String, maxLength: Int = 128): TokenizerOutput {
+        require(maxLength >= 2) {
+            "maxLength must be at least 2 to accommodate [CLS] and [SEP] tokens, got $maxLength"
+        }
         val contentTokenIds = tokenize(text).map { vocab[it] ?: unkId }
 
         // Truncate to leave room for CLS and SEP
@@ -115,7 +118,11 @@ class WordPieceTokenizer(vocabStream: InputStream) {
         val cleaned = buildString(text.length) {
             for (ch in text) {
                 val cp = ch.code
-                if (cp == 0 || cp == 0xFFFD || ch.isISOControl()) continue
+                // Always drop the null character and Unicode replacement character.
+                if (cp == 0 || cp == 0xFFFD) continue
+                // Drop non-whitespace control characters (e.g. BEL, ESC) but preserve
+                // whitespace controls (\n, \t, etc.) so token boundaries are maintained.
+                if (ch.isISOControl() && !ch.isWhitespace()) continue
                 append(if (ch.isWhitespace()) ' ' else ch)
             }
         }.trim().lowercase()

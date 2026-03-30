@@ -48,10 +48,15 @@ interface EmbeddingDao {
     suspend fun getAll(): List<ItemEmbeddingEntity>
 
     /**
-     * Returns the IDs of clothing items that have a `semantic_description` but either
-     * have no embedding yet or whose embedding was produced by an older model version.
+     * Returns the IDs of clothing items whose embedding is missing or stale.
      *
-     * Used by `EmbeddingWorker` to build its work queue before each run.
+     * An embedding is stale when any of the following is true:
+     * - No row exists in `item_embeddings` for the item.
+     * - The stored [model_version] differs from [modelVersion] (ONNX model was updated).
+     * - The stored [input_snapshot] is NULL (migrated from v5 before the column was added).
+     * - The stored [input_snapshot] differs from the item's current combined text
+     *   (`semantic_description || COALESCE(' ' || image_caption, '')`) — i.e. the item's
+     *   text was enriched or edited after the last embedding run.
      *
      * @param modelVersion the current model identifier (e.g. [EmbeddingWork.MODEL_VERSION])
      */
@@ -59,7 +64,12 @@ interface EmbeddingDao {
         SELECT ci.id FROM clothing_items ci
         LEFT JOIN item_embeddings ie ON ci.id = ie.item_id
         WHERE ci.semantic_description IS NOT NULL
-          AND (ie.item_id IS NULL OR ie.model_version != :modelVersion)
+          AND (
+            ie.item_id IS NULL
+            OR ie.model_version != :modelVersion
+            OR ie.input_snapshot IS NULL
+            OR ie.input_snapshot != (ci.semantic_description || COALESCE(' ' || ci.image_caption, ''))
+          )
     """)
     suspend fun getItemIdsNeedingEmbedding(modelVersion: String): List<Long>
 
