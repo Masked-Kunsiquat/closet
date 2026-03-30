@@ -209,24 +209,25 @@ No flavor split needed — WorkManager and system notifications are AOSP; no GMS
 
 ### Settings integration (`features/settings`)
 
-- [ ] Add a new "Wardrobe" section to `SettingsScreen`
-- [ ] Row: **"Remove backgrounds"** — subtitle shows item count eligible
-  (items with non-png images); tapping enqueues the worker via
-  `WorkManager.getInstance(ctx).enqueueUniqueWork("batch_seg", KEEP, request)`
-  so double-taps don't duplicate the job
-- [ ] While the worker is running, replace the row with a progress indicator
-  driven by `WorkManager.getWorkInfosForUniqueWorkLiveData("batch_seg")` →
-  collected as `StateFlow` in `SettingsViewModel`
-- [ ] On completion: show a snackbar with the result
-  (e.g. "42 items updated, 2 skipped")
+- [x] Add a new "Wardrobe" section to `SettingsScreen`
+- [x] Row: **"Remove backgrounds"** — subtitle shows item count eligible;
+  tapping calls `viewModel.startBatchSegmentation()` (idempotent via `KEEP` policy)
+- [x] While the worker is RUNNING or ENQUEUED: show progress row with
+  `LinearProgressIndicator` driven by `WorkInfo.progress` (done/total)
+- [x] When eligible count is 0: show "All backgrounds already removed" label
+- [x] On completion (`WorkInfo.State.SUCCEEDED`): snackbar via `LaunchedEffect`
+  keyed on `workInfo.id + state` — "X items updated" or "X items updated, Y skipped"
+- [x] Architecture: `BatchSegmentationScheduler` interface in `core/data`;
+  impl + `WorkManager` singleton provided from new `WardrobeModule` in `features/wardrobe`
+  so `features/settings` has no dependency on `features/wardrobe`
 
 ### `SettingsViewModel` additions
 
-- [ ] Inject `WorkManager` into `SettingsViewModel`
-- [ ] Expose `batchSegmentationState: StateFlow<WorkInfo.State?>` from
-  `workManager.getWorkInfosForUniqueWorkFlow("batch_seg")` mapped to the
-  first item's state
-- [ ] `fun startBatchSegmentation()` — builds and enqueues the `OneTimeWorkRequest`
+- [x] Inject `WorkManager`, `ClothingDao`, `BatchSegmentationScheduler`
+- [x] `segmentationEligibleCount: StateFlow<Int>` from `ClothingDao.getSegmentationEligibleCount()`
+- [x] `batchSegWorkInfo: StateFlow<WorkInfo?>` from
+  `workManager.getWorkInfosForUniqueWorkFlow(NAME).map { it.firstOrNull() }`
+- [x] `fun startBatchSegmentation()` — delegates to `BatchSegmentationScheduler.schedule()`
 
 ---
 

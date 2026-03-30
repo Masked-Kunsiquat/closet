@@ -17,6 +17,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.repository.SegmentationRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -51,10 +52,10 @@ class BatchSegmentationWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     companion object {
-        const val WORK_NAME = "batch_segmentation"
-        const val KEY_DONE = "done"
-        const val KEY_TOTAL = "total"
-        const val KEY_FAILED = "failed"
+        val WORK_NAME = BatchSegmentationWork.NAME
+        val KEY_DONE = BatchSegmentationWork.KEY_DONE
+        val KEY_TOTAL = BatchSegmentationWork.KEY_TOTAL
+        val KEY_FAILED = BatchSegmentationWork.KEY_FAILED
 
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "segmentation_batch"

@@ -219,6 +219,10 @@ interface ClothingDao {
     @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND image_path NOT LIKE '%.png'")
     suspend fun getItemsNeedingSegmentation(): List<ClothingItemEntity>
 
+    /** Live count of items eligible for batch segmentation. Updates whenever the table changes. */
+    @Query("SELECT COUNT(*) FROM clothing_items WHERE image_path IS NOT NULL AND image_path NOT LIKE '%.png'")
+    fun getSegmentationEligibleCount(): Flow<Int>
+
     /** Replaces the stored image path for a single item and updates its timestamp. */
     @Query("UPDATE clothing_items SET image_path = :imagePath, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateItemImagePath(id: Long, imagePath: String, updatedAt: java.time.Instant)
