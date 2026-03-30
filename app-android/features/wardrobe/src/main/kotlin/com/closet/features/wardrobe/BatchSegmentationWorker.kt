@@ -103,8 +103,21 @@ class BatchSegmentationWorker @AssistedInject constructor(
                     }
 
                 val masked = segmentationRepository.removeBackground(bitmap)
-                val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
-                clothingDao.updateItemImagePath(item.id, savedPath, Instant.now())
+                // Declare outside try so the failure branch can clean up if the DAO
+                // write fails after the PNG has already been saved to disk.
+                var savedPath: String? = null
+                try {
+                    savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
+                    clothingDao.updateItemImagePath(item.id, savedPath, Instant.now())
+                } catch (e: Exception) {
+                    // Best-effort cleanup of the orphaned PNG before re-throwing so
+                    // the outer catch can count this item as failed.
+                    savedPath?.let { path ->
+                        runCatching { storageRepository.deleteImage(path) }
+                            .onFailure { Timber.d(it, "BatchSeg: failed to delete orphaned PNG $path") }
+                    }
+                    throw e
+                }
 
                 // Delete the original file best-effort — a failure here is not fatal
                 runCatching { storageRepository.deleteImage(originalPath) }

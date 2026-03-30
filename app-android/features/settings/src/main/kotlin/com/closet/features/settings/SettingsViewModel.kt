@@ -403,6 +403,19 @@ class SettingsViewModel @Inject constructor(
         batchSegmentationScheduler.schedule()
     }
 
+    /**
+     * Tracks the [WorkInfo.id] of the last batch run whose completion snackbar has
+     * already been shown. Stored in the ViewModel (not Compose local state) so it
+     * survives the screen leaving composition and coming back, preventing the snackbar
+     * from re-firing for an already-handled SUCCEEDED WorkInfo.
+     */
+    private val _lastHandledBatchId = MutableStateFlow<java.util.UUID?>(null)
+    val lastHandledBatchId: StateFlow<java.util.UUID?> = _lastHandledBatchId.asStateFlow()
+
+    fun onBatchResultHandled(id: java.util.UUID) {
+        _lastHandledBatchId.value = id
+    }
+
     private companion object {
         /** Minimum API key length before triggering a model discovery fetch. */
         const val MIN_KEY_LENGTH = 20

@@ -97,8 +97,8 @@ class SegmentationRepository @Inject constructor() {
         val longest = maxOf(bitmap.width, bitmap.height)
         if (longest <= maxDim) return bitmap
         val scale = maxDim.toFloat() / longest
-        val w = (bitmap.width * scale).toInt()
-        val h = (bitmap.height * scale).toInt()
+        val w = maxOf(1, (bitmap.width * scale).toInt())
+        val h = maxOf(1, (bitmap.height * scale).toInt())
         return Bitmap.createScaledBitmap(bitmap, w, h, true)
     }
 }

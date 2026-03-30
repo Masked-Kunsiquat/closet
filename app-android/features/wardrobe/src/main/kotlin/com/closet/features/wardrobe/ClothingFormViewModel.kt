@@ -385,7 +385,13 @@ class ClothingFormViewModel @Inject constructor(
 
     fun onImageSelected(uri: Uri?) {
         if (uri == null) return
-        
+        // Don't allow a new image to be swapped in while the segmentation coroutine
+        // is in flight — it may be actively reading the current imagePath from disk.
+        // The photo-picker button is disabled in the UI during these states, but guard
+        // here too in case the call arrives via another code path.
+        val form = _form.value
+        if (form.isSegmenting || form.isDownloadingModel) return
+
         viewModelScope.launch {
             _form.update { it.copy(isLoading = true) }
             try {
@@ -425,25 +431,24 @@ class ClothingFormViewModel @Inject constructor(
             currentForm.isSegmenting || currentForm.isDownloadingModel) return
 
         viewModelScope.launch(Dispatchers.IO) {
-            // Gate: ensure the Play Services ML Kit model is ready before starting inference.
-            // isModelDownloaded() returns false on FOSS builds and on first cold-start
-            // if GMS hasn't yet delivered the model.
-            if (!segmentationRepository.isModelDownloaded()) {
-                _form.update { it.copy(isDownloadingModel = true) }
-                try {
-                    segmentationRepository.ensureModelDownloaded()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Timber.e(e, "removeBackground: model download failed")
-                    _form.update { it.copy(
-                        isDownloadingModel = false,
-                        errorMessage = R.string.wardrobe_model_download_error,
-                    ) }
-                    return@launch
-                }
+            // Always call ensureModelDownloaded() — isModelDownloaded() returns true
+            // optimistically (no public Play Services status API), so using it as a gate
+            // would permanently skip this block and hide first-run delivery failures.
+            _form.update { it.copy(isDownloadingModel = true) }
+            try {
+                segmentationRepository.ensureModelDownloaded()
+            } catch (e: CancellationException) {
                 _form.update { it.copy(isDownloadingModel = false) }
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "removeBackground: model download failed")
+                _form.update { it.copy(
+                    isDownloadingModel = false,
+                    errorMessage = R.string.wardrobe_model_download_error,
+                ) }
+                return@launch
             }
+            _form.update { it.copy(isDownloadingModel = false) }
 
             _form.update { it.copy(isSegmenting = true, originalSegmentationImagePath = it.imagePath) }
             try {
@@ -555,7 +560,7 @@ class ClothingFormViewModel @Inject constructor(
 
     fun save() {
         val state = _form.value
-        if (state.isSegmenting) return
+        if (state.isSegmenting || state.isDownloadingModel) return
         if (state.name.isBlank()) {
             _form.update { it.copy(isNameError = true) }
             return

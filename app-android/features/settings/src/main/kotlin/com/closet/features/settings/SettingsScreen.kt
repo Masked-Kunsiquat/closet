@@ -142,16 +142,16 @@ fun SettingsScreen(
 
     val deniedMessage = stringResource(R.string.settings_location_snackbar)
 
-    // Show a snackbar once per completed batch run. Track the last-handled WorkInfo ID
-    // so the snackbar doesn't re-fire if the screen leaves and comes back while the
-    // same SUCCEEDED WorkInfo is still the most recent result.
+    // Show a snackbar once per completed batch run. lastHandledBatchId lives in the
+    // ViewModel so it survives the screen leaving composition and coming back — a
+    // local `remember` would reset to null and re-fire the snackbar on re-entry.
     val batchResultMsg = stringResource(R.string.settings_wardrobe_batch_result)
     val batchResultWithFailuresMsg = stringResource(R.string.settings_wardrobe_batch_result_with_failures)
-    var lastHandledBatchId by remember { mutableStateOf<java.util.UUID?>(null) }
+    val lastHandledBatchId by viewModel.lastHandledBatchId.collectAsStateWithLifecycle()
     LaunchedEffect(batchSegWorkInfo?.id, batchSegWorkInfo?.state) {
         val info = batchSegWorkInfo ?: return@LaunchedEffect
         if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledBatchId) {
-            lastHandledBatchId = info.id
+            viewModel.onBatchResultHandled(info.id)
             val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
             val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
             val msg = if (failed > 0) {
