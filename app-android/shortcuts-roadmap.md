@@ -157,28 +157,29 @@ The "Laundry Day" shortcut needs a screen that doesn't exist yet.
 
 ---
 
-## Phase 4 — Quick Add camera pre-selection
+## Phase 4 — Quick Add camera pre-selection ✅
 
 The "Quick Add" shortcut should open the form with the image picker / camera already
 triggered, skipping the empty form state.
 
-- [ ] **§4.1 — Add `openCamera: Boolean` param to `AddClothingDestination`**
+- [x] **§4.1 — Add `openCamera: Boolean` param to `AddClothingDestination`**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/WardrobeNavigation.kt`
-  ```kotlin
-  @Serializable
-  data class AddClothingDestination(val openCamera: Boolean = false)
-  ```
+  Changed from `object` to `data class AddClothingDestination(val openCamera: Boolean = false)`.
 
-- [ ] **§4.2 — Consume `openCamera` in `ClothingFormViewModel`**
+- [x] **§4.2 — Consume `openCamera` in `ClothingFormViewModel`**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/ClothingFormViewModel.kt`
-  - Read `openCamera` from `SavedStateHandle` in `init {}`.
-  - If `true`, emit a one-shot `UiEvent.OpenImagePicker` so the screen launches the picker
-    immediately on composition without a button tap.
+  - Added `addDestination = savedStateHandle.toRoute<AddClothingDestination>()` (try/catch,
+    same pattern as `editDestination`).
+  - In `init {}`, if `addDestination?.openCamera == true`, launches a coroutine that sends
+    `ClothingFormEvent.OpenImagePicker` on the existing event channel.
+  - Added `object OpenImagePicker : ClothingFormEvent()` to the sealed class.
 
-- [ ] **§4.3 — Handle the event in `ClothingFormScreen`**
+- [x] **§4.3 — Handle the event in `ClothingFormScreen`**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/ClothingFormScreen.kt`
-  - Collect the `OpenImagePicker` event in a `LaunchedEffect` and call the existing
-    `imagePickerLauncher.launch(...)`.
+  - Moved `rememberLauncherForActivityResult` above `LaunchedEffect(Unit)` so the launcher
+    is in scope for the event handler.
+  - Added `ClothingFormEvent.OpenImagePicker` branch: calls
+    `launcher.launch(PickVisualMediaRequest(ImageOnly))`.
 
 ---
 

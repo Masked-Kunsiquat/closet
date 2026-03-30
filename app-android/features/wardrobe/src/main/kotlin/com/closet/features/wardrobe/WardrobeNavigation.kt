@@ -15,9 +15,9 @@ object ClosetDestination
 @Serializable
 data class ClothingDetailDestination(val itemId: Long)
 
-/** Route for the Add Clothing form (no pre-populated item ID). */
+/** Route for the Add Clothing form. [openCamera] triggers the image picker immediately on open. */
 @Serializable
-object AddClothingDestination
+data class AddClothingDestination(val openCamera: Boolean = false)
 
 /** Route for the Edit Clothing form, parameterised by [itemId]. */
 @Serializable

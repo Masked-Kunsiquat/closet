@@ -98,7 +98,7 @@ fun ClosetNavGraph(
         val action = pendingIntent?.action ?: return@LaunchedEffect
         when (action) {
             ShortcutActions.ACTION_QUICK_ADD -> {
-                navController.navigate(AddClothingDestination) {
+                navController.navigate(AddClothingDestination(openCamera = true)) {
                     launchSingleTop = true
                 }
             }
@@ -153,7 +153,7 @@ fun ClosetNavGraph(
         ) {
             composable<ClosetDestination> {
                 ClosetScreen(
-                    onAddItemClick = { navController.navigate(AddClothingDestination) },
+                    onAddItemClick = { navController.navigate(AddClothingDestination()) },
                     onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) },
                     onSettingsClick = { navController.navigateToSettings() },
                 )

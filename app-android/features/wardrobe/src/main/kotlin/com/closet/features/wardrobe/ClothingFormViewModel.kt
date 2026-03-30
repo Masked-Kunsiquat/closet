@@ -241,9 +241,18 @@ class ClothingFormViewModel @Inject constructor(
         initialValue = ClothingFormUiState(isEditMode = isEditMode, isLoading = isEditMode)
     )
 
+    private val addDestination = try {
+        savedStateHandle.toRoute<AddClothingDestination>()
+    } catch (_: Exception) {
+        null
+    }
+
     init {
         if (isEditMode && itemId != null) {
             loadItemForEditing(itemId)
+        }
+        if (addDestination?.openCamera == true) {
+            viewModelScope.launch { _events.send(ClothingFormEvent.OpenImagePicker) }
         }
     }
 
@@ -720,4 +729,5 @@ class ClothingFormViewModel @Inject constructor(
 
 sealed class ClothingFormEvent {
     object NavigateBack : ClothingFormEvent()
+    object OpenImagePicker : ClothingFormEvent()
 }
