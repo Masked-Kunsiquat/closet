@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import java.io.File
 import javax.inject.Inject
 
@@ -50,6 +51,7 @@ class BulkWashViewModel @Inject constructor(
 
     private val _selectedIds  = MutableStateFlow<Set<Long>>(emptySet())
     private val _applyError   = MutableStateFlow(false)
+    private val applyMutex    = Mutex()
 
     val uiState: StateFlow<BulkWashUiState> = combine(
         clothingRepository.getAllItems(),
@@ -89,13 +91,18 @@ class BulkWashViewModel @Inject constructor(
         val ids = _selectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            _applyError.value = false
-            val results = ids.map { id -> async { clothingRepository.updateWashStatus(id, status) } }.awaitAll()
-            if (results.any { it is DataResult.Error }) {
-                _applyError.value = true
-            } else {
-                ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")
-                clearSelection()
+            if (!applyMutex.tryLock()) return@launch
+            try {
+                _applyError.value = false
+                val results = ids.map { id -> async { clothingRepository.updateWashStatus(id, status) } }.awaitAll()
+                if (results.any { it is DataResult.Error }) {
+                    _applyError.value = true
+                } else {
+                    ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")
+                    clearSelection()
+                }
+            } finally {
+                applyMutex.unlock()
             }
         }
     }
