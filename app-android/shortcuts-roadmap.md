@@ -30,8 +30,8 @@ right screen on cold-start and on re-launch (`onNewIntent`).
   | Action | Destination | Notes |
   |--------|-------------|-------|
   | `ACTION_QUICK_ADD` | `AddClothingDestination` | Camera pre-select wired in Phase 4 |
-  | `ACTION_LOG_FIT` | `OutfitBuilderDestination(-1L)` | ✅ fully wired |
-  | `ACTION_LAUNDRY_DAY` | *(placeholder)* | Destination added in Phase 3 |
+  | `ACTION_LOG_FIT` | `OutfitBuilderDestination()` | ✅ fully wired |
+  | `ACTION_LAUNDRY_DAY` | `BulkWashDestination` | ✅ wired in Phase 3 |
   | `ACTION_CATEGORY` | `ClosetDestination` | Category filter wired in Phase 6 |
 
 ---
@@ -51,7 +51,7 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
       <shortcut
           android:shortcutId="quick_add"
           android:enabled="true"
-          android:icon="@drawable/ic_shortcut_add"
+          android:icon="@drawable/ic_shortcut_quick_add"
           android:shortcutShortLabel="@string/shortcut_quick_add_short"
           android:shortcutLongLabel="@string/shortcut_quick_add_long">
           <intent
@@ -65,7 +65,7 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
       <shortcut
           android:shortcutId="log_fit"
           android:enabled="true"
-          android:icon="@drawable/ic_shortcut_outfit"
+          android:icon="@drawable/ic_shortcut_log_fit"
           android:shortcutShortLabel="@string/shortcut_log_fit_short"
           android:shortcutLongLabel="@string/shortcut_log_fit_long">
           <intent
@@ -117,12 +117,13 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
   ```
 
 - [x] **§2.4 — Add shortcut icons**
-  No new drawables needed. `core/ui` already has exact matches and library resources
-  merge into the final APK, so `shortcuts.xml` can reference them directly:
-  - Quick Add → `@drawable/ic_icon_coat_hanger`
-  - Log Fit → `@drawable/ic_icon_t_shirt`
-  - Laundry Day → `@drawable/ic_icon_washing_machine`
-  - Category (Phase 6) → `@drawable/ic_icon_dresser`
+  Three new adaptive-icon drawables were created in `app/src/main/res/drawable/`,
+  each wrapping the matching `core/ui` vector with a 15% inset and an amber background:
+  - `ic_shortcut_quick_add.xml` → foreground: `@drawable/ic_icon_coat_hanger`
+  - `ic_shortcut_log_fit.xml`   → foreground: `@drawable/ic_icon_t_shirt`
+  - `ic_shortcut_laundry.xml`   → foreground: `@drawable/ic_icon_washing_machine`
+  - `ic_shortcut_category.xml`  → created in `features/wardrobe/src/main/res/drawable/`
+    so `ClosetViewModel` can reference it without a reverse module dependency (Phase 6)
 
 ---
 

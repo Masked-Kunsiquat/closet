@@ -25,15 +25,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,6 +61,7 @@ fun BulkWashScreen(
         onClearSelection = viewModel::clearSelection,
         onMarkClean = { viewModel.applyWashStatus(WashStatus.Clean) },
         onMarkDirty = { viewModel.applyWashStatus(WashStatus.Dirty) },
+        onDismissApplyError = viewModel::dismissApplyError,
         resolveImage = viewModel::resolveImagePath,
     )
 }
@@ -70,6 +76,7 @@ private fun BulkWashContent(
     onClearSelection: () -> Unit,
     onMarkClean: () -> Unit,
     onMarkDirty: () -> Unit,
+    onDismissApplyError: () -> Unit,
     resolveImage: (String?) -> java.io.File?,
 ) {
     val successState = uiState as? BulkWashUiState.Success
@@ -77,7 +84,17 @@ private fun BulkWashContent(
     val allIds = successState?.items?.map { it.id } ?: emptyList()
     val allSelected = allIds.isNotEmpty() && successState?.selectedIds?.containsAll(allIds) == true
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val applyErrorMessage = stringResource(R.string.bulk_wash_apply_error)
+    LaunchedEffect(successState?.applyError) {
+        if (successState?.applyError == true) {
+            snackbarHostState.showSnackbar(applyErrorMessage)
+            onDismissApplyError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -85,7 +102,7 @@ private fun BulkWashContent(
                         Text(stringResource(R.string.bulk_wash_title))
                         if (selectedCount > 0) {
                             Text(
-                                text = stringResource(R.string.bulk_wash_selected_count, selectedCount),
+                                text = pluralStringResource(R.plurals.bulk_wash_selected_count, selectedCount, selectedCount),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

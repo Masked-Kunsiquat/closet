@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.util.DataResult
 import com.closet.core.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +28,7 @@ sealed interface BulkWashUiState {
     data class Success(
         val items: List<ClothingItemWithMeta>,
         val selectedIds: Set<Long>,
+        val applyError: Boolean = false,
     ) : BulkWashUiState
 }
 
@@ -44,12 +46,16 @@ class BulkWashViewModel @Inject constructor(
     private val storageRepository: StorageRepository,
 ) : ViewModel() {
 
-    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    private val _selectedIds  = MutableStateFlow<Set<Long>>(emptySet())
+    private val _applyError   = MutableStateFlow(false)
 
-    val uiState: StateFlow<BulkWashUiState> = clothingRepository.getAllItems()
-        .combine(_selectedIds) { items, selected ->
-            BulkWashUiState.Success(items, selected) as BulkWashUiState
-        }
+    val uiState: StateFlow<BulkWashUiState> = combine(
+        clothingRepository.getAllItems(),
+        _selectedIds,
+        _applyError,
+    ) { items, selected, applyError ->
+        BulkWashUiState.Success(items, selected, applyError) as BulkWashUiState
+    }
         .catch { emit(BulkWashUiState.Error) }
         .stateIn(
             scope = viewModelScope,
@@ -72,18 +78,28 @@ class BulkWashViewModel @Inject constructor(
     }
 
     /**
-     * Applies [status] to every selected item, then clears the selection.
-     * Each update is best-effort — failures are silently swallowed so one
-     * bad row doesn't abort the rest of the batch.
+     * Applies [status] to every selected item.
+     * If all updates succeed, reports the shortcut used and clears the selection.
+     * If any update fails, the selection is kept and [BulkWashUiState.Success.applyError]
+     * is set to true so the UI can surface the failure.
      */
     fun applyWashStatus(status: WashStatus) {
         val ids = _selectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            ids.forEach { id -> clothingRepository.updateWashStatus(id, status) }
-            ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")
-            clearSelection()
+            val results = ids.map { id -> clothingRepository.updateWashStatus(id, status) }
+            if (results.any { it is DataResult.Error }) {
+                _applyError.value = true
+            } else {
+                ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")
+                clearSelection()
+            }
         }
+    }
+
+    /** Dismisses the apply-error banner after the user has acknowledged it. */
+    fun dismissApplyError() {
+        _applyError.value = false
     }
 
     /** Resolves a relative image path to an absolute [File] for display with Coil. */

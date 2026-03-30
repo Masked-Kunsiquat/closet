@@ -43,7 +43,7 @@ import com.closet.features.wardrobe.AddClothingDestination
 import com.closet.features.wardrobe.BrandManagementDestination
 import com.closet.features.wardrobe.BrandManagementScreen
 import com.closet.features.wardrobe.BulkWashDestination
-import com.closet.features.wardrobe.BulkWashScreen
+import com.closet.features.wardrobe.bulkWashScreen
 import com.closet.features.wardrobe.ClothingDetailDestination
 import com.closet.features.wardrobe.ClothingDetailScreen
 import com.closet.features.wardrobe.ClothingFormScreen
@@ -194,9 +194,7 @@ fun ClosetNavGraph(
                 BrandManagementScreen(onBack = { navController.popBackStack() })
             }
 
-            composable<BulkWashDestination> {
-                BulkWashScreen(onBack = { navController.popBackStack() })
-            }
+            bulkWashScreen(onBack = { navController.popBackStack() })
 
             outfitsScreen(
                 navController = navController,

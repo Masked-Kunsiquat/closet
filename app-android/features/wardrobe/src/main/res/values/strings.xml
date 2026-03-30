@@ -111,9 +111,13 @@
     <string name="bulk_wash_title">Laundry Day</string>
     <string name="bulk_wash_select_all">Select all</string>
     <string name="bulk_wash_deselect_all">Deselect all</string>
-    <string name="bulk_wash_selected_count">%d selected</string>
+    <plurals name="bulk_wash_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
     <string name="bulk_wash_mark_clean">Mark Clean</string>
     <string name="bulk_wash_mark_dirty">Mark Dirty</string>
+    <string name="bulk_wash_apply_error">Couldn\'t update some items. Please try again.</string>
 
     <!-- Brand Management — screen for viewing, adding, editing, and deleting clothing brands -->
     <!-- Title shown in the top app bar of the brand management screen -->

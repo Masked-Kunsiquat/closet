@@ -506,7 +506,6 @@ class ClothingFormViewModel @Inject constructor(
                     imageCaption = null,                      // old caption was for the un-segmented image
                     originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
-                ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")
                 // Re-extract colours from the segmented PNG. The Palette API filters out
                 // transparent pixels, so only subject colours are sampled — not the background.
                 extractColorsFromFile(segmentedFile)
@@ -693,6 +692,12 @@ class ClothingFormViewModel @Inject constructor(
                 }
 
                 if (result is DataResult.Success) {
+                    // Report Quick Add shortcut usage only when the flow originated from it.
+                    // Doing this at save (not at background removal) ensures the signal is only
+                    // sent when the user actually completes the add, not on every segmentation.
+                    if (addDestination?.openCamera == true) {
+                        ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")
+                    }
                     // Best-effort cleanup — failures must not block navigation or show a save error
                     if (isEditMode && originalImagePath != null && originalImagePath != state.imagePath) {
                         runCatching { withContext(NonCancellable) { storageRepository.deleteImage(originalImagePath!!) } }

@@ -9,7 +9,6 @@
     <background android:drawable="@color/shortcut_icon_bg" />
     <foreground>
         <inset
-            xmlns:android="http://schemas.android.com/apk/res/android"
             android:drawable="@drawable/ic_icon_t_shirt"
             android:inset="15%" />
     </foreground>
