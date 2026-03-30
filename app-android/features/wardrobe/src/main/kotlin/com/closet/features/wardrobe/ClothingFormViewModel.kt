@@ -437,12 +437,16 @@ class ClothingFormViewModel @Inject constructor(
                 if (imageCaptionRepository.isSupported) {
                     captionJob = viewModelScope.launch(Dispatchers.Main) {
                         _form.update { it.copy(isCaptioning = true) }
-                        val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                        // Decode on IO — file read + BitmapFactory is synchronous CPU/IO work.
+                        val bitmap = withContext(Dispatchers.IO) {
+                            BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                        }
                         if (bitmap == null) {
                             _form.update { it.copy(isCaptioning = false) }
                             return@launch
                         }
                         try {
+                            // describe() must stay on Main — Image Description API requirement.
                             val caption = imageCaptionRepository.describe(bitmap)
                             _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
                         } catch (e: CancellationException) {
