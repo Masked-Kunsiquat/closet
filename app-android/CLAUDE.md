@@ -54,7 +54,7 @@ Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
 
 ### Product flavors
 
-Two flavors on the `distribution` dimension. Only `app/` and `features/recommendations/` declare flavor dimensions; all other modules are single-variant.
+Two flavors on the `distribution` dimension. Only `app/`, `features/recommendations/`, and `features/wardrobe/` declare flavor dimensions; all other modules are single-variant.
 
 - **`full`** — includes GMS-backed features (MLKit GenAI Prompt API / Gemini Nano). Use for local dev, GitHub releases, sideload APKs. Android Studio defaults to `fullDebug`.
 - **`foss`** — no Google Play Services dependencies. GMS features are stubbed to no-ops. Target: F-Droid distribution.

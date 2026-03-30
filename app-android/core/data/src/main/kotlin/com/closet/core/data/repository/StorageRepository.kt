@@ -71,6 +71,24 @@ class StorageRepository @Inject constructor(
     }
 
     /**
+     * Saves a [Bitmap] as a PNG to the app's internal images directory.
+     *
+     * The PNG encoder ignores the quality parameter, so lossless transparency is
+     * preserved — required for segmented images with transparent backgrounds.
+     *
+     * @param bitmap The bitmap to save (should be ARGB_8888 for transparency support).
+     * @param filename The target filename including extension (e.g. `"uuid.png"`).
+     * @return The relative path (filename only, no leading slash) — same convention as [saveImage].
+     */
+    suspend fun saveBitmap(bitmap: Bitmap, filename: String): String = withContext(Dispatchers.IO) {
+        val destFile = File(imagesDir, filename)
+        destFile.outputStream().use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        filename
+    }
+
+    /**
      * Loads a Bitmap from a Uri.
      */
     suspend fun getBitmap(uri: Uri): Bitmap? = withContext(Dispatchers.IO) {

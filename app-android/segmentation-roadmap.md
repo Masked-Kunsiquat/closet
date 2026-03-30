@@ -10,17 +10,18 @@ works on all devices).
 
 ### Dependency
 
-- [ ] Add `mlkitSubjectSegmentation = "16.0.0-beta1"` version to `gradle/libs.versions.toml`
-- [ ] Add library alias to `[libraries]` block:
+- [x] Add `mlkitSubjectSegmentation = "16.0.0-beta1"` version to `gradle/libs.versions.toml`
+- [x] Add library alias to `[libraries]` block:
   `mlkit-subject-segmentation = { group = "com.google.android.gms", name = "play-services-mlkit-subject-segmentation", version.ref = "mlkitSubjectSegmentation" }`
   (note: `play-services-mlkit-*`, not `com.google.mlkit:*`)
-- [ ] Add dependency to `features/wardrobe/build.gradle.kts`
-- [ ] No model download flow needed — the ~200 KB model is delivered automatically
+- [x] Add `"fullImplementation"` dep to `features/wardrobe/build.gradle.kts` + flavor dims (full/foss)
+- [x] No model download flow needed — the ~200 KB model is delivered automatically
   via Google Play Services on first use
 
 ### SegmentationRepository
 
-- [ ] Create `core/data/src/main/kotlin/com/closet/core/data/repository/SegmentationRepository.kt`
+- [x] Create `features/wardrobe/src/full/kotlin/…/repository/SegmentationRepository.kt` (real impl)
+      + `features/wardrobe/src/foss/kotlin/…/repository/SegmentationRepository.kt` (stub — throws UnsupportedOperationException)
   - `@Singleton`, `@Inject constructor(@ApplicationContext context: Context)`
   - Single public method: `suspend fun removeBackground(bitmap: Bitmap): Bitmap`
     - Creates `SubjectSegmenterOptions` with **`enableForegroundBitmap()`**
@@ -36,15 +37,15 @@ works on all devices).
     512×512 required for accuracy per docs); the stored image will be the
     downsampled+masked PNG, original dimensions are not restored
 
-- [ ] Add `SegmentationRepository` provider to `core/data/src/main/kotlin/com/closet/core/data/di/DataModule.kt`
+- [x] `SegmentationRepository` uses `@Singleton @Inject constructor` — Hilt resolves from whichever source set is active (full/foss), no `@Provides` in `DataModule` needed
 
 ### StorageRepository — PNG save support
 
-- [ ] Add `suspend fun saveBitmap(bitmap: Bitmap, filename: String): String` to
+- [x] Add `suspend fun saveBitmap(bitmap: Bitmap, filename: String): String` to
   `core/data/src/main/kotlin/com/closet/core/data/repository/StorageRepository.kt`
-  - Saves to the same app-owned images directory used by `copyImage()`
+  - Saves to the same app-owned images directory used by `saveImage()`
   - Compresses as `Bitmap.CompressFormat.PNG` (quality param ignored by PNG encoder)
-  - Returns a relative path (same convention as `copyImage()` — just the filename,
+  - Returns a relative path (same convention as `saveImage()` — just the filename,
     no leading slash) so the rest of the pipeline is unchanged
 
 ---
