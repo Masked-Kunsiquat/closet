@@ -99,6 +99,7 @@ private data class FormState(
     val isDownloadingModel: Boolean = false,
     val hasSegmentedImage: Boolean = false,
     val originalSegmentationImagePath: String? = null,
+    val originalSegmentationImageCaption: String? = null,
     val isCaptioning: Boolean = false,
     val imageCaption: String? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
@@ -418,6 +419,7 @@ class ClothingFormViewModel @Inject constructor(
                     isLoading = false,
                     hasSegmentedImage = false,
                     originalSegmentationImagePath = null,
+                    originalSegmentationImageCaption = null,
                     imageCaption = null,
                 ) }
                 // Best-effort cleanup — failures must not block the form update above.
@@ -469,7 +471,11 @@ class ClothingFormViewModel @Inject constructor(
             }
             _form.update { it.copy(isDownloadingModel = false) }
 
-            _form.update { it.copy(isSegmenting = true, originalSegmentationImagePath = it.imagePath) }
+            _form.update { it.copy(
+                isSegmenting = true,
+                originalSegmentationImagePath = it.imagePath,
+                originalSegmentationImageCaption = it.imageCaption,
+            ) }
             try {
                 val path = _form.value.imagePath ?: return@launch
                 val file = storageRepository.getFile(path)
@@ -483,7 +489,8 @@ class ClothingFormViewModel @Inject constructor(
                     imagePath = savedPath,
                     hasSegmentedImage = true,
                     isSegmenting = false,
-                    imageCaption = null,   // old caption was for the un-segmented image
+                    imageCaption = null,                      // old caption was for the un-segmented image
+                    originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
                 // Re-caption the segmented image on Main (Image Description API requirement).
                 if (imageCaptionRepository.isSupported) {
@@ -496,6 +503,8 @@ class ClothingFormViewModel @Inject constructor(
                 _form.update { it.copy(
                     imagePath = it.originalSegmentationImagePath,
                     originalSegmentationImagePath = null,
+                    imageCaption = it.originalSegmentationImageCaption,
+                    originalSegmentationImageCaption = null,
                     isSegmenting = false,
                     errorMessage = R.string.wardrobe_segmentation_error,
                 ) }
@@ -506,10 +515,17 @@ class ClothingFormViewModel @Inject constructor(
     fun revertSegmentation() {
         val currentPath = _form.value.imagePath
         val originalPath = _form.value.originalSegmentationImagePath ?: return
+        // Cancel any caption job that was started for the segmented PNG.
+        // The stale-path guard would block its writes, but isCaptioning would
+        // stay stuck true without an explicit cancel + reset here.
+        captionJob?.cancel()
         _form.update { it.copy(
             imagePath = originalPath,
             hasSegmentedImage = false,
             originalSegmentationImagePath = null,
+            imageCaption = it.originalSegmentationImageCaption,
+            originalSegmentationImageCaption = null,
+            isCaptioning = false,
         ) }
         if (currentPath != null && currentPath != originalPath) {
             viewModelScope.launch {
