@@ -93,29 +93,29 @@ works on all devices).
 Locate the existing photo `Box`/`AsyncImage` block. The changes all live inside
 or directly below that block.
 
-- [ ] Overlay a `CircularProgressIndicator` centered over the photo `Box` when
+- [x] Overlay a `CircularProgressIndicator` centered over the photo `Box` when
   `uiState.isSegmenting == true`; dim the image with `Modifier.alpha(0.4f)` while
   segmenting so the spinner is readable
 
-- [ ] Show a **"Remove background"** `OutlinedButton` below the photo when:
+- [x] Show a **"Remove background"** `OutlinedButton` below the photo when:
   - `uiState.imageFile != null`
   - `uiState.isSegmenting == false`
   - `uiState.hasSegmentedImage == false`
   - `onClick = { viewModel.removeBackground() }`
 
-- [ ] Show a **"Revert"** `TextButton` (or secondary label) below the photo when
+- [x] Show a **"Revert"** `TextButton` (or secondary label) below the photo when
   `uiState.hasSegmentedImage == true && !uiState.isSegmenting`
   - `onClick = { viewModel.revertSegmentation() }`
   - Label: "Undo background removal"
 
-- [ ] Disable the photo-picker launcher button (`Add Photo` / `Change Photo`)
+- [x] Disable the photo-picker launcher button (`Add Photo` / `Change Photo`)
   while `uiState.isSegmenting == true`
 
 ### String resources (`features/wardrobe/src/main/res/values/strings.xml`)
 
-- [ ] `wardrobe_remove_background` — "Remove background"
-- [ ] `wardrobe_revert_segmentation` — "Undo background removal"
-- [ ] `wardrobe_segmentation_error` — "Couldn't remove background. Try a photo with a clearer subject."
+- [x] `wardrobe_remove_background` — "Remove background"
+- [x] `wardrobe_revert_segmentation` — "Undo background removal"
+- [x] `wardrobe_segmentation_error` — "Couldn't remove background. Try a photo with a clearer subject." (added in Phase 2)
 
 ---
 

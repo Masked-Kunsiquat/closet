@@ -33,6 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -48,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -165,6 +167,8 @@ fun ClothingFormScreen(
                 onImageClick = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
+                onRemoveBackground = viewModel::removeBackground,
+                onRevertSegmentation = viewModel::revertSegmentation,
                 onColorToggle = viewModel::onColorToggle,
                 modifier = Modifier.padding(padding)
             )
@@ -226,6 +230,8 @@ internal fun ClothingFormContent(
     onLocationChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
     onImageClick: () -> Unit,
+    onRemoveBackground: () -> Unit,
+    onRevertSegmentation: () -> Unit,
     onColorToggle: (ColorEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -236,36 +242,62 @@ internal fun ClothingFormContent(
     ) {
         // Image Section
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable(onClick = onImageClick),
-                contentAlignment = Alignment.Center
-            ) {
-                if (uiState.imagePath != null) {
-                    AsyncImage(
-                        model = uiState.imageFile ?: uiState.imagePath,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.AddAPhoto,
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable(enabled = !uiState.isSegmenting, onClick = onImageClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uiState.imagePath != null) {
+                        AsyncImage(
+                            model = uiState.imageFile ?: uiState.imagePath,
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(if (uiState.isSegmenting) Modifier.alpha(0.4f) else Modifier),
+                            contentScale = ContentScale.Crop
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.wardrobe_add_photo),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.AddAPhoto,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.wardrobe_add_photo),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (uiState.isSegmenting) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                if (uiState.imageFile != null && !uiState.isSegmenting && !uiState.hasSegmentedImage) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onRemoveBackground,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.wardrobe_remove_background))
+                    }
+                }
+
+                if (uiState.hasSegmentedImage && !uiState.isSegmenting) {
+                    TextButton(
+                        onClick = onRevertSegmentation,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.wardrobe_revert_segmentation))
                     }
                 }
             }

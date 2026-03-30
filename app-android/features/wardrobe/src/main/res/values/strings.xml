@@ -79,6 +79,8 @@
     <string name="wardrobe_error_save_failed">Failed to save item. Please try again.</string>
     <string name="wardrobe_error_load_failed">Failed to load item. Please try again.</string>
     <string name="wardrobe_error_image_failed">Failed to save photo. Please try again.</string>
+    <string name="wardrobe_remove_background">Remove background</string>
+    <string name="wardrobe_revert_segmentation">Undo background removal</string>
     <string name="wardrobe_segmentation_error">Couldn\'t remove background. Try a photo with a clearer subject.</string>
     <string name="wardrobe_purchase_price">Purchase Price</string>
     <string name="wardrobe_price_hint">0.00</string>
