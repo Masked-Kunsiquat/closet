@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import android.graphics.BitmapFactory
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.AiProvider
+import com.closet.core.data.repository.CaptionEnrichmentProvider
+import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
@@ -19,6 +22,8 @@ import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.sync.Mutex
@@ -34,6 +39,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -58,6 +65,8 @@ class SettingsViewModel @Inject constructor(
     private val clothingDao: ClothingDao,
     private val workManager: WorkManager,
     private val batchSegmentationScheduler: BatchSegmentationScheduler,
+    private val captionEnrichmentProvider: CaptionEnrichmentProvider,
+    private val storageRepository: StorageRepository,
 ) : ViewModel() {
 
     // ── Appearance ────────────────────────────────────────────────────────────
@@ -416,8 +425,82 @@ class SettingsViewModel @Inject constructor(
         _lastHandledBatchId.value = id
     }
 
+    // ── Batch caption enrichment ──────────────────────────────────────────────
+
+    /** `false` on FOSS builds — hides the batch enrichment row entirely. */
+    val captionSupported: Boolean = captionEnrichmentProvider.isSupported
+
+    /**
+     * Count of wardrobe items that have an image but no caption yet.
+     * Updates reactively whenever the clothing_items table changes.
+     */
+    val captionEligibleCount: StateFlow<Int> = clothingDao.getCaptionEligibleCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    private val _batchCaptionProgress = MutableStateFlow<BatchCaptionProgress?>(null)
+    /** Non-null while a batch enrichment run is in progress. Drives the progress row and keepScreenOn. */
+    val batchCaptionProgress: StateFlow<BatchCaptionProgress?> = _batchCaptionProgress.asStateFlow()
+
+    private val _captionResult = MutableStateFlow<BatchCaptionProgress?>(null)
+    /** One-shot result emitted when a batch enrichment run finishes. Screen formats and shows it, then calls [onCaptionResultConsumed]. */
+    val captionResult: StateFlow<BatchCaptionProgress?> = _captionResult.asStateFlow()
+
+    fun onCaptionResultConsumed() {
+        _captionResult.value = null
+    }
+
+    /**
+     * Runs batch caption enrichment for all items with an image but no caption.
+     *
+     * Must run on the main thread — the Image Description API requires a live UI context.
+     * Process items sequentially to avoid overloading the on-device model.
+     */
+    fun startBatchEnrichment() {
+        if (!captionEnrichmentProvider.isSupported) return
+        viewModelScope.launch(Dispatchers.Main) {
+            val items = clothingDao.getItemsNeedingCaption()
+            val total = items.size
+            if (total == 0) return@launch
+            _batchCaptionProgress.value = BatchCaptionProgress(0, total, 0)
+            var done = 0
+            var failed = 0
+            for (item in items) {
+                try {
+                    val imagePath = item.imagePath ?: run { failed++; continue }
+                    val file = storageRepository.getFile(imagePath)
+                    val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                        ?: run { failed++; continue }
+                    val caption = captionEnrichmentProvider.describe(bitmap)
+                    clothingDao.updateImageCaption(item.id, caption, Instant.now())
+                    done++
+                } catch (e: CancellationException) {
+                    _batchCaptionProgress.value = null
+                    throw e
+                } catch (e: Exception) {
+                    Timber.d(e, "batch caption failed for item ${item.id} — skipped")
+                    failed++
+                }
+                _batchCaptionProgress.value = BatchCaptionProgress(done, total, failed)
+            }
+            _batchCaptionProgress.value = null
+            _captionResult.value = BatchCaptionProgress(done, total, failed)
+        }
+    }
+
+    private fun decodeSampledBitmap(path: String, maxDim: Int): android.graphics.Bitmap? {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, opts)
+        val longest = maxOf(opts.outWidth, opts.outHeight)
+        var sampleSize = 1
+        while (longest / sampleSize > maxDim) sampleSize *= 2
+        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sampleSize })
+    }
+
     private companion object {
         /** Minimum API key length before triggering a model discovery fetch. */
         const val MIN_KEY_LENGTH = 20
     }
 }
+
+/** Progress state for a running batch caption enrichment job. */
+data class BatchCaptionProgress(val done: Int, val total: Int, val failed: Int)

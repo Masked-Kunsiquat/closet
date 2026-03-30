@@ -2,6 +2,7 @@ package com.closet.features.wardrobe.repository
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.google.mlkit.genai.common.DownloadCallback
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.common.GenAiException
@@ -29,10 +30,10 @@ import kotlin.coroutines.resumeWithException
 @Singleton
 class ImageCaptionRepository @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : CaptionEnrichmentProvider {
 
     /** `true` in the full flavor — used by the ViewModel to gate the caption path. */
-    val isSupported: Boolean = true
+    override val isSupported: Boolean = true
 
     /**
      * Generates a one-sentence description of [bitmap].
@@ -41,7 +42,7 @@ class ImageCaptionRepository @Inject constructor(
      *
      * @throws IllegalStateException if the API returns a null or empty description.
      */
-    suspend fun describe(bitmap: Bitmap): String {
+    override suspend fun describe(bitmap: Bitmap): String {
         val options = ImageDescriberOptions.builder(context).build()
         val describer = ImageDescription.getClient(options)
         return try {
@@ -69,7 +70,7 @@ class ImageCaptionRepository @Inject constructor(
     /**
      * Returns `true` if the on-device Image Description model is downloaded and ready.
      */
-    suspend fun isModelDownloaded(): Boolean {
+    override suspend fun isModelDownloaded(): Boolean {
         val options = ImageDescriberOptions.builder(context).build()
         val describer = ImageDescription.getClient(options)
         return try {
@@ -95,7 +96,7 @@ class ImageCaptionRepository @Inject constructor(
      * Triggers model download if not already available. Suspends until the download
      * completes or throws if the device does not support the feature.
      */
-    suspend fun ensureModelDownloaded() {
+    override suspend fun ensureModelDownloaded() {
         val options = ImageDescriberOptions.builder(context).build()
         val describer = ImageDescription.getClient(options)
         try {

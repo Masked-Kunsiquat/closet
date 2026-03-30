@@ -55,4 +55,5 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
 
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.timber)
 }

@@ -182,7 +182,7 @@ val imageCaption: String? = null,      // surfaced for debug/review if needed
 
 ---
 
-### §5 — Batch Enrichment (Settings UI — foreground only)
+### §5 — Batch Enrichment (Settings UI — foreground only) ✓ DONE
 
 For the user's existing wardrobe items, provide a one-tap "Enrich descriptions"
 button in the Settings Wardrobe section. Because the Image Description API is

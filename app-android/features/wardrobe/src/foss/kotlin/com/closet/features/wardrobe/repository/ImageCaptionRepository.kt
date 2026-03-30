@@ -1,6 +1,7 @@
 package com.closet.features.wardrobe.repository
 
 import android.graphics.Bitmap
+import com.closet.core.data.repository.CaptionEnrichmentProvider
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,15 +14,15 @@ import javax.inject.Singleton
  * callers must check [isSupported] before invoking it.
  */
 @Singleton
-class ImageCaptionRepository @Inject constructor() {
+class ImageCaptionRepository @Inject constructor() : CaptionEnrichmentProvider {
 
     /** `false` in the FOSS flavor — callers should skip the caption path entirely. */
-    val isSupported: Boolean = false
+    override val isSupported: Boolean = false
 
-    suspend fun describe(bitmap: Bitmap): String =
+    override suspend fun describe(bitmap: Bitmap): String =
         throw UnsupportedOperationException("Image captioning is not available in the FOSS build")
 
-    suspend fun isModelDownloaded(): Boolean = false
+    override suspend fun isModelDownloaded(): Boolean = false
 
-    suspend fun ensureModelDownloaded() { /* no-op in FOSS builds */ }
+    override suspend fun ensureModelDownloaded() { /* no-op in FOSS builds */ }
 }

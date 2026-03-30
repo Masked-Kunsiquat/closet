@@ -94,4 +94,11 @@
     <string name="settings_wardrobe_batch_confirm_message">Original photos will be replaced with background-removed versions. This cannot be undone.</string>
     <string name="settings_wardrobe_batch_confirm_ok">Remove</string>
     <string name="settings_wardrobe_batch_confirm_cancel">Cancel</string>
+    <string name="settings_wardrobe_enrich_descriptions">Enrich descriptions</string>
+    <string name="settings_wardrobe_enrich_descriptions_summary">%d items can be enriched</string>
+    <string name="settings_wardrobe_enriching_descriptions">Enriching descriptions…</string>
+    <string name="settings_wardrobe_enriching_descriptions_progress">%1$d of %2$d items</string>
+    <string name="settings_wardrobe_descriptions_up_to_date">All descriptions up to date</string>
+    <string name="settings_wardrobe_caption_result">%1$d items enriched</string>
+    <string name="settings_wardrobe_caption_result_with_failures">%1$d items enriched, %2$d skipped</string>
 </resources>
