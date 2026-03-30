@@ -18,6 +18,10 @@ class SegmentationRepository @Inject constructor() {
     /** `false` in the FOSS flavor — hides the "Remove background" button entirely. */
     val isSupported: Boolean = false
 
+    suspend fun isModelDownloaded(): Boolean = false
+
+    suspend fun ensureModelDownloaded() { /* no-op in FOSS builds */ }
+
     suspend fun removeBackground(bitmap: Bitmap): Bitmap =
         throw UnsupportedOperationException("Background removal is not available in the FOSS build")
 }

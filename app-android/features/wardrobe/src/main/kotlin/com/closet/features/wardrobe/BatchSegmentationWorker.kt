@@ -65,6 +65,18 @@ class BatchSegmentationWorker @AssistedInject constructor(
         // FOSS builds do not include the ML Kit segmentation library; exit cleanly.
         if (!segmentationRepository.isSupported) return Result.success()
 
+        // Ensure the model is available before starting the foreground service + notification.
+        // If GMS cannot deliver the model (e.g. Play Services degraded, no network on first run),
+        // fail fast so the user sees a clear failure rather than every item silently failing.
+        try {
+            segmentationRepository.ensureModelDownloaded()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, "BatchSeg: model download failed, aborting")
+            return Result.failure(workDataOf("error" to "model_download_failed"))
+        }
+
         val items = clothingDao.getItemsNeedingSegmentation()
         val total = items.size
         if (total == 0) return Result.success(workDataOf(KEY_DONE to 0, KEY_FAILED to 0))

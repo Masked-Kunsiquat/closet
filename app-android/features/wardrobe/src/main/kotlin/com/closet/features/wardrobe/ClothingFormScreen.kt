@@ -249,7 +249,7 @@ internal fun ClothingFormContent(
                         .height(200.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable(enabled = !uiState.isSegmenting, onClick = onImageClick),
+                        .clickable(enabled = !uiState.isSegmenting && !uiState.isDownloadingModel, onClick = onImageClick),
                     contentAlignment = Alignment.Center
                 ) {
                     if (uiState.imagePath != null) {
@@ -258,7 +258,7 @@ internal fun ClothingFormContent(
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .then(if (uiState.isSegmenting) Modifier.alpha(0.4f) else Modifier),
+                                .then(if (uiState.isSegmenting || uiState.isDownloadingModel) Modifier.alpha(0.4f) else Modifier),
                             contentScale = ContentScale.Crop
                         )
                     } else {
@@ -277,12 +277,22 @@ internal fun ClothingFormContent(
                             )
                         }
                     }
-                    if (uiState.isSegmenting) {
-                        CircularProgressIndicator()
+                    if (uiState.isSegmenting || uiState.isDownloadingModel) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator()
+                            if (uiState.isDownloadingModel) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.wardrobe_downloading_model),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                     }
                 }
 
-                if (uiState.isSegmentationSupported && uiState.imageFile != null && !uiState.isSegmenting && !uiState.hasSegmentedImage) {
+                if (uiState.isSegmentationSupported && uiState.imageFile != null && !uiState.isSegmenting && !uiState.isDownloadingModel && !uiState.hasSegmentedImage) {
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onRemoveBackground,

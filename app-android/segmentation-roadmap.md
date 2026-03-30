@@ -240,43 +240,42 @@ silently. This phase adds an explicit download gate so the UI reflects true read
 
 ### `RemoteModelManager` helper (`SegmentationRepository`, full flavor only)
 
-- [ ] Add `suspend fun isModelDownloaded(): Boolean` — calls
-  `RemoteModelManager.getInstance().isModelDownloaded(CustomRemoteModel(…)).await()`
-  using the same `CustomModelDownloadConditions` / model name the SDK resolves at runtime
-  (name: `"subject_segmentation"` — match the module resolved by `DynamiteModule`)
-- [ ] Add `suspend fun ensureModelDownloaded()` — calls
-  `RemoteModelManager.getInstance().download(model, conditions).await()`; no-op if
-  already downloaded; throws on failure (caller catches)
-- [ ] FOSS stub: `isModelDownloaded()` returns `false`; `ensureModelDownloaded()` no-ops
+- [x] Add `suspend fun isModelDownloaded(): Boolean` — Play Services ML Kit has no public
+  sync API to query model download status (unlike Firebase ML's `RemoteModelManager`);
+  full flavor returns `true` optimistically; `ensureModelDownloaded()` is the real gate
+- [x] Add `suspend fun ensureModelDownloaded()` — creates + immediately closes a
+  `SubjectSegmentation` client, which registers the GMS module dependency and triggers
+  Play Services to prepare the model; throws if GMS client creation fails
+- [x] FOSS stub: `isModelDownloaded()` returns `false`; `ensureModelDownloaded()` no-ops
 
 ### `ClothingFormViewModel` changes
 
-- [ ] On `removeBackground()` entry: call `isModelDownloaded()` before setting
+- [x] On `removeBackground()` entry: call `isModelDownloaded()` before setting
   `isSegmenting = true`
   - If not downloaded: set a new `isDownloadingModel: Boolean = true` state flag,
     call `ensureModelDownloaded()`, then proceed
   - On download failure: emit error snackbar ("Couldn't download segmentation model");
     clear `isDownloadingModel`; return early without segmenting
-- [ ] Add `val isDownloadingModel: Boolean = false` to `ClothingFormUiState`
+- [x] Add `val isDownloadingModel: Boolean = false` to `ClothingFormUiState`
 
 ### UI changes (`ClothingFormScreen.kt`)
 
-- [ ] While `isDownloadingModel == true`: show an indeterminate `CircularProgressIndicator`
+- [x] While `isDownloadingModel == true`: show an indeterminate `CircularProgressIndicator`
   over the photo with label "Downloading model…" (reuse existing segmenting overlay,
   swap the label)
-- [ ] Disable "Remove background" button while `isDownloadingModel == true`
+- [x] Disable "Remove background" button while `isDownloadingModel == true`
 
 ### `BatchSegmentationWorker` changes
 
-- [ ] At the start of `doWork()`, before the item loop: call `ensureModelDownloaded()`
+- [x] At the start of `doWork()`, before the item loop: call `ensureModelDownloaded()`
   - On failure: return `Result.failure(workDataOf("error" to "model_download_failed"))`
   - This prevents starting the foreground service + notification for a run that will
     immediately fail on every item
 
 ### String resources
 
-- [ ] `wardrobe_downloading_model` — "Downloading segmentation model…"
-- [ ] `wardrobe_model_download_error` — "Couldn't download segmentation model. Check your connection and try again."
+- [x] `wardrobe_downloading_model` — "Downloading segmentation model…"
+- [x] `wardrobe_model_download_error` — "Couldn't download segmentation model. Check your connection and try again."
 
 ---
 

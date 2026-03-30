@@ -82,6 +82,8 @@
     <string name="wardrobe_remove_background">Remove background</string>
     <string name="wardrobe_revert_segmentation">Undo background removal</string>
     <string name="wardrobe_segmentation_error">Couldn\'t remove background. Try a photo with a clearer subject.</string>
+    <string name="wardrobe_downloading_model">Downloading segmentation model\u2026</string>
+    <string name="wardrobe_model_download_error">Couldn\'t download segmentation model. Check your connection and try again.</string>
     <string name="wardrobe_purchase_price">Purchase Price</string>
     <string name="wardrobe_price_hint">0.00</string>
     <string name="wardrobe_location_hint">Where did you buy this?</string>

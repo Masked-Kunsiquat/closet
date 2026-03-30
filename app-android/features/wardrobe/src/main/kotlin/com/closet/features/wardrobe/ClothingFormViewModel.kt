@@ -60,6 +60,7 @@ data class ClothingFormUiState(
     val imagePath: String? = null,
     val imageFile: File? = null,
     val isSegmenting: Boolean = false,
+    val isDownloadingModel: Boolean = false,
     val hasSegmentedImage: Boolean = false,
     val originalImageFile: File? = null,
     val isSegmentationSupported: Boolean = true,
@@ -91,6 +92,7 @@ private data class FormState(
     val notes: String = "",
     val imagePath: String? = null,
     val isSegmenting: Boolean = false,
+    val isDownloadingModel: Boolean = false,
     val hasSegmentedImage: Boolean = false,
     val originalSegmentationImagePath: String? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
@@ -201,6 +203,7 @@ class ClothingFormViewModel @Inject constructor(
             imagePath = form.imagePath,
             imageFile = form.imagePath?.let { storageRepository.getFile(it) },
             isSegmenting = form.isSegmenting,
+            isDownloadingModel = form.isDownloadingModel,
             hasSegmentedImage = form.hasSegmentedImage,
             originalImageFile = form.originalSegmentationImagePath?.let { storageRepository.getFile(it) },
             isSegmentationSupported = segmentationRepository.isSupported,
@@ -213,6 +216,7 @@ class ClothingFormViewModel @Inject constructor(
             subcategories = subs,
             allColors = colors,
             canSave = form.name.isNotBlank() && !form.isSaving && !form.isSegmenting &&
+                    !form.isDownloadingModel &&
                     !(form.brandQuery.isNotBlank() && form.selectedBrandId == null),
             isDirty = computeIsDirty(form),
             sizeSystems = systems,
@@ -417,9 +421,30 @@ class ClothingFormViewModel @Inject constructor(
 
     fun removeBackground() {
         val currentForm = _form.value
-        if (!segmentationRepository.isSupported || currentForm.imagePath == null || currentForm.isSegmenting) return
+        if (!segmentationRepository.isSupported || currentForm.imagePath == null ||
+            currentForm.isSegmenting || currentForm.isDownloadingModel) return
 
         viewModelScope.launch(Dispatchers.IO) {
+            // Gate: ensure the Play Services ML Kit model is ready before starting inference.
+            // isModelDownloaded() returns false on FOSS builds and on first cold-start
+            // if GMS hasn't yet delivered the model.
+            if (!segmentationRepository.isModelDownloaded()) {
+                _form.update { it.copy(isDownloadingModel = true) }
+                try {
+                    segmentationRepository.ensureModelDownloaded()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.e(e, "removeBackground: model download failed")
+                    _form.update { it.copy(
+                        isDownloadingModel = false,
+                        errorMessage = R.string.wardrobe_model_download_error,
+                    ) }
+                    return@launch
+                }
+                _form.update { it.copy(isDownloadingModel = false) }
+            }
+
             _form.update { it.copy(isSegmenting = true, originalSegmentationImagePath = it.imagePath) }
             try {
                 val path = _form.value.imagePath ?: return@launch

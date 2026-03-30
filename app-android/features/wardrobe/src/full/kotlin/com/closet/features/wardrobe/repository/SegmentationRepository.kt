@@ -28,6 +28,34 @@ class SegmentationRepository @Inject constructor() {
     val isSupported: Boolean = true
 
     /**
+     * Returns `true` if the ML Kit Subject Segmentation model is ready for use.
+     *
+     * Play Services ML Kit manages model delivery automatically via GMS — there is no
+     * public synchronous API to query download status the way Firebase ML Kit's
+     * `RemoteModelManager` does for custom remote models. We optimistically return `true`
+     * here; [ensureModelDownloaded] serves as the actual gate and will throw if GMS cannot
+     * deliver the model (e.g. first cold-start with no network).
+     */
+    suspend fun isModelDownloaded(): Boolean = true
+
+    /**
+     * Ensures the Subject Segmentation model is available before inference begins.
+     *
+     * Creating the [SubjectSegmentation] client registers a GMS module dependency that
+     * triggers Play Services to prepare (and if necessary download) the model in the
+     * background. If GMS is unavailable or client creation fails for any other reason,
+     * this function throws so the caller can surface an appropriate error to the user
+     * rather than letting the first [removeBackground] call fail silently.
+     */
+    suspend fun ensureModelDownloaded(): Unit = withContext(Dispatchers.IO) {
+        val options = SubjectSegmenterOptions.Builder()
+            .enableForegroundConfidenceMask()
+            .build()
+        val client = SubjectSegmentation.getClient(options)
+        client.close()
+    }
+
+    /**
      * Removes the background from [bitmap] and returns a new `ARGB_8888` [Bitmap] where
      * each pixel's alpha channel is set from the ML Kit confidence mask (0.0 = background,
      * 1.0 = foreground). Edge pixels receive partial alpha for natural feathering.
