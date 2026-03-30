@@ -60,6 +60,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -82,6 +83,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
@@ -133,7 +136,13 @@ fun SettingsScreen(
     val segmentationEligibleCount by viewModel.segmentationEligibleCount.collectAsStateWithLifecycle()
     val batchSegWorkInfo by viewModel.batchSegWorkInfo.collectAsStateWithLifecycle()
 
+    val captionSupported = viewModel.captionSupported
+    val captionEligibleCount by viewModel.captionEligibleCount.collectAsStateWithLifecycle()
+    val batchCaptionProgress by viewModel.batchCaptionProgress.collectAsStateWithLifecycle()
+    val captionResult by viewModel.captionResult.collectAsStateWithLifecycle()
+
     val context = LocalContext.current
+    val view = LocalView.current
     val activity = LocalActivity.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -145,8 +154,6 @@ fun SettingsScreen(
     // Show a snackbar once per completed batch run. lastHandledBatchId lives in the
     // ViewModel so it survives the screen leaving composition and coming back — a
     // local `remember` would reset to null and re-fire the snackbar on re-entry.
-    val batchResultMsg = stringResource(R.string.settings_wardrobe_batch_result)
-    val batchResultWithFailuresMsg = stringResource(R.string.settings_wardrobe_batch_result_with_failures)
     val lastHandledBatchId by viewModel.lastHandledBatchId.collectAsStateWithLifecycle()
     LaunchedEffect(batchSegWorkInfo?.id, batchSegWorkInfo?.state) {
         val info = batchSegWorkInfo ?: return@LaunchedEffect
@@ -155,12 +162,32 @@ fun SettingsScreen(
             val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
             val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
             val msg = if (failed > 0) {
-                String.format(batchResultWithFailuresMsg, done, failed)
+                context.resources.getQuantityString(R.plurals.settings_wardrobe_batch_result_with_failures, done, done, failed)
             } else {
-                String.format(batchResultMsg, done)
+                context.resources.getQuantityString(R.plurals.settings_wardrobe_batch_result, done, done)
             }
             snackbarHostState.showSnackbar(msg)
         }
+    }
+
+    // Keep screen on while batch caption enrichment is running (Image Description API requirement).
+    // LaunchedEffect handles the reactive set; DisposableEffect guarantees reset on composition exit.
+    LaunchedEffect(batchCaptionProgress) {
+        view.keepScreenOn = batchCaptionProgress != null
+    }
+    DisposableEffect(Unit) {
+        onDispose { view.keepScreenOn = false }
+    }
+
+    LaunchedEffect(captionResult) {
+        val result = captionResult ?: return@LaunchedEffect
+        viewModel.onCaptionResultConsumed()
+        val msg = if (result.failed > 0) {
+            context.resources.getQuantityString(R.plurals.settings_wardrobe_caption_result_with_failures, result.done, result.done, result.failed)
+        } else {
+            context.resources.getQuantityString(R.plurals.settings_wardrobe_caption_result, result.done, result.done)
+        }
+        snackbarHostState.showSnackbar(msg)
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -272,6 +299,10 @@ fun SettingsScreen(
         segmentationEligibleCount = segmentationEligibleCount,
         batchSegWorkInfo = batchSegWorkInfo,
         onStartBatchSegmentation = viewModel::startBatchSegmentation,
+        captionSupported = captionSupported,
+        captionEligibleCount = captionEligibleCount,
+        batchCaptionProgress = batchCaptionProgress,
+        onStartBatchEnrichment = viewModel::startBatchEnrichment,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
     )
@@ -328,6 +359,10 @@ internal fun SettingsContent(
     segmentationEligibleCount: Int,
     batchSegWorkInfo: WorkInfo?,
     onStartBatchSegmentation: () -> Unit,
+    captionSupported: Boolean,
+    captionEligibleCount: Int,
+    batchCaptionProgress: BatchCaptionProgress?,
+    onStartBatchEnrichment: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     modifier: Modifier = Modifier,
@@ -463,16 +498,27 @@ internal fun SettingsContent(
             }
 
             // ── Wardrobe ──────────────────────────────────────────────────────
-            if (segmentationSupported) {
+            if (segmentationSupported || captionSupported) {
                 item {
                     SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
                 }
-                item {
-                    BatchSegmentationItem(
-                        eligibleCount = segmentationEligibleCount,
-                        workInfo = batchSegWorkInfo,
-                        onStart = onStartBatchSegmentation,
-                    )
+                if (segmentationSupported) {
+                    item {
+                        BatchSegmentationItem(
+                            eligibleCount = segmentationEligibleCount,
+                            workInfo = batchSegWorkInfo,
+                            onStart = onStartBatchSegmentation,
+                        )
+                    }
+                }
+                if (captionSupported) {
+                    item {
+                        BatchCaptionItem(
+                            eligibleCount = captionEligibleCount,
+                            progress = batchCaptionProgress,
+                            onStart = onStartBatchEnrichment,
+                        )
+                    }
                 }
             }
         }
@@ -1198,8 +1244,9 @@ private fun BatchSegmentationItem(
             },
             supportingContent = {
                 Text(
-                    stringResource(
-                        R.string.settings_wardrobe_remove_backgrounds_summary,
+                    pluralStringResource(
+                        R.plurals.settings_wardrobe_remove_backgrounds_summary,
+                        eligibleCount,
                         eligibleCount,
                     ),
                 )
@@ -1211,6 +1258,61 @@ private fun BatchSegmentationItem(
             headlineContent = {
                 Text(
                     stringResource(R.string.settings_wardrobe_all_done),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun BatchCaptionItem(
+    eligibleCount: Int,
+    progress: BatchCaptionProgress?,
+    onStart: () -> Unit,
+) {
+    if (progress != null) {
+        ListItem(
+            headlineContent = {
+                Text(stringResource(R.string.settings_wardrobe_enriching_descriptions))
+            },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(
+                            R.string.settings_wardrobe_enriching_descriptions_progress,
+                            progress.done,
+                            progress.total,
+                        ),
+                    )
+                    LinearProgressIndicator(
+                        progress = { if (progress.total > 0) progress.done.toFloat() / progress.total else 0f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+        )
+    } else if (eligibleCount > 0) {
+        ListItem(
+            headlineContent = {
+                Text(stringResource(R.string.settings_wardrobe_enrich_descriptions))
+            },
+            supportingContent = {
+                Text(
+                    pluralStringResource(
+                        R.plurals.settings_wardrobe_enrich_descriptions_summary,
+                        eligibleCount,
+                        eligibleCount,
+                    ),
+                )
+            },
+            modifier = Modifier.clickable { onStart() },
+        )
+    } else {
+        ListItem(
+            headlineContent = {
+                Text(
+                    stringResource(R.string.settings_wardrobe_descriptions_up_to_date),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
@@ -1324,6 +1426,10 @@ private fun SettingsContentDefaultPreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1373,6 +1479,10 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1422,6 +1532,10 @@ private fun SettingsContentWeatherGooglePreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1471,6 +1585,10 @@ private fun SettingsContentAiNanoCheckingPreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1520,6 +1638,10 @@ private fun SettingsContentAiNanoDownloadingPreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1569,6 +1691,10 @@ private fun SettingsContentAiNanoNotSupportedPreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1618,6 +1744,10 @@ private fun SettingsContentAiOpenAiPreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -1667,6 +1797,10 @@ private fun SettingsContentAiAnthropicPreview() {
             segmentationEligibleCount = 3,
             batchSegWorkInfo = null,
             onStartBatchSegmentation = {},
+            captionSupported = true,
+            captionEligibleCount = 2,
+            batchCaptionProgress = null,
+            onStartBatchEnrichment = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )

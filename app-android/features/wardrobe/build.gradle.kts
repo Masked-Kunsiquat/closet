@@ -73,6 +73,9 @@ dependencies {
     "fullImplementation"(libs.mlkit.subject.segmentation)
     "fullImplementation"(libs.kotlinx.coroutines.play.services)
 
+    // ML Kit GenAI Image Description — full flavor only; foss uses a stub
+    "fullImplementation"(libs.mlkit.genai.image.description)
+
     // WorkManager + Hilt integration for BatchSegmentationWorker
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.hilt.work)

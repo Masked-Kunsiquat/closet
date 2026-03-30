@@ -16,12 +16,13 @@ import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import com.closet.core.data.util.BitmapUtils
 import com.closet.features.wardrobe.R
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.features.wardrobe.repository.ImageCaptionRepository
 import com.closet.features.wardrobe.repository.SegmentationRepository
 import java.util.UUID
 import com.closet.core.data.util.ColorMatcher
@@ -30,6 +31,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -64,6 +66,8 @@ data class ClothingFormUiState(
     val hasSegmentedImage: Boolean = false,
     val originalImageFile: File? = null,
     val isSegmentationSupported: Boolean = true,
+    val isCaptioning: Boolean = false,         // spinner hint for future UI polish
+    val imageCaption: String? = null,          // surfaced for debug/review if needed
     val selectedColors: List<ColorEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
@@ -95,6 +99,9 @@ private data class FormState(
     val isDownloadingModel: Boolean = false,
     val hasSegmentedImage: Boolean = false,
     val originalSegmentationImagePath: String? = null,
+    val originalSegmentationImageCaption: String? = null,
+    val isCaptioning: Boolean = false,
+    val imageCaption: String? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
@@ -115,6 +122,7 @@ class ClothingFormViewModel @Inject constructor(
     private val storageRepository: StorageRepository,
     private val clothingRepository: ClothingRepository,
     private val segmentationRepository: SegmentationRepository,
+    private val imageCaptionRepository: ImageCaptionRepository,
 ) : ViewModel() {
 
     private val editDestination = try {
@@ -133,6 +141,7 @@ class ClothingFormViewModel @Inject constructor(
     private var originalColors: List<ColorEntity> = emptyList()
 
     private var sizeSystemUserOverridden = false
+    private var captionJob: Job? = null
 
     private val _events = Channel<ClothingFormEvent>()
     val events = _events.receiveAsFlow()
@@ -207,6 +216,8 @@ class ClothingFormViewModel @Inject constructor(
             hasSegmentedImage = form.hasSegmentedImage,
             originalImageFile = form.originalSegmentationImagePath?.let { storageRepository.getFile(it) },
             isSegmentationSupported = segmentationRepository.isSupported,
+            isCaptioning = form.isCaptioning,
+            imageCaption = form.imageCaption,
             selectedColors = form.selectedColors,
             isNameError = form.isNameError,
             isSaving = form.isSaving,
@@ -321,6 +332,7 @@ class ClothingFormViewModel @Inject constructor(
                         selectedColors = colors,
                         selectedSizeSystemId = systemId,
                         selectedSizeValueId = entity.sizeValueId,
+                        imageCaption = entity.imageCaption,
                         isLoading = false
                     ) }
                 }
@@ -400,11 +412,15 @@ class ClothingFormViewModel @Inject constructor(
                 val path = storageRepository.saveImage(uri)
                 // Point the UI at the new file before any cleanup so the form always
                 // references a valid path even if a subsequent deletion fails.
+                // Reset caption fields so a stale result from a prior image can't bleed through.
+                captionJob?.cancel()
                 _form.update { it.copy(
                     imagePath = path,
                     isLoading = false,
                     hasSegmentedImage = false,
                     originalSegmentationImagePath = null,
+                    originalSegmentationImageCaption = null,
+                    imageCaption = null,
                 ) }
                 // Best-effort cleanup — failures must not block the form update above.
                 if (previousPath != null && previousPath != originalImagePath) {
@@ -418,6 +434,11 @@ class ClothingFormViewModel @Inject constructor(
                 }
                 val file = storageRepository.getFile(path)
                 extractColorsFromFile(file)
+
+                // At-capture captioning — best-effort, never blocks save.
+                if (imageCaptionRepository.isSupported) {
+                    launchCaptionJob(path, file)
+                }
             } catch (e: Exception) {
                 Timber.e(e, "image selection failed")
                 _form.update { it.copy(isLoading = false, errorMessage = com.closet.core.ui.R.string.error_unexpected) }
@@ -450,17 +471,31 @@ class ClothingFormViewModel @Inject constructor(
             }
             _form.update { it.copy(isDownloadingModel = false) }
 
-            _form.update { it.copy(isSegmenting = true, originalSegmentationImagePath = it.imagePath) }
+            _form.update { it.copy(
+                isSegmenting = true,
+                originalSegmentationImagePath = it.imagePath,
+                originalSegmentationImageCaption = it.imageCaption,
+            ) }
             try {
                 val path = _form.value.imagePath ?: return@launch
                 val file = storageRepository.getFile(path)
                 // Decode at reduced resolution so the full-res bitmap never hits memory.
                 // The repo's own downsample() becomes a no-op when the bitmap is already ≤1024px.
-                val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                     ?: throw IllegalStateException("Could not decode image file: $path")
                 val masked = segmentationRepository.removeBackground(bitmap)
                 val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
-                _form.update { it.copy(imagePath = savedPath, hasSegmentedImage = true, isSegmenting = false) }
+                _form.update { it.copy(
+                    imagePath = savedPath,
+                    hasSegmentedImage = true,
+                    isSegmenting = false,
+                    imageCaption = null,                      // old caption was for the un-segmented image
+                    originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
+                ) }
+                // Re-caption the segmented image on Main (Image Description API requirement).
+                if (imageCaptionRepository.isSupported) {
+                    launchCaptionJob(savedPath, storageRepository.getFile(savedPath))
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -468,6 +503,8 @@ class ClothingFormViewModel @Inject constructor(
                 _form.update { it.copy(
                     imagePath = it.originalSegmentationImagePath,
                     originalSegmentationImagePath = null,
+                    imageCaption = it.originalSegmentationImageCaption,
+                    originalSegmentationImageCaption = null,
                     isSegmenting = false,
                     errorMessage = R.string.wardrobe_segmentation_error,
                 ) }
@@ -478,10 +515,17 @@ class ClothingFormViewModel @Inject constructor(
     fun revertSegmentation() {
         val currentPath = _form.value.imagePath
         val originalPath = _form.value.originalSegmentationImagePath ?: return
+        // Cancel any caption job that was started for the segmented PNG.
+        // The stale-path guard would block its writes, but isCaptioning would
+        // stay stuck true without an explicit cancel + reset here.
+        captionJob?.cancel()
         _form.update { it.copy(
             imagePath = originalPath,
             hasSegmentedImage = false,
             originalSegmentationImagePath = null,
+            imageCaption = it.originalSegmentationImageCaption,
+            originalSegmentationImageCaption = null,
+            isCaptioning = false,
         ) }
         if (currentPath != null && currentPath != originalPath) {
             viewModelScope.launch {
@@ -499,17 +543,43 @@ class ClothingFormViewModel @Inject constructor(
     }
 
     /**
-     * Decodes [path] into a [Bitmap] at a sample size that keeps the longest side ≤ [maxDim].
-     * Uses a two-pass decode (bounds-only then sampled) so the full-resolution image is never
-     * allocated in memory.
+     * Cancels any in-flight caption job and launches a new one for [path]/[file].
+     *
+     * Captures [path] as the "owning" path for this request. All state mutations are
+     * guarded by a check that the form's current [FormState.imagePath] still equals
+     * [path], so a stale job that was cancelled late cannot overwrite state that
+     * belongs to a newer image selection.
+     *
+     * Must be called from a coroutine context that can reach Main (i.e. viewModelScope).
      */
-    private fun decodeSampledBitmap(path: String, maxDim: Int): Bitmap? {
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, opts)
-        val longest = maxOf(opts.outWidth, opts.outHeight)
-        var sampleSize = 1
-        while (longest / sampleSize > maxDim) sampleSize *= 2
-        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sampleSize })
+    private fun launchCaptionJob(path: String, file: File) {
+        captionJob?.cancel()
+        captionJob = viewModelScope.launch(Dispatchers.Main) {
+            if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = true) }
+            // Decode on IO — file read + BitmapFactory is synchronous CPU/IO work.
+            val bitmap = withContext(Dispatchers.IO) {
+                BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+            }
+            if (bitmap == null) {
+                if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
+                return@launch
+            }
+            try {
+                // describe() must stay on Main — Image Description API requirement.
+                val caption = imageCaptionRepository.describe(bitmap)
+                if (_form.value.imagePath == path) {
+                    _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
+                }
+            } catch (e: CancellationException) {
+                if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
+                throw e
+            } catch (e: Exception) {
+                Timber.d(e, "at-capture caption failed — ignored")
+                if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
+            } finally {
+                if (!bitmap.isRecycled) bitmap.recycle()
+            }
+        }
     }
 
     private suspend fun extractColorsFromFile(file: File) {
@@ -584,6 +654,11 @@ class ClothingFormViewModel @Inject constructor(
                     isFavorite = originalEntity?.isFavorite ?: 0,
                     status = originalEntity?.status ?: ClothingStatus.Active,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
+                    // Use the caption generated this session if available. Fall back to the stored
+                    // caption only when the image path hasn't changed (i.e. no new image was picked).
+                    // If the user replaced the image, treat the old caption as stale and set null.
+                    imageCaption = state.imageCaption
+                        ?: if (state.imagePath == originalEntity?.imagePath) originalEntity?.imageCaption else null,
                     createdAt = originalEntity?.createdAt ?: Instant.now(),
                     updatedAt = Instant.now()
                 )

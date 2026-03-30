@@ -89,9 +89,15 @@ data class ClothingItemEntity(
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Int = 0, // 0 | 1
     
+    @ColumnInfo(name = "semantic_description")
+    val semanticDescription: String? = null,
+
+    @ColumnInfo(name = "image_caption")
+    val imageCaption: String? = null,
+
     @ColumnInfo(name = "created_at")
     val createdAt: Instant = Instant.now(),
-    
+
     @ColumnInfo(name = "updated_at")
     val updatedAt: Instant = Instant.now()
 )
