@@ -19,7 +19,6 @@
             android:action="com.closet.shortcut.QUICK_ADD"
             android:targetPackage="com.closet"
             android:targetClass="com.closet.MainActivity" />
-        <categories android:name="android.shortcut.conversation" />
     </shortcut>
 
     <!-- Shortcut 2: Log Fit — opens the Outfit Builder for a new outfit -->
@@ -33,7 +32,6 @@
             android:action="com.closet.shortcut.LOG_FIT"
             android:targetPackage="com.closet"
             android:targetClass="com.closet.MainActivity" />
-        <categories android:name="android.shortcut.conversation" />
     </shortcut>
 
     <!-- Shortcut 3: Laundry Day — opens Bulk Wash screen (destination added in Phase 3) -->
@@ -47,7 +45,6 @@
             android:action="com.closet.shortcut.LAUNDRY_DAY"
             android:targetPackage="com.closet"
             android:targetClass="com.closet.MainActivity" />
-        <categories android:name="android.shortcut.conversation" />
     </shortcut>
 
 </shortcuts>

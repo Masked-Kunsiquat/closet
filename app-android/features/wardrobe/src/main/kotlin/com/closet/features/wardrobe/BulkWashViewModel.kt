@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
@@ -88,7 +90,7 @@ class BulkWashViewModel @Inject constructor(
         if (ids.isEmpty()) return
         viewModelScope.launch {
             _applyError.value = false
-            val results = ids.map { id -> clothingRepository.updateWashStatus(id, status) }
+            val results = ids.map { id -> async { clothingRepository.updateWashStatus(id, status) } }.awaitAll()
             if (results.any { it is DataResult.Error }) {
                 _applyError.value = true
             } else {

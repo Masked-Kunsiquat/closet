@@ -27,6 +27,7 @@ right screen on cold-start and on re-launch (`onNewIntent`).
 
 - [x] **§1.3 — Consume shortcut intents in `ClosetNavGraph`**
   `LaunchedEffect(pendingIntent)` routes each action via `collectAsStateWithLifecycle()`:
+
   | Action | Destination | Notes |
   |--------|-------------|-------|
   | `ACTION_QUICK_ADD` | `AddClothingDestination` | Camera pre-select wired in Phase 4 |
@@ -58,7 +59,6 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
               android:action="com.closet.shortcut.QUICK_ADD"
               android:targetPackage="com.closet"
               android:targetClass="com.closet.MainActivity" />
-          <categories android:name="android.shortcut.conversation" />
       </shortcut>
 
       <!-- Shortcut 2: Log Today's Fit -->
@@ -72,7 +72,6 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
               android:action="com.closet.shortcut.LOG_FIT"
               android:targetPackage="com.closet"
               android:targetClass="com.closet.MainActivity" />
-          <categories android:name="android.shortcut.conversation" />
       </shortcut>
 
       <!-- Shortcut 3: Laundry Day -->
@@ -86,7 +85,6 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
               android:action="com.closet.shortcut.LAUNDRY_DAY"
               android:targetPackage="com.closet"
               android:targetClass="com.closet.MainActivity" />
-          <categories android:name="android.shortcut.conversation" />
       </shortcut>
 
   </shortcuts>
