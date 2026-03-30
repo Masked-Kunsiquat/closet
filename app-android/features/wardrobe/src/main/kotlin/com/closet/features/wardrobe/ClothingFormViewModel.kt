@@ -331,6 +331,7 @@ class ClothingFormViewModel @Inject constructor(
                         selectedColors = colors,
                         selectedSizeSystemId = systemId,
                         selectedSizeValueId = entity.sizeValueId,
+                        imageCaption = entity.imageCaption,
                         isLoading = false
                     ) }
                 }
@@ -433,32 +434,8 @@ class ClothingFormViewModel @Inject constructor(
                 extractColorsFromFile(file)
 
                 // At-capture captioning — best-effort, never blocks save.
-                // Image Description API requires the main thread; launch stays on Main.
                 if (imageCaptionRepository.isSupported) {
-                    captionJob = viewModelScope.launch(Dispatchers.Main) {
-                        _form.update { it.copy(isCaptioning = true) }
-                        // Decode on IO — file read + BitmapFactory is synchronous CPU/IO work.
-                        val bitmap = withContext(Dispatchers.IO) {
-                            BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
-                        }
-                        if (bitmap == null) {
-                            _form.update { it.copy(isCaptioning = false) }
-                            return@launch
-                        }
-                        try {
-                            // describe() must stay on Main — Image Description API requirement.
-                            val caption = imageCaptionRepository.describe(bitmap)
-                            _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
-                        } catch (e: CancellationException) {
-                            _form.update { it.copy(isCaptioning = false) }
-                            throw e
-                        } catch (e: Exception) {
-                            Timber.d(e, "at-capture caption failed — ignored")
-                            _form.update { it.copy(isCaptioning = false) }
-                        } finally {
-                            if (!bitmap.isRecycled) bitmap.recycle()
-                        }
-                    }
+                    launchCaptionJob(path, file)
                 }
             } catch (e: Exception) {
                 Timber.e(e, "image selection failed")
@@ -502,7 +479,16 @@ class ClothingFormViewModel @Inject constructor(
                     ?: throw IllegalStateException("Could not decode image file: $path")
                 val masked = segmentationRepository.removeBackground(bitmap)
                 val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
-                _form.update { it.copy(imagePath = savedPath, hasSegmentedImage = true, isSegmenting = false) }
+                _form.update { it.copy(
+                    imagePath = savedPath,
+                    hasSegmentedImage = true,
+                    isSegmenting = false,
+                    imageCaption = null,   // old caption was for the un-segmented image
+                ) }
+                // Re-caption the segmented image on Main (Image Description API requirement).
+                if (imageCaptionRepository.isSupported) {
+                    launchCaptionJob(savedPath, storageRepository.getFile(savedPath))
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -538,6 +524,46 @@ class ClothingFormViewModel @Inject constructor(
 
     fun onErrorConsumed() {
         _form.update { it.copy(errorMessage = null) }
+    }
+
+    /**
+     * Cancels any in-flight caption job and launches a new one for [path]/[file].
+     *
+     * Captures [path] as the "owning" path for this request. All state mutations are
+     * guarded by a check that the form's current [FormState.imagePath] still equals
+     * [path], so a stale job that was cancelled late cannot overwrite state that
+     * belongs to a newer image selection.
+     *
+     * Must be called from a coroutine context that can reach Main (i.e. viewModelScope).
+     */
+    private fun launchCaptionJob(path: String, file: File) {
+        captionJob?.cancel()
+        captionJob = viewModelScope.launch(Dispatchers.Main) {
+            if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = true) }
+            // Decode on IO — file read + BitmapFactory is synchronous CPU/IO work.
+            val bitmap = withContext(Dispatchers.IO) {
+                BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+            }
+            if (bitmap == null) {
+                if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
+                return@launch
+            }
+            try {
+                // describe() must stay on Main — Image Description API requirement.
+                val caption = imageCaptionRepository.describe(bitmap)
+                if (_form.value.imagePath == path) {
+                    _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
+                }
+            } catch (e: CancellationException) {
+                if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
+                throw e
+            } catch (e: Exception) {
+                Timber.d(e, "at-capture caption failed — ignored")
+                if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
+            } finally {
+                if (!bitmap.isRecycled) bitmap.recycle()
+            }
+        }
     }
 
     private suspend fun extractColorsFromFile(file: File) {
