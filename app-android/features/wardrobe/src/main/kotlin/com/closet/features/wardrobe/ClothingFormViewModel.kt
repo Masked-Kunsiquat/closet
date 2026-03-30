@@ -15,6 +15,7 @@ import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.closet.features.wardrobe.R
 import com.closet.core.data.repository.BrandRepository
