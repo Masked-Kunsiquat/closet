@@ -225,7 +225,9 @@ class OutfitCoherenceScorer @Inject constructor(
             val comboJson = buildComboJson(sorted)
             val fullPrompt = "${OutfitPromptPrefix.SYSTEM_PROMPT}\n\nStyle vibe: $styleVibe\n\nCombos:\n$comboJson"
             val tokenCount = nanoProvider.countTokens(fullPrompt)
-            if (tokenCount <= tokenLimit) break
+            // Int.MAX_VALUE is the sentinel returned by stubs / unsupported devices —
+            // treat as "fits" to avoid draining the entire list.
+            if (tokenCount == Int.MAX_VALUE || tokenCount <= tokenLimit) break
             sorted.removeAt(sorted.lastIndex)
             Timber.tag(TAG).d(
                 "Token gate: trimmed to %d combos (count=%d, limit=%d)",

@@ -4,6 +4,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -43,13 +46,21 @@ class ModelDiscoveryRepository @Inject constructor(
         val base = if (baseUrl.isBlank()) DEFAULT_OPENAI_BASE else baseUrl.trimEnd('/')
         // Avoid /v1/v1/models when the caller's baseUrl already ends with /v1
         val modelsUrl = if (base.endsWith("/v1")) "$base/models" else "$base/v1/models"
-        return runCatching {
-            val responseText: String = client.get(modelsUrl) {
+        return try {
+            val response: HttpResponse = client.get(modelsUrl) {
                 header("Authorization", "Bearer $apiKey")
-            }.body()
-            parseModelIds(responseText)
-        }.onFailure { e ->
+            }
+            if (!response.status.isSuccess()) {
+                val body = response.body<String>()
+                Timber.tag(TAG).w("fetchOpenAiModels: HTTP %s — %s", response.status, body.take(200))
+                return Result.failure(Exception("HTTP ${response.status.value}"))
+            }
+            Result.success(parseModelIds(response.body()))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             Timber.tag(TAG).w(e, "fetchOpenAiModels failed (url=%s)", modelsUrl)
+            Result.failure(e)
         }
     }
 
@@ -57,14 +68,22 @@ class ModelDiscoveryRepository @Inject constructor(
      * Fetches the list of available Claude model IDs from `GET https://api.anthropic.com/v1/models`.
      */
     suspend fun fetchAnthropicModels(apiKey: String): Result<List<String>> {
-        return runCatching {
-            val responseText: String = client.get("$ANTHROPIC_BASE/v1/models") {
+        return try {
+            val response: HttpResponse = client.get("$ANTHROPIC_BASE/v1/models") {
                 header("x-api-key", apiKey)
                 header("anthropic-version", ANTHROPIC_VERSION)
-            }.body()
-            parseModelIds(responseText)
-        }.onFailure { e ->
+            }
+            if (!response.status.isSuccess()) {
+                val body = response.body<String>()
+                Timber.tag(TAG).w("fetchAnthropicModels: HTTP %s — %s", response.status, body.take(200))
+                return Result.failure(Exception("HTTP ${response.status.value}"))
+            }
+            Result.success(parseModelIds(response.body()))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
             Timber.tag(TAG).w(e, "fetchAnthropicModels failed")
+            Result.failure(e)
         }
     }
 

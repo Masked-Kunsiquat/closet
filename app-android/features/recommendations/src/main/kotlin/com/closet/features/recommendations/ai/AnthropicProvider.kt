@@ -5,6 +5,7 @@ import com.closet.core.data.ai.OutfitAiProvider
 import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSelection
+import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -51,7 +52,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AnthropicProvider @Inject constructor(
-    private val client: HttpClient,
+    @AiHttpClient private val client: HttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : OutfitAiProvider {

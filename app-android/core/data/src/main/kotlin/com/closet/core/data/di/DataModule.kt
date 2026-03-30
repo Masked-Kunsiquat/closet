@@ -112,7 +112,9 @@ object DataModule {
     }
 
     /**
-     * Provides the shared [HttpClient] singleton used by all weather service clients.
+     * Provides the shared [HttpClient] singleton used by all weather service clients
+     * and model-discovery calls. Timeouts are kept short (30 s) to fail fast on
+     * network issues; do not use this client for AI inference calls.
      *
      * - Engine: OkHttp (recommended Android engine for Ktor 3.x).
      * - ContentNegotiation: shares the [provideJson] instance so HTTP parsing and
@@ -144,6 +146,47 @@ object DataModule {
                         }
                     }
                     Timber.tag("Ktor").d(redacted)
+                }
+            }
+            level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
+        }
+    }
+
+    /**
+     * Provides an [HttpClient] for AI inference calls (OpenAI-compatible, Anthropic).
+     *
+     * AI inference can take 60-120 s on slow networks or large payloads; the default
+     * 30 s client would abort mid-response. This client sets a 2-minute socket/request
+     * timeout — long enough for cloud inference while still bounding runaway calls.
+     *
+     * All other characteristics (engine, content negotiation, logging) mirror the
+     * default client. The qualifier [AiHttpClient] distinguishes it at injection sites.
+     */
+    @Provides
+    @Singleton
+    @AiHttpClient
+    fun provideAiHttpClient(json: Json): HttpClient = HttpClient(OkHttp) {
+        install(HttpTimeout) {
+            connectTimeoutMillis = 30_000
+            socketTimeoutMillis = 120_000
+            requestTimeoutMillis = 120_000
+        }
+        install(ContentNegotiation) {
+            json(json)
+        }
+        install(Logging) {
+            logger = object : Logger {
+                private val sensitiveHeaders = setOf("authorization", "x-api-key")
+                override fun log(message: String) {
+                    val redacted = message.lines().joinToString("\n") { line ->
+                        val colon = line.indexOf(':')
+                        if (colon > 0 && line.substring(0, colon).trim().lowercase() in sensitiveHeaders) {
+                            "${line.substring(0, colon)}: <REDACTED>"
+                        } else {
+                            line
+                        }
+                    }
+                    Timber.tag("KtorAI").d(redacted)
                 }
             }
             level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE

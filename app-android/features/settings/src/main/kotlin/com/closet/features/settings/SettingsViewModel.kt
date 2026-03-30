@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
@@ -301,49 +302,42 @@ class SettingsViewModel @Inject constructor(
     }
 
     init {
-        // Debounced model discovery: fetch models 800ms after the key (or base URL) settles,
-        // if the key is long enough to be a real key. Clear models when key is cleared.
+        // Debounced model discovery: fetch models 800ms after the key (or base URL) settles.
+        // collectLatest cancels any in-flight fetch when a newer emission arrives, so a key
+        // or URL change while loading always triggers a fresh request instead of being dropped.
+        // Models are cleared whenever the key is shorter than MIN_KEY_LENGTH (not just when
+        // it is empty) so stale results aren't retained while the user is still typing.
         viewModelScope.launch {
             combine(openAiKey, openAiBaseUrl) { key, url -> key to url }
                 .debounce(800)
-                .collect { (key, url) ->
-                    when {
-                        key.length >= MIN_KEY_LENGTH -> fetchOpenAiModels(key, url)
-                        key.isEmpty() -> _openAiModels.value = emptyList()
+                .collectLatest { (key, url) ->
+                    if (key.length < MIN_KEY_LENGTH) {
+                        _openAiModels.value = emptyList()
+                        return@collectLatest
+                    }
+                    _openAiModelsLoading.value = true
+                    try {
+                        modelDiscovery.fetchOpenAiModels(key, url).onSuccess { _openAiModels.value = it }
+                    } finally {
+                        _openAiModelsLoading.value = false
                     }
                 }
         }
         viewModelScope.launch {
             anthropicKey
                 .debounce(800)
-                .collect { key ->
-                    when {
-                        key.length >= MIN_KEY_LENGTH -> fetchAnthropicModels(key)
-                        key.isEmpty() -> _anthropicModels.value = emptyList()
+                .collectLatest { key ->
+                    if (key.length < MIN_KEY_LENGTH) {
+                        _anthropicModels.value = emptyList()
+                        return@collectLatest
+                    }
+                    _anthropicModelsLoading.value = true
+                    try {
+                        modelDiscovery.fetchAnthropicModels(key).onSuccess { _anthropicModels.value = it }
+                    } finally {
+                        _anthropicModelsLoading.value = false
                     }
                 }
-        }
-    }
-
-    private fun fetchOpenAiModels(key: String, baseUrl: String) {
-        if (_openAiModelsLoading.value) return
-        viewModelScope.launch {
-            _openAiModelsLoading.value = true
-            modelDiscovery.fetchOpenAiModels(key, baseUrl).onSuccess { models ->
-                _openAiModels.value = models
-            }
-            _openAiModelsLoading.value = false
-        }
-    }
-
-    private fun fetchAnthropicModels(key: String) {
-        if (_anthropicModelsLoading.value) return
-        viewModelScope.launch {
-            _anthropicModelsLoading.value = true
-            modelDiscovery.fetchAnthropicModels(key).onSuccess { models ->
-                _anthropicModels.value = models
-            }
-            _anthropicModelsLoading.value = false
         }
     }
 
