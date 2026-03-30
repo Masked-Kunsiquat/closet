@@ -78,6 +78,11 @@ object DataModule {
     @Singleton
     fun provideRecommendationDao(db: ClothingDatabase): RecommendationDao = db.recommendationDao()
 
+    /** Provides the [EmbeddingDao] singleton from the shared database instance. */
+    @Provides
+    @Singleton
+    fun provideEmbeddingDao(db: ClothingDatabase): EmbeddingDao = db.embeddingDao()
+
     /** Provides the [RecommendationRepository] singleton. */
     @Provides
     @Singleton
