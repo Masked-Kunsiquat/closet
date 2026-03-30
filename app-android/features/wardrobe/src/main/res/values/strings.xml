@@ -99,6 +99,14 @@
     <string name="wardrobe_wear_history_untitled">Untitled outfit</string>
     <string name="wardrobe_wear_history_ootd">Outfit of the day</string>
 
+    <!-- Bulk Wash / Laundry Day screen -->
+    <string name="bulk_wash_title">Laundry Day</string>
+    <string name="bulk_wash_select_all">Select all</string>
+    <string name="bulk_wash_deselect_all">Deselect all</string>
+    <string name="bulk_wash_selected_count">%d selected</string>
+    <string name="bulk_wash_mark_clean">Mark Clean</string>
+    <string name="bulk_wash_mark_dirty">Mark Dirty</string>
+
     <!-- Brand Management — screen for viewing, adding, editing, and deleting clothing brands -->
     <!-- Title shown in the top app bar of the brand management screen -->
     <string name="brand_management_title">Manage Brands</string>

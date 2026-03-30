@@ -26,3 +26,7 @@ data class EditClothingDestination(val itemId: Long)
 /** Route for the Brand Management screen. */
 @Serializable
 object BrandManagementDestination
+
+/** Route for the Bulk Wash / Laundry Day screen. */
+@Serializable
+object BulkWashDestination

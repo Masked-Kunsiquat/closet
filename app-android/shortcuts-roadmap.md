@@ -126,32 +126,32 @@ Static shortcuts are declared in XML, shipped with the APK, and always visible t
 
 ---
 
-## Phase 3 — New screen: Bulk Wash / Laundry Day
+## Phase 3 — New screen: Bulk Wash / Laundry Day ✅
 
 The "Laundry Day" shortcut needs a screen that doesn't exist yet.
 
-- [ ] **§3.1 — Add `BulkWashDestination` route**
+- [x] **§3.1 — Add `BulkWashDestination` route**
   File: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/WardrobeNavigation.kt`
   ```kotlin
   @Serializable
   object BulkWashDestination
   ```
 
-- [ ] **§3.2 — Create `BulkWashViewModel`**
+- [x] **§3.2 — Create `BulkWashViewModel`**
   New file: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/BulkWashViewModel.kt`
   - Expose `StateFlow<List<ClothingItemWithMeta>>` from `ClothingRepository.getAllItems()`.
   - Expose a `selectedIds: Set<Long>` toggle.
   - `fun applyWashStatus(status: WashStatus)` — calls
     `ClothingRepository.updateWashStatus(id, status)` for each selected ID.
 
-- [ ] **§3.3 — Create `BulkWashScreen`**
+- [x] **§3.3 — Create `BulkWashScreen`**
   New file: `features/wardrobe/src/main/kotlin/com/closet/features/wardrobe/BulkWashScreen.kt`
   - Lazy list of all items with checkboxes.
   - Bottom bar with "Mark Clean" / "Mark Dirty" / "Archive" action buttons.
   - Destructive actions (Archive) require an `AlertDialog` confirmation
     (follow the existing delete pattern in `ClothingDetailScreen`).
 
-- [ ] **§3.4 — Register `BulkWashDestination` in the nav graph**
+- [x] **§3.4 — Register `BulkWashDestination` in the nav graph**
   File: `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt`
   Wire `composable<BulkWashDestination>` → `BulkWashScreen(onBack = ...)`.
 
@@ -287,8 +287,8 @@ Shortcuts must be disabled when the content they reference no longer exists.
 | ✅ Done | `app/src/main/AndroidManifest.xml` | Register shortcuts.xml meta-data |
 | ✅ Done | `app/src/main/res/values/strings.xml` | Shortcut label strings |
 | *(n/a)* | ~~New shortcut icon drawables~~ | Reused existing `core/ui` vectors |
-| 🆕 Create | `features/wardrobe/src/main/kotlin/.../BulkWashViewModel.kt` | Bulk status ViewModel |
-| 🆕 Create | `features/wardrobe/src/main/kotlin/.../BulkWashScreen.kt` | Laundry Day UI |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../BulkWashViewModel.kt` | Bulk status ViewModel |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../BulkWashScreen.kt` | Laundry Day UI |
 | ✏️ Modify | `features/wardrobe/src/main/kotlin/.../WardrobeNavigation.kt` | `BulkWashDestination`, `AddClothingDestination(openCamera)` |
 | ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClothingFormViewModel.kt` | `openCamera` param + `OpenImagePicker` event |
 | ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClothingFormScreen.kt` | Consume `OpenImagePicker` event |
