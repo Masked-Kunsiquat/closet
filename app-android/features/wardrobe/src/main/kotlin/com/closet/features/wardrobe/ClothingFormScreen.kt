@@ -282,7 +282,7 @@ internal fun ClothingFormContent(
                     }
                 }
 
-                if (uiState.imageFile != null && !uiState.isSegmenting && !uiState.hasSegmentedImage) {
+                if (uiState.isSegmentationSupported && uiState.imageFile != null && !uiState.isSegmenting && !uiState.hasSegmentedImage) {
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onRemoveBackground,

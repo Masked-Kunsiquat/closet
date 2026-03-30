@@ -24,6 +24,9 @@ import javax.inject.Singleton
 @Singleton
 class SegmentationRepository @Inject constructor() {
 
+    /** `true` in the full flavor; used by the ViewModel to hide the button in FOSS builds. */
+    val isSupported: Boolean = true
+
     /**
      * Removes the background from [bitmap] and returns a new [Bitmap] with a transparent
      * background (`ARGB_8888`).

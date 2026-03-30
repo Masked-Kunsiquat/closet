@@ -15,6 +15,9 @@ import javax.inject.Singleton
 @Singleton
 class SegmentationRepository @Inject constructor() {
 
+    /** `false` in the FOSS flavor — hides the "Remove background" button entirely. */
+    val isSupported: Boolean = false
+
     suspend fun removeBackground(bitmap: Bitmap): Bitmap =
         throw UnsupportedOperationException("Background removal is not available in the FOSS build")
 }

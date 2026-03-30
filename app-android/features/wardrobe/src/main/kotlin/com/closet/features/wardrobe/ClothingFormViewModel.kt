@@ -61,6 +61,7 @@ data class ClothingFormUiState(
     val isSegmenting: Boolean = false,
     val hasSegmentedImage: Boolean = false,
     val originalImageFile: File? = null,
+    val isSegmentationSupported: Boolean = true,
     val selectedColors: List<ColorEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
@@ -201,6 +202,7 @@ class ClothingFormViewModel @Inject constructor(
             isSegmenting = form.isSegmenting,
             hasSegmentedImage = form.hasSegmentedImage,
             originalImageFile = form.originalSegmentationImagePath?.let { storageRepository.getFile(it) },
+            isSegmentationSupported = segmentationRepository.isSupported,
             selectedColors = form.selectedColors,
             isNameError = form.isNameError,
             isSaving = form.isSaving,
@@ -209,7 +211,7 @@ class ClothingFormViewModel @Inject constructor(
             categories = cats,
             subcategories = subs,
             allColors = colors,
-            canSave = form.name.isNotBlank() && !form.isSaving &&
+            canSave = form.name.isNotBlank() && !form.isSaving && !form.isSegmenting &&
                     !(form.brandQuery.isNotBlank() && form.selectedBrandId == null),
             isDirty = computeIsDirty(form),
             sizeSystems = systems,
@@ -410,14 +412,16 @@ class ClothingFormViewModel @Inject constructor(
 
     fun removeBackground() {
         val currentForm = _form.value
-        if (currentForm.imagePath == null || currentForm.isSegmenting) return
+        if (!segmentationRepository.isSupported || currentForm.imagePath == null || currentForm.isSegmenting) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _form.update { it.copy(isSegmenting = true, originalSegmentationImagePath = it.imagePath) }
             try {
                 val path = _form.value.imagePath ?: return@launch
                 val file = storageRepository.getFile(path)
-                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                // Decode at reduced resolution so the full-res bitmap never hits memory.
+                // The repo's own downsample() becomes a no-op when the bitmap is already ≤1024px.
+                val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                     ?: throw IllegalStateException("Could not decode image file: $path")
                 val masked = segmentationRepository.removeBackground(bitmap)
                 val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
@@ -457,6 +461,20 @@ class ClothingFormViewModel @Inject constructor(
 
     fun onErrorConsumed() {
         _form.update { it.copy(errorMessage = null) }
+    }
+
+    /**
+     * Decodes [path] into a [Bitmap] at a sample size that keeps the longest side ≤ [maxDim].
+     * Uses a two-pass decode (bounds-only then sampled) so the full-resolution image is never
+     * allocated in memory.
+     */
+    private fun decodeSampledBitmap(path: String, maxDim: Int): Bitmap? {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, opts)
+        val longest = maxOf(opts.outWidth, opts.outHeight)
+        var sampleSize = 1
+        while (longest / (sampleSize * 2) >= maxDim) sampleSize *= 2
+        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sampleSize })
     }
 
     private suspend fun extractColorsFromFile(file: File) {
@@ -507,6 +525,7 @@ class ClothingFormViewModel @Inject constructor(
 
     fun save() {
         val state = _form.value
+        if (state.isSegmenting) return
         if (state.name.isBlank()) {
             _form.update { it.copy(isNameError = true) }
             return
@@ -541,13 +560,15 @@ class ClothingFormViewModel @Inject constructor(
                 }
 
                 if (result is DataResult.Success) {
+                    // Best-effort cleanup — failures must not block navigation or show a save error
                     if (isEditMode && originalImagePath != null && originalImagePath != state.imagePath) {
-                        withContext(NonCancellable) { storageRepository.deleteImage(originalImagePath!!) }
+                        runCatching { withContext(NonCancellable) { storageRepository.deleteImage(originalImagePath!!) } }
+                            .onFailure { Timber.e(it, "save: failed to delete old image $originalImagePath") }
                     }
-                    // Clean up the pre-segmentation intermediate file now that the segmented image is saved
                     val segOrigPath = state.originalSegmentationImagePath
                     if (segOrigPath != null && segOrigPath != originalImagePath) {
-                        withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) }
+                        runCatching { withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) } }
+                            .onFailure { Timber.e(it, "save: failed to delete seg original $segOrigPath") }
                     }
                     _events.send(ClothingFormEvent.NavigateBack)
                 } else {
