@@ -380,7 +380,7 @@ internal fun DetailStatRow(
                 else
                     MaterialTheme.colorScheme.primary,
                 onClick = onToggleWash,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(56.dp),
             )
             StatPillCard(
                 icon = {
@@ -393,7 +393,7 @@ internal fun DetailStatRow(
                 },
                 label = stringResource(R.string.wardrobe_stat_wears),
                 value = wearCount.toString(),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(56.dp),
             )
         }
         Row(
@@ -411,7 +411,7 @@ internal fun DetailStatRow(
                 },
                 label = stringResource(R.string.wardrobe_stat_price),
                 value = priceText,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(56.dp),
             )
             StatPillCard(
                 icon = {
@@ -424,7 +424,7 @@ internal fun DetailStatRow(
                 },
                 label = stringResource(R.string.wardrobe_stat_cpw),
                 value = cpwText,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(56.dp),
             )
         }
     }

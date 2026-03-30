@@ -180,8 +180,13 @@ private fun AttributeSectionPreview() {
 
 // ─── DetailStatRow previews ───────────────────────────────────────────────────
 
-@Preview(showBackground = true, name = "StatRow - Full (Clean, 12 wears, $85)")
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "StatRow - Full Dark")
+// S25 Ultra: ~412dp wide, 560dpi
+private const val DEVICE_S25_ULTRA = "spec:width=412dp,height=916dp,dpi=560"
+
+@Preview(showBackground = true, name = "StatRow - Default")
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "StatRow - Default Dark")
+@Preview(showBackground = true, device = DEVICE_S25_ULTRA, name = "StatRow - S25 Ultra")
+@Preview(showBackground = true, device = DEVICE_S25_ULTRA, fontScale = 1.3f, name = "StatRow - S25 Ultra Large Text")
 @Composable
 private fun DetailStatRowFullPreview() {
     ClosetTheme {
