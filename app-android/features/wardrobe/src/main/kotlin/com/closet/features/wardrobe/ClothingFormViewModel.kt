@@ -598,9 +598,14 @@ class ClothingFormViewModel @Inject constructor(
                         val availableColors = allColors.value
                         val matched = extracted.map { ColorMatcher.findNearestColor(it, availableColors) }.distinct()
                         if (matched.isNotEmpty()) {
+                            Timber.d("extractColors: ${file.name} → ${matched.joinToString { it.name }}")
                             _form.update { it.copy(selectedColors = matched) }
                         }
+                    } else {
+                        Timber.d("extractColors: ${file.name} → no swatches extracted")
                     }
+                } else {
+                    Timber.d("extractColors: ${file.name} → bitmap decode returned null")
                 }
             } catch (e: Exception) {
                 Timber.d(e, "color extraction failed")
