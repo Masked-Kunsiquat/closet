@@ -173,29 +173,29 @@ notification fallback for older devices.
 
 No flavor split needed — WorkManager and system notifications are AOSP; no GMS.
 
-### Dependencies (`gradle/libs.versions.toml` + `core/data/build.gradle.kts`)
+### Dependencies (`gradle/libs.versions.toml` + `features/wardrobe/build.gradle.kts`)
 
-- [ ] `androidx.work:work-runtime-ktx` — `WorkManager` + `CoroutineWorker`
-- [ ] No new MLKit dependency — reuses `play-services-mlkit-subject-segmentation`
+- [x] `androidx.work:work-runtime-ktx` + `androidx-hilt-work` added to version catalog
+  and `features/wardrobe/build.gradle.kts`; `ksp(androidx-hilt-compiler)` added to both
+  `features/wardrobe` and `app`
+- [x] No new MLKit dependency — reuses `play-services-mlkit-subject-segmentation`
   already on `features/wardrobe`
 
 ### `BatchSegmentationWorker` (`features/wardrobe/src/main/kotlin/…`)
 
-- [ ] `class BatchSegmentationWorker(ctx, params) : CoroutineWorker`
-- [ ] Declare as a `ForegroundService` worker (required for long-running work):
-  `setForeground(createForegroundInfo(done, total))`
-- [ ] Query all clothing items where `imagePath IS NOT NULL AND imagePath NOT LIKE '%.png'`
-  via `ClothingDao` (inject via `HiltWorkerFactory`)
-- [ ] Create a **single** `SubjectSegmentation` client before the loop; `close()` in
-  `finally` — do not open/close per image (performance)
-- [ ] For each item:
-  - `setProgress(workDataOf(KEY_DONE to i, KEY_TOTAL to n))` — drives UI progress
-  - Decode → `removeBackground()` → `storageRepository.saveBitmap()` →
-    `clothingRepository.updateItemImagePath(id, newPath)`
-  - On exception: `Timber.e(...)` + `continue` — never abort the whole batch
-    for a single bad image; accumulate a failed-count
-  - Skip items whose `imagePath` already ends with `.png`
-- [ ] Return `Result.success(workDataOf(KEY_FAILED to failedCount))`
+- [x] `@HiltWorker class BatchSegmentationWorker @AssistedInject constructor` — `CoroutineWorker`
+- [x] `setForeground(createForegroundInfo(done, total))` foreground service wiring;
+  `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `POST_NOTIFICATIONS` perms in manifest;
+  default WorkManager initializer disabled; `ClosetApp` implements `Configuration.Provider`
+- [x] Queries `ClothingDao.getItemsNeedingSegmentation()` (non-PNG items with an image)
+- [x] Per-item loop: `decodeSampledBitmap` → `removeBackground()` → `saveBitmap()` →
+  `updateItemImagePath()`; per-item exception isolation (`catch → Timber.e → failed++`);
+  `CancellationException` re-thrown
+- [x] `setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total))` after each item
+- [x] Returns `Result.success(workDataOf(KEY_DONE to done, KEY_FAILED to failed))`
+- [x] Constants (`NAME`, `KEY_DONE`, `KEY_TOTAL`, `KEY_FAILED`) extracted to
+  `core/data/.../worker/BatchSegmentationWork.kt` so settings module can reference them
+  without depending on `features/wardrobe`
 
 ### Live Update notification (`createForegroundInfo`)
 
