@@ -1,7 +1,9 @@
 package com.closet.navigation
 
+import android.content.Intent
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -10,6 +12,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -24,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.closet.R
 import com.closet.core.ui.R as CoreUiR
 import com.closet.features.outfits.JournalRoute
+import com.closet.features.outfits.OutfitBuilderDestination
 import com.closet.features.outfits.OutfitsRoute
 import com.closet.features.outfits.journalScreen
 import com.closet.features.outfits.outfitBuilderScreen
@@ -44,6 +48,9 @@ import com.closet.features.wardrobe.ClothingFormScreen
 import com.closet.features.wardrobe.ClosetDestination
 import com.closet.features.wardrobe.ClosetScreen
 import com.closet.features.wardrobe.EditClothingDestination
+import com.closet.shortcuts.ShortcutActions
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KClass
 
 // ─── Bottom nav items ─────────────────────────────────────────────────────────
@@ -77,8 +84,40 @@ private fun NavDestination?.isTopLevel() =
 @Composable
 fun ClosetNavGraph(
     modifier: Modifier = Modifier,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    shortcutIntent: StateFlow<Intent?> = MutableStateFlow(null),
+    onShortcutConsumed: () -> Unit = {},
 ) {
+    // Route to the correct destination when a shortcut intent arrives, then
+    // clear it so rotation / recomposition doesn't re-navigate.
+    val pendingIntent by shortcutIntent.collectAsStateWithLifecycle()
+
+    LaunchedEffect(pendingIntent) {
+        val action = pendingIntent?.action ?: return@LaunchedEffect
+        when (action) {
+            ShortcutActions.ACTION_QUICK_ADD -> {
+                navController.navigate(AddClothingDestination) {
+                    launchSingleTop = true
+                }
+            }
+            ShortcutActions.ACTION_LOG_FIT -> {
+                navController.navigate(OutfitBuilderDestination()) {
+                    launchSingleTop = true
+                }
+            }
+            ShortcutActions.ACTION_LAUNDRY_DAY -> {
+                // BulkWashDestination added in Phase 3 — placeholder until then.
+            }
+            ShortcutActions.ACTION_CATEGORY -> {
+                // Navigate to ClosetDestination; category filter wired in Phase 6.
+                navController.navigate(ClosetDestination) {
+                    launchSingleTop = true
+                }
+            }
+        }
+        onShortcutConsumed()
+    }
+
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = currentBackStackEntry?.destination
 
