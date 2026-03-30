@@ -11,12 +11,16 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
+import androidx.palette.graphics.Palette
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.ClothingDao
+import com.closet.core.data.dao.LookupDao
+import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.repository.SegmentationRepository
 import dagger.assisted.Assisted
@@ -47,8 +51,10 @@ class BatchSegmentationWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted params: WorkerParameters,
     private val clothingDao: ClothingDao,
+    private val lookupDao: LookupDao,
     private val storageRepository: StorageRepository,
     private val segmentationRepository: SegmentationRepository,
+    private val clothingRepository: ClothingRepository,
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -117,6 +123,36 @@ class BatchSegmentationWorker @AssistedInject constructor(
                             .onFailure { Timber.d(it, "BatchSeg: failed to delete orphaned PNG $path") }
                     }
                     throw e
+                }
+
+                // Best-effort: re-extract colours from the masked bitmap and refresh the
+                // semantic description. The Palette API skips transparent pixels so only
+                // subject colours are sampled — not the removed background.
+                // Runs inline (worker is already on IO); failure never marks the item as failed.
+                try {
+                    val palette = Palette.from(masked).generate()
+                    val extracted = listOfNotNull(
+                        palette.dominantSwatch?.rgb,
+                        palette.vibrantSwatch?.rgb,
+                        palette.mutedSwatch?.rgb,
+                    ).distinct()
+                    if (extracted.isNotEmpty()) {
+                        val availableColors = lookupDao.getAllColors()
+                        if (availableColors.isNotEmpty()) {
+                            val matched = extracted
+                                .map { ColorMatcher.findNearestColor(it, availableColors) }
+                                .distinctBy { it.id }
+                            clothingRepository.updateItemColors(item.id, matched.map { it.id })
+                            Timber.d("BatchSeg: item ${item.id} colours → ${matched.joinToString { it.name }}")
+                            clothingRepository.revectorizeItem(item.id)
+                        }
+                    } else {
+                        Timber.d("BatchSeg: item ${item.id} — no swatches extracted from masked bitmap")
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.w(e, "BatchSeg: colour re-extraction failed for item ${item.id} — ignored")
                 }
 
                 // Delete the original file best-effort — a failure here is not fatal

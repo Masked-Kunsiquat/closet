@@ -258,6 +258,12 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * Public entry point for background workers (e.g. [com.closet.features.wardrobe.BatchSegmentationWorker])
+     * that need to refresh the semantic description after updating an item's image.
+     */
+    suspend fun revectorizeItem(id: Long) = vectorizeItem(id)
+
+    /**
      * Fetches the full [ClothingItemDetail] for [id] and writes its prose description
      * to [com.closet.core.data.dao.ClothingDao.updateSemanticDescription].
      * Failures are logged and swallowed — vectorization is best-effort and must never
