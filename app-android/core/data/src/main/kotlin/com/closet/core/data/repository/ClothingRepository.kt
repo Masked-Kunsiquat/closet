@@ -7,6 +7,7 @@ import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.*
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
+import com.closet.core.data.util.ItemVectorizer
 import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
 import javax.inject.Inject
@@ -105,11 +106,16 @@ class ClothingRepository @Inject constructor(
 
     /**
      * Inserts a new clothing item along with its associated colors.
+     * Best-effort: runs ItemVectorizer after a successful insert to populate semantic_description.
      */
     suspend fun insertItemWithColors(
         item: ClothingItemEntity,
         colors: List<ColorEntity>
-    ): DataResult<Long> = insertItem(item, colors.map { it.id })
+    ): DataResult<Long> {
+        val result = insertItem(item, colors.map { it.id })
+        if (result is DataResult.Success) vectorizeItem(result.data)
+        return result
+    }
 
     /**
      * Updates an existing clothing item and its associations.
@@ -138,11 +144,16 @@ class ClothingRepository @Inject constructor(
 
     /**
      * Updates an existing clothing item and its associated colors.
+     * Best-effort: re-runs ItemVectorizer after a successful update to refresh semantic_description.
      */
     suspend fun updateItemWithColors(
         item: ClothingItemEntity,
         colors: List<ColorEntity>
-    ): DataResult<Int> = updateItem(item, colors.map { it.id })
+    ): DataResult<Int> {
+        val result = updateItem(item, colors.map { it.id })
+        if (result is DataResult.Success) vectorizeItem(item.id)
+        return result
+    }
 
     /**
      * Deletes a clothing item by its ID.
@@ -236,6 +247,23 @@ class ClothingRepository @Inject constructor(
      */
     suspend fun updateItemPatterns(itemId: Long, patternIds: List<Long>): DataResult<Unit> = wrapInTransaction {
         clothingDao.updateItemPatterns(itemId, patternIds)
+    }
+
+    /**
+     * Fetches the full [ClothingItemDetail] for [id] and writes its prose description
+     * to [com.closet.core.data.dao.ClothingDao.updateSemanticDescription].
+     * Failures are logged and swallowed — vectorization is best-effort and must never
+     * block or roll back the main save operation.
+     */
+    private suspend fun vectorizeItem(id: Long) {
+        try {
+            val detail = clothingDao.getClothingItemDetailOnce(id) ?: return
+            val description = ItemVectorizer.describe(detail)
+            clothingDao.updateSemanticDescription(id, description, Instant.now())
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Timber.d(e, "vectorizeItem: failed for item $id — ignored")
+        }
     }
 
     /**

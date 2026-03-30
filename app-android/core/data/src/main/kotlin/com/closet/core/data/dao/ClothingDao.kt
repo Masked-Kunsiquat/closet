@@ -226,4 +226,27 @@ interface ClothingDao {
     /** Replaces the stored image path for a single item and updates its timestamp. */
     @Query("UPDATE clothing_items SET image_path = :imagePath, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateItemImagePath(id: Long, imagePath: String, updatedAt: java.time.Instant)
+
+    // ── RAG / semantic pipeline ──────────────────────────────────────────────
+
+    /** One-shot fetch of a fully-loaded [ClothingItemDetail] (used by ItemVectorizer after save). */
+    @Transaction
+    @Query("SELECT ci.*, $WEAR_COUNT_SUBQUERY FROM clothing_items ci WHERE ci.id = :id")
+    suspend fun getClothingItemDetailOnce(id: Long): ClothingItemDetail?
+
+    /** Items that have an image but no caption yet — input queue for batch enrichment. */
+    @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND image_caption IS NULL")
+    suspend fun getItemsNeedingCaption(): List<ClothingItemEntity>
+
+    /** Live count of items eligible for batch caption enrichment. */
+    @Query("SELECT COUNT(*) FROM clothing_items WHERE image_path IS NOT NULL AND image_caption IS NULL")
+    fun getCaptionEligibleCount(): Flow<Int>
+
+    /** Writes the ItemVectorizer output for a single item. */
+    @Query("UPDATE clothing_items SET semantic_description = :text, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateSemanticDescription(id: Long, text: String, updatedAt: java.time.Instant)
+
+    /** Writes the ML Kit image caption for a single item. */
+    @Query("UPDATE clothing_items SET image_caption = :caption, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateImageCaption(id: Long, caption: String, updatedAt: java.time.Instant)
 }
