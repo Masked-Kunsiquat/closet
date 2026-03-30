@@ -19,7 +19,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -331,11 +330,13 @@ fun ClothingDetailScreen(
     }
 }
 
-// ─── Wear history section ─────────────────────────────────────────────────────
+// ─── Stat cards ──────────────────────────────────────────────────────────────
 
 /**
- * Three equal-height stat cards showing wash status (tappable), wear count, and purchase price.
- * The price card is omitted when [purchasePrice] is null.
+ * 2×2 grid of horizontal pill cards: Wash (tappable) + Wears on top,
+ * Price + Cost-per-wear on the bottom.
+ *
+ * Price and CPW show "—" when [purchasePrice] is null or [wearCount] is 0.
  */
 @Composable
 internal fun DetailStatRow(
@@ -345,143 +346,135 @@ internal fun DetailStatRow(
     onToggleWash: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Max),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    val priceText = if (purchasePrice != null)
+        "$${String.format(Locale.getDefault(), "%.2f", purchasePrice)}"
+    else
+        stringResource(R.string.wardrobe_stat_cpw_na)
+
+    val cpwText = if (purchasePrice != null && wearCount > 0)
+        "$${String.format(Locale.getDefault(), "%.2f", purchasePrice / wearCount)}"
+    else
+        stringResource(R.string.wardrobe_stat_cpw_na)
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Wash status card — tappable to toggle
-        OutlinedCard(
-            onClick = onToggleWash,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
+            StatPillCard(
+                icon = {
                     Icon(
-                        painter = painterResource(id = CoreR.drawable.ic_icon_washing_machine),
+                        painter = painterResource(CoreR.drawable.ic_icon_washing_machine),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.wardrobe_stat_wash),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = washStatus.label,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (washStatus == WashStatus.Dirty)
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-
-        // Wear count card
-        OutlinedCard(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                ) {
+                },
+                label = stringResource(R.string.wardrobe_stat_wash),
+                value = washStatus.label,
+                valueColor = if (washStatus == WashStatus.Dirty)
+                    MaterialTheme.colorScheme.error
+                else
+                    MaterialTheme.colorScheme.primary,
+                onClick = onToggleWash,
+                modifier = Modifier.weight(1f),
+            )
+            StatPillCard(
+                icon = {
                     Icon(
                         imageVector = Icons.Default.Numbers,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.wardrobe_stat_wears),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                },
+                label = stringResource(R.string.wardrobe_stat_wears),
+                value = wearCount.toString(),
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            StatPillCard(
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.AttachMoney,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
+                },
+                label = stringResource(R.string.wardrobe_stat_price),
+                value = priceText,
+                modifier = Modifier.weight(1f),
+            )
+            StatPillCard(
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Savings,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                label = stringResource(R.string.wardrobe_stat_cpw),
+                value = cpwText,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/**
+ * Single horizontal pill stat card: [icon] label on the left, bold value on the right.
+ * Pass [onClick] to make the card tappable (e.g. the wash-status toggle).
+ */
+@Composable
+private fun StatPillCard(
+    icon: @Composable () -> Unit,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary,
+    onClick: (() -> Unit)? = null,
+) {
+    val content: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                icon()
                 Text(
-                    text = wearCount.toString(),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                color = valueColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-
-        // Purchase price card — only shown when price is set
-        if (purchasePrice != null) {
-            OutlinedCard(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AttachMoney,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(R.string.wardrobe_stat_price),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "$${String.format(Locale.getDefault(), "%.2f", purchasePrice)}",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
+    }
+    if (onClick != null) {
+        OutlinedCard(onClick = onClick, modifier = modifier) { content() }
+    } else {
+        OutlinedCard(modifier = modifier) { content() }
     }
 }
 
