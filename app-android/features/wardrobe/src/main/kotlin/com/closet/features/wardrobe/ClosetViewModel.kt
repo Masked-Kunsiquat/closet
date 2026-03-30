@@ -231,9 +231,26 @@ class ClosetViewModel @Inject constructor(
     }
 
     /**
+     * Disables the pinned shortcut for [categoryId] with a human-readable [reason].
+     *
+     * Call this whenever a category is deleted so any launcher shortcut pointing to it
+     * shows the disabled state instead of navigating to a missing category.
+     * Categories are not yet deletable in the UI — this function is a hook for when
+     * that feature lands.
+     */
+    fun disableCategoryShortcut(categoryId: Long, reason: String) {
+        ShortcutManagerCompat.disableShortcuts(
+            appContext,
+            listOf("category_$categoryId"),
+            reason,
+        )
+    }
+
+    /**
      * Requests the launcher to pin a shortcut for [categoryId] that deep-links back to
      * the Closet screen pre-filtered to that category.
      * No-op on launchers that don't support pinned shortcuts.
+     * Note: pinned shortcuts do not count against the static + dynamic shortcut slot budget.
      */
     fun pinCategoryShortcut(categoryId: Long, categoryName: String) {
         val shortcutInfo = ShortcutInfoCompat.Builder(appContext, "category_$categoryId")

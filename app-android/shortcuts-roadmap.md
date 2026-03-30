@@ -242,24 +242,22 @@ These are dynamic — created at runtime from DB data.
 
 ---
 
-## Phase 7 — Shortcut lifecycle maintenance
+## Phase 7 — Shortcut lifecycle maintenance ✅
 
 Shortcuts must be disabled when the content they reference no longer exists.
 
-- [ ] **§7.1 — Disable category shortcuts on category deletion**
-  If categories become deletable in future: call
-  `ShortcutManagerCompat.disableShortcuts(context, listOf("category_$categoryId"), reason)`
-  from `ClothingRepository` or a dedicated `ShortcutRepository`.
+- [x] **§7.1 — Disable category shortcuts on category deletion**
+  Added `ClosetViewModel.disableCategoryShortcut(categoryId: Long, reason: String)` which
+  calls `ShortcutManagerCompat.disableShortcuts`. Categories are not yet deletable in the
+  UI — this is a ready hook for when that feature lands. The call site is wherever the
+  category delete ViewModel action is implemented.
 
-- [ ] **§7.2 — Keep dynamic shortcut count ≤ 4 total (static + dynamic)**
-  Since 3 static shortcuts are declared, there is **1 remaining slot** for dynamic shortcuts.
-  If you add any dynamic shortcuts later (e.g. "recently viewed item"), add a guard:
-  ```kotlin
-  val current = ShortcutManagerCompat.getDynamicShortcuts(context)
-  if (current.size >= ShortcutManagerCompat.getMaxShortcutCountPerActivity(context)) {
-      // remove LRU before adding
-  }
-  ```
+- [x] **§7.2 — Keep dynamic shortcut count ≤ 4 total (static + dynamic)**
+  Added `ShortcutActions.STATIC_SHORTCUT_COUNT = 3` and
+  `ShortcutActions.remainingDynamicSlots(context): Int` to `ShortcutActions.kt`.
+  The helper returns `max(0, maxPerActivity - STATIC_SHORTCUT_COUNT - currentDynamic)`.
+  Any future code that registers dynamic shortcuts must call this and evict the LRU
+  shortcut if the result is 0. Pinned shortcuts are exempt from this limit.
 
 ---
 
@@ -267,18 +265,19 @@ Shortcuts must be disabled when the content they reference no longer exists.
 
 | Status | File | Change |
 |--------|------|--------|
-| ✅ Done | `app/src/main/kotlin/com/closet/shortcuts/ShortcutActions.kt` | Action/extra/ID constants |
+| ✅ Done | `app/src/main/kotlin/com/closet/shortcuts/ShortcutActions.kt` | Action/extra/ID constants + `remainingDynamicSlots()` |
 | ✅ Done | `app/src/main/kotlin/com/closet/MainActivity.kt` | `onNewIntent` + shortcut flow |
-| ✅ Done | `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt` | Shortcut intent routing |
+| ✅ Done | `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt` | Shortcut intent routing + category ID extraction |
 | ✅ Done | `app/src/main/res/xml/shortcuts.xml` | Static shortcut declarations |
 | ✅ Done | `app/src/main/AndroidManifest.xml` | Register shortcuts.xml meta-data |
 | ✅ Done | `app/src/main/res/values/strings.xml` | Shortcut label strings |
-| *(n/a)* | ~~New shortcut icon drawables~~ | Reused existing `core/ui` vectors |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../BulkWashViewModel.kt` | Bulk status ViewModel |
+| ✅ Done | `app/src/main/res/drawable/ic_shortcut_*.xml` | Adaptive icons (amber bg + monochrome) |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../WardrobeNavigation.kt` | `BulkWashDestination`, `AddClothingDestination(openCamera)`, `ClosetDestination(initialCategoryId)` |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../BulkWashViewModel.kt` | Bulk status ViewModel + `reportShortcutUsed` |
 | ✅ Done | `features/wardrobe/src/main/kotlin/.../BulkWashScreen.kt` | Laundry Day UI |
-| ✏️ Modify | `features/wardrobe/src/main/kotlin/.../WardrobeNavigation.kt` | `BulkWashDestination`, `AddClothingDestination(openCamera)` |
-| ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClothingFormViewModel.kt` | `openCamera` param + `OpenImagePicker` event |
-| ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClothingFormScreen.kt` | Consume `OpenImagePicker` event |
-| ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClosetViewModel.kt` | `pinCategoryShortcut()`, `initialCategoryId` filter |
-| ✏️ Modify | `features/wardrobe/src/main/kotlin/.../ClosetScreen.kt` | Pin button on category chips |
-| ✏️ Modify | `features/outfits/src/main/kotlin/.../JournalViewModel.kt` | `reportShortcutUsed("log_fit")` |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClothingFormViewModel.kt` | `openCamera` + `OpenImagePicker` event + `reportShortcutUsed` |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClothingFormScreen.kt` | Consume `OpenImagePicker` event |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClosetViewModel.kt` | `pinCategoryShortcut()`, `disableCategoryShortcut()`, `initialCategoryId` filter |
+| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClosetScreen.kt` | Pin button on category chips |
+| ✅ Done | `features/wardrobe/src/main/res/drawable/ic_shortcut_category.xml` | Adaptive icon for pinned category shortcuts |
+| ✅ Done | `features/outfits/src/main/kotlin/.../JournalViewModel.kt` | `reportShortcutUsed("log_fit")` |
