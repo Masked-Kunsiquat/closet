@@ -278,7 +278,7 @@ class ClothingRepository @Inject constructor(
             val detail = clothingDao.getClothingItemDetailOnce(id) ?: return
             val description = ItemVectorizer.describe(detail)
             clothingDao.updateSemanticDescription(id, description, Instant.now())
-            Timber.d("vectorizeItem: wrote description for item $id (${description.length} chars): $description")
+            Timber.d("vectorizeItem: wrote description for item $id (${description.length} chars)")
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Timber.d(e, "vectorizeItem: failed for item $id — ignored")
