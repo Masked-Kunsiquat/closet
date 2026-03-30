@@ -19,6 +19,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -226,16 +227,23 @@ fun ClothingDetailScreen(
 
                         // Quick Actions
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             OutlinedCard(
                                 onClick = { viewModel.toggleWashStatus() },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(12.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
                                 ) {
                                     Icon(
                                         painter = painterResource(id = CoreR.drawable.ic_icon_washing_machine),
@@ -245,17 +253,23 @@ fun ClothingDetailScreen(
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = detail.item.washStatus.label,
-                                        style = MaterialTheme.typography.labelMedium
+                                        style = MaterialTheme.typography.labelMedium,
+                                        textAlign = TextAlign.Center,
                                     )
                                 }
                             }
 
                             OutlinedCard(
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(12.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Numbers,
@@ -269,18 +283,24 @@ fun ClothingDetailScreen(
                                             detail.wearCount,
                                             detail.wearCount
                                         ),
-                                        style = MaterialTheme.typography.labelMedium
+                                        style = MaterialTheme.typography.labelMedium,
+                                        textAlign = TextAlign.Center,
                                     )
                                 }
                             }
 
                             detail.item.purchasePrice?.let { price ->
                                 OutlinedCard(
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
                                 ) {
                                     Column(
-                                        modifier = Modifier.padding(12.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.AttachMoney,
@@ -290,7 +310,8 @@ fun ClothingDetailScreen(
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = "$${String.format(Locale.getDefault(), "%.2f", price)}",
-                                            style = MaterialTheme.typography.labelMedium
+                                            style = MaterialTheme.typography.labelMedium,
+                                            textAlign = TextAlign.Center,
                                         )
                                     }
                                 }
