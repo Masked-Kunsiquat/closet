@@ -60,6 +60,28 @@ fun ClothingDetailScreen(
     UserMessageSnackbarEffect(viewModel.actionError, snackbarHostState)
 
     var activePicker by remember { mutableStateOf<AttributePicker?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.wardrobe_delete_item_title)) },
+            text = { Text(stringResource(R.string.wardrobe_delete_item_confirmation)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    viewModel.deleteItem(onBack)
+                }) {
+                    Text(stringResource(R.string.wardrobe_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.wardrobe_cancel))
+                }
+            },
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -79,7 +101,7 @@ fun ClothingDetailScreen(
                         IconButton(onClick = { onEdit(detail.item.id) }) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit")
                         }
-                        IconButton(onClick = { viewModel.deleteItem(onBack) }) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete")
                         }
                     }

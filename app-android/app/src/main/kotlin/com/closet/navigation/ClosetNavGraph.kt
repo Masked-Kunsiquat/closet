@@ -157,13 +157,12 @@ fun ClosetNavGraph(
 
             recommendationScreen(
                 onNavigateUp = { navController.popBackStack() },
-                // TODO: wire "Log it" — OutfitBuilderDestination is currently a plain object with no
-                //  support for pre-selected items. To implement this:
-                //  1. Convert OutfitBuilderDestination to a data class with an optional
-                //     `preselectedItemIds: List<Long>` parameter (default empty).
-                //  2. Update OutfitBuilderViewModel to accept and pre-populate those IDs.
-                //  3. Replace null below with: { itemIds -> navController.navigateToOutfitBuilder(itemIds) }
+                // TODO: wire "Log it" — OutfitBuilderDestination supports editing existing outfits
+                //  (via outfitId) but not pre-populating a new outfit with specific item IDs.
+                //  To implement this, add a `preselectedItemIds: List<Long>` param to
+                //  OutfitBuilderDestination and update OutfitBuilderViewModel accordingly.
                 onNavigateToLog = null,
+                onNavigateToSettings = { navController.navigateToSettings() },
             )
             journalScreen()
 

@@ -37,6 +37,8 @@
     <string name="journal_ootd_set">Set as outfit of the day</string>
     <string name="journal_ootd_unset">Remove outfit of the day</string>
     <string name="journal_delete_log">Delete log entry</string>
+    <string name="journal_delete_log_confirm_title">Delete log entry?</string>
+    <string name="journal_delete_log_confirm_message">This will permanently remove this outfit log and its wear count.</string>
     <string name="journal_log_outfit">Log outfit</string>
     <string name="journal_picker_title">Log an outfit</string>
     <string name="journal_picker_back">Back to day detail</string>
@@ -54,13 +56,27 @@
     <string name="journal_forecast_empty">Forecast unavailable</string>
     <string name="journal_forecast_temp_range">%1$s / %2$s</string>
 
+    <!-- Outfit Actions Sheet -->
+    <string name="outfits_actions_open">Open outfit actions</string>
+    <string name="outfits_actions_edit">Edit outfit</string>
+    <string name="outfits_actions_delete">Delete outfit</string>
+    <string name="outfits_actions_delete_confirm_title">Delete outfit?</string>
+    <string name="outfits_actions_delete_confirm_message">This will permanently delete the outfit.</string>
+    <string name="outfits_actions_cancel">Cancel</string>
+    <string name="outfits_actions_confirm_delete">Delete</string>
+    <string name="outfits_delete_success">Outfit deleted</string>
+    <string name="outfits_delete_error">Failed to delete outfit. Please try again.</string>
+
     <!-- Outfit Builder -->
     <string name="outfits_builder_title">New Outfit</string>
+    <string name="outfits_builder_title_edit">Edit Outfit</string>
     <string name="outfits_builder_save">Save</string>
+    <string name="outfits_builder_update">Update</string>
     <string name="outfits_builder_back">Back</string>
     <string name="outfits_builder_add_items">Add Items</string>
     <string name="outfits_builder_name_hint">Outfit name (optional)</string>
     <string name="outfits_builder_empty_hint">Tap "Add Items" to start building your outfit</string>
     <string name="outfits_builder_remove_item">Remove item</string>
     <string name="outfits_builder_save_error">Failed to save outfit. Please try again.</string>
+    <string name="outfits_builder_update_error">Failed to update outfit. Please try again.</string>
 </resources>

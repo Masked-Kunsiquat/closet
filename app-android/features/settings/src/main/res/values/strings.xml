@@ -38,4 +38,46 @@
     <string name="settings_location_dialog_message">Location access is needed to show your local weather forecast. Tap Open Settings to grant it.</string>
     <string name="settings_location_dialog_open_settings">Open Settings</string>
     <string name="settings_location_dialog_cancel">Cancel</string>
+
+    <!-- AI suggestions section -->
+    <string name="settings_section_ai">AI suggestions</string>
+    <string name="settings_ai_style_vibe">Style vibe</string>
+    <string name="settings_ai_enabled">AI coherence scoring</string>
+    <string name="settings_ai_enabled_summary">Use AI to re-rank outfit suggestions for style coherence</string>
+    <string name="settings_ai_provider">AI provider</string>
+
+    <!-- AI provider segment labels -->
+    <string name="settings_ai_provider_nano">On-device</string>
+    <string name="settings_ai_provider_openai">OpenAI</string>
+    <string name="settings_ai_provider_anthropic">Anthropic</string>
+
+    <!-- Nano status messages -->
+    <string name="settings_ai_nano_checking">Checking device compatibility…</string>
+    <string name="settings_ai_nano_downloading">Downloading model (%d%%)…</string>
+    <string name="settings_ai_nano_ready">Model ready</string>
+    <string name="settings_ai_nano_not_supported">Not supported on this device</string>
+    <string name="settings_ai_nano_not_supported_dialog_title">On-Device AI not available</string>
+    <string name="settings_ai_nano_not_supported_dialog_message">Gemini Nano isn\'t supported on this device. Switch to OpenAI or Anthropic to use AI outfit scoring.</string>
+    <string name="settings_ai_nano_not_supported_use_openai">Use OpenAI</string>
+    <string name="settings_ai_nano_not_supported_use_anthropic">Use Anthropic</string>
+    <string name="settings_ai_nano_not_supported_dismiss">Dismiss</string>
+    <string name="settings_ai_nano_failed">Setup failed: %s</string>
+
+    <!-- OpenAI-compatible fields -->
+    <string name="settings_ai_openai_key">API key</string>
+    <string name="settings_ai_openai_key_placeholder">Paste your API key here</string>
+    <string name="settings_ai_openai_base_url">Base URL</string>
+    <string name="settings_ai_openai_base_url_placeholder">Leave blank for OpenAI default</string>
+    <string name="settings_ai_openai_model">Model</string>
+    <string name="settings_ai_openai_model_placeholder">Leave blank for gpt-4o-mini default</string>
+    <string name="settings_ai_openai_show_key">Show API key</string>
+    <string name="settings_ai_openai_hide_key">Hide API key</string>
+
+    <!-- Anthropic provider config -->
+    <string name="settings_ai_anthropic_show_key">Show API key</string>
+    <string name="settings_ai_anthropic_hide_key">Hide API key</string>
+    <string name="settings_ai_anthropic_key">API key</string>
+    <string name="settings_ai_anthropic_key_placeholder">Paste your sk-ant-… key here</string>
+    <string name="settings_ai_anthropic_model">Model</string>
+    <string name="settings_ai_anthropic_model_placeholder">Leave blank for Haiku default</string>
 </resources>

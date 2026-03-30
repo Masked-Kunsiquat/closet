@@ -11,9 +11,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 object OutfitsRoute
 
-/** Route for the Outfit Builder screen where users compose and save an outfit. */
+/**
+ * Route for the Outfit Builder screen.
+ *
+ * [outfitId] = -1 means "create new"; any positive value opens edit mode for that outfit.
+ */
 @Serializable
-object OutfitBuilderDestination
+data class OutfitBuilderDestination(val outfitId: Long = -1L)
 
 /** Route for the Wardrobe Picker screen used to select items while building an outfit. */
 @Serializable
@@ -24,9 +28,9 @@ fun NavController.navigateToOutfits(navOptions: NavOptions? = null) {
     this.navigate(OutfitsRoute, navOptions)
 }
 
-/** Navigates to the Outfit Builder screen. */
-fun NavController.navigateToOutfitBuilder() {
-    this.navigate(OutfitBuilderDestination)
+/** Navigates to the Outfit Builder screen. Pass [outfitId] to open an existing outfit for editing. */
+fun NavController.navigateToOutfitBuilder(outfitId: Long = -1L) {
+    this.navigate(OutfitBuilderDestination(outfitId))
 }
 
 /** Navigates to the Wardrobe Picker screen from inside the Outfit Builder. */
@@ -42,6 +46,7 @@ fun NavGraphBuilder.outfitsScreen(
     composable<OutfitsRoute> {
         OutfitsScreen(
             onCreateOutfit = { navController.navigateToOutfitBuilder() },
+            onEditOutfit = { outfitId -> navController.navigateToOutfitBuilder(outfitId) },
             onGetSuggestions = onGetSuggestions,
         )
     }

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,9 +31,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +84,34 @@ internal fun DayDetailSheet(
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var logPendingDelete by remember { mutableStateOf<Long?>(null) }
+
+    logPendingDelete?.let { logId ->
+        var isDeleting by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { logPendingDelete = null },
+            title = { Text(stringResource(R.string.journal_delete_log_confirm_title)) },
+            text = { Text(stringResource(R.string.journal_delete_log_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    enabled = !isDeleting,
+                    onClick = {
+                        if (isDeleting) return@TextButton
+                        isDeleting = true
+                        logPendingDelete = null
+                        onDeleteLog(logId)
+                    },
+                ) {
+                    Text(stringResource(R.string.outfits_actions_confirm_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { logPendingDelete = null }) {
+                    Text(stringResource(R.string.outfits_actions_cancel))
+                }
+            },
+        )
+    }
 
     val headerLabel = remember(date) {
         LocalDate.parse(date).format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
@@ -146,7 +179,7 @@ internal fun DayDetailSheet(
                         temperatureUnit = temperatureUnit,
                         onClick = { onEditLog(log) },
                         onOotdToggle = { onOotdToggle(log.id, log.isOotd == 1) },
-                        onDelete = { onDeleteLog(log.id) },
+                        onDelete = { logPendingDelete = log.id },
                     )
                 }
             }

@@ -31,9 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -80,7 +80,6 @@ private enum class WeatherConditionOption(val labelRes: Int) {
  *
  * @param prefill Pre-populated values from the WeatherRepository cache, or null
  *   if no cached forecast is available.
- * @param isAutofilled When true, shows a "Pulled from location data" indicator chip.
  * @param onConfirm Called with the current form values when the user taps
  *   "Use these conditions". Temp fields left blank produce null in [WeatherConditions].
  * @param onSkip Called when the user taps the "Skip" text button.
@@ -90,7 +89,6 @@ private enum class WeatherConditionOption(val labelRes: Int) {
 @Composable
 fun WeatherSheet(
     prefill: WeatherConditions?,
-    isAutofilled: Boolean,
     onConfirm: (WeatherConditions) -> Unit,
     onSkip: () -> Unit,
     onDismiss: () -> Unit,
@@ -105,7 +103,6 @@ fun WeatherSheet(
     ) {
         WeatherSheetContent(
             prefill = prefill,
-            isAutofilled = isAutofilled,
             onConfirm = onConfirm,
             onSkip = onSkip,
         )
@@ -119,7 +116,6 @@ fun WeatherSheet(
 @Composable
 internal fun WeatherSheetContent(
     prefill: WeatherConditions?,
-    isAutofilled: Boolean,
     onConfirm: (WeatherConditions) -> Unit,
     onSkip: () -> Unit,
 ) {
@@ -132,21 +128,27 @@ internal fun WeatherSheetContent(
     var selectedCondition by rememberSaveable { mutableStateOf<WeatherConditionOption?>(null) }
     var isRaining by rememberSaveable { mutableStateOf(false) }
     var isWindy by rememberSaveable { mutableStateOf(false) }
+    var didApplyPrefill by rememberSaveable { mutableStateOf(false) }
 
-    // Apply autofill only when the form is still in its pristine default state so
-    // a late-arriving prefill doesn't overwrite values the user has already typed.
-    if (prefill != null &&
-        tempLowText.isEmpty() && tempHighText.isEmpty() &&
-        selectedCondition == null && !isRaining && !isWindy
-    ) {
-        tempLowText = prefill.tempLowC?.let { formatTemp(it) } ?: ""
-        tempHighText = prefill.tempHighC?.let { formatTemp(it) } ?: ""
-        isRaining = prefill.isRaining
-        isWindy = prefill.isWindy
-        selectedCondition = when {
-            prefill.isRaining -> WeatherConditionOption.Rainy
-            prefill.isWindy -> WeatherConditionOption.Windy
-            else -> null
+    // Apply autofill in an effect (not during composition) to avoid mutating
+    // rememberSaveable state mid-recomposition. The pristine check ensures a
+    // late-arriving prefill never overwrites values the user has already typed.
+    LaunchedEffect(prefill) {
+        if (prefill != null &&
+            tempLowText.isEmpty() && tempHighText.isEmpty() &&
+            selectedCondition == null && !isRaining && !isWindy
+        ) {
+            tempLowText = prefill.tempLowC?.let { formatTemp(it) } ?: ""
+            tempHighText = prefill.tempHighC?.let { formatTemp(it) } ?: ""
+            isRaining = prefill.isRaining
+            isWindy = prefill.isWindy
+            selectedCondition = when {
+                prefill.isRaining && prefill.isWindy -> null
+                prefill.isRaining -> WeatherConditionOption.Rainy
+                prefill.isWindy -> WeatherConditionOption.Windy
+                else -> null
+            }
+            didApplyPrefill = true
         }
     }
 
@@ -171,7 +173,7 @@ internal fun WeatherSheetContent(
         }
 
         // ── Autofill chip ─────────────────────────────────────────────────────
-        if (isAutofilled) {
+        if (didApplyPrefill) {
             AssistChip(
                 onClick = {},
                 label = { Text(stringResource(R.string.recs_weather_autofill_chip)) },
@@ -183,7 +185,7 @@ internal fun WeatherSheetContent(
             )
         }
 
-        HorizontalDivider(modifier = Modifier.padding(top = if (isAutofilled) 4.dp else 0.dp))
+        HorizontalDivider(modifier = Modifier.padding(top = if (didApplyPrefill) 4.dp else 0.dp))
 
         // ── Temp range inputs ─────────────────────────────────────────────────
         Text(
@@ -200,11 +202,11 @@ internal fun WeatherSheetContent(
         ) {
             OutlinedTextField(
                 value = tempLowText,
-                onValueChange = { tempLowText = it.filter { c -> c.isDigit() || c == '-' || c == '.' } },
+                onValueChange = { v -> if (v.matches(Regex("""^-?\d*(\.\d*)?$"""))) tempLowText = v },
                 label = { Text(stringResource(R.string.recs_weather_temp_low)) },
                 suffix = { Text(stringResource(R.string.recs_weather_temp_unit)) },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
+                    keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Next,
                 ),
                 singleLine = true,
@@ -213,11 +215,11 @@ internal fun WeatherSheetContent(
 
             OutlinedTextField(
                 value = tempHighText,
-                onValueChange = { tempHighText = it.filter { c -> c.isDigit() || c == '-' || c == '.' } },
+                onValueChange = { v -> if (v.matches(Regex("""^-?\d*(\.\d*)?$"""))) tempHighText = v },
                 label = { Text(stringResource(R.string.recs_weather_temp_high)) },
                 suffix = { Text(stringResource(R.string.recs_weather_temp_unit)) },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
+                    keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Done,
                 ),
                 singleLine = true,
@@ -245,7 +247,7 @@ internal fun WeatherSheetContent(
                     onClick = {
                         val newCondition = if (selectedCondition == option) null else option
                         selectedCondition = newCondition
-                        // Bidirectional sync: selecting clears the other toggle, deselecting clears both
+                        // Syncing toggles from chip: Rainy/Windy set that toggle; others clear both
                         isRaining = newCondition == WeatherConditionOption.Rainy
                         isWindy = newCondition == WeatherConditionOption.Windy
                     },
@@ -274,7 +276,15 @@ internal fun WeatherSheetContent(
             )
             Switch(
                 checked = isRaining,
-                onCheckedChange = { isRaining = it },
+                onCheckedChange = { checked ->
+                    isRaining = checked
+                    selectedCondition = when {
+                        checked && isWindy -> null
+                        checked -> WeatherConditionOption.Rainy
+                        isWindy -> WeatherConditionOption.Windy
+                        else -> null
+                    }
+                },
             )
         }
 
@@ -291,7 +301,15 @@ internal fun WeatherSheetContent(
             )
             Switch(
                 checked = isWindy,
-                onCheckedChange = { isWindy = it },
+                onCheckedChange = { checked ->
+                    isWindy = checked
+                    selectedCondition = when {
+                        isRaining && checked -> null
+                        checked -> WeatherConditionOption.Windy
+                        isRaining -> WeatherConditionOption.Rainy
+                        else -> null
+                    }
+                },
             )
         }
 
@@ -353,7 +371,6 @@ private fun WeatherSheetEmptyPreview() {
         Surface(color = MaterialTheme.colorScheme.surface) {
             WeatherSheetContent(
                 prefill = null,
-                isAutofilled = false,
                 onConfirm = {},
                 onSkip = {},
             )
@@ -373,7 +390,6 @@ private fun WeatherSheetAutofilledPreview() {
                     isRaining = false,
                     isWindy = true,
                 ),
-                isAutofilled = true,
                 onConfirm = {},
                 onSkip = {},
             )

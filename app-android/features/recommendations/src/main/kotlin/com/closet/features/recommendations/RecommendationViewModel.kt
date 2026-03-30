@@ -9,7 +9,9 @@ import com.closet.core.data.dao.ItemPatternName
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
+import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.OccasionEntity
+import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.RecommendationRepository
@@ -20,6 +22,7 @@ import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.OutfitCombo
+import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.model.WeatherConditions
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,8 +35,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.closet.core.data.model.StyleVibe
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.Month
@@ -64,15 +70,40 @@ import javax.inject.Inject
 class RecommendationViewModel @Inject constructor(
     private val recommendationRepository: RecommendationRepository,
     private val engine: OutfitRecommendationEngine,
+    private val scorer: OutfitCoherenceScorer,
     private val weatherRepository: WeatherRepository,
     private val outfitRepository: OutfitRepository,
     private val lookupRepository: LookupRepository,
     private val storageRepository: StorageRepository,
+    private val aiPrefsRepo: AiPreferencesRepository,
 ) : ViewModel() {
 
     // -------------------------------------------------------------------------
     // Occasions list — loaded once, used by OccasionSheet
     // -------------------------------------------------------------------------
+
+    /**
+     * Whether AI coherence scoring is currently enabled.
+     * Exposed so the UI can conditionally show the style vibe shortcut row.
+     */
+    val aiEnabled: StateFlow<Boolean> = aiPrefsRepo.getAiEnabled()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false
+        )
+
+    /**
+     * The current style vibe label string ("Smart Casual", "Minimalist", etc.) for display.
+     * Used by the shortcut row in [RecommendationScreen] to show the active vibe.
+     */
+    val styleVibeLabel: StateFlow<String> = aiPrefsRepo.getStyleVibe()
+        .map { it.label }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = StyleVibe.SmartCasual.label
+        )
 
     /**
      * Full list of occasions from the lookup table.
@@ -379,8 +410,107 @@ class RecommendationViewModel @Inject constructor(
             weather = engineWeather
         )
 
-        // 6. Run the pure engine
-        engine.recommend(input)
+        // 6. Run the pure engine — expand the pool when AI is ready so the scorer
+        //    has more combos to curate from.
+        val aiReady = isAiReady()
+        val programmaticCombos = if (aiReady) {
+            engine.recommend(input, topN = 25, candidatesPerSlot = 3)
+        } else {
+            engine.recommend(input)
+        }
+        if (programmaticCombos.isEmpty()) return@coroutineScope emptyList()
+
+        // 7. Per-item scores used by the engine — needed for ClothingItemDto suitability hints.
+        //    Re-derive using the same logic the engine used (safeItems are all in engineItems
+        //    since the hard filter is a no-op; engine exposes no public score map, so we
+        //    derive here to avoid coupling to engine internals).
+        val itemScoresForScorer: Map<Long, Double> = engineItems.associate { item ->
+            val baseScore = deriveItemScore(item, input)
+            item.id to baseScore
+        }
+
+        // 8. Optional AI coherence scoring — replaces top-3 with AI-curated combos if successful
+        val styleVibeLabel = aiPrefsRepo.getStyleVibe().first().label
+        val aiCombos = try {
+            scorer.score(
+                combos = programmaticCombos,
+                engineInput = input,
+                itemScores = itemScoresForScorer,
+                styleVibe = styleVibeLabel,
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "RecommendationViewModel: scorer threw unexpectedly — ignoring")
+            null
+        }
+
+        return@coroutineScope aiCombos ?: programmaticCombos
+    }
+
+    /**
+     * Returns true when AI scoring is both enabled by the user and actually ready to run.
+     *
+     * Readiness rules per provider:
+     * - [AiProvider.Nano]      — [AiPreferencesRepository.getAiReady] must be true (model downloaded).
+     * - [AiProvider.OpenAi]   — an API key must have been stored.
+     * - [AiProvider.Anthropic] — an API key must have been stored.
+     *
+     * The master [AiPreferencesRepository.getAiEnabled] toggle is checked first; if the
+     * user has AI off, this returns false without reading provider-specific state.
+     *
+     * Kept as a clean helper so the coherence scorer gating uses the same logic.
+     */
+    private suspend fun isAiReady(): Boolean {
+        if (!aiPrefsRepo.getAiEnabled().first()) return false
+        return when (aiPrefsRepo.getSelectedProvider().first()) {
+            AiProvider.Nano -> aiPrefsRepo.getAiReady().first()
+            AiProvider.OpenAi -> aiPrefsRepo.getOpenAiApiKey().first().isNotBlank()
+            AiProvider.Anthropic -> aiPrefsRepo.getAnthropicApiKey().first().isNotBlank()
+        }
+    }
+
+    /**
+     * Derives a per-item suitability score for use as a context hint in [OutfitCoherenceScorer].
+     *
+     * Mirrors the scoring logic in [OutfitRecommendationEngine.scoreItem] but is intentionally
+     * kept as a private helper here so the engine remains a pure class with no exposed score map.
+     * If the engine's scoring logic changes, this helper must be kept in sync.
+     */
+    private fun deriveItemScore(item: EngineItem, input: EngineInput): Double {
+        var score = 1.0
+        val weather = input.weather ?: return score
+
+        // Temperature signal (skip if < 5 logs)
+        val tempPercentile = input.tempPercentiles[item.id]
+        if (tempPercentile != null && tempPercentile.logCount >= 5) {
+            val forecastLow = weather.tempLowC
+            val forecastHigh = weather.tempHighC
+            if (forecastLow != null && forecastHigh != null) {
+                val outsideRange =
+                    forecastHigh < tempPercentile.p10TempLow ||
+                    forecastLow > tempPercentile.p90TempHigh
+                if (outsideRange) score *= 0.55
+            }
+        }
+
+        // Rain signal (skip if < 5 logs)
+        if (weather.isRaining) {
+            val rain = input.rainSuitability[item.id]
+            if (rain != null && rain.rainLogCount >= 5) {
+                if (rain.rainPct < 0.20) score *= 0.60
+            }
+        }
+
+        // Wind signal (skip if < 5 logs)
+        if (weather.isWindy) {
+            val wind = input.windSuitability[item.id]
+            if (wind != null && wind.windLogCount >= 5) {
+                if (wind.windPct < 0.20) score *= 0.70
+            }
+        }
+
+        return score
     }
 
     // -------------------------------------------------------------------------

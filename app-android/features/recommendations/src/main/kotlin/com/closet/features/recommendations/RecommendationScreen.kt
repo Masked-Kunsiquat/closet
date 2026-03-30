@@ -19,12 +19,16 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,10 +75,13 @@ import java.io.File
 fun RecommendationScreen(
     onNavigateUp: () -> Unit = {},
     onNavigateToLog: ((List<Long>) -> Unit)? = null,
+    onNavigateToSettings: (() -> Unit)? = null,
     viewModel: RecommendationViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val occasions by viewModel.occasions.collectAsStateWithLifecycle()
+    val aiEnabled by viewModel.aiEnabled.collectAsStateWithLifecycle()
+    val styleVibeLabel by viewModel.styleVibeLabel.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // ── One-shot: "Log it" — navigate to log screen ──────────────────────────
@@ -115,6 +122,9 @@ fun RecommendationScreen(
             when (contentState) {
                 RecommendationUiState.Idle -> IdleContent(
                     onGetSuggestions = viewModel::onGetSuggestionsClicked,
+                    aiEnabled = aiEnabled,
+                    styleVibeLabel = styleVibeLabel,
+                    onNavigateToSettings = onNavigateToSettings,
                     modifier = Modifier.fillMaxSize(),
                 )
 
@@ -129,6 +139,9 @@ fun RecommendationScreen(
                     onLogIt = viewModel::onLogIt,
                     onSaveForLater = viewModel::onSaveForLater,
                     onRegenerate = viewModel::onRegenerate,
+                    aiEnabled = aiEnabled,
+                    styleVibeLabel = styleVibeLabel,
+                    onNavigateToSettings = onNavigateToSettings,
                     modifier = Modifier.fillMaxSize(),
                 )
 
@@ -163,7 +176,6 @@ fun RecommendationScreen(
                 is RecommendationUiState.WeatherSheet -> {
                     WeatherSheet(
                         prefill = state.prefill,
-                        isAutofilled = state.prefill != null,
                         onConfirm = viewModel::onWeatherConfirmed,
                         onSkip = viewModel::onWeatherSkipped,
                         onDismiss = viewModel::onDismiss,
@@ -179,19 +191,31 @@ fun RecommendationScreen(
 // ─── State content composables ─────────────────────────────────────────────────
 
 /**
- * Shown in [RecommendationUiState.Idle]. Centered "Get Suggestions" button.
+ * Shown in [RecommendationUiState.Idle]. Centered "Get Suggestions" button,
+ * plus a style-vibe shortcut row when AI is enabled.
  */
 @Composable
 private fun IdleContent(
     onGetSuggestions: () -> Unit,
+    aiEnabled: Boolean,
+    styleVibeLabel: String,
+    onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    Box(
+    Column(
         modifier = modifier,
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Button(onClick = onGetSuggestions) {
             Text(stringResource(R.string.recs_get_suggestions))
+        }
+        if (aiEnabled && onNavigateToSettings != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            StyleVibeShortcutRow(
+                styleVibeLabel = styleVibeLabel,
+                onNavigateToSettings = onNavigateToSettings,
+            )
         }
     }
 }
@@ -215,7 +239,7 @@ private fun LoadingContent(
 
 /**
  * Shown in [RecommendationUiState.Results]. Horizontal pager carousel with
- * dot indicators below.
+ * dot indicators below, plus a style-vibe shortcut row when AI is enabled.
  */
 @Composable
 private fun ResultsContent(
@@ -225,6 +249,9 @@ private fun ResultsContent(
     onLogIt: (OutfitCombo) -> Unit,
     onSaveForLater: (OutfitCombo) -> Unit,
     onRegenerate: () -> Unit,
+    aiEnabled: Boolean,
+    styleVibeLabel: String,
+    onNavigateToSettings: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val pagerState = rememberPagerState(pageCount = { combos.size })
@@ -261,6 +288,15 @@ private fun ResultsContent(
                 .fillMaxWidth()
                 .padding(vertical = 12.dp),
         )
+
+        // ── Style vibe shortcut row ───────────────────────────────────────────
+        if (aiEnabled && onNavigateToSettings != null) {
+            StyleVibeShortcutRow(
+                styleVibeLabel = styleVibeLabel,
+                onNavigateToSettings = onNavigateToSettings,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
     }
 }
 
@@ -335,6 +371,47 @@ private fun ErrorContent(
 
         Button(onClick = onRetry) {
             Text(stringResource(R.string.recs_retry))
+        }
+    }
+}
+
+/**
+ * Small shortcut row shown when AI is enabled. Displays the active style vibe and
+ * a "Change" text button that navigates to Settings so the user can update it.
+ *
+ * Appears in both [IdleContent] and [ResultsContent] — visibility is controlled by
+ * the caller via [aiEnabled] and a non-null [onNavigateToSettings].
+ */
+@Composable
+private fun StyleVibeShortcutRow(
+    styleVibeLabel: String,
+    onNavigateToSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.AutoAwesome,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(modifier = Modifier.size(6.dp))
+        Text(
+            text = stringResource(R.string.recs_style_vibe_label, styleVibeLabel),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onNavigateToSettings) {
+            Text(
+                text = stringResource(R.string.recs_style_vibe_change),
+                style = MaterialTheme.typography.labelMedium,
+            )
         }
     }
 }
@@ -437,6 +514,9 @@ private fun ResultsContentPreview() {
                 onLogIt = {},
                 onSaveForLater = {},
                 onRegenerate = {},
+                aiEnabled = false,
+                styleVibeLabel = "Smart Casual",
+                onNavigateToSettings = null,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -450,6 +530,9 @@ private fun IdleContentPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             IdleContent(
                 onGetSuggestions = {},
+                aiEnabled = false,
+                styleVibeLabel = "Smart Casual",
+                onNavigateToSettings = null,
                 modifier = Modifier.fillMaxSize(),
             )
         }

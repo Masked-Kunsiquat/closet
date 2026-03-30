@@ -29,7 +29,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,7 +58,12 @@ import java.io.File
  * is available), a list of item names below the grid, and three action buttons
  * at the bottom.
  *
- * This composable is stateless — all actions are delegated to the caller.
+ * When [combo.isAiSelected] is true and [combo.reason] is non-null, a small
+ * "AI pick — why?" text button is shown below the item name list. Tapping it
+ * expands an inline text block with the AI's reason. Tapping again collapses it.
+ * The expanded/collapsed state is local to this composable — no ViewModel state needed.
+ *
+ * This composable is stateless for all actions — they are delegated to the caller.
  *
  * @param combo           The outfit combination to display.
  * @param resolveImage    Maps a relative [EngineItem.imagePath] to a [File] for Coil,
@@ -75,6 +85,10 @@ fun OutfitComboCard(
     onRegenerate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Local state for the "why?" expand/collapse — not surfaced to the ViewModel.
+    // Keyed on combo so the state resets when the pager swipes to a different combo.
+    var reasonExpanded by remember(key1 = combo) { mutableStateOf(false) }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -107,6 +121,39 @@ fun OutfitComboCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                }
+            }
+
+            // ── AI pick — "why?" affordance ───────────────────────────────────
+            // Shown only when the combo was selected by the AI scorer AND a reason
+            // was returned. Hidden by default; tapping toggles the inline reason text.
+            if (combo.isAiSelected && combo.reason != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(
+                        onClick = { reasonExpanded = !reasonExpanded },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 0.dp,
+                            vertical = 0.dp,
+                        ),
+                    ) {
+                        Text(
+                            text = if (reasonExpanded) {
+                                stringResource(R.string.recs_ai_pick_collapse)
+                            } else {
+                                stringResource(R.string.recs_ai_pick_badge)
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    AnimatedVisibility(visible = reasonExpanded) {
+                        Text(
+                            text = combo.reason,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 
@@ -263,6 +310,13 @@ private val previewCombo = OutfitCombo(
     score = 0.87,
 )
 
+private val previewAiCombo = OutfitCombo(
+    items = previewItems,
+    score = 0.91,
+    isAiSelected = true,
+    reason = "Neutral tones and a single earth accent create a clean, cohesive look suited to today's mild conditions.",
+)
+
 @Preview(showBackground = true, name = "OutfitComboCard - Light")
 @Preview(
     showBackground = true,
@@ -275,6 +329,28 @@ private fun OutfitComboCardPreview() {
         Surface(color = MaterialTheme.colorScheme.background) {
             OutfitComboCard(
                 combo = previewCombo,
+                resolveImage = { null },
+                onLogIt = {},
+                onSaveForLater = {},
+                onRegenerate = {},
+                modifier = Modifier.padding(16.dp),
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "OutfitComboCard - AI pick (Light)")
+@Preview(
+    showBackground = true,
+    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    name = "OutfitComboCard - AI pick (Dark)",
+)
+@Composable
+private fun OutfitComboCardAiPreview() {
+    ClosetTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            OutfitComboCard(
+                combo = previewAiCombo,
                 resolveImage = { null },
                 onLogIt = {},
                 onSaveForLater = {},

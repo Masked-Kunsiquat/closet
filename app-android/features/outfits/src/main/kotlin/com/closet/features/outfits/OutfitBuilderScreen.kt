@@ -29,11 +29,15 @@ fun OutfitBuilderScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val errorMessage = stringResource(R.string.outfits_builder_save_error)
 
+    val updateErrorMessage = stringResource(R.string.outfits_builder_update_error)
+
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 OutfitBuilderEvent.SaveSuccess -> onBack()
-                OutfitBuilderEvent.SaveError -> snackbarHostState.showSnackbar(errorMessage)
+                OutfitBuilderEvent.SaveError -> snackbarHostState.showSnackbar(
+                    if (uiState.isEditing) updateErrorMessage else errorMessage
+                )
             }
         }
     }
@@ -68,7 +72,14 @@ internal fun OutfitBuilderContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.outfits_builder_title)) },
+                title = {
+                    Text(
+                        stringResource(
+                            if (uiState.isEditing) R.string.outfits_builder_title_edit
+                            else R.string.outfits_builder_title
+                        )
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -88,7 +99,12 @@ internal fun OutfitBuilderContent(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Text(stringResource(R.string.outfits_builder_save))
+                            Text(
+                                stringResource(
+                                    if (uiState.isEditing) R.string.outfits_builder_update
+                                    else R.string.outfits_builder_save
+                                )
+                            )
                         }
                     }
                 }

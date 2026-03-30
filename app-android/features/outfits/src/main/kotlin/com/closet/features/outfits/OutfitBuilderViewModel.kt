@@ -1,20 +1,23 @@
 package com.closet.features.outfits
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.OutfitItem
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
@@ -25,12 +28,14 @@ import javax.inject.Inject
  * @property name Optional outfit name entered by the user.
  * @property members Clothing items currently added to the outfit, ordered by selection time.
  * @property isSaving True while the save operation is in flight.
+ * @property isEditing True when editing an existing outfit (vs creating a new one).
  * @property canSave Derived flag — true when there is at least one member and no save is pending.
  */
 data class OutfitBuilderUiState(
     val name: String = "",
     val members: List<OutfitMember> = emptyList(),
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val isEditing: Boolean = false
 ) {
     val canSave: Boolean get() = members.isNotEmpty() && !isSaving
 }
@@ -49,11 +54,12 @@ sealed interface OutfitBuilderEvent {
  * ViewModel for the Outfit Builder screen.
  *
  * Manages the in-progress outfit name and the ordered list of selected clothing items.
- * Reads picker results deposited by [WardrobePickerScreen] via [SavedStateHandle]
- * under [PICKER_RESULT_KEY], then persists the finished outfit through [OutfitRepository].
+ * When [SavedStateHandle] carries an [outfitId] ≥ 0, the ViewModel operates in edit mode:
+ * it loads the existing outfit on init and calls [OutfitRepository.updateOutfit] on save.
  */
 @HiltViewModel
 class OutfitBuilderViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val clothingRepository: ClothingRepository,
     private val outfitRepository: OutfitRepository,
     private val storageRepository: StorageRepository
@@ -61,9 +67,14 @@ class OutfitBuilderViewModel @Inject constructor(
 
     companion object {
         private const val SUBSCRIPTION_TIMEOUT_MS = 5_000L
+        private const val NO_OUTFIT = -1L
     }
 
+    // -1 means "new outfit"; any positive value means edit mode.
+    private val editOutfitId: Long = savedStateHandle.get<Long>("outfitId") ?: NO_OUTFIT
+
     private val _name = MutableStateFlow("")
+    private val _notes = MutableStateFlow("")
     private val _memberIds = MutableStateFlow<List<Long>>(emptyList())
     private val _isSaving = MutableStateFlow(false)
 
@@ -92,16 +103,35 @@ class OutfitBuilderViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    /** Consolidated UI state combining name, member list, and saving flag. */
+    /** Consolidated UI state combining name, member list, saving flag, and edit mode. */
     val uiState: StateFlow<OutfitBuilderUiState> = combine(
         _name, members, _isSaving
     ) { name, members, isSaving ->
-        OutfitBuilderUiState(name = name, members = members, isSaving = isSaving)
+        OutfitBuilderUiState(
+            name = name,
+            members = members,
+            isSaving = isSaving,
+            isEditing = editOutfitId != NO_OUTFIT
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(SUBSCRIPTION_TIMEOUT_MS),
-        initialValue = OutfitBuilderUiState()
+        initialValue = OutfitBuilderUiState(isEditing = editOutfitId != NO_OUTFIT)
     )
+
+    init {
+        if (editOutfitId != NO_OUTFIT) {
+            viewModelScope.launch {
+                outfitRepository.getOutfitById(editOutfitId).first()?.let { outfit ->
+                    _name.value = outfit.name ?: ""
+                    _notes.value = outfit.notes ?: ""
+                    _memberIds.value = outfit.items
+                        .sortedBy { it.zIndex }
+                        .map { it.clothingItem.id }
+                }
+            }
+        }
+    }
 
     /** Updates the outfit name as the user types. */
     fun updateName(value: String) {
@@ -125,21 +155,38 @@ class OutfitBuilderViewModel @Inject constructor(
     /**
      * Saves the current outfit via [OutfitRepository].
      * Uses the resolved [members] list (not raw IDs) so items deleted from the
-     * wardrobe while the builder was open are already absent. Emits [OutfitBuilderEvent]
-     * on completion.
+     * wardrobe while the builder was open are already absent.
+     * Creates a new outfit when [editOutfitId] is -1; updates the existing outfit otherwise.
      */
     fun save() {
-        // Derive IDs from the resolved member list, not raw _memberIds, so any item that was
-        // deleted from the wardrobe while the builder was open is already absent here.
-        val resolvedIds = members.value.map { it.item.item.id }
-        if (_isSaving.value || resolvedIds.isEmpty()) return
+        val resolvedMembers = members.value
+        if (_isSaving.value || resolvedMembers.isEmpty()) return
         viewModelScope.launch {
             _isSaving.value = true
-            val result = outfitRepository.createOutfit(
-                name = _name.value.trim().ifEmpty { null },
-                notes = null,
-                itemIds = resolvedIds
-            )
+            val name = _name.value.trim().ifEmpty { null }
+            val result = if (editOutfitId == NO_OUTFIT) {
+                outfitRepository.createOutfit(
+                    name = name,
+                    notes = null,
+                    itemIds = resolvedMembers.map { it.item.item.id }
+                )
+            } else {
+                val outfitItems = resolvedMembers.mapIndexed { index, member ->
+                    OutfitItem(
+                        clothingItem = member.item.item,
+                        posX = member.layout?.posX,
+                        posY = member.layout?.posY,
+                        scale = member.layout?.scale,
+                        zIndex = member.layout?.zIndex ?: index
+                    )
+                }
+                outfitRepository.updateOutfit(
+                    outfitId = editOutfitId,
+                    name = name,
+                    notes = _notes.value.trim().ifEmpty { null },
+                    items = outfitItems
+                )
+            }
             _isSaving.value = false
             when (result) {
                 is DataResult.Success -> _events.send(OutfitBuilderEvent.SaveSuccess)

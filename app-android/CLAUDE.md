@@ -13,8 +13,11 @@ Run all Gradle commands from the `app-android/` directory.
 ## Commands
 
 ```bash
-./gradlew assembleDebug          # Build debug APK
-./gradlew installDebug           # Build and install on connected device/emulator
+./gradlew assembleDebug          # Build debug APK (all flavors)
+./gradlew assembleFullDebug      # Build full-flavor debug APK (GMS features)
+./gradlew assembleFossDebug      # Build FOSS-flavor debug APK (no GMS)
+./gradlew installFullDebug       # Install full flavor on connected device/emulator
+./gradlew installFossDebug       # Install FOSS flavor on connected device/emulator
 ./gradlew clean build            # Full clean rebuild
 ./gradlew lint                   # Lint all modules
 ./gradlew :app:lint              # Lint specific module
@@ -31,12 +34,14 @@ Unit and instrumented tests exist for the stats feature. Migration tests live in
 ### Module structure
 
 ```
-app/              — Application entry point, NavGraph, MainActivity
-core/data/        — Database, DAOs, Repositories, entities, DI module
-core/ui/          — Material 3 theme, shared Composable components
-features/wardrobe/ — Closet screen, item detail, add/edit form
-features/outfits/  — Outfit builder, OOTD (in progress / placeholder)
-features/stats/    — Stats screen, StatsViewModel, breakdown sections
+app/                   — Application entry point, NavGraph, MainActivity
+core/data/             — Database, DAOs, Repositories, entities, DI module
+core/ui/               — Material 3 theme, shared Composable components
+features/wardrobe/     — Closet screen, item detail, add/edit form
+features/outfits/      — Outfit builder, OOTD (in progress / placeholder)
+features/stats/        — Stats screen, StatsViewModel, breakdown sections
+features/recommendations/ — Outfit recommendations, AI providers (NanoProvider, AnthropicProvider, OpenAiProvider)
+features/settings/     — Settings screen, AI toggle, model picker, key management
 ```
 
 Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
@@ -47,9 +52,20 @@ Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
 - **Repositories** wrap all operations in `DataResult<T>` and re-throw `CancellationException`. Never let raw exceptions escape a repository.
 - **Screens** (Composables ending in `Screen`) collect ViewModel state and pass only lambdas down to child composables.
 
+### Product flavors
+
+Two flavors on the `distribution` dimension. Only `app/` and `features/recommendations/` declare flavor dimensions; all other modules are single-variant.
+
+- **`full`** — includes GMS-backed features (MLKit GenAI Prompt API / Gemini Nano). Use for local dev, GitHub releases, sideload APKs. Android Studio defaults to `fullDebug`.
+- **`foss`** — no Google Play Services dependencies. GMS features are stubbed to no-ops. Target: F-Droid distribution.
+
+GMS-only code lives in `src/full/kotlin/`; stubs live in `src/foss/kotlin/`. Hilt resolves bindings from whichever source set is active at compile time — no runtime conditionals needed. `"fullImplementation"(...)` in `build.gradle.kts` scopes GMS deps to the full flavor only.
+
 ### Dependency injection
 
 Hilt throughout. `@HiltAndroidApp` on `ClosetApp`, `@AndroidEntryPoint` on `MainActivity`. All DAOs and Repositories are `@Singleton` provided from `DataModule` in `core/data/di/`.
+
+`AiPreferencesRepository` is bound **only** via `DataModule.provideAiPreferencesRepository()` — the class has no `@Inject` constructor annotation. Don't add `@Singleton @Inject` to it.
 
 ### Database (Room)
 
@@ -86,6 +102,16 @@ Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/`. Import fr
 ### Logging
 
 Timber. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only.
+
+### Destructive actions
+
+Every destructive user action (delete item, delete outfit, delete log entry) must be guarded by an `AlertDialog` confirmation. Pattern: local `var showDeleteDialog by remember { mutableStateOf(false) }` → button sets it true → dialog calls the ViewModel. Never call a delete ViewModel function directly from a button click.
+
+### MLKit namespaces
+
+Two distinct MLKit namespaces — do not confuse them:
+- `com.google.mlkit:genai-*` — AICore-backed GenAI APIs (Gemini Nano Prompt API, Image Description, etc.). Not available on all devices. Full flavor only.
+- `com.google.android.gms:play-services-mlkit-*` — traditional Vision ML APIs (Subject Segmentation, Barcode Scanning, etc.). Work on all devices via Play Services. No AICore required.
 
 ## Key files
 
