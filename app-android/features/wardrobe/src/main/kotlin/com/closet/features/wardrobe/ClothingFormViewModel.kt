@@ -22,6 +22,7 @@ import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.features.wardrobe.repository.ImageCaptionRepository
 import com.closet.features.wardrobe.repository.SegmentationRepository
 import java.util.UUID
 import com.closet.core.data.util.ColorMatcher
@@ -30,6 +31,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
@@ -64,6 +66,8 @@ data class ClothingFormUiState(
     val hasSegmentedImage: Boolean = false,
     val originalImageFile: File? = null,
     val isSegmentationSupported: Boolean = true,
+    val isCaptioning: Boolean = false,         // spinner hint for future UI polish
+    val imageCaption: String? = null,          // surfaced for debug/review if needed
     val selectedColors: List<ColorEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
@@ -95,6 +99,8 @@ private data class FormState(
     val isDownloadingModel: Boolean = false,
     val hasSegmentedImage: Boolean = false,
     val originalSegmentationImagePath: String? = null,
+    val isCaptioning: Boolean = false,
+    val imageCaption: String? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
@@ -115,6 +121,7 @@ class ClothingFormViewModel @Inject constructor(
     private val storageRepository: StorageRepository,
     private val clothingRepository: ClothingRepository,
     private val segmentationRepository: SegmentationRepository,
+    private val imageCaptionRepository: ImageCaptionRepository,
 ) : ViewModel() {
 
     private val editDestination = try {
@@ -133,6 +140,7 @@ class ClothingFormViewModel @Inject constructor(
     private var originalColors: List<ColorEntity> = emptyList()
 
     private var sizeSystemUserOverridden = false
+    private var captionJob: Job? = null
 
     private val _events = Channel<ClothingFormEvent>()
     val events = _events.receiveAsFlow()
@@ -207,6 +215,8 @@ class ClothingFormViewModel @Inject constructor(
             hasSegmentedImage = form.hasSegmentedImage,
             originalImageFile = form.originalSegmentationImagePath?.let { storageRepository.getFile(it) },
             isSegmentationSupported = segmentationRepository.isSupported,
+            isCaptioning = form.isCaptioning,
+            imageCaption = form.imageCaption,
             selectedColors = form.selectedColors,
             isNameError = form.isNameError,
             isSaving = form.isSaving,
@@ -400,11 +410,14 @@ class ClothingFormViewModel @Inject constructor(
                 val path = storageRepository.saveImage(uri)
                 // Point the UI at the new file before any cleanup so the form always
                 // references a valid path even if a subsequent deletion fails.
+                // Reset caption fields so a stale result from a prior image can't bleed through.
+                captionJob?.cancel()
                 _form.update { it.copy(
                     imagePath = path,
                     isLoading = false,
                     hasSegmentedImage = false,
                     originalSegmentationImagePath = null,
+                    imageCaption = null,
                 ) }
                 // Best-effort cleanup — failures must not block the form update above.
                 if (previousPath != null && previousPath != originalImagePath) {
@@ -418,6 +431,29 @@ class ClothingFormViewModel @Inject constructor(
                 }
                 val file = storageRepository.getFile(path)
                 extractColorsFromFile(file)
+
+                // At-capture captioning — best-effort, never blocks save.
+                // Image Description API requires the main thread; launch stays on Main.
+                if (imageCaptionRepository.isSupported) {
+                    captionJob = viewModelScope.launch(Dispatchers.Main) {
+                        _form.update { it.copy(isCaptioning = true) }
+                        try {
+                            val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                            if (bitmap != null) {
+                                val caption = imageCaptionRepository.describe(bitmap)
+                                _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
+                            } else {
+                                _form.update { it.copy(isCaptioning = false) }
+                            }
+                        } catch (e: CancellationException) {
+                            _form.update { it.copy(isCaptioning = false) }
+                            throw e
+                        } catch (e: Exception) {
+                            Timber.d(e, "at-capture caption failed — ignored")
+                            _form.update { it.copy(isCaptioning = false) }
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 Timber.e(e, "image selection failed")
                 _form.update { it.copy(isLoading = false, errorMessage = com.closet.core.ui.R.string.error_unexpected) }
@@ -584,6 +620,8 @@ class ClothingFormViewModel @Inject constructor(
                     isFavorite = originalEntity?.isFavorite ?: 0,
                     status = originalEntity?.status ?: ClothingStatus.Active,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
+                    // Prefer any caption generated this session; fall back to the previously stored one.
+                    imageCaption = state.imageCaption ?: originalEntity?.imageCaption,
                     createdAt = originalEntity?.createdAt ?: Instant.now(),
                     updatedAt = Instant.now()
                 )

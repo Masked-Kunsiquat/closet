@@ -134,8 +134,10 @@ pattern used for `mlkit-genai-prompt` in `features/recommendations`.
 }
 ```
 
-- Use `ImageDescriber.getClient(ImageDescriberOptions)` from the ML Kit GenAI library
-- Wrap the resulting `Task<ImageDescription>` via `.await()` (same as SegmentationRepository)
+- **Actual entry point:** `ImageDescription.getClient(ImageDescriberOptions)` — the factory is on
+  `ImageDescription`, not `ImageDescriber`. Returns `ListenableFuture<T>` (not a GMS `Task`);
+  wrap via `suspendCancellableCoroutine` + `future.addListener({ ... }, { it.run() })`.
+- Return `result.description` trimmed; throw `IllegalStateException` if null
 - Return `result.description` trimmed; throw `IllegalStateException` if null
 - **`isSupported`**: same pattern as `SegmentationRepository` — exposes the flag so
   the ViewModel can gate the caption path on FOSS builds
@@ -152,7 +154,7 @@ suspend fun ensureModelDownloaded() { }
 
 ---
 
-### §4 — At-Capture flow (`ClothingFormViewModel`)
+### §4 — At-Capture flow (`ClothingFormViewModel`) ✓ DONE
 
 Wire `ImageCaptionRepository` into the existing image-selection pipeline.
 
