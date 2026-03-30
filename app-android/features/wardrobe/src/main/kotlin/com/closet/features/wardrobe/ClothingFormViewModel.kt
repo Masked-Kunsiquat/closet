@@ -478,7 +478,7 @@ class ClothingFormViewModel @Inject constructor(
         BitmapFactory.decodeFile(path, opts)
         val longest = maxOf(opts.outWidth, opts.outHeight)
         var sampleSize = 1
-        while (longest / (sampleSize * 2) >= maxDim) sampleSize *= 2
+        while (longest / sampleSize > maxDim) sampleSize *= 2
         return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sampleSize })
     }
 

@@ -67,6 +67,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.work.WorkInfo
+import com.closet.core.data.worker.BatchSegmentationWork
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -151,8 +152,8 @@ fun SettingsScreen(
         val info = batchSegWorkInfo ?: return@LaunchedEffect
         if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledBatchId) {
             lastHandledBatchId = info.id
-            val done = info.outputData.getInt("done", 0)
-            val failed = info.outputData.getInt("failed", 0)
+            val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
+            val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
             val msg = if (failed > 0) {
                 String.format(batchResultWithFailuresMsg, done, failed)
             } else {
@@ -1168,8 +1169,8 @@ private fun BatchSegmentationItem(
     }
 
     if (isRunning) {
-        val done = workInfo?.progress?.getInt("done", 0) ?: 0
-        val total = workInfo?.progress?.getInt("total", 0) ?: 0
+        val done = workInfo?.progress?.getInt(BatchSegmentationWork.KEY_DONE, 0) ?: 0
+        val total = workInfo?.progress?.getInt(BatchSegmentationWork.KEY_TOTAL, 0) ?: 0
         ListItem(
             headlineContent = {
                 Text(stringResource(R.string.settings_wardrobe_removing_backgrounds))
