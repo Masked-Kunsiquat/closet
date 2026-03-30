@@ -128,9 +128,8 @@ private fun ClothingAttributesEmptyPreview() {
 // ─── AttributeChip / AttributeSection previews ───────────────────────────────
 
 @Preview(showBackground = true, name = "AttributeChip - Text Only")
-@Preview(showBackground = true, name = "AttributeChip - With Color")
 @Composable
-private fun AttributeChipPreview() {
+private fun AttributeChipTextOnlyPreview() {
     ClosetTheme {
         Surface {
             Row(
@@ -138,8 +137,25 @@ private fun AttributeChipPreview() {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 AttributeChip(label = "Casual", onClick = {})
-                AttributeChip(label = "Blue", color = Color(0xFF3A6BAE), onClick = {})
                 AttributeChip(label = "Fall", onClick = {})
+                AttributeChip(label = "Spring", onClick = {})
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "AttributeChip - With Color")
+@Composable
+private fun AttributeChipWithColorPreview() {
+    ClosetTheme {
+        Surface {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AttributeChip(label = "Blue", color = Color(0xFF3A6BAE), onClick = {})
+                AttributeChip(label = "White", color = Color(0xFFFFFFFF), onClick = {})
+                AttributeChip(label = "Black", color = Color(0xFF000000), onClick = {})
             }
         }
     }
@@ -158,6 +174,41 @@ private fun AttributeSectionPreview() {
                     }
                 }
             }
+        }
+    }
+}
+
+// ─── DetailStatRow previews ───────────────────────────────────────────────────
+
+@Preview(showBackground = true, name = "StatRow - Full (Clean, 12 wears, $85)")
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "StatRow - Full Dark")
+@Composable
+private fun DetailStatRowFullPreview() {
+    ClosetTheme {
+        Surface {
+            DetailStatRow(
+                washStatus = previewDetailItem.item.washStatus,
+                wearCount = previewDetailItem.wearCount,
+                purchasePrice = previewDetailItem.item.purchasePrice,
+                onToggleWash = {},
+                modifier = Modifier.padding(16.dp),
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "StatRow - Minimal (Dirty, 0 wears, no price)")
+@Composable
+private fun DetailStatRowMinimalPreview() {
+    ClosetTheme {
+        Surface {
+            DetailStatRow(
+                washStatus = previewDetailItemMinimal.item.washStatus,
+                wearCount = previewDetailItemMinimal.wearCount,
+                purchasePrice = previewDetailItemMinimal.item.purchasePrice,
+                onToggleWash = {},
+                modifier = Modifier.padding(16.dp),
+            )
         }
     }
 }
