@@ -54,17 +54,18 @@ works on all devices).
 
 ### ClothingFormUiState additions (`ClothingFormViewModel.kt`)
 
-- [ ] Add `val isSegmenting: Boolean = false` to `ClothingFormUiState`
-- [ ] Add `val hasSegmentedImage: Boolean = false` — true after a successful
+- [x] Add `val isSegmenting: Boolean = false` to `ClothingFormUiState`
+- [x] Add `val hasSegmentedImage: Boolean = false` — true after a successful
   removal; drives "Revert" button visibility
-- [ ] Add `val originalImageFile: File? = null` — holds the pre-segmentation
+- [x] Add `val originalImageFile: File? = null` — holds the pre-segmentation
   file so revert can restore it without re-picking
+  (tracked as `originalSegmentationImagePath: String?` in `FormState`, derived to `File?` in `uiState` combine)
 
 ### ClothingFormViewModel functions
 
-- [ ] Inject `SegmentationRepository` into `ClothingFormViewModel`
+- [x] Inject `SegmentationRepository` into `ClothingFormViewModel`
 
-- [ ] `fun removeBackground()`:
+- [x] `fun removeBackground()`:
   - Guard: return early if `uiState.imageFile == null` or `uiState.isSegmenting`
   - Set `isSegmenting = true`
   - In `viewModelScope.launch(Dispatchers.IO)`:
@@ -77,10 +78,11 @@ works on all devices).
       snackbar via existing error channel; restore original image in state
     - Always: set `isSegmenting = false`
 
-- [ ] `fun revertSegmentation()`:
+- [x] `fun revertSegmentation()`:
   - Restores `imagePath`/`imageFile` from `originalImageFile`
   - Clears `hasSegmentedImage` and `originalImageFile`
   - Deletes the segmented PNG file from storage (best-effort, log on failure)
+  - `cancel()` and `save()` also updated to clean up `originalSegmentationImagePath` on exit
 
 ---
 

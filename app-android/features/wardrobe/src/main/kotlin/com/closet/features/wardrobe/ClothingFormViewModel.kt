@@ -15,10 +15,14 @@ import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
+import android.graphics.BitmapFactory
+import com.closet.features.wardrobe.R
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.features.wardrobe.repository.SegmentationRepository
+import java.util.UUID
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -54,6 +58,9 @@ data class ClothingFormUiState(
     val notes: String = "",
     val imagePath: String? = null,
     val imageFile: File? = null,
+    val isSegmenting: Boolean = false,
+    val hasSegmentedImage: Boolean = false,
+    val originalImageFile: File? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val subcategories: List<SubcategoryEntity> = emptyList(),
@@ -81,6 +88,9 @@ private data class FormState(
     val purchaseLocation: String = "",
     val notes: String = "",
     val imagePath: String? = null,
+    val isSegmenting: Boolean = false,
+    val hasSegmentedImage: Boolean = false,
+    val originalSegmentationImagePath: String? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
@@ -99,7 +109,8 @@ class ClothingFormViewModel @Inject constructor(
     private val lookupRepository: LookupRepository,
     private val brandRepository: BrandRepository,
     private val storageRepository: StorageRepository,
-    private val clothingRepository: ClothingRepository
+    private val clothingRepository: ClothingRepository,
+    private val segmentationRepository: SegmentationRepository,
 ) : ViewModel() {
 
     private val editDestination = try {
@@ -187,6 +198,9 @@ class ClothingFormViewModel @Inject constructor(
             notes = form.notes,
             imagePath = form.imagePath,
             imageFile = form.imagePath?.let { storageRepository.getFile(it) },
+            isSegmenting = form.isSegmenting,
+            hasSegmentedImage = form.hasSegmentedImage,
+            originalImageFile = form.originalSegmentationImagePath?.let { storageRepository.getFile(it) },
             selectedColors = form.selectedColors,
             isNameError = form.isNameError,
             isSaving = form.isSaving,
@@ -381,6 +395,53 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    fun removeBackground() {
+        val currentForm = _form.value
+        if (currentForm.imagePath == null || currentForm.isSegmenting) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _form.update { it.copy(isSegmenting = true, originalSegmentationImagePath = it.imagePath) }
+            try {
+                val path = _form.value.imagePath ?: return@launch
+                val file = storageRepository.getFile(path)
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                    ?: throw IllegalStateException("Could not decode image file: $path")
+                val masked = segmentationRepository.removeBackground(bitmap)
+                val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
+                _form.update { it.copy(imagePath = savedPath, hasSegmentedImage = true, isSegmenting = false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "removeBackground failed")
+                _form.update { it.copy(
+                    imagePath = it.originalSegmentationImagePath,
+                    originalSegmentationImagePath = null,
+                    isSegmenting = false,
+                    errorMessage = R.string.wardrobe_segmentation_error,
+                ) }
+            }
+        }
+    }
+
+    fun revertSegmentation() {
+        val currentPath = _form.value.imagePath
+        val originalPath = _form.value.originalSegmentationImagePath ?: return
+        _form.update { it.copy(
+            imagePath = originalPath,
+            hasSegmentedImage = false,
+            originalSegmentationImagePath = null,
+        ) }
+        if (currentPath != null && currentPath != originalPath) {
+            viewModelScope.launch {
+                try {
+                    storageRepository.deleteImage(currentPath)
+                } catch (e: Exception) {
+                    Timber.d(e, "revertSegmentation: failed to delete segmented PNG $currentPath")
+                }
+            }
+        }
+    }
+
     fun onErrorConsumed() {
         _form.update { it.copy(errorMessage = null) }
     }
@@ -470,6 +531,11 @@ class ClothingFormViewModel @Inject constructor(
                     if (isEditMode && originalImagePath != null && originalImagePath != state.imagePath) {
                         withContext(NonCancellable) { storageRepository.deleteImage(originalImagePath!!) }
                     }
+                    // Clean up the pre-segmentation intermediate file now that the segmented image is saved
+                    val segOrigPath = state.originalSegmentationImagePath
+                    if (segOrigPath != null && segOrigPath != originalImagePath) {
+                        withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) }
+                    }
                     _events.send(ClothingFormEvent.NavigateBack)
                 } else {
                     _form.update { it.copy(isSaving = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
@@ -483,12 +549,15 @@ class ClothingFormViewModel @Inject constructor(
 
     fun cancel() {
         val currentPath = _form.value.imagePath
-        if (currentPath != null && currentPath != originalImagePath) {
-            viewModelScope.launch {
+        val segOrigPath = _form.value.originalSegmentationImagePath
+        viewModelScope.launch {
+            if (currentPath != null && currentPath != originalImagePath) {
                 withContext(NonCancellable) { storageRepository.deleteImage(currentPath) }
             }
-        }
-        viewModelScope.launch {
+            // Also clean up the pre-segmentation file if it wasn't the persisted original
+            if (segOrigPath != null && segOrigPath != originalImagePath && segOrigPath != currentPath) {
+                withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) }
+            }
             _events.send(ClothingFormEvent.NavigateBack)
         }
     }
