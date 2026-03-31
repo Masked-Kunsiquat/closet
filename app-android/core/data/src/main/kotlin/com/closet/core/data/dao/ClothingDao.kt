@@ -6,13 +6,17 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * Correlated subquery that counts distinct outfit log entries for a clothing item.
+ * Joins via [outfit_log_items] (the historical snapshot table) rather than [outfit_items]
+ * (live outfit membership) so that:
+ *  - ad-hoc single-item wear logs (outfit_id = null) are included, and
+ *  - items removed from an outfit after logging still count as worn.
  * Requires the `ci` alias to be in scope (clothing_items). Alias `wear_count` is included.
  */
 private const val WEAR_COUNT_SUBQUERY = """(
         SELECT COUNT(DISTINCT ol.id)
         FROM outfit_logs ol
-        JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-        WHERE oi.clothing_item_id = ci.id
+        JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
+        WHERE oli.clothing_item_id = ci.id
     ) AS wear_count"""
 
 /**

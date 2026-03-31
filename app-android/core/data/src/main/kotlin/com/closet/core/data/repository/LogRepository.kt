@@ -105,8 +105,8 @@ class LogRepository @Inject constructor(
      * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
      */
     suspend fun wearItemsToday(itemIds: List<Long>): DataResult<Long> = try {
-        val logId = logDao.insertAdHocLogAndSnapshot(
-            log = OutfitLogEntity(outfitId = null, date = LocalDate.now().toString()),
+        val logId = logDao.getOrCreateAdHocLogAndSnapshot(
+            date = LocalDate.now().toString(),
             itemIds = itemIds,
         )
         DataResult.Success(logId)

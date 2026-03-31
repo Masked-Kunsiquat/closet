@@ -238,13 +238,9 @@ class ClothingFormViewModel @Inject constructor(
         val brands = args[4] as List<BrandEntity>
         val systems = args[5] as List<SizeSystemEntity>
         val values = args[6] as List<SizeValueEntity>
-        @Suppress("UNCHECKED_CAST")
         val seasons = args[7] as List<SeasonEntity>
-        @Suppress("UNCHECKED_CAST")
         val occasions = args[8] as List<OccasionEntity>
-        @Suppress("UNCHECKED_CAST")
         val materials = args[9] as List<MaterialEntity>
-        @Suppress("UNCHECKED_CAST")
         val patterns = args[10] as List<PatternEntity>
 
         ClothingFormUiState(

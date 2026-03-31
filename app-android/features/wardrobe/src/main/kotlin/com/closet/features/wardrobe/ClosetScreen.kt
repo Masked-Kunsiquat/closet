@@ -299,6 +299,13 @@ private fun CategoryFilterRow(
                 label = { Text(stringResource(R.string.wardrobe_all_items)) }
             )
         }
+        item(key = "show_archived") {
+            FilterChip(
+                selected = showArchived,
+                onClick = onToggleShowArchived,
+                label = { Text(stringResource(R.string.wardrobe_filter_show_archived)) }
+            )
+        }
         items(categories, key = { it.id }) { category ->
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 FilterChip(
@@ -318,13 +325,6 @@ private fun CategoryFilterRow(
                     )
                 }
             }
-        }
-        item(key = "show_archived") {
-            FilterChip(
-                selected = showArchived,
-                onClick = onToggleShowArchived,
-                label = { Text(stringResource(R.string.wardrobe_filter_show_archived)) }
-            )
         }
     }
 }

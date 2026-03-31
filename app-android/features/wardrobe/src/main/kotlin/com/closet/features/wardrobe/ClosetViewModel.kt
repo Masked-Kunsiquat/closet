@@ -176,7 +176,9 @@ class ClosetViewModel @Inject constructor(
         val visibleSizeSystems = lookups.sizeSystems.filter { it.id in usedSizeSystemIds }
 
         val hiddenArchivedCount = if (!fs.showArchived) {
-            allItems.count { it.item.status != ClothingStatus.Active }
+            allItems
+                .filter { categoryId == null || it.item.categoryId == categoryId }
+                .count { it.item.status != ClothingStatus.Active }
         } else 0
 
         ClosetUiState(

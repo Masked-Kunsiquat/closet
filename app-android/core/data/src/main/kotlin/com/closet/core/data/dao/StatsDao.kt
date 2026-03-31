@@ -84,14 +84,14 @@ interface StatsDao {
             COUNT(*) AS totalItems,
             COUNT(CASE WHEN EXISTS (
                 SELECT 1 FROM outfit_logs ol
-                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-                WHERE oi.clothing_item_id = ci.id
+                JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
+                WHERE oli.clothing_item_id = ci.id
                   AND (:fromDate IS NULL OR ol.date >= :fromDate)
             ) THEN 1 END) AS wornItems,
             COUNT(CASE WHEN NOT EXISTS (
                 SELECT 1 FROM outfit_logs ol
-                JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-                WHERE oi.clothing_item_id = ci.id
+                JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
+                WHERE oli.clothing_item_id = ci.id
                   AND (:fromDate IS NULL OR ol.date >= :fromDate)
             ) THEN 1 END) AS neverWornItems,
             SUM(purchase_price) AS totalValue
@@ -113,8 +113,8 @@ interface StatsDao {
             ci.image_path AS imagePath,
             COUNT(DISTINCT ol.id) AS wearCount
         FROM clothing_items ci
-        JOIN outfit_items oi ON oi.clothing_item_id = ci.id
-        JOIN outfit_logs ol  ON ol.outfit_id = oi.outfit_id
+        JOIN outfit_log_items oli ON oli.clothing_item_id = ci.id
+        JOIN outfit_logs ol ON ol.id = oli.outfit_log_id
         WHERE ci.status = 'Active'
           AND (:fromDate IS NULL OR ol.date >= :fromDate)
         GROUP BY ci.id
@@ -138,8 +138,8 @@ interface StatsDao {
             COUNT(DISTINCT ol.id) AS wearCount,
             ci.purchase_price / COUNT(DISTINCT ol.id) AS costPerWear
         FROM clothing_items ci
-        JOIN outfit_items oi ON oi.clothing_item_id = ci.id
-        JOIN outfit_logs ol  ON ol.outfit_id = oi.outfit_id
+        JOIN outfit_log_items oli ON oli.clothing_item_id = ci.id
+        JOIN outfit_logs ol ON ol.id = oli.outfit_log_id
         WHERE ci.status = 'Active'
           AND ci.purchase_price IS NOT NULL
           AND (:fromDate IS NULL OR ol.date >= :fromDate)
@@ -174,8 +174,8 @@ interface StatsDao {
         SELECT COALESCE(c.name, 'Uncategorized') AS label, COUNT(*) AS count
         FROM clothing_items ci
         LEFT JOIN categories c ON c.id = ci.category_id
-        JOIN outfit_items oi ON oi.clothing_item_id = ci.id
-        JOIN outfit_logs ol  ON ol.outfit_id = oi.outfit_id
+        JOIN outfit_log_items oli ON oli.clothing_item_id = ci.id
+        JOIN outfit_logs ol ON ol.id = oli.outfit_log_id
         WHERE ci.status = 'Active'
           AND (:fromDate IS NULL OR ol.date >= :fromDate)
         GROUP BY label
@@ -193,9 +193,8 @@ interface StatsDao {
         FROM clothing_items ci
         WHERE ci.status = 'Active'
           AND NOT EXISTS (
-              SELECT 1 FROM outfit_logs ol
-              JOIN outfit_items oi ON ol.outfit_id = oi.outfit_id
-              WHERE oi.clothing_item_id = ci.id
+              SELECT 1 FROM outfit_log_items oli
+              WHERE oli.clothing_item_id = ci.id
           )
         ORDER BY ci.name ASC
     """)
