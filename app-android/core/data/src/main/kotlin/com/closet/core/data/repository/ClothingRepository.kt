@@ -91,6 +91,11 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * One-shot fetch of a fully-loaded [ClothingItemDetail] including all junction data.
+     */
+    suspend fun getItemDetailOnce(id: Long): ClothingItemDetail? = clothingDao.getClothingItemDetailOnce(id)
+
+    /**
      * Retrieves the colors associated with a clothing item.
      */
     fun getItemColors(itemId: Long): Flow<List<ColorEntity>> = clothingDao.getItemColors(itemId)
@@ -123,6 +128,60 @@ class ClothingRepository @Inject constructor(
         val result = insertItem(item, colors.map { it.id })
         if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(result.data) }
         return result
+    }
+
+    /**
+     * Inserts a new clothing item with all junction table associations in a single transaction.
+     * Best-effort: runs ItemVectorizer after a successful insert.
+     */
+    suspend fun insertItemWithAttributes(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>,
+        seasonIds: List<Long>,
+        occasionIds: List<Long>,
+        materialIds: List<Long>,
+        patternIds: List<Long>,
+    ): DataResult<Long> {
+        val result = wrapInTransaction {
+            val id = clothingDao.insertClothingItem(item)
+            clothingDao.updateItemColors(id, colors.map { it.id })
+            clothingDao.updateItemSeasons(id, seasonIds)
+            clothingDao.updateItemOccasions(id, occasionIds)
+            clothingDao.updateItemMaterials(id, materialIds)
+            clothingDao.updateItemPatterns(id, patternIds)
+            id
+        }
+        if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(result.data) }
+        return result
+    }
+
+    /**
+     * Updates an existing clothing item with all junction table associations in a single transaction.
+     * Best-effort: re-runs ItemVectorizer after a successful update.
+     */
+    suspend fun updateItemWithAttributes(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>,
+        seasonIds: List<Long>,
+        occasionIds: List<Long>,
+        materialIds: List<Long>,
+        patternIds: List<Long>,
+    ): DataResult<Int> {
+        val result = wrapInTransaction {
+            val rowsAffected = clothingDao.updateClothingItem(item)
+            if (rowsAffected == 0) return@wrapInTransaction 0
+            clothingDao.updateItemColors(item.id, colors.map { it.id })
+            clothingDao.updateItemSeasons(item.id, seasonIds)
+            clothingDao.updateItemOccasions(item.id, occasionIds)
+            clothingDao.updateItemMaterials(item.id, materialIds)
+            clothingDao.updateItemPatterns(item.id, patternIds)
+            rowsAffected
+        }
+        return if (result is DataResult.Success && result.data == 0) {
+            DataResult.Error(AppError.DatabaseError.NotFound())
+        } else {
+            result
+        }.also { if (it is DataResult.Success) vectorizeItem(item.id) }
     }
 
     /**

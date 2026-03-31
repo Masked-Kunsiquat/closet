@@ -49,6 +49,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SizeSystemEntity
@@ -351,3 +353,36 @@ internal fun BrandAutocompleteField(
     }
 }
 
+// ─── AttributeChipRow ────────────────────────────────────────────────────────
+
+/**
+ * A wrapping row of [FilterChip]s for toggling membership in a named attribute set.
+ *
+ * @param label      Section title shown above the chips.
+ * @param items      All available options as (id, displayLabel) pairs.
+ * @param selectedIds The IDs currently selected.
+ * @param onToggle   Called with the ID of the chip that was tapped.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun AttributeChipRow(
+    label: String,
+    items: List<Pair<Long, String>>,
+    selectedIds: Set<Long>,
+    onToggle: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (items.isEmpty()) return
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = label, style = MaterialTheme.typography.titleSmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items.forEach { (id, name) ->
+                FilterChip(
+                    selected = id in selectedIds,
+                    onClick = { onToggle(id) },
+                    label = { Text(name) },
+                )
+            }
+        }
+    }
+}

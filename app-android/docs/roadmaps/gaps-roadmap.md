@@ -34,14 +34,14 @@ items. Users cannot retire, sell, or archive anything.
 
 ---
 
-## Phase 2 — Seasons, occasions, materials, patterns in the add/edit form 🔴
+## Phase 2 — Seasons, occasions, materials, patterns in the add/edit form ✅
 
 Multi-select attributes (colors, seasons, occasions, materials, patterns) can only be set from
 the detail screen after an item is saved. Items created fresh have zero seasons and occasions,
 which means they are **invisible to the recommendation engine's hard filter**. This is the
 highest-priority fix.
 
-- [ ] **§2.1 — Add `seasons`, `occasions`, `materials`, `patterns` to `ClothingFormState`**
+- [x] **§2.1 — Add `seasons`, `occasions`, `materials`, `patterns` to `ClothingFormState`**
   File: `features/wardrobe/src/main/kotlin/.../ClothingFormViewModel.kt`
   - Extend `ClothingFormState` with:
     ```kotlin
@@ -54,12 +54,12 @@ highest-priority fix.
   - Write all four junction tables in `save()` using the existing `set*` helpers in
     `ClothingRepository` (already used for colors).
 
-- [ ] **§2.2 — Expose lookup lists for the pickers**
+- [x] **§2.2 — Expose lookup lists for the pickers**
   `LookupDao` already has `getAllSeasons()`, `getAllOccasions()`, `getAllMaterials()`,
   `getAllPatterns()`. Load them in `ClothingFormViewModel.init {}` alongside the existing
   category/brand lists and expose as `StateFlow`.
 
-- [ ] **§2.3 — Add pickers to `ClothingFormScreen`**
+- [x] **§2.3 — Add pickers to `ClothingFormScreen`**
   Reuse the `MultiSelectChipRow` pattern already used for colors. Add four rows:
   - Seasons (icons from `SeasonEntity.icon`)
   - Occasions (icons from `OccasionEntity.icon`)

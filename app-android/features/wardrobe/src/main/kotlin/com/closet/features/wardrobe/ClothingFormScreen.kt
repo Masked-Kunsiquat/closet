@@ -169,6 +169,10 @@ fun ClothingFormScreen(
                 onLocationChange = viewModel::onLocationChange,
                 onNotesChange = viewModel::onNotesChange,
                 onStatusSelected = viewModel::onStatusSelected,
+                onSeasonToggle = viewModel::onSeasonToggle,
+                onOccasionToggle = viewModel::onOccasionToggle,
+                onMaterialToggle = viewModel::onMaterialToggle,
+                onPatternToggle = viewModel::onPatternToggle,
                 onImageClick = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
@@ -235,6 +239,10 @@ internal fun ClothingFormContent(
     onLocationChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
     onStatusSelected: (ClothingStatus) -> Unit,
+    onSeasonToggle: (Long) -> Unit,
+    onOccasionToggle: (Long) -> Unit,
+    onMaterialToggle: (Long) -> Unit,
+    onPatternToggle: (Long) -> Unit,
     onImageClick: () -> Unit,
     onRemoveBackground: () -> Unit,
     onRevertSegmentation: () -> Unit,
@@ -412,6 +420,42 @@ internal fun ClothingFormContent(
                     onColorToggle = onColorToggle
                 )
             }
+        }
+
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_seasons),
+                items = uiState.allSeasons.map { it.id to it.name },
+                selectedIds = uiState.selectedSeasonIds,
+                onToggle = onSeasonToggle,
+            )
+        }
+
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_occasions),
+                items = uiState.allOccasions.map { it.id to it.name },
+                selectedIds = uiState.selectedOccasionIds,
+                onToggle = onOccasionToggle,
+            )
+        }
+
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_materials),
+                items = uiState.allMaterials.map { it.id to it.name },
+                selectedIds = uiState.selectedMaterialIds,
+                onToggle = onMaterialToggle,
+            )
+        }
+
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_patterns),
+                items = uiState.allPatterns.map { it.id to it.name },
+                selectedIds = uiState.selectedPatternIds,
+                onToggle = onPatternToggle,
+            )
         }
 
         item { HorizontalDivider() }
