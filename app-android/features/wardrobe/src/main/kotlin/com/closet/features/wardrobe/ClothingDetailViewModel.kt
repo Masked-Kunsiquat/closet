@@ -89,6 +89,14 @@ class ClothingDetailViewModel @Inject constructor(
     /** One-shot error events emitted when a quick action (toggle, delete, update) fails. */
     val actionError: SharedFlow<UserMessage> = _actionError.asSharedFlow()
 
+    private val _logWearSuccess = MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    /** Fires once after a successful [logWearToday] call — used to show a confirmation snackbar. */
+    val logWearSuccess: SharedFlow<Unit> = _logWearSuccess.asSharedFlow()
+
     /** Toggles the favorite status of the current item. */
     fun toggleFavorite() {
         viewModelScope.launch {
@@ -205,6 +213,21 @@ class ClothingDetailViewModel @Inject constructor(
             clothingRepository.updateItemPatterns(itemId, patternIds).fold(
                 onLoading = {},
                 onSuccess = {},
+                onError = { handleActionError(it) }
+            )
+        }
+    }
+
+    /**
+     * Logs this item as worn today without requiring a saved outfit.
+     * On success, emits on [logWearSuccess] so the UI can show a confirmation snackbar.
+     * On failure, emits on [actionError].
+     */
+    fun logWearToday() {
+        viewModelScope.launch {
+            logRepository.wearItemsToday(listOf(itemId)).fold(
+                onLoading = {},
+                onSuccess = { _logWearSuccess.tryEmit(Unit) },
                 onError = { handleActionError(it) }
             )
         }

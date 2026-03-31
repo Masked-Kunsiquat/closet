@@ -170,40 +170,38 @@ but they are not displayed anywhere in the detail screen.
 
 ---
 
-## Phase 8 — Single-item wear logging (no outfit required) 🔴
+## Phase 8 — Single-item wear logging (no outfit required) ✅
 
 The entire wear tracking system requires an outfit. Logging a single item as worn means
 creating a one-item outfit, which is friction-heavy. This is the most architecturally
 significant gap.
 
-> **Note:** This phase introduces a new log type. Approach options:
-> - **Option A (lightweight):** Allow `outfit_logs.outfit_id` to be nullable, treat a null
->   outfit_id as an ad-hoc log. Snapshot items via `outfit_log_items` as usual.
-> - **Option B (new table):** Add a separate `item_wear_logs` table (simpler schema,
->   cleaner queries, no null FK).
-> Option A is recommended — it reuses all existing stat queries with minimal schema change.
+> **Note:** Option A (lightweight) was used — `outfit_logs.outfit_id` is already nullable
+> in the DB schema (`INTEGER` without `NOT NULL`, `onDelete = ForeignKey.SET_NULL`).
+> No migration was needed. Ad-hoc logs use the same `outfit_log_items` snapshot table.
 
-- [ ] **§8.1 — Make `outfit_logs.outfit_id` nullable (migration)**
-  File: `core/data/src/main/kotlin/.../ClothingDatabase.kt`
-  - Write `Migration(N, N+1)` that drops and recreates `outfit_logs` without `NOT NULL` on
-    `outfit_id`.
-  - Update `OutfitLogEntity.outfitId` to `val outfitId: Long?`.
-  - Follow the migration checklist in `migrations/AGENTS.md` (drop `one_ootd_per_day` index
-    at top of migration, recreate in `onOpen`).
+- [x] **§8.1 — `outfit_logs.outfit_id` already nullable — no migration needed**
+  `OutfitLogEntity.outfitId: Long? = null` and the DB column is `INTEGER` (no `NOT NULL`)
+  as of v6. `LogDao.insertLogAndSnapshot` already skips snapshot rows when `outfitId` is
+  null. No schema change required.
 
-- [ ] **§8.2 — Add `LogRepository.wearItemsToday(itemIds: List<Long>)`**
-  Creates an `OutfitLogEntity` with `outfitId = null`, inserts snapshot rows into
-  `outfit_log_items` for each item ID. Reuses `LogRepository.insertLogAndSnapshot()`.
+- [x] **§8.2 — Add `LogRepository.wearItemsToday(itemIds: List<Long>)`**
+  File: `core/data/src/main/kotlin/.../dao/LogDao.kt` + `.../repository/LogRepository.kt`
+  - Added `LogDao.insertSnapshotItems(items: List<OutfitLogItemEntity>)` (`@Insert IGNORE`).
+  - Added `LogDao.insertAdHocLogAndSnapshot(log, itemIds)` (`@Transaction`).
+  - Added `LogRepository.wearItemsToday(itemIds)` — creates null-outfit log + snapshot.
 
-- [ ] **§8.3 — "Log wear" action on `ClothingDetailScreen`**
-  Add a "Log wear" button (or secondary FAB) to the detail screen. Tapping calls
-  `ClothingDetailViewModel.logWearToday()` which calls `wearItemsToday(listOf(itemId))`.
-  Show a snackbar confirmation on success.
+- [x] **§8.3 — "Log wear" action on `ClothingDetailScreen`**
+  File: `features/wardrobe/src/main/kotlin/.../ClothingDetailScreen.kt` + `ClothingDetailViewModel.kt`
+  - Added `ClothingDetailViewModel.logWearToday()` + `logWearSuccess: SharedFlow<Unit>`.
+  - Added full-width `FilledTonalButton` ("Log wear") below `DetailStatRow`.
+  - `LaunchedEffect` collects `logWearSuccess` and shows "Wear logged" snackbar.
 
-- [ ] **§8.4 — Ensure null-outfit logs are excluded from outfit-specific queries**
-  Audit `OutfitDao` and `StatsDao` queries that join `outfit_logs → outfits` — add
-  `WHERE outfit_id IS NOT NULL` guards where appropriate so null-outfit logs don't surface
-  as broken outfit entries.
+- [x] **§8.4 — Ensure null-outfit logs are excluded from outfit-specific queries**
+  File: `core/data/src/main/kotlin/.../dao/StatsDao.kt`
+  - `getTotalOutfitsLogged`: added `AND outfit_id IS NOT NULL` guard.
+  - All other StatsDao/OutfitDao queries join through `outfit_items` (inner join on
+    `outfit_id`), so null-outfit logs are naturally excluded — no further guards needed.
 
 ---
 
@@ -238,6 +236,8 @@ Phase 8 (single-item wear logging)     ← most complex, requires migration
 | [ ] | `features/wardrobe/.../ClosetViewModel.kt` | Phase 5.1-5.2: `SortOrder` enum + in-memory sort |
 | [ ] | `features/wardrobe/.../ClosetScreen.kt` | Phase 5.3: sort button UI |
 | [ ] | `features/wardrobe/.../ClosetViewModel.kt` | Phase 6.1: Active-only filter (in-memory) |
-| [ ] | `core/data/.../ClothingDatabase.kt` | Phase 8.1: migration for nullable `outfit_id` |
-| [ ] | `core/data/.../entity/OutfitLogEntity.kt` | Phase 8.1: `outfitId: Long?` |
+| [ ] | `core/data/.../dao/LogDao.kt` | Phase 8.2: `insertSnapshotItems()` + `insertAdHocLogAndSnapshot()` |
 | [ ] | `core/data/.../repository/LogRepository.kt` | Phase 8.2: `wearItemsToday()` |
+| [ ] | `features/wardrobe/.../ClothingDetailViewModel.kt` | Phase 8.3: `logWearToday()` + `logWearSuccess` flow |
+| [ ] | `features/wardrobe/.../ClothingDetailScreen.kt` | Phase 8.3: Log Wear button + success snackbar |
+| [ ] | `core/data/.../dao/StatsDao.kt` | Phase 8.4: `outfit_id IS NOT NULL` guard in `getTotalOutfitsLogged` |

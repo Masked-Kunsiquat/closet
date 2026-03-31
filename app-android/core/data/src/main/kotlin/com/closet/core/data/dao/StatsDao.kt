@@ -150,14 +150,16 @@ interface StatsDao {
     fun getCostPerWear(fromDate: String?): Flow<List<CostPerWearItem>>
 
     /**
-     * Counts the total number of distinct outfit log entries.
+     * Counts the total number of distinct outfit log entries (excludes ad-hoc single-item logs
+     * that have no associated outfit — those have [outfit_id] = null).
      * @param fromDate Optional start date (YYYY-MM-DD) to restrict the count.
      * @return A [Flow] emitting the total count of logged outfits.
      */
     @Query("""
         SELECT COUNT(DISTINCT id)
         FROM outfit_logs
-        WHERE :fromDate IS NULL OR date >= :fromDate
+        WHERE outfit_id IS NOT NULL
+          AND (:fromDate IS NULL OR date >= :fromDate)
     """)
     fun getTotalOutfitsLogged(fromDate: String?): Flow<Int>
 

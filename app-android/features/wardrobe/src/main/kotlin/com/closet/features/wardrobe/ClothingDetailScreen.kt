@@ -61,6 +61,13 @@ fun ClothingDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     UserMessageSnackbarEffect(viewModel.actionError, snackbarHostState)
 
+    val logWearSuccessMessage = stringResource(R.string.wardrobe_log_wear_success)
+    LaunchedEffect(viewModel.logWearSuccess) {
+        viewModel.logWearSuccess.collect {
+            snackbarHostState.showSnackbar(logWearSuccessMessage)
+        }
+    }
+
     var activePicker by remember { mutableStateOf<AttributePicker?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showStatusDialog by remember { mutableStateOf(false) }
@@ -267,6 +274,20 @@ fun ClothingDetailScreen(
                             purchasePrice = detail.item.purchasePrice,
                             onToggleWash = { viewModel.toggleWashStatus() },
                         )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FilledTonalButton(
+                            onClick = { viewModel.logWearToday() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.wardrobe_log_wear))
+                        }
 
                         // Purchase metadata — only rendered when at least one field is set
                         if (detail.item.purchaseDate != null || !detail.item.purchaseLocation.isNullOrBlank()) {

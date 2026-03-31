@@ -95,10 +95,32 @@ class LogRepository @Inject constructor(
     }
 
     /**
+     * Logs one or more individual items as worn today without associating them with a saved outfit.
+     *
+     * Creates an [OutfitLogEntity] with a null [OutfitLogEntity.outfitId] and snapshots [itemIds]
+     * into [outfit_log_items]. Each item's wear count is automatically reflected in the next
+     * emission from clothing queries because wear_count is computed at query time.
+     *
+     * @param itemIds The IDs of the clothing items that were worn.
+     * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
+     */
+    suspend fun wearItemsToday(itemIds: List<Long>): DataResult<Long> = try {
+        val logId = logDao.insertAdHocLogAndSnapshot(
+            log = OutfitLogEntity(outfitId = null, date = LocalDate.now().toString()),
+            itemIds = itemIds,
+        )
+        DataResult.Success(logId)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error logging ad-hoc wear for items $itemIds")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
+
+    /**
      * Updates an existing log's metadata (e.g., notes, weather, temperature).
      * @param log The [OutfitLogEntity] with updated values.
      */
-    suspend fun updateLog(log: OutfitLogEntity) = 
+    suspend fun updateLog(log: OutfitLogEntity) =
         logDao.updateLog(log)
 
     /**

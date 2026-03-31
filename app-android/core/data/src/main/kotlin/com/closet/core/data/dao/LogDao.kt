@@ -151,6 +151,14 @@ interface LogDao {
     suspend fun insertSnapshotRows(logId: Long, outfitId: Long)
 
     /**
+     * Inserts a list of ad-hoc snapshot rows directly from clothing item IDs.
+     * Used when logging a wear with no associated outfit ([OutfitLogEntity.outfitId] = null).
+     * [OutfitLogItemEntity.outfitName] is left null — the UI falls back to its "untitled" string.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSnapshotItems(items: List<OutfitLogItemEntity>)
+
+    /**
      * Atomically inserts an outfit log and immediately snapshots its item membership.
      * If [log.outfitId] is null (free-form log) no snapshot rows are written.
      * @return The row ID of the newly inserted log.
@@ -160,6 +168,21 @@ interface LogDao {
         val logId = insertLog(log)
         if (log.outfitId != null) {
             insertSnapshotRows(logId, log.outfitId)
+        }
+        return logId
+    }
+
+    /**
+     * Atomically inserts an ad-hoc wear log (no outfit) and snapshots the given [itemIds]
+     * into [outfit_log_items]. Use this for single-item or multi-item wear logging that
+     * doesn't involve a saved outfit ([OutfitLogEntity.outfitId] must be null).
+     * @return The row ID of the newly inserted log.
+     */
+    @Transaction
+    suspend fun insertAdHocLogAndSnapshot(log: OutfitLogEntity, itemIds: List<Long>): Long {
+        val logId = insertLog(log)
+        if (itemIds.isNotEmpty()) {
+            insertSnapshotItems(itemIds.map { OutfitLogItemEntity(logId, it, outfitName = null) })
         }
         return logId
     }

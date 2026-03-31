@@ -110,6 +110,10 @@
     <string name="wardrobe_date_cancel">Cancel</string>
     <string name="wardrobe_date_clear">Clear</string>
 
+    <!-- Log wear action on clothing detail screen -->
+    <string name="wardrobe_log_wear">Log wear</string>
+    <string name="wardrobe_log_wear_success">Wear logged</string>
+
     <!-- Wear History -->
     <string name="wardrobe_wear_history">Wear history</string>
     <string name="wardrobe_wear_history_empty">Never worn yet</string>
