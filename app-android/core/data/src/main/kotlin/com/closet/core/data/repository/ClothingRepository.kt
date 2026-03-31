@@ -92,12 +92,15 @@ class ClothingRepository @Inject constructor(
 
     /**
      * One-shot fetch of a fully-loaded [ClothingItemDetail] including all junction data.
-     *
-     * Returns `null` rather than wrapping in [DataResult] because callers that need a one-shot
-     * read (e.g. pre-populating a form) handle the missing-item case inline; the [DataResult]
-     * overhead would add noise without benefit here.
+     * Returns [DataResult.Success] with a null value when the item does not exist.
      */
-    suspend fun getItemDetailOnce(id: Long): ClothingItemDetail? = clothingDao.getClothingItemDetailOnce(id)
+    suspend fun getItemDetailOnce(id: Long): DataResult<ClothingItemDetail?> = try {
+        DataResult.Success(clothingDao.getClothingItemDetailOnce(id))
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error fetching item detail once for ID: $id")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
 
     /**
      * Retrieves the colors associated with a clothing item.

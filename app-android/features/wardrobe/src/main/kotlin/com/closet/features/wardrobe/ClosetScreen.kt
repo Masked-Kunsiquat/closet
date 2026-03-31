@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -176,7 +175,6 @@ internal fun ClosetContent(
                         DropdownMenu(
                             expanded = showSortMenu,
                             onDismissRequest = { showSortMenu = false },
-                            offset = DpOffset(x = 0.dp, y = 0.dp),
                         ) {
                             SortOrder.entries.forEach { order ->
                                 DropdownMenuItem(

@@ -351,7 +351,7 @@ class ClothingFormViewModel @Inject constructor(
             _form.update { it.copy(isLoading = true) }
             try {
                 val entityResult = clothingRepository.getItemEntityById(id)
-                val detail = clothingRepository.getItemDetailOnce(id)
+                val detail = (clothingRepository.getItemDetailOnce(id) as? DataResult.Success)?.data
 
                 if (entityResult is DataResult.Success) {
                     val entity = entityResult.data
