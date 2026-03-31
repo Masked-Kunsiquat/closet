@@ -155,12 +155,12 @@ they'll need a way to hide them.
 
 ---
 
-## Phase 7 — Show purchase date and location on the detail screen 🟡
+## Phase 7 — Show purchase date and location on the detail screen ✅
 
 `purchase_date` and `purchase_location` are stored in the DB and writable via the form,
 but they are not displayed anywhere in the detail screen.
 
-- [ ] **§7.1 — Add purchase metadata rows to `ClothingDetailScreen`**
+- [x] **§7.1 — Add purchase metadata rows to `ClothingDetailScreen`**
   File: `features/wardrobe/src/main/kotlin/.../ClothingDetailComponents.kt`
   - Below the existing price / cost-per-wear `DetailStatRow` entries, add:
     - "Purchased" — formatted `purchase_date` (e.g. "March 2024"), null-guarded

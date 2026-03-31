@@ -47,6 +47,8 @@
     <string name="wardrobe_uncategorized">Uncategorized</string>
     <string name="wardrobe_purchase_date">Purchase Date</string>
     <string name="wardrobe_purchase_location">Purchase Location</string>
+    <string name="wardrobe_detail_purchased">Purchased</string>
+    <string name="wardrobe_detail_from">From</string>
     <string name="wardrobe_notes">Notes</string>
     <string name="wardrobe_colors">Colors</string>
     <string name="wardrobe_materials">Materials</string>

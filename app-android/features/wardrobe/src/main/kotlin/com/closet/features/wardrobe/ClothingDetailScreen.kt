@@ -268,6 +268,15 @@ fun ClothingDetailScreen(
                             onToggleWash = { viewModel.toggleWashStatus() },
                         )
 
+                        // Purchase metadata — only rendered when at least one field is set
+                        if (detail.item.purchaseDate != null || detail.item.purchaseLocation != null) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            PurchaseMetaRow(
+                                purchaseDate = detail.item.purchaseDate,
+                                purchaseLocation = detail.item.purchaseLocation,
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(24.dp))
 
                         // Attributes
@@ -509,6 +518,51 @@ private fun StatPillCard(
         OutlinedCard(onClick = onClick, modifier = modifier) { content() }
     } else {
         OutlinedCard(modifier = modifier) { content() }
+    }
+}
+
+/**
+ * Displays the purchase date (formatted as "Month YYYY") and/or purchase location
+ * as a simple two-row label/value section. Each row is only rendered if the value is non-null.
+ */
+@Composable
+private fun PurchaseMetaRow(
+    purchaseDate: String?,
+    purchaseLocation: String?,
+    modifier: Modifier = Modifier,
+) {
+    val monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        purchaseDate?.let { raw ->
+            val formatted = runCatching { LocalDate.parse(raw).format(monthYearFormatter) }
+                .getOrDefault(raw)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(R.string.wardrobe_detail_purchased),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(text = formatted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        purchaseLocation?.let { location ->
+            if (location.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_detail_from),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(text = location, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
     }
 }
 
