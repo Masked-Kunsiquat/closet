@@ -115,24 +115,24 @@ will never find this feature.
 
 ---
 
-## Phase 5 — Closet screen sorting 🟡
+## Phase 5 — Closet screen sorting ✅
 
 Items are always ordered `created_at DESC` (hardcoded in `ClothingDao`). No UI exists to
 change the sort order.
 
-- [ ] **§5.1 — Add a `SortOrder` enum**
+- [x] **§5.1 — Add a `SortOrder` enum**
   File: `features/wardrobe/src/main/kotlin/.../ClosetViewModel.kt`
   ```kotlin
   enum class SortOrder { NEWEST, OLDEST, NAME_AZ, NAME_ZA, MOST_WORN, LEAST_WORN }
   ```
 
-- [ ] **§5.2 — Sort in-memory in `ClosetViewModel`**
+- [x] **§5.2 — Sort in-memory in `ClosetViewModel`**
   The existing `filteredAndSorted` flow already does in-memory filtering. Apply a
   `sortedWith(comparator)` step after filtering based on `_sortOrder: StateFlow<SortOrder>`.
   `MOST_WORN` / `LEAST_WORN` use the `wearCount` field already present on
   `ClothingItemWithMeta`.
 
-- [ ] **§5.3 — Add a sort button to `ClosetScreen`**
+- [x] **§5.3 — Add a sort button to `ClosetScreen`**
   Place a sort `IconButton` (SortAscending/SortDescending icon) in the top app bar or
   alongside the filter chip row. Tapping opens a `ModalBottomSheet` or `DropdownMenu`
   with the sort options.

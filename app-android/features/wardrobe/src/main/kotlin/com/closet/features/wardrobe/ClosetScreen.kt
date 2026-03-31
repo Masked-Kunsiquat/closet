@@ -8,13 +8,16 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -52,6 +55,7 @@ fun ClosetScreen(
         selectedCategoryId = uiState.selectedCategoryId,
         favoritesOnly = uiState.favoritesOnly,
         showArchived = uiState.showArchived,
+        sortOrder = uiState.sortOrder,
         colors = uiState.colors,
         seasons = uiState.seasons,
         occasions = uiState.occasions,
@@ -64,6 +68,7 @@ fun ClosetScreen(
         onCategorySelect = viewModel::selectCategory,
         onToggleFavorites = viewModel::toggleFavoritesOnly,
         onToggleShowArchived = viewModel::toggleShowArchived,
+        onSortOrderSelected = viewModel::setSortOrder,
         onToggleColor = viewModel::toggleColorFilter,
         onToggleSeason = viewModel::toggleSeasonFilter,
         onToggleOccasion = viewModel::toggleOccasionFilter,
@@ -90,6 +95,7 @@ internal fun ClosetContent(
     selectedCategoryId: Long?,
     favoritesOnly: Boolean,
     showArchived: Boolean,
+    sortOrder: SortOrder,
     colors: List<ColorEntity>,
     seasons: List<SeasonEntity>,
     occasions: List<OccasionEntity>,
@@ -102,6 +108,7 @@ internal fun ClosetContent(
     onCategorySelect: (Long?) -> Unit,
     onToggleFavorites: () -> Unit,
     onToggleShowArchived: () -> Unit,
+    onSortOrderSelected: (SortOrder) -> Unit,
     onToggleColor: (Long) -> Unit,
     onToggleSeason: (Long) -> Unit,
     onToggleOccasion: (Long) -> Unit,
@@ -116,6 +123,7 @@ internal fun ClosetContent(
     modifier: Modifier = Modifier
 ) {
     var showFilterPanel by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     if (showFilterPanel) {
         FilterPanel(
@@ -154,6 +162,41 @@ internal fun ClosetContent(
                                 imageVector = Icons.Outlined.FilterList,
                                 contentDescription = stringResource(R.string.wardrobe_cd_open_filters)
                             )
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Sort,
+                                contentDescription = stringResource(R.string.wardrobe_cd_sort)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                            offset = DpOffset(x = 0.dp, y = 0.dp),
+                        ) {
+                            SortOrder.entries.forEach { order ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(stringResource(when (order) {
+                                            SortOrder.NEWEST     -> R.string.wardrobe_sort_newest
+                                            SortOrder.OLDEST     -> R.string.wardrobe_sort_oldest
+                                            SortOrder.NAME_AZ    -> R.string.wardrobe_sort_name_az
+                                            SortOrder.NAME_ZA    -> R.string.wardrobe_sort_name_za
+                                            SortOrder.MOST_WORN  -> R.string.wardrobe_sort_most_worn
+                                            SortOrder.LEAST_WORN -> R.string.wardrobe_sort_least_worn
+                                        }))
+                                    },
+                                    onClick = {
+                                        onSortOrderSelected(order)
+                                        showSortMenu = false
+                                    },
+                                    trailingIcon = if (order == sortOrder) {
+                                        { Icon(Icons.Default.Check, contentDescription = null) }
+                                    } else null,
+                                )
+                            }
                         }
                     }
                     IconButton(onClick = onSettingsClick) {
@@ -396,6 +439,7 @@ private fun ClosetScreenPreview() {
                 selectedCategoryId = null,
                 favoritesOnly = false,
                 showArchived = false,
+                sortOrder = SortOrder.NEWEST,
                 colors = emptyList(),
                 seasons = emptyList(),
                 occasions = emptyList(),
@@ -408,6 +452,7 @@ private fun ClosetScreenPreview() {
                 onCategorySelect = {},
                 onToggleFavorites = {},
                 onToggleShowArchived = {},
+                onSortOrderSelected = {},
                 onToggleColor = {},
                 onToggleSeason = {},
                 onToggleOccasion = {},
@@ -433,6 +478,7 @@ private fun ClosetScreenEmptyPreview() {
                 selectedCategoryId = null,
                 favoritesOnly = false,
                 showArchived = false,
+                sortOrder = SortOrder.NEWEST,
                 colors = emptyList(),
                 seasons = emptyList(),
                 occasions = emptyList(),
@@ -445,6 +491,7 @@ private fun ClosetScreenEmptyPreview() {
                 onCategorySelect = {},
                 onToggleFavorites = {},
                 onToggleShowArchived = {},
+                onSortOrderSelected = {},
                 onToggleColor = {},
                 onToggleSeason = {},
                 onToggleOccasion = {},
