@@ -139,19 +139,19 @@ change the sort order.
 
 ---
 
-## Phase 6 — Status filter on the Closet screen 🟡
+## Phase 6 — Status filter on the Closet screen ✅
 
 Depends on Phase 1 (status must be settable before filtering by it is useful). The closet
 currently shows all items regardless of status; once users can mark items as Sold/Donated/Lost
 they'll need a way to hide them.
 
-- [ ] **§6.1 — Default to Active-only in `ClothingDao.getAllClothingItemDetails()`**
-  Add a `WHERE ci.status = 'Active'` clause to the main listing query, or add a
-  `statusFilter: String? = "Active"` parameter to the DAO method.
+- [x] **§6.1 — Default to Active-only in `ClosetViewModel`**
+  Added in-memory filter in the `combine` block: `.filter { fs.showArchived || it.item.status == ClothingStatus.Active }`.
+  Consistent with the existing in-memory filtering pattern; no DAO change needed.
 
-- [ ] **§6.2 — Add a status filter chip to `ClosetScreen`**
-  A "Show archived" toggle chip (or a "Status" chip in `FilterPanel`) that sets
-  `statusFilter = null` in the DAO query to surface all statuses.
+- [x] **§6.2 — Add a status filter chip to `ClosetScreen`**
+  "Show archived" `FilterChip` appended to `CategoryFilterRow`. Backed by `_showArchived: MutableStateFlow<Boolean>(false)`
+  in `ClosetViewModel`; does not count toward the filter badge.
 
 ---
 

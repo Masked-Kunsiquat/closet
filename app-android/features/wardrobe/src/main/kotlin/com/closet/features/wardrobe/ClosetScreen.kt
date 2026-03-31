@@ -51,6 +51,7 @@ fun ClosetScreen(
         categories = uiState.categories,
         selectedCategoryId = uiState.selectedCategoryId,
         favoritesOnly = uiState.favoritesOnly,
+        showArchived = uiState.showArchived,
         colors = uiState.colors,
         seasons = uiState.seasons,
         occasions = uiState.occasions,
@@ -62,6 +63,7 @@ fun ClosetScreen(
         activeFilterCount = uiState.activeFilterCount,
         onCategorySelect = viewModel::selectCategory,
         onToggleFavorites = viewModel::toggleFavoritesOnly,
+        onToggleShowArchived = viewModel::toggleShowArchived,
         onToggleColor = viewModel::toggleColorFilter,
         onToggleSeason = viewModel::toggleSeasonFilter,
         onToggleOccasion = viewModel::toggleOccasionFilter,
@@ -87,6 +89,7 @@ internal fun ClosetContent(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     favoritesOnly: Boolean,
+    showArchived: Boolean,
     colors: List<ColorEntity>,
     seasons: List<SeasonEntity>,
     occasions: List<OccasionEntity>,
@@ -98,6 +101,7 @@ internal fun ClosetContent(
     activeFilterCount: Int,
     onCategorySelect: (Long?) -> Unit,
     onToggleFavorites: () -> Unit,
+    onToggleShowArchived: () -> Unit,
     onToggleColor: (Long) -> Unit,
     onToggleSeason: (Long) -> Unit,
     onToggleOccasion: (Long) -> Unit,
@@ -179,8 +183,10 @@ internal fun ClosetContent(
                 categories = categories,
                 selectedCategoryId = selectedCategoryId,
                 favoritesOnly = favoritesOnly,
+                showArchived = showArchived,
                 onCategorySelect = onCategorySelect,
                 onToggleFavorites = onToggleFavorites,
+                onToggleShowArchived = onToggleShowArchived,
                 onPinCategory = onPinCategory,
             )
             
@@ -213,8 +219,10 @@ private fun CategoryFilterRow(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     favoritesOnly: Boolean,
+    showArchived: Boolean,
     onCategorySelect: (Long?) -> Unit,
     onToggleFavorites: () -> Unit,
+    onToggleShowArchived: () -> Unit,
     onPinCategory: (Long, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -263,6 +271,13 @@ private fun CategoryFilterRow(
                     )
                 }
             }
+        }
+        item(key = "show_archived") {
+            FilterChip(
+                selected = showArchived,
+                onClick = onToggleShowArchived,
+                label = { Text(stringResource(R.string.wardrobe_filter_show_archived)) }
+            )
         }
     }
 }
@@ -380,6 +395,7 @@ private fun ClosetScreenPreview() {
                 ),
                 selectedCategoryId = null,
                 favoritesOnly = false,
+                showArchived = false,
                 colors = emptyList(),
                 seasons = emptyList(),
                 occasions = emptyList(),
@@ -391,6 +407,7 @@ private fun ClosetScreenPreview() {
                 activeFilterCount = 0,
                 onCategorySelect = {},
                 onToggleFavorites = {},
+                onToggleShowArchived = {},
                 onToggleColor = {},
                 onToggleSeason = {},
                 onToggleOccasion = {},
@@ -415,6 +432,7 @@ private fun ClosetScreenEmptyPreview() {
                 categories = emptyList(),
                 selectedCategoryId = null,
                 favoritesOnly = false,
+                showArchived = false,
                 colors = emptyList(),
                 seasons = emptyList(),
                 occasions = emptyList(),
@@ -426,6 +444,7 @@ private fun ClosetScreenEmptyPreview() {
                 activeFilterCount = 0,
                 onCategorySelect = {},
                 onToggleFavorites = {},
+                onToggleShowArchived = {},
                 onToggleColor = {},
                 onToggleSeason = {},
                 onToggleOccasion = {},
