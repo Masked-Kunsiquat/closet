@@ -3,6 +3,7 @@ package com.closet.features.outfits
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.OutfitItem
@@ -129,6 +130,11 @@ class OutfitBuilderViewModel @Inject constructor(
                         .sortedBy { it.zIndex }
                         .map { it.clothingItem.id }
                 }
+            }
+        } else {
+            val preselectedIds = savedStateHandle.toRoute<OutfitBuilderDestination>().preselectedItemIds
+            if (preselectedIds.isNotEmpty()) {
+                _memberIds.value = preselectedIds
             }
         }
     }

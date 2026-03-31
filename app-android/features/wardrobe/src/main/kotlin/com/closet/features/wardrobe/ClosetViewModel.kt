@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemDetail
+import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.OccasionEntity
 import com.closet.core.data.model.SeasonEntity
@@ -38,6 +39,12 @@ import javax.inject.Inject
  * colors, seasons, occasions, favorites, sizes). Use this to drive the badge on the
  * filter icon button.
  */
+/**
+ * Controls the order of items displayed in the Closet grid.
+ * Sorting is applied in-memory after all active filters.
+ */
+enum class SortOrder { NEWEST, OLDEST, NAME_AZ, NAME_ZA, MOST_WORN, LEAST_WORN }
+
 data class ClosetUiState(
     val items: List<ClothingItemDetail> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -51,7 +58,10 @@ data class ClosetUiState(
     val selectedOccasionIds: Set<Long> = emptySet(),
     val selectedSizeSystemIds: Set<Long> = emptySet(),
     val favoritesOnly: Boolean = false,
+    val showArchived: Boolean = false,
+    val sortOrder: SortOrder = SortOrder.NEWEST,
     val activeFilterCount: Int = 0,
+    val hiddenArchivedCount: Int = 0,
 )
 
 /**
@@ -64,6 +74,8 @@ private data class FilterSelections(
     val occIds: Set<Long>,
     val sizeSystemIds: Set<Long>,
     val favOnly: Boolean,
+    val showArchived: Boolean,
+    val sortOrder: SortOrder,
 ) {
     /** Number of active filter dimensions (max 5). Drives the filter badge. */
     val activeCount: Int get() = listOf(
@@ -104,15 +116,28 @@ class ClosetViewModel @Inject constructor(
     private val _selectedOccasionIds   = MutableStateFlow<Set<Long>>(emptySet())
     private val _selectedSizeSystemIds = MutableStateFlow<Set<Long>>(emptySet())
     private val _favoritesOnly         = MutableStateFlow(false)
+    private val _showArchived          = MutableStateFlow(false)
+    private val _sortOrder             = MutableStateFlow(SortOrder.NEWEST)
 
     private val filterSelections = combine(
         _selectedColorIds,
         _selectedSeasonIds,
         _selectedOccasionIds,
         _selectedSizeSystemIds,
-        _favoritesOnly
-    ) { colorIds, seasonIds, occIds, sizeSystemIds, favOnly ->
-        FilterSelections(colorIds, seasonIds, occIds, sizeSystemIds, favOnly)
+        _favoritesOnly,
+        _showArchived,
+        _sortOrder,
+    ) { args: Array<Any?> ->
+        @Suppress("UNCHECKED_CAST")
+        FilterSelections(
+            colorIds = args[0] as Set<Long>,
+            seasonIds = args[1] as Set<Long>,
+            occIds = args[2] as Set<Long>,
+            sizeSystemIds = args[3] as Set<Long>,
+            favOnly = args[4] as Boolean,
+            showArchived = args[5] as Boolean,
+            sortOrder = args[6] as SortOrder,
+        )
     }
 
     /** Aggregated UI state for the Closet screen. */
@@ -137,16 +162,24 @@ class ClosetViewModel @Inject constructor(
         filterSelections
     ) { allItems, categoryId, categories, lookups, fs ->
         val filtered = allItems
+            .filter { fs.showArchived || it.item.status == ClothingStatus.Active }
             .filter { categoryId == null || it.item.categoryId == categoryId }
             .filter { fs.colorIds.isEmpty() || it.colors.any { c -> c.id in fs.colorIds } }
             .filter { fs.seasonIds.isEmpty() || it.seasons.any { s -> s.id in fs.seasonIds } }
             .filter { fs.occIds.isEmpty() || it.occasions.any { o -> o.id in fs.occIds } }
             .filter { fs.sizeSystemIds.isEmpty() || it.sizeValue?.sizeSystemId in fs.sizeSystemIds }
             .filter { !fs.favOnly || it.item.isFavorite == 1 }
+            .sortedWith(fs.sortOrder.comparator())
 
         // Only show size systems that are actually used by items in the closet
         val usedSizeSystemIds = allItems.mapNotNull { it.sizeValue?.sizeSystemId }.toSet()
         val visibleSizeSystems = lookups.sizeSystems.filter { it.id in usedSizeSystemIds }
+
+        val hiddenArchivedCount = if (!fs.showArchived) {
+            allItems
+                .filter { categoryId == null || it.item.categoryId == categoryId }
+                .count { it.item.status != ClothingStatus.Active }
+        } else 0
 
         ClosetUiState(
             items = filtered,
@@ -161,7 +194,10 @@ class ClosetViewModel @Inject constructor(
             selectedOccasionIds = fs.occIds,
             selectedSizeSystemIds = fs.sizeSystemIds,
             favoritesOnly = fs.favOnly,
+            showArchived = fs.showArchived,
+            sortOrder = fs.sortOrder,
             activeFilterCount = fs.activeCount,
+            hiddenArchivedCount = hiddenArchivedCount,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -209,7 +245,17 @@ class ClosetViewModel @Inject constructor(
         _favoritesOnly.value = !_favoritesOnly.value
     }
 
-    /** Clears all active filters, including category. */
+    /** Toggles visibility of archived (non-Active) items. */
+    fun toggleShowArchived() {
+        _showArchived.value = !_showArchived.value
+    }
+
+    /** Sets the active sort order for the item grid. */
+    fun setSortOrder(order: SortOrder) {
+        _sortOrder.value = order
+    }
+
+    /** Clears all active filters, including category and show-archived. */
     fun clearAllFilters() {
         _selectedCategoryId.value = null
         _selectedColorIds.value = emptySet()
@@ -217,6 +263,7 @@ class ClosetViewModel @Inject constructor(
         _selectedOccasionIds.value = emptySet()
         _selectedSizeSystemIds.value = emptySet()
         _favoritesOnly.value = false
+        _showArchived.value = false
     }
 
     /**
@@ -272,3 +319,12 @@ class ClosetViewModel @Inject constructor(
 }
 
 private fun Set<Long>.toggle(id: Long): Set<Long> = if (id in this) this - id else this + id
+
+private fun SortOrder.comparator(): Comparator<ClothingItemDetail> = when (this) {
+    SortOrder.NEWEST    -> compareByDescending { it.item.createdAt }
+    SortOrder.OLDEST    -> compareBy { it.item.createdAt }
+    SortOrder.NAME_AZ   -> compareBy { it.item.name.lowercase() }
+    SortOrder.NAME_ZA   -> compareByDescending { it.item.name.lowercase() }
+    SortOrder.MOST_WORN -> compareByDescending { it.wearCount }
+    SortOrder.LEAST_WORN -> compareBy { it.wearCount }
+}

@@ -8,13 +8,21 @@
     <string name="wardrobe_empty_closet">Your closet is empty. Add some clothes!</string>
     <string name="wardrobe_all_items">All</string>
     <string name="wardrobe_filter_favorites">Favorites</string>
+    <string name="wardrobe_filter_show_archived">Show archived</string>
     <string name="wardrobe_filter_title">Filters</string>
     <string name="wardrobe_filter_clear_all">Clear all</string>
     <string name="wardrobe_filter_section_color">Color</string>
     <string name="wardrobe_filter_section_season">Season</string>
     <string name="wardrobe_filter_section_occasion">Occasion</string>
     <string name="wardrobe_cd_open_filters">Open filters</string>
+    <string name="wardrobe_cd_sort">Sort items</string>
     <string name="wardrobe_cd_open_settings">Open settings</string>
+    <string name="wardrobe_sort_newest">Newest first</string>
+    <string name="wardrobe_sort_oldest">Oldest first</string>
+    <string name="wardrobe_sort_name_az">Name A→Z</string>
+    <string name="wardrobe_sort_name_za">Name Z→A</string>
+    <string name="wardrobe_sort_most_worn">Most worn</string>
+    <string name="wardrobe_sort_least_worn">Least worn</string>
     <string name="wardrobe_filter_empty_results">No items match your filters</string>
     <string name="wardrobe_filter_clear_filters">Clear filters</string>
 
@@ -39,6 +47,8 @@
     <string name="wardrobe_uncategorized">Uncategorized</string>
     <string name="wardrobe_purchase_date">Purchase Date</string>
     <string name="wardrobe_purchase_location">Purchase Location</string>
+    <string name="wardrobe_detail_purchased">Purchased</string>
+    <string name="wardrobe_detail_from">From</string>
     <string name="wardrobe_notes">Notes</string>
     <string name="wardrobe_colors">Colors</string>
     <string name="wardrobe_materials">Materials</string>
@@ -67,6 +77,8 @@
     <string name="wardrobe_field_none">None</string>
     <string name="wardrobe_field_size_system">Size System</string>
     <string name="wardrobe_field_size_value">Size</string>
+    <string name="wardrobe_field_status">Status</string>
+    <string name="wardrobe_change_status">Change Status</string>
     <string name="wardrobe_section_colors">Colors</string>
     <string name="wardrobe_discard_title">Discard Changes?</string>
     <string name="wardrobe_discard_message">You have unsaved changes. Are you sure you want to discard them?</string>
@@ -97,6 +109,10 @@
     <string name="wardrobe_date_confirm">OK</string>
     <string name="wardrobe_date_cancel">Cancel</string>
     <string name="wardrobe_date_clear">Clear</string>
+
+    <!-- Log wear action on clothing detail screen -->
+    <string name="wardrobe_log_wear">Log wear</string>
+    <string name="wardrobe_log_wear_success">Wear logged</string>
 
     <!-- Wear History -->
     <string name="wardrobe_wear_history">Wear history</string>

@@ -37,8 +37,8 @@ Unit and instrumented tests exist for the stats feature. Migration tests live in
 app/                   — Application entry point, NavGraph, MainActivity
 core/data/             — Database, DAOs, Repositories, entities, DI module
 core/ui/               — Material 3 theme, shared Composable components
-features/wardrobe/     — Closet screen, item detail, add/edit form
-features/outfits/      — Outfit builder, OOTD (in progress / placeholder)
+features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash, brand management
+features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet
 features/stats/        — Stats screen, StatsViewModel, breakdown sections
 features/recommendations/ — Outfit recommendations, AI providers (NanoProvider, AnthropicProvider, OpenAiProvider)
 features/settings/     — Settings screen, AI toggle, model picker, key management
@@ -69,7 +69,7 @@ Hilt throughout. `@HiltAndroidApp` on `ClosetApp`, `@AndroidEntryPoint` on `Main
 
 ### Database (Room)
 
-- **File:** `closet.db`, current version **1** (chain reset 2026-03-22 — pre-release, no shipped installs).
+- **File:** `closet.db`, current version **6**.
 - **Initialization order:** `PRAGMA foreign_keys = ON` → create tables → `DatabaseSeeder` seeds lookup data on `onCreate`.
 - **Migrations** live in `ClothingDatabase.kt`. Never edit an applied migration — add a new one. Room schema JSON is exported to `core/data/schemas/`.
 - **Junction tables** (`clothing_item_colors`, `_materials`, `_seasons`, `_occasions`, `_patterns`) use delete-then-insert helpers in `ClothingRepository`. Never append.
@@ -118,6 +118,7 @@ Two distinct MLKit namespaces — do not confuse them:
 | File | Purpose |
 |------|---------|
 | `app/src/.../navigation/ClosetNavGraph.kt` | Root `NavHost` — all routes registered here |
+| `app/src/.../shortcuts/ShortcutActions.kt` | App shortcut constants (IDs, actions, extras) — shared hub for `shortcuts.xml`, `MainActivity`, `ClosetNavGraph`, and `ClosetViewModel` |
 | `core/data/src/.../ClothingDatabase.kt` | Room DB, migrations, `DatabaseSeeder` invocation |
 | `core/data/src/.../dao/ClothingDao.kt` | Clothing queries with `wear_count` join |
 | `core/data/src/.../repository/ClothingRepository.kt` | CRUD, junction helpers, `DataResult` wrapping |

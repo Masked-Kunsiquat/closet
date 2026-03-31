@@ -62,6 +62,7 @@ import coil.compose.AsyncImage
 import com.closet.core.ui.components.ResErrorSnackbarEffect
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
+import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
 import java.time.LocalDate
@@ -167,6 +168,11 @@ fun ClothingFormScreen(
                 onDateChange = viewModel::onDateChange,
                 onLocationChange = viewModel::onLocationChange,
                 onNotesChange = viewModel::onNotesChange,
+                onStatusSelected = viewModel::onStatusSelected,
+                onSeasonToggle = viewModel::onSeasonToggle,
+                onOccasionToggle = viewModel::onOccasionToggle,
+                onMaterialToggle = viewModel::onMaterialToggle,
+                onPatternToggle = viewModel::onPatternToggle,
                 onImageClick = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
@@ -232,6 +238,11 @@ internal fun ClothingFormContent(
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
+    onStatusSelected: (ClothingStatus) -> Unit,
+    onSeasonToggle: (Long) -> Unit,
+    onOccasionToggle: (Long) -> Unit,
+    onMaterialToggle: (Long) -> Unit,
+    onPatternToggle: (Long) -> Unit,
     onImageClick: () -> Unit,
     onRemoveBackground: () -> Unit,
     onRevertSegmentation: () -> Unit,
@@ -411,6 +422,42 @@ internal fun ClothingFormContent(
             }
         }
 
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_seasons),
+                items = uiState.allSeasons.map { it.id to it.name },
+                selectedIds = uiState.selectedSeasonIds,
+                onToggle = onSeasonToggle,
+            )
+        }
+
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_occasions),
+                items = uiState.allOccasions.map { it.id to it.name },
+                selectedIds = uiState.selectedOccasionIds,
+                onToggle = onOccasionToggle,
+            )
+        }
+
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_materials),
+                items = uiState.allMaterials.map { it.id to it.name },
+                selectedIds = uiState.selectedMaterialIds,
+                onToggle = onMaterialToggle,
+            )
+        }
+
+        item {
+            AttributeChipRow(
+                label = stringResource(R.string.wardrobe_patterns),
+                items = uiState.allPatterns.map { it.id to it.name },
+                selectedIds = uiState.selectedPatternIds,
+                onToggle = onPatternToggle,
+            )
+        }
+
         item { HorizontalDivider() }
 
         // Purchase Info Section
@@ -456,6 +503,19 @@ internal fun ClothingFormContent(
                 minLines = 3,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
             )
+        }
+
+        // Status Section (edit mode only — new items are always Active)
+        if (uiState.isEditMode) {
+            item {
+                DropdownSelector(
+                    selectedItem = uiState.status,
+                    items = ClothingStatus.entries,
+                    onItemSelect = { it?.let(onStatusSelected) },
+                    label = stringResource(R.string.wardrobe_field_status),
+                    itemLabel = { it.label },
+                )
+            }
         }
     }
 }

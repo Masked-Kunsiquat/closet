@@ -8,11 +8,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -51,6 +53,8 @@ fun ClosetScreen(
         categories = uiState.categories,
         selectedCategoryId = uiState.selectedCategoryId,
         favoritesOnly = uiState.favoritesOnly,
+        showArchived = uiState.showArchived,
+        sortOrder = uiState.sortOrder,
         colors = uiState.colors,
         seasons = uiState.seasons,
         occasions = uiState.occasions,
@@ -60,8 +64,11 @@ fun ClosetScreen(
         selectedOccasionIds = uiState.selectedOccasionIds,
         selectedSizeSystemIds = uiState.selectedSizeSystemIds,
         activeFilterCount = uiState.activeFilterCount,
+        hiddenArchivedCount = uiState.hiddenArchivedCount,
         onCategorySelect = viewModel::selectCategory,
         onToggleFavorites = viewModel::toggleFavoritesOnly,
+        onToggleShowArchived = viewModel::toggleShowArchived,
+        onSortOrderSelected = viewModel::setSortOrder,
         onToggleColor = viewModel::toggleColorFilter,
         onToggleSeason = viewModel::toggleSeasonFilter,
         onToggleOccasion = viewModel::toggleOccasionFilter,
@@ -87,6 +94,8 @@ internal fun ClosetContent(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     favoritesOnly: Boolean,
+    showArchived: Boolean,
+    sortOrder: SortOrder,
     colors: List<ColorEntity>,
     seasons: List<SeasonEntity>,
     occasions: List<OccasionEntity>,
@@ -96,8 +105,11 @@ internal fun ClosetContent(
     selectedOccasionIds: Set<Long>,
     selectedSizeSystemIds: Set<Long>,
     activeFilterCount: Int,
+    hiddenArchivedCount: Int = 0,
     onCategorySelect: (Long?) -> Unit,
     onToggleFavorites: () -> Unit,
+    onToggleShowArchived: () -> Unit,
+    onSortOrderSelected: (SortOrder) -> Unit,
     onToggleColor: (Long) -> Unit,
     onToggleSeason: (Long) -> Unit,
     onToggleOccasion: (Long) -> Unit,
@@ -112,6 +124,7 @@ internal fun ClosetContent(
     modifier: Modifier = Modifier
 ) {
     var showFilterPanel by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     if (showFilterPanel) {
         FilterPanel(
@@ -152,6 +165,40 @@ internal fun ClosetContent(
                             )
                         }
                     }
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Sort,
+                                contentDescription = stringResource(R.string.wardrobe_cd_sort)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                        ) {
+                            SortOrder.entries.forEach { order ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(stringResource(when (order) {
+                                            SortOrder.NEWEST     -> R.string.wardrobe_sort_newest
+                                            SortOrder.OLDEST     -> R.string.wardrobe_sort_oldest
+                                            SortOrder.NAME_AZ    -> R.string.wardrobe_sort_name_az
+                                            SortOrder.NAME_ZA    -> R.string.wardrobe_sort_name_za
+                                            SortOrder.MOST_WORN  -> R.string.wardrobe_sort_most_worn
+                                            SortOrder.LEAST_WORN -> R.string.wardrobe_sort_least_worn
+                                        }))
+                                    },
+                                    onClick = {
+                                        onSortOrderSelected(order)
+                                        showSortMenu = false
+                                    },
+                                    trailingIcon = if (order == sortOrder) {
+                                        { Icon(Icons.Default.Check, contentDescription = null) }
+                                    } else null,
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = onSettingsClick) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
@@ -179,8 +226,10 @@ internal fun ClosetContent(
                 categories = categories,
                 selectedCategoryId = selectedCategoryId,
                 favoritesOnly = favoritesOnly,
+                showArchived = showArchived,
                 onCategorySelect = onCategorySelect,
                 onToggleFavorites = onToggleFavorites,
+                onToggleShowArchived = onToggleShowArchived,
                 onPinCategory = onPinCategory,
             )
             
@@ -196,7 +245,11 @@ internal fun ClosetContent(
                     onClearFilters = onClearAllFilters,
                     modifier = Modifier.weight(1f)
                 )
-                else -> EmptyClosetMessage(modifier = Modifier.weight(1f))
+                else -> EmptyClosetMessage(
+                    hiddenArchivedCount = hiddenArchivedCount,
+                    onShowArchived = onToggleShowArchived,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -213,8 +266,10 @@ private fun CategoryFilterRow(
     categories: List<CategoryEntity>,
     selectedCategoryId: Long?,
     favoritesOnly: Boolean,
+    showArchived: Boolean,
     onCategorySelect: (Long?) -> Unit,
     onToggleFavorites: () -> Unit,
+    onToggleShowArchived: () -> Unit,
     onPinCategory: (Long, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -242,6 +297,13 @@ private fun CategoryFilterRow(
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelect(null) },
                 label = { Text(stringResource(R.string.wardrobe_all_items)) }
+            )
+        }
+        item(key = "show_archived") {
+            FilterChip(
+                selected = showArchived,
+                onClick = onToggleShowArchived,
+                label = { Text(stringResource(R.string.wardrobe_filter_show_archived)) }
             )
         }
         items(categories, key = { it.id }) { category ->
@@ -306,14 +368,28 @@ private fun ClosetGrid(
 
 /**
  * Message displayed when the wardrobe contains no items.
+ *
+ * If [hiddenArchivedCount] > 0, a "Show archived" button is shown so the user can reveal
+ * items that were hidden by the Active-only default filter.
  */
 @Composable
-private fun EmptyClosetMessage(modifier: Modifier = Modifier) {
+private fun EmptyClosetMessage(
+    hiddenArchivedCount: Int = 0,
+    onShowArchived: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
-        Text(stringResource(R.string.wardrobe_empty_closet))
+        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.wardrobe_empty_closet))
+            if (hiddenArchivedCount > 0) {
+                TextButton(onClick = onShowArchived) {
+                    Text(stringResource(R.string.wardrobe_filter_show_archived))
+                }
+            }
+        }
     }
 }
 
@@ -380,6 +456,8 @@ private fun ClosetScreenPreview() {
                 ),
                 selectedCategoryId = null,
                 favoritesOnly = false,
+                showArchived = false,
+                sortOrder = SortOrder.NEWEST,
                 colors = emptyList(),
                 seasons = emptyList(),
                 occasions = emptyList(),
@@ -391,6 +469,8 @@ private fun ClosetScreenPreview() {
                 activeFilterCount = 0,
                 onCategorySelect = {},
                 onToggleFavorites = {},
+                onToggleShowArchived = {},
+                onSortOrderSelected = {},
                 onToggleColor = {},
                 onToggleSeason = {},
                 onToggleOccasion = {},
@@ -415,6 +495,8 @@ private fun ClosetScreenEmptyPreview() {
                 categories = emptyList(),
                 selectedCategoryId = null,
                 favoritesOnly = false,
+                showArchived = false,
+                sortOrder = SortOrder.NEWEST,
                 colors = emptyList(),
                 seasons = emptyList(),
                 occasions = emptyList(),
@@ -426,6 +508,8 @@ private fun ClosetScreenEmptyPreview() {
                 activeFilterCount = 0,
                 onCategorySelect = {},
                 onToggleFavorites = {},
+                onToggleShowArchived = {},
+                onSortOrderSelected = {},
                 onToggleColor = {},
                 onToggleSeason = {},
                 onToggleOccasion = {},

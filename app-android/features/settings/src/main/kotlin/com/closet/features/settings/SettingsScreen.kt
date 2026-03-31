@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -110,6 +111,7 @@ import com.closet.core.ui.theme.ClosetTheme
 @Composable
 fun SettingsScreen(
     onNavigateUp: () -> Unit,
+    onNavigateToBulkWash: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val accent by viewModel.accent.collectAsStateWithLifecycle()
@@ -305,6 +307,7 @@ fun SettingsScreen(
         onStartBatchEnrichment = viewModel::startBatchEnrichment,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
+        onNavigateToBulkWash = onNavigateToBulkWash,
     )
 }
 
@@ -365,6 +368,7 @@ internal fun SettingsContent(
     onStartBatchEnrichment: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
+    onNavigateToBulkWash: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -498,27 +502,28 @@ internal fun SettingsContent(
             }
 
             // ── Wardrobe ──────────────────────────────────────────────────────
-            if (segmentationSupported || captionSupported) {
+            item {
+                SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
+            }
+            item {
+                LaundryDayItem(onClick = onNavigateToBulkWash)
+            }
+            if (segmentationSupported) {
                 item {
-                    SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
+                    BatchSegmentationItem(
+                        eligibleCount = segmentationEligibleCount,
+                        workInfo = batchSegWorkInfo,
+                        onStart = onStartBatchSegmentation,
+                    )
                 }
-                if (segmentationSupported) {
-                    item {
-                        BatchSegmentationItem(
-                            eligibleCount = segmentationEligibleCount,
-                            workInfo = batchSegWorkInfo,
-                            onStart = onStartBatchSegmentation,
-                        )
-                    }
-                }
-                if (captionSupported) {
-                    item {
-                        BatchCaptionItem(
-                            eligibleCount = captionEligibleCount,
-                            progress = batchCaptionProgress,
-                            onStart = onStartBatchEnrichment,
-                        )
-                    }
+            }
+            if (captionSupported) {
+                item {
+                    BatchCaptionItem(
+                        eligibleCount = captionEligibleCount,
+                        progress = batchCaptionProgress,
+                        onStart = onStartBatchEnrichment,
+                    )
                 }
             }
         }
@@ -1182,6 +1187,21 @@ private val OPENAI_URL_PRESETS = listOf(
 )
 
 // ── Wardrobe items ────────────────────────────────────────────────────────────
+
+@Composable
+private fun LaundryDayItem(onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_wardrobe_laundry_day)) },
+        supportingContent = { Text(stringResource(R.string.settings_wardrobe_laundry_day_summary)) },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+            )
+        },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+}
 
 @Composable
 private fun BatchSegmentationItem(

@@ -106,7 +106,12 @@ private fun ClothingFormContentEmptyPreview() {
                 onImageClick = {},
                 onRemoveBackground = {},
                 onRevertSegmentation = {},
-                onColorToggle = {}
+                onColorToggle = {},
+                onStatusSelected = {},
+                onSeasonToggle = {},
+                onOccasionToggle = {},
+                onMaterialToggle = {},
+                onPatternToggle = {},
             )
         }
     }
@@ -150,7 +155,12 @@ private fun ClothingFormContentFilledPreview() {
                 onImageClick = {},
                 onRemoveBackground = {},
                 onRevertSegmentation = {},
-                onColorToggle = {}
+                onColorToggle = {},
+                onStatusSelected = {},
+                onSeasonToggle = {},
+                onOccasionToggle = {},
+                onMaterialToggle = {},
+                onPatternToggle = {},
             )
         }
     }

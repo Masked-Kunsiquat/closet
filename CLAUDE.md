@@ -31,9 +31,16 @@ There are no tests yet.
 ### Routing
 expo-router with file-based routing. All screens live in `hangr/app/`:
 - `(tabs)/index.tsx` — Closet screen (main screen, grid/list)
+- `(tabs)/outfits.tsx` — Outfits tab
+- `(tabs)/journal.tsx` — Outfit log journal
+- `(tabs)/stats.tsx` — Stats tab
+- `(tabs)/settings.tsx` — Settings tab
 - `item/add.tsx` — Add Item
 - `item/[id].tsx` — Item Detail
 - `item/[id]/edit.tsx` — Edit Item
+- `log/new.tsx` — Log a new outfit wear
+- `log/[id].tsx` — Log entry detail
+- `outfit/[id]/` — Outfit detail and editing
 - `_layout.tsx` — Root layout: initializes DB, wraps with `AccentProvider` + `ThemeProvider`
 
 ### Database

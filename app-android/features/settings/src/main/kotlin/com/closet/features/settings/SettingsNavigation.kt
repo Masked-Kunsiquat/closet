@@ -21,10 +21,17 @@ fun NavController.navigateToSettings(navOptions: NavOptions? = null) {
 /**
  * Registers the [SettingsRoute] composable destination in the [NavGraphBuilder].
  *
- * @param onNavigateUp Called when the user taps the back arrow.
+ * @param onNavigateUp         Called when the user taps the back arrow.
+ * @param onNavigateToBulkWash Called when the user taps the Laundry Day row.
  */
-fun NavGraphBuilder.settingsScreen(onNavigateUp: () -> Unit) {
+fun NavGraphBuilder.settingsScreen(
+    onNavigateUp: () -> Unit,
+    onNavigateToBulkWash: () -> Unit = {},
+) {
     composable<SettingsRoute> {
-        SettingsScreen(onNavigateUp = onNavigateUp)
+        SettingsScreen(
+            onNavigateUp = onNavigateUp,
+            onNavigateToBulkWash = onNavigateToBulkWash,
+        )
     }
 }

@@ -15,9 +15,14 @@ object OutfitsRoute
  * Route for the Outfit Builder screen.
  *
  * [outfitId] = -1 means "create new"; any positive value opens edit mode for that outfit.
+ * [preselectedItemIds] seeds the member list on new-outfit creation (e.g. from "Log it" on
+ * a recommendation). Ignored in edit mode.
  */
 @Serializable
-data class OutfitBuilderDestination(val outfitId: Long = -1L)
+data class OutfitBuilderDestination(
+    val outfitId: Long = -1L,
+    val preselectedItemIds: List<Long> = emptyList(),
+)
 
 /** Route for the Wardrobe Picker screen used to select items while building an outfit. */
 @Serializable

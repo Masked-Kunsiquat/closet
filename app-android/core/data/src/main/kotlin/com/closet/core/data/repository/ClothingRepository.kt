@@ -91,6 +91,18 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * One-shot fetch of a fully-loaded [ClothingItemDetail] including all junction data.
+     * Returns [DataResult.Success] with a null value when the item does not exist.
+     */
+    suspend fun getItemDetailOnce(id: Long): DataResult<ClothingItemDetail?> = try {
+        DataResult.Success(clothingDao.getClothingItemDetailOnce(id))
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error fetching item detail once for ID: $id")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
+
+    /**
      * Retrieves the colors associated with a clothing item.
      */
     fun getItemColors(itemId: Long): Flow<List<ColorEntity>> = clothingDao.getItemColors(itemId)
@@ -123,6 +135,60 @@ class ClothingRepository @Inject constructor(
         val result = insertItem(item, colors.map { it.id })
         if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(result.data) }
         return result
+    }
+
+    /**
+     * Inserts a new clothing item with all junction table associations in a single transaction.
+     * Best-effort: runs ItemVectorizer after a successful insert.
+     */
+    suspend fun insertItemWithAttributes(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>,
+        seasonIds: List<Long>,
+        occasionIds: List<Long>,
+        materialIds: List<Long>,
+        patternIds: List<Long>,
+    ): DataResult<Long> {
+        val result = wrapInTransaction {
+            val id = clothingDao.insertClothingItem(item)
+            clothingDao.updateItemColors(id, colors.map { it.id })
+            clothingDao.updateItemSeasons(id, seasonIds)
+            clothingDao.updateItemOccasions(id, occasionIds)
+            clothingDao.updateItemMaterials(id, materialIds)
+            clothingDao.updateItemPatterns(id, patternIds)
+            id
+        }
+        if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(result.data) }
+        return result
+    }
+
+    /**
+     * Updates an existing clothing item with all junction table associations in a single transaction.
+     * Best-effort: re-runs ItemVectorizer after a successful update.
+     */
+    suspend fun updateItemWithAttributes(
+        item: ClothingItemEntity,
+        colors: List<ColorEntity>,
+        seasonIds: List<Long>,
+        occasionIds: List<Long>,
+        materialIds: List<Long>,
+        patternIds: List<Long>,
+    ): DataResult<Int> {
+        val result = wrapInTransaction {
+            val rowsAffected = clothingDao.updateClothingItem(item)
+            if (rowsAffected == 0) return@wrapInTransaction 0
+            clothingDao.updateItemColors(item.id, colors.map { it.id })
+            clothingDao.updateItemSeasons(item.id, seasonIds)
+            clothingDao.updateItemOccasions(item.id, occasionIds)
+            clothingDao.updateItemMaterials(item.id, materialIds)
+            clothingDao.updateItemPatterns(item.id, patternIds)
+            rowsAffected
+        }
+        return if (result is DataResult.Success && result.data == 0) {
+            DataResult.Error(AppError.DatabaseError.NotFound())
+        } else {
+            result
+        }.also { if (it is DataResult.Success) repositoryScope.launch { vectorizeItem(item.id) } }
     }
 
     /**
@@ -159,7 +225,7 @@ class ClothingRepository @Inject constructor(
         colors: List<ColorEntity>
     ): DataResult<Int> {
         val result = updateItem(item, colors.map { it.id })
-        if (result is DataResult.Success) vectorizeItem(item.id)
+        if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(item.id) }
         return result
     }
 
@@ -190,6 +256,22 @@ class ClothingRepository @Inject constructor(
     } catch (e: Exception) {
         if (e is CancellationException) throw e
         Timber.e(e, "Error updating wash status for item: $id")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
+
+    /**
+     * Updates the lifecycle status for a specific clothing item.
+     * @param id The ID of the item.
+     * @param status The new [ClothingStatus].
+     * @return A [DataResult] indicating success or failure.
+     */
+    suspend fun updateStatus(id: Long, status: ClothingStatus): DataResult<Unit> = try {
+        val updatedAt = converters.dateToTimestamp(Instant.now()) ?: ""
+        clothingDao.updateItemStatus(id, status.label, updatedAt)
+        DataResult.Success(Unit)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error updating status for item: $id")
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 

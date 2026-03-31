@@ -43,6 +43,13 @@ interface LogDao {
     suspend fun getLogIdByOutfitAndDate(outfitId: Long, date: String): Long?
 
     /**
+     * Returns the row ID of the existing ad-hoc (outfit_id = null) log for [date], or null.
+     * Used to enforce one ad-hoc log per calendar day (idempotency for [wearItemsToday]).
+     */
+    @Query("SELECT id FROM outfit_logs WHERE outfit_id IS NULL AND date = :date LIMIT 1")
+    suspend fun getAdHocLogIdForDate(date: String): Long?
+
+    /**
      * Inserts a new outfit log entry.
      * @param log The [OutfitLogEntity] to insert.
      * @return The row ID of the newly inserted log.
@@ -151,6 +158,14 @@ interface LogDao {
     suspend fun insertSnapshotRows(logId: Long, outfitId: Long)
 
     /**
+     * Inserts a list of ad-hoc snapshot rows directly from clothing item IDs.
+     * Used when logging a wear with no associated outfit ([OutfitLogEntity.outfitId] = null).
+     * [OutfitLogItemEntity.outfitName] is left null — the UI falls back to its "untitled" string.
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSnapshotItems(items: List<OutfitLogItemEntity>)
+
+    /**
      * Atomically inserts an outfit log and immediately snapshots its item membership.
      * If [log.outfitId] is null (free-form log) no snapshot rows are written.
      * @return The row ID of the newly inserted log.
@@ -160,6 +175,37 @@ interface LogDao {
         val logId = insertLog(log)
         if (log.outfitId != null) {
             insertSnapshotRows(logId, log.outfitId)
+        }
+        return logId
+    }
+
+    /**
+     * Atomically inserts an ad-hoc wear log (no outfit) and snapshots the given [itemIds]
+     * into [outfit_log_items]. Use this for single-item or multi-item wear logging that
+     * doesn't involve a saved outfit ([OutfitLogEntity.outfitId] must be null).
+     * @return The row ID of the newly inserted log.
+     */
+    @Transaction
+    suspend fun insertAdHocLogAndSnapshot(log: OutfitLogEntity, itemIds: List<Long>): Long {
+        val logId = insertLog(log)
+        if (itemIds.isNotEmpty()) {
+            insertSnapshotItems(itemIds.map { OutfitLogItemEntity(logId, it, outfitName = null) })
+        }
+        return logId
+    }
+
+    /**
+     * Idempotent: returns the existing ad-hoc log ID for [date] if one already exists, or
+     * inserts a new one. Then adds [itemIds] to [outfit_log_items] for the (existing or new)
+     * log using INSERT OR IGNORE, so repeated calls for the same item on the same day are safe.
+     * @return The existing or newly created log row ID.
+     */
+    @Transaction
+    suspend fun getOrCreateAdHocLogAndSnapshot(date: String, itemIds: List<Long>): Long {
+        val logId = getAdHocLogIdForDate(date)
+            ?: insertLog(OutfitLogEntity(outfitId = null, date = date))
+        if (itemIds.isNotEmpty()) {
+            insertSnapshotItems(itemIds.map { OutfitLogItemEntity(logId, it, outfitName = null) })
         }
         return logId
     }

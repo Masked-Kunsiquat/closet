@@ -209,11 +209,9 @@ fun ClosetNavGraph(
 
             recommendationScreen(
                 onNavigateUp = { navController.popBackStack() },
-                // TODO: wire "Log it" — OutfitBuilderDestination supports editing existing outfits
-                //  (via outfitId) but not pre-populating a new outfit with specific item IDs.
-                //  To implement this, add a `preselectedItemIds: List<Long>` param to
-                //  OutfitBuilderDestination and update OutfitBuilderViewModel accordingly.
-                onNavigateToLog = null,
+                onNavigateToLog = { itemIds ->
+                    navController.navigate(OutfitBuilderDestination(preselectedItemIds = itemIds))
+                },
                 onNavigateToSettings = { navController.navigateToSettings() },
             )
             journalScreen()
@@ -222,7 +220,10 @@ fun ClosetNavGraph(
                 onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) }
             )
 
-            settingsScreen(onNavigateUp = { navController.popBackStack() })
+            settingsScreen(
+                onNavigateUp = { navController.popBackStack() },
+                onNavigateToBulkWash = { navController.navigate(BulkWashDestination) },
+            )
         }
     }
 }

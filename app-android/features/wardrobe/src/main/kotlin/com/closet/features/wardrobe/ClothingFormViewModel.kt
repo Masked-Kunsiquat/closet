@@ -13,6 +13,10 @@ import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.model.MaterialEntity
+import com.closet.core.data.model.OccasionEntity
+import com.closet.core.data.model.PatternEntity
+import com.closet.core.data.model.SeasonEntity
 import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
@@ -84,7 +88,16 @@ data class ClothingFormUiState(
     val sizeSystems: List<SizeSystemEntity> = emptyList(),
     val sizeValues: List<SizeValueEntity> = emptyList(),
     val selectedSizeSystemId: Long? = null,
-    val selectedSizeValueId: Long? = null
+    val selectedSizeValueId: Long? = null,
+    val status: ClothingStatus = ClothingStatus.Active,
+    val selectedSeasonIds: Set<Long> = emptySet(),
+    val selectedOccasionIds: Set<Long> = emptySet(),
+    val selectedMaterialIds: Set<Long> = emptySet(),
+    val selectedPatternIds: Set<Long> = emptySet(),
+    val allSeasons: List<SeasonEntity> = emptyList(),
+    val allOccasions: List<OccasionEntity> = emptyList(),
+    val allMaterials: List<MaterialEntity> = emptyList(),
+    val allPatterns: List<PatternEntity> = emptyList(),
 )
 
 private data class FormState(
@@ -111,7 +124,12 @@ private data class FormState(
     val isLoading: Boolean = false,
     val errorMessage: Int? = null,
     val selectedSizeSystemId: Long? = null,
-    val selectedSizeValueId: Long? = null
+    val selectedSizeValueId: Long? = null,
+    val status: ClothingStatus = ClothingStatus.Active,
+    val selectedSeasonIds: Set<Long> = emptySet(),
+    val selectedOccasionIds: Set<Long> = emptySet(),
+    val selectedMaterialIds: Set<Long> = emptySet(),
+    val selectedPatternIds: Set<Long> = emptySet(),
 )
 
 /**
@@ -143,6 +161,10 @@ class ClothingFormViewModel @Inject constructor(
     private var originalImagePath: String? = null
     private var originalEntity: ClothingItemEntity? = null
     private var originalColors: List<ColorEntity> = emptyList()
+    private var originalSeasonIds: Set<Long> = emptySet()
+    private var originalOccasionIds: Set<Long> = emptySet()
+    private var originalMaterialIds: Set<Long> = emptySet()
+    private var originalPatternIds: Set<Long> = emptySet()
 
     private var sizeSystemUserOverridden = false
     private var captionJob: Job? = null
@@ -173,6 +195,18 @@ class ClothingFormViewModel @Inject constructor(
     val sizeSystems: StateFlow<List<SizeSystemEntity>> = lookupRepository.getSizeSystems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allSeasons: StateFlow<List<SeasonEntity>> = lookupRepository.getSeasons()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allOccasions: StateFlow<List<OccasionEntity>> = lookupRepository.getOccasions()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allMaterials: StateFlow<List<MaterialEntity>> = lookupRepository.getMaterials()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allPatterns: StateFlow<List<PatternEntity>> = lookupRepository.getPatterns()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val sizeValues: StateFlow<List<SizeValueEntity>> = _form
         .map { it.selectedSizeSystemId }
@@ -191,7 +225,11 @@ class ClothingFormViewModel @Inject constructor(
         allColors,
         allBrands,
         sizeSystems,
-        sizeValues
+        sizeValues,
+        allSeasons,
+        allOccasions,
+        allMaterials,
+        allPatterns,
     ) { args: Array<Any?> ->
         val form = args[0] as FormState
         val cats = args[1] as List<CategoryEntity>
@@ -200,6 +238,10 @@ class ClothingFormViewModel @Inject constructor(
         val brands = args[4] as List<BrandEntity>
         val systems = args[5] as List<SizeSystemEntity>
         val values = args[6] as List<SizeValueEntity>
+        val seasons = args[7] as List<SeasonEntity>
+        val occasions = args[8] as List<OccasionEntity>
+        val materials = args[9] as List<MaterialEntity>
+        val patterns = args[10] as List<PatternEntity>
 
         ClothingFormUiState(
             isEditMode = isEditMode,
@@ -237,7 +279,16 @@ class ClothingFormViewModel @Inject constructor(
             sizeSystems = systems,
             sizeValues = values,
             selectedSizeSystemId = form.selectedSizeSystemId,
-            selectedSizeValueId = form.selectedSizeValueId
+            selectedSizeValueId = form.selectedSizeValueId,
+            status = form.status,
+            selectedSeasonIds = form.selectedSeasonIds,
+            selectedOccasionIds = form.selectedOccasionIds,
+            selectedMaterialIds = form.selectedMaterialIds,
+            selectedPatternIds = form.selectedPatternIds,
+            allSeasons = seasons,
+            allOccasions = occasions,
+            allMaterials = materials,
+            allPatterns = patterns,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -283,7 +334,12 @@ class ClothingFormViewModel @Inject constructor(
                 form.notes != (original.notes ?: "") ||
                 form.imagePath != original.imagePath ||
                 colorsChanged ||
-                form.selectedSizeValueId != original.sizeValueId
+                form.selectedSizeValueId != original.sizeValueId ||
+                form.status != original.status ||
+                form.selectedSeasonIds != originalSeasonIds ||
+                form.selectedOccasionIds != originalOccasionIds ||
+                form.selectedMaterialIds != originalMaterialIds ||
+                form.selectedPatternIds != originalPatternIds
     }
 
     private fun loadItemForEditing(id: Long) {
@@ -291,6 +347,7 @@ class ClothingFormViewModel @Inject constructor(
             _form.update { it.copy(isLoading = true) }
             try {
                 val entityResult = clothingRepository.getItemEntityById(id)
+                val detail = (clothingRepository.getItemDetailOnce(id) as? DataResult.Success)?.data
 
                 if (entityResult is DataResult.Success) {
                     val entity = entityResult.data
@@ -311,8 +368,12 @@ class ClothingFormViewModel @Inject constructor(
                             .find { it.id == entity.subcategoryId }
                     } else null
 
-                    val colors = clothingRepository.getItemColors(id).first()
+                    val colors = detail?.colors ?: emptyList()
                     originalColors = colors
+                    originalSeasonIds = detail?.seasons?.map { it.id }?.toSet() ?: emptySet()
+                    originalOccasionIds = detail?.occasions?.map { it.id }?.toSet() ?: emptySet()
+                    originalMaterialIds = detail?.materials?.map { it.id }?.toSet() ?: emptySet()
+                    originalPatternIds = detail?.patterns?.map { it.id }?.toSet() ?: emptySet()
 
                     var systemId: Long? = null
                     if (entity.sizeValueId != null) {
@@ -346,6 +407,11 @@ class ClothingFormViewModel @Inject constructor(
                         selectedSizeSystemId = systemId,
                         selectedSizeValueId = entity.sizeValueId,
                         imageCaption = entity.imageCaption,
+                        status = entity.status,
+                        selectedSeasonIds = originalSeasonIds,
+                        selectedOccasionIds = originalOccasionIds,
+                        selectedMaterialIds = originalMaterialIds,
+                        selectedPatternIds = originalPatternIds,
                         isLoading = false
                     ) }
                 }
@@ -641,6 +707,28 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    fun onSeasonToggle(id: Long) {
+        _form.update { it.copy(selectedSeasonIds = it.selectedSeasonIds.toggle(id)) }
+    }
+
+    fun onOccasionToggle(id: Long) {
+        _form.update { it.copy(selectedOccasionIds = it.selectedOccasionIds.toggle(id)) }
+    }
+
+    fun onMaterialToggle(id: Long) {
+        _form.update { it.copy(selectedMaterialIds = it.selectedMaterialIds.toggle(id)) }
+    }
+
+    fun onPatternToggle(id: Long) {
+        _form.update { it.copy(selectedPatternIds = it.selectedPatternIds.toggle(id)) }
+    }
+
+    private fun Set<Long>.toggle(id: Long): Set<Long> = if (id in this) this - id else this + id
+
+    fun onStatusSelected(status: ClothingStatus) {
+        _form.update { it.copy(status = status) }
+    }
+
     fun onSizeSystemSelected(systemId: Long?) {
         sizeSystemUserOverridden = true
         _form.update { it.copy(selectedSizeSystemId = systemId, selectedSizeValueId = null) }
@@ -674,7 +762,7 @@ class ClothingFormViewModel @Inject constructor(
                     imagePath = state.imagePath,
                     sizeValueId = state.selectedSizeValueId,
                     isFavorite = originalEntity?.isFavorite ?: 0,
-                    status = originalEntity?.status ?: ClothingStatus.Active,
+                    status = state.status,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
                     // Use the caption generated this session if available. Fall back to the stored
                     // caption only when the image path hasn't changed (i.e. no new image was picked).
@@ -686,9 +774,23 @@ class ClothingFormViewModel @Inject constructor(
                 )
 
                 val result = if (isEditMode) {
-                    clothingRepository.updateItemWithColors(item, state.selectedColors)
+                    clothingRepository.updateItemWithAttributes(
+                        item,
+                        state.selectedColors,
+                        state.selectedSeasonIds.toList(),
+                        state.selectedOccasionIds.toList(),
+                        state.selectedMaterialIds.toList(),
+                        state.selectedPatternIds.toList(),
+                    )
                 } else {
-                    clothingRepository.insertItemWithColors(item, state.selectedColors)
+                    clothingRepository.insertItemWithAttributes(
+                        item,
+                        state.selectedColors,
+                        state.selectedSeasonIds.toList(),
+                        state.selectedOccasionIds.toList(),
+                        state.selectedMaterialIds.toList(),
+                        state.selectedPatternIds.toList(),
+                    )
                 }
 
                 if (result is DataResult.Success) {

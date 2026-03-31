@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -62,8 +61,56 @@ fun ClothingDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     UserMessageSnackbarEffect(viewModel.actionError, snackbarHostState)
 
+    val logWearSuccessMessage = stringResource(R.string.wardrobe_log_wear_success)
+    LaunchedEffect(viewModel.logWearSuccess) {
+        viewModel.logWearSuccess.collect {
+            snackbarHostState.showSnackbar(logWearSuccessMessage)
+        }
+    }
+
     var activePicker by remember { mutableStateOf<AttributePicker?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showStatusDialog by remember { mutableStateOf(false) }
+
+    if (showStatusDialog) {
+        val currentStatus = (uiState as? ClothingDetailUiState.Success)?.item?.item?.status
+        AlertDialog(
+            onDismissRequest = { showStatusDialog = false },
+            title = { Text(stringResource(R.string.wardrobe_change_status)) },
+            text = {
+                Column {
+                    ClothingStatus.entries.forEach { status ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.updateStatus(status)
+                                    showStatusDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            RadioButton(
+                                selected = status == currentStatus,
+                                onClick = {
+                                    viewModel.updateStatus(status)
+                                    showStatusDialog = false
+                                },
+                            )
+                            Text(status.label, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showStatusDialog = false }) {
+                    Text(stringResource(R.string.wardrobe_cancel))
+                }
+            },
+        )
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -201,18 +248,12 @@ fun ClothingDetailScreen(
                                 }
                             }
 
-                            // Status Badge
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ) {
-                                Text(
-                                    text = detail.item.status.label,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
+                            // Status Badge — tappable
+                            FilterChip(
+                                selected = true,
+                                onClick = { showStatusDialog = true },
+                                label = { Text(detail.item.status.label, style = MaterialTheme.typography.labelLarge) },
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -233,6 +274,29 @@ fun ClothingDetailScreen(
                             purchasePrice = detail.item.purchasePrice,
                             onToggleWash = { viewModel.toggleWashStatus() },
                         )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        FilledTonalButton(
+                            onClick = { viewModel.logWearToday() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.wardrobe_log_wear))
+                        }
+
+                        // Purchase metadata — only rendered when at least one field is set
+                        if (detail.item.purchaseDate != null || !detail.item.purchaseLocation.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            PurchaseMetaRow(
+                                purchaseDate = detail.item.purchaseDate,
+                                purchaseLocation = detail.item.purchaseLocation,
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(24.dp))
 
@@ -475,6 +539,51 @@ private fun StatPillCard(
         OutlinedCard(onClick = onClick, modifier = modifier) { content() }
     } else {
         OutlinedCard(modifier = modifier) { content() }
+    }
+}
+
+/**
+ * Displays the purchase date (formatted as "Month YYYY") and/or purchase location
+ * as a simple two-row label/value section. Each row is only rendered if the value is non-null.
+ */
+@Composable
+private fun PurchaseMetaRow(
+    purchaseDate: String?,
+    purchaseLocation: String?,
+    modifier: Modifier = Modifier,
+) {
+    val monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        purchaseDate?.let { raw ->
+            val formatted = runCatching { LocalDate.parse(raw).format(monthYearFormatter) }
+                .getOrDefault(raw)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(R.string.wardrobe_detail_purchased),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(text = formatted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        purchaseLocation?.let { location ->
+            if (location.isNotBlank()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = stringResource(R.string.wardrobe_detail_from),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(text = location, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
     }
 }
 
