@@ -269,7 +269,7 @@ fun ClothingDetailScreen(
                         )
 
                         // Purchase metadata — only rendered when at least one field is set
-                        if (detail.item.purchaseDate != null || detail.item.purchaseLocation != null) {
+                        if (detail.item.purchaseDate != null || !detail.item.purchaseLocation.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             PurchaseMetaRow(
                                 purchaseDate = detail.item.purchaseDate,

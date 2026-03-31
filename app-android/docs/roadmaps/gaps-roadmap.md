@@ -76,7 +76,7 @@ recommendation result cards. The blocker is that `OutfitBuilderDestination` has 
 `preselectedItemIds` param.
 
 - [x] **§3.1 — Add `preselectedItemIds` to `OutfitBuilderDestination`**
-  File: `features/wardrobe/src/main/kotlin/.../WardrobeNavigation.kt`
+  File: `features/outfits/src/main/kotlin/.../OutfitsNavigation.kt`
   ```kotlin
   @Serializable
   data class OutfitBuilderDestination(
@@ -209,7 +209,7 @@ significant gap.
 
 ## Build order
 
-```
+```text
 Phase 2 (attribute form pickers)        ← highest impact, unblocks recommendations
 Phase 1 (item status)
   → Phase 6 (status filter)             ← blocked on Phase 1 being useful
@@ -231,13 +231,13 @@ Phase 8 (single-item wear logging)     ← most complex, requires migration
 | [ ] | `features/wardrobe/.../ClothingDetailScreen.kt` | Phase 1.2: tappable status; Phase 7.1: purchase date/location rows |
 | [ ] | `features/wardrobe/.../ClothingDetailViewModel.kt` | Phase 1.2: `updateStatus()` |
 | [ ] | `core/data/.../repository/ClothingRepository.kt` | Phase 1.2: `updateStatus()` single-column update |
-| [ ] | `features/wardrobe/.../WardrobeNavigation.kt` | Phase 3.1: `preselectedItemIds` on `OutfitBuilderDestination` |
+| [ ] | `features/outfits/.../OutfitsNavigation.kt` | Phase 3.1: `preselectedItemIds` on `OutfitBuilderDestination` |
 | [ ] | `features/outfits/.../OutfitBuilderViewModel.kt` | Phase 3.2: consume `preselectedItemIds` |
 | [ ] | `app/.../navigation/ClosetNavGraph.kt` | Phase 3.3: wire `onNavigateToLog` |
 | [ ] | `features/settings/.../SettingsScreen.kt` | Phase 4.1: Bulk Wash entry point |
 | [ ] | `features/wardrobe/.../ClosetViewModel.kt` | Phase 5.1-5.2: `SortOrder` enum + in-memory sort |
 | [ ] | `features/wardrobe/.../ClosetScreen.kt` | Phase 5.3: sort button UI |
-| [ ] | `core/data/.../dao/ClothingDao.kt` | Phase 6.1: status filter param |
+| [ ] | `features/wardrobe/.../ClosetViewModel.kt` | Phase 6.1: Active-only filter (in-memory) |
 | [ ] | `core/data/.../ClothingDatabase.kt` | Phase 8.1: migration for nullable `outfit_id` |
 | [ ] | `core/data/.../entity/OutfitLogEntity.kt` | Phase 8.1: `outfitId: Long?` |
 | [ ] | `core/data/.../repository/LogRepository.kt` | Phase 8.2: `wearItemsToday()` |

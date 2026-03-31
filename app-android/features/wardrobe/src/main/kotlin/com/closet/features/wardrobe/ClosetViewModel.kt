@@ -61,6 +61,7 @@ data class ClosetUiState(
     val showArchived: Boolean = false,
     val sortOrder: SortOrder = SortOrder.NEWEST,
     val activeFilterCount: Int = 0,
+    val hiddenArchivedCount: Int = 0,
 )
 
 /**
@@ -174,6 +175,10 @@ class ClosetViewModel @Inject constructor(
         val usedSizeSystemIds = allItems.mapNotNull { it.sizeValue?.sizeSystemId }.toSet()
         val visibleSizeSystems = lookups.sizeSystems.filter { it.id in usedSizeSystemIds }
 
+        val hiddenArchivedCount = if (!fs.showArchived) {
+            allItems.count { it.item.status != ClothingStatus.Active }
+        } else 0
+
         ClosetUiState(
             items = filtered,
             categories = categories,
@@ -190,6 +195,7 @@ class ClosetViewModel @Inject constructor(
             showArchived = fs.showArchived,
             sortOrder = fs.sortOrder,
             activeFilterCount = fs.activeCount,
+            hiddenArchivedCount = hiddenArchivedCount,
         )
     }.stateIn(
         scope = viewModelScope,

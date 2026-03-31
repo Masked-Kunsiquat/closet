@@ -65,6 +65,7 @@ fun ClosetScreen(
         selectedOccasionIds = uiState.selectedOccasionIds,
         selectedSizeSystemIds = uiState.selectedSizeSystemIds,
         activeFilterCount = uiState.activeFilterCount,
+        hiddenArchivedCount = uiState.hiddenArchivedCount,
         onCategorySelect = viewModel::selectCategory,
         onToggleFavorites = viewModel::toggleFavoritesOnly,
         onToggleShowArchived = viewModel::toggleShowArchived,
@@ -105,6 +106,7 @@ internal fun ClosetContent(
     selectedOccasionIds: Set<Long>,
     selectedSizeSystemIds: Set<Long>,
     activeFilterCount: Int,
+    hiddenArchivedCount: Int = 0,
     onCategorySelect: (Long?) -> Unit,
     onToggleFavorites: () -> Unit,
     onToggleShowArchived: () -> Unit,
@@ -245,7 +247,11 @@ internal fun ClosetContent(
                     onClearFilters = onClearAllFilters,
                     modifier = Modifier.weight(1f)
                 )
-                else -> EmptyClosetMessage(modifier = Modifier.weight(1f))
+                else -> EmptyClosetMessage(
+                    hiddenArchivedCount = hiddenArchivedCount,
+                    onShowArchived = onToggleShowArchived,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -364,14 +370,28 @@ private fun ClosetGrid(
 
 /**
  * Message displayed when the wardrobe contains no items.
+ *
+ * If [hiddenArchivedCount] > 0, a "Show archived" button is shown so the user can reveal
+ * items that were hidden by the Active-only default filter.
  */
 @Composable
-private fun EmptyClosetMessage(modifier: Modifier = Modifier) {
+private fun EmptyClosetMessage(
+    hiddenArchivedCount: Int = 0,
+    onShowArchived: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
-        Text(stringResource(R.string.wardrobe_empty_closet))
+        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.wardrobe_empty_closet))
+            if (hiddenArchivedCount > 0) {
+                TextButton(onClick = onShowArchived) {
+                    Text(stringResource(R.string.wardrobe_filter_show_archived))
+                }
+            }
+        }
     }
 }
 

@@ -92,6 +92,10 @@ class ClothingRepository @Inject constructor(
 
     /**
      * One-shot fetch of a fully-loaded [ClothingItemDetail] including all junction data.
+     *
+     * Returns `null` rather than wrapping in [DataResult] because callers that need a one-shot
+     * read (e.g. pre-populating a form) handle the missing-item case inline; the [DataResult]
+     * overhead would add noise without benefit here.
      */
     suspend fun getItemDetailOnce(id: Long): ClothingItemDetail? = clothingDao.getClothingItemDetailOnce(id)
 
@@ -181,7 +185,7 @@ class ClothingRepository @Inject constructor(
             DataResult.Error(AppError.DatabaseError.NotFound())
         } else {
             result
-        }.also { if (it is DataResult.Success) vectorizeItem(item.id) }
+        }.also { if (it is DataResult.Success) repositoryScope.launch { vectorizeItem(item.id) } }
     }
 
     /**
@@ -218,7 +222,7 @@ class ClothingRepository @Inject constructor(
         colors: List<ColorEntity>
     ): DataResult<Int> {
         val result = updateItem(item, colors.map { it.id })
-        if (result is DataResult.Success) vectorizeItem(item.id)
+        if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(item.id) }
         return result
     }
 
