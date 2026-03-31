@@ -83,6 +83,8 @@
 
     <!-- Wardrobe section -->
     <string name="settings_section_wardrobe">Wardrobe</string>
+    <string name="settings_wardrobe_laundry_day">Laundry Day</string>
+    <string name="settings_wardrobe_laundry_day_summary">Bulk mark items as clean or dirty</string>
     <string name="settings_wardrobe_remove_backgrounds">Remove backgrounds</string>
     <string name="settings_wardrobe_removing_backgrounds">Removing backgrounds…</string>
     <string name="settings_wardrobe_removing_backgrounds_progress">%1$d of %2$d items</string>

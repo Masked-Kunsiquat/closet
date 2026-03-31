@@ -220,7 +220,10 @@ fun ClosetNavGraph(
                 onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) }
             )
 
-            settingsScreen(onNavigateUp = { navController.popBackStack() })
+            settingsScreen(
+                onNavigateUp = { navController.popBackStack() },
+                onNavigateToBulkWash = { navController.navigate(BulkWashDestination) },
+            )
         }
     }
 }

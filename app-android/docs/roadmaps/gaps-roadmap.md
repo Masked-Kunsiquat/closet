@@ -100,13 +100,13 @@ recommendation result cards. The blocker is that `OutfitBuilderDestination` has 
 
 ---
 
-## Phase 4 — Bulk Wash discoverability 🟡
+## Phase 4 — Bulk Wash discoverability ✅
 
 `BulkWashScreen` is registered in the nav graph and reachable via the "Laundry Day" launcher
 shortcut, but there is no in-app navigation path to it. Users who don't use the shortcut
 will never find this feature.
 
-- [ ] **§4.1 — Add a Bulk Wash entry point in Settings**
+- [x] **§4.1 — Add a Bulk Wash entry point in Settings**
   File: `features/settings/src/main/kotlin/.../SettingsScreen.kt`
   - Add a `SettingsItem` row (e.g. "Laundry Day — bulk mark wash status") in the Wardrobe
     section of the settings list.
