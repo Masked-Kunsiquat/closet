@@ -194,6 +194,22 @@ class ClothingRepository @Inject constructor(
     }
 
     /**
+     * Updates the lifecycle status for a specific clothing item.
+     * @param id The ID of the item.
+     * @param status The new [ClothingStatus].
+     * @return A [DataResult] indicating success or failure.
+     */
+    suspend fun updateStatus(id: Long, status: ClothingStatus): DataResult<Unit> = try {
+        val updatedAt = converters.dateToTimestamp(Instant.now()) ?: ""
+        clothingDao.updateItemStatus(id, status.label, updatedAt)
+        DataResult.Success(Unit)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.e(e, "Error updating status for item: $id")
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
+
+    /**
      * Toggles the favorite status for a specific clothing item.
      * @param id The ID of the item.
      * @param isFavorite Whether the item should be marked as favorite.

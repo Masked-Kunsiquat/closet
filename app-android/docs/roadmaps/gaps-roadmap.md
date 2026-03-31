@@ -9,13 +9,13 @@ Derived from the March 2026 full-codebase audit.
 
 ---
 
-## Phase 1 — Item status management 🔴
+## Phase 1 — Item status management ✅
 
 `clothing_items.status` has four values (`Active | Sold | Donated | Lost`) but the status badge
 on the detail screen is display-only. `ClothingFormViewModel.save()` hardcodes `Active` on new
 items. Users cannot retire, sell, or archive anything.
 
-- [ ] **§1.1 — Status picker in the clothing form**
+- [x] **§1.1 — Status picker in the clothing form**
   File: `features/wardrobe/src/main/kotlin/.../ClothingFormScreen.kt` + `ClothingFormViewModel.kt`
   - Add `status: ClothingStatus` to `ClothingFormState` (default `Active`).
   - Load existing item's status in the edit path (`ClothingFormViewModel.loadItem()`).
@@ -23,7 +23,7 @@ items. Users cannot retire, sell, or archive anything.
   - UI: `ExposedDropdownMenuBox` (or a `SingleChoiceSegmentedButtonRow`) for the 4 values.
     Place near the bottom of the form alongside wash status.
 
-- [ ] **§1.2 — Status picker on the detail screen**
+- [x] **§1.2 — Status picker on the detail screen**
   File: `features/wardrobe/src/main/kotlin/.../ClothingDetailScreen.kt` + `ClothingDetailViewModel.kt`
   - Replace the read-only status `Badge` with a tappable chip.
   - Tapping opens a `ModalBottomSheet` or `AlertDialog` with the 4 status choices.

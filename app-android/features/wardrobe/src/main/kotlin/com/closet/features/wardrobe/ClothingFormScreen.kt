@@ -62,6 +62,7 @@ import coil.compose.AsyncImage
 import com.closet.core.ui.components.ResErrorSnackbarEffect
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
+import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
 import java.time.LocalDate
@@ -167,6 +168,7 @@ fun ClothingFormScreen(
                 onDateChange = viewModel::onDateChange,
                 onLocationChange = viewModel::onLocationChange,
                 onNotesChange = viewModel::onNotesChange,
+                onStatusSelected = viewModel::onStatusSelected,
                 onImageClick = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
@@ -232,6 +234,7 @@ internal fun ClothingFormContent(
     onDateChange: (LocalDate?) -> Unit,
     onLocationChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
+    onStatusSelected: (ClothingStatus) -> Unit,
     onImageClick: () -> Unit,
     onRemoveBackground: () -> Unit,
     onRevertSegmentation: () -> Unit,
@@ -456,6 +459,19 @@ internal fun ClothingFormContent(
                 minLines = 3,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
             )
+        }
+
+        // Status Section (edit mode only — new items are always Active)
+        if (uiState.isEditMode) {
+            item {
+                DropdownSelector(
+                    selectedItem = uiState.status,
+                    items = ClothingStatus.entries,
+                    onItemSelect = { it?.let(onStatusSelected) },
+                    label = stringResource(R.string.wardrobe_field_status),
+                    itemLabel = { it.label },
+                )
+            }
         }
     }
 }

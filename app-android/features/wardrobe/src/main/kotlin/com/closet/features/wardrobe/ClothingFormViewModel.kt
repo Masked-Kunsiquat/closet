@@ -84,7 +84,8 @@ data class ClothingFormUiState(
     val sizeSystems: List<SizeSystemEntity> = emptyList(),
     val sizeValues: List<SizeValueEntity> = emptyList(),
     val selectedSizeSystemId: Long? = null,
-    val selectedSizeValueId: Long? = null
+    val selectedSizeValueId: Long? = null,
+    val status: ClothingStatus = ClothingStatus.Active,
 )
 
 private data class FormState(
@@ -111,7 +112,8 @@ private data class FormState(
     val isLoading: Boolean = false,
     val errorMessage: Int? = null,
     val selectedSizeSystemId: Long? = null,
-    val selectedSizeValueId: Long? = null
+    val selectedSizeValueId: Long? = null,
+    val status: ClothingStatus = ClothingStatus.Active,
 )
 
 /**
@@ -237,7 +239,8 @@ class ClothingFormViewModel @Inject constructor(
             sizeSystems = systems,
             sizeValues = values,
             selectedSizeSystemId = form.selectedSizeSystemId,
-            selectedSizeValueId = form.selectedSizeValueId
+            selectedSizeValueId = form.selectedSizeValueId,
+            status = form.status,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -283,7 +286,8 @@ class ClothingFormViewModel @Inject constructor(
                 form.notes != (original.notes ?: "") ||
                 form.imagePath != original.imagePath ||
                 colorsChanged ||
-                form.selectedSizeValueId != original.sizeValueId
+                form.selectedSizeValueId != original.sizeValueId ||
+                form.status != original.status
     }
 
     private fun loadItemForEditing(id: Long) {
@@ -346,6 +350,7 @@ class ClothingFormViewModel @Inject constructor(
                         selectedSizeSystemId = systemId,
                         selectedSizeValueId = entity.sizeValueId,
                         imageCaption = entity.imageCaption,
+                        status = entity.status,
                         isLoading = false
                     ) }
                 }
@@ -641,6 +646,10 @@ class ClothingFormViewModel @Inject constructor(
         }
     }
 
+    fun onStatusSelected(status: ClothingStatus) {
+        _form.update { it.copy(status = status) }
+    }
+
     fun onSizeSystemSelected(systemId: Long?) {
         sizeSystemUserOverridden = true
         _form.update { it.copy(selectedSizeSystemId = systemId, selectedSizeValueId = null) }
@@ -674,7 +683,7 @@ class ClothingFormViewModel @Inject constructor(
                     imagePath = state.imagePath,
                     sizeValueId = state.selectedSizeValueId,
                     isFavorite = originalEntity?.isFavorite ?: 0,
-                    status = originalEntity?.status ?: ClothingStatus.Active,
+                    status = state.status,
                     washStatus = originalEntity?.washStatus ?: WashStatus.Clean,
                     // Use the caption generated this session if available. Fall back to the stored
                     // caption only when the image path hasn't changed (i.e. no new image was picked).

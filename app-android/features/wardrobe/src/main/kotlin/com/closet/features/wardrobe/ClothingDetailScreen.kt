@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -64,6 +63,47 @@ fun ClothingDetailScreen(
 
     var activePicker by remember { mutableStateOf<AttributePicker?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showStatusDialog by remember { mutableStateOf(false) }
+
+    if (showStatusDialog) {
+        val currentStatus = (uiState as? ClothingDetailUiState.Success)?.item?.item?.status
+        AlertDialog(
+            onDismissRequest = { showStatusDialog = false },
+            title = { Text(stringResource(R.string.wardrobe_change_status)) },
+            text = {
+                Column {
+                    ClothingStatus.entries.forEach { status ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.updateStatus(status)
+                                    showStatusDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            RadioButton(
+                                selected = status == currentStatus,
+                                onClick = {
+                                    viewModel.updateStatus(status)
+                                    showStatusDialog = false
+                                },
+                            )
+                            Text(status.label, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showStatusDialog = false }) {
+                    Text(stringResource(R.string.wardrobe_cancel))
+                }
+            },
+        )
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -201,18 +241,12 @@ fun ClothingDetailScreen(
                                 }
                             }
 
-                            // Status Badge
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ) {
-                                Text(
-                                    text = detail.item.status.label,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
+                            // Status Badge — tappable
+                            FilterChip(
+                                selected = true,
+                                onClick = { showStatusDialog = true },
+                                label = { Text(detail.item.status.label, style = MaterialTheme.typography.labelLarge) },
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))

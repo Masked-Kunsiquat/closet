@@ -104,6 +104,17 @@ class ClothingDetailViewModel @Inject constructor(
         }
     }
 
+    /** Updates the lifecycle status of the current item. */
+    fun updateStatus(status: ClothingStatus) {
+        viewModelScope.launch {
+            clothingRepository.updateStatus(itemId, status).fold(
+                onLoading = {},
+                onSuccess = {},
+                onError = { handleActionError(it) }
+            )
+        }
+    }
+
     /** Toggles the wash status between [WashStatus.Clean] and [WashStatus.Dirty]. */
     fun toggleWashStatus() {
         viewModelScope.launch {
