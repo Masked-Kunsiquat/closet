@@ -4,4 +4,9 @@
     <color name="surface_0">#0A0A0A</color>
     <color name="surface_1">#111111</color>
     <color name="text_primary">#F5F5F5</color>
+
+    <!-- Shortcut icon background — matches the default Amber accent primary (#F59E0B).
+         Shown on non-themed launchers; themed launchers (Pixel, API 33+) ignore this
+         and tint the monochrome layer with the user's Material You wallpaper color. -->
+    <color name="shortcut_icon_bg">#F59E0B</color>
 </resources>

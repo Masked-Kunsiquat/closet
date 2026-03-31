@@ -1,5 +1,6 @@
 package com.closet
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,6 +13,8 @@ import com.closet.core.ui.theme.ClosetAccent
 import com.closet.core.ui.theme.ClosetTheme
 import com.closet.navigation.ClosetNavGraph
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
 /**
@@ -28,8 +31,19 @@ class MainActivity : ComponentActivity() {
     // constructor injection for Activity subclasses.
     @Inject lateinit var preferencesRepository: PreferencesRepository
 
+    // Carries the latest shortcut (or regular launch) intent so ClosetNavGraph
+    // can react to it in a LaunchedEffect. Null means "no pending navigation".
+    private val _shortcutIntent = MutableStateFlow<Intent?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Publish the launch intent so the nav graph can route to the correct
+        // destination. Only set on a fresh start (savedInstanceState == null)
+        // to avoid re-navigating when the activity is recreated (e.g. rotation).
+        if (savedInstanceState == null) {
+            _shortcutIntent.value = intent
+        }
 
         // Enable edge-to-edge to handle modern system bar behavior
         enableEdgeToEdge()
@@ -41,8 +55,18 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = false)
 
             ClosetTheme(accent = accent.value, dynamicColor = dynamicColor.value) {
-                ClosetNavGraph(modifier = Modifier.fillMaxSize())
+                ClosetNavGraph(
+                    modifier = Modifier.fillMaxSize(),
+                    shortcutIntent = _shortcutIntent.asStateFlow(),
+                    onShortcutConsumed = { _shortcutIntent.value = null },
+                )
             }
         }
+    }
+
+    // Called when the activity is already running and a shortcut is tapped again.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        _shortcutIntent.value = intent
     }
 }

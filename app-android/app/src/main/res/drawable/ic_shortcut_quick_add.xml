@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Adaptive icon for the "Quick Add" shortcut.
+    - background: amber accent (shown on non-themed launchers)
+    - foreground: inset coat-hanger vector (15% padding for adaptive icon safe zone)
+    - monochrome: same vector, tinted by the launcher on API 33+ themed icon launchers
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/shortcut_icon_bg" />
+    <foreground>
+        <inset
+            android:drawable="@drawable/ic_icon_coat_hanger"
+            android:inset="15%" />
+    </foreground>
+    <monochrome android:drawable="@drawable/ic_icon_coat_hanger" />
+</adaptive-icon>

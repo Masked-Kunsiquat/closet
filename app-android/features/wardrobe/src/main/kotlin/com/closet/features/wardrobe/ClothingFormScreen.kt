@@ -80,10 +80,18 @@ fun ClothingFormScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri -> viewModel.onImageSelected(uri) }
+    )
+
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 ClothingFormEvent.NavigateBack -> onBackClick()
+                ClothingFormEvent.OpenImagePicker -> launcher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             }
         }
     }
@@ -92,11 +100,6 @@ fun ClothingFormScreen(
         errorRes = uiState.errorMessage,
         snackbarHostState = snackbarHostState,
         onErrorConsumed = viewModel::onErrorConsumed
-    )
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> viewModel.onImageSelected(uri) }
     )
 
     val handleBack = {

@@ -1,6 +1,8 @@
 package com.closet.features.wardrobe
 
+import android.content.Context
 import android.net.Uri
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +30,7 @@ import java.util.UUID
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -116,6 +119,7 @@ private data class FormState(
  */
 @HiltViewModel
 class ClothingFormViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle,
     private val lookupRepository: LookupRepository,
     private val brandRepository: BrandRepository,
@@ -241,9 +245,18 @@ class ClothingFormViewModel @Inject constructor(
         initialValue = ClothingFormUiState(isEditMode = isEditMode, isLoading = isEditMode)
     )
 
+    private val addDestination = try {
+        savedStateHandle.toRoute<AddClothingDestination>()
+    } catch (_: Exception) {
+        null
+    }
+
     init {
         if (isEditMode && itemId != null) {
             loadItemForEditing(itemId)
+        }
+        if (addDestination?.openCamera == true) {
+            viewModelScope.launch { _events.send(ClothingFormEvent.OpenImagePicker) }
         }
     }
 
@@ -679,6 +692,12 @@ class ClothingFormViewModel @Inject constructor(
                 }
 
                 if (result is DataResult.Success) {
+                    // Report Quick Add shortcut usage only when the flow originated from it.
+                    // Doing this at save (not at background removal) ensures the signal is only
+                    // sent when the user actually completes the add, not on every segmentation.
+                    if (addDestination?.openCamera == true) {
+                        ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")
+                    }
                     // Best-effort cleanup — failures must not block navigation or show a save error
                     if (isEditMode && originalImagePath != null && originalImagePath != state.imagePath) {
                         runCatching { withContext(NonCancellable) { storageRepository.deleteImage(originalImagePath!!) } }
@@ -720,4 +739,5 @@ class ClothingFormViewModel @Inject constructor(
 
 sealed class ClothingFormEvent {
     object NavigateBack : ClothingFormEvent()
+    object OpenImagePicker : ClothingFormEvent()
 }

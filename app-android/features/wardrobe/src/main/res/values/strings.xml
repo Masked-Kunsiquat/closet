@@ -26,6 +26,11 @@
     <string name="wardrobe_delete">Delete</string>
     <string name="wardrobe_usage">Usage</string>
     <string name="wardrobe_cost_per_wear">Cost per wear</string>
+    <string name="wardrobe_stat_wash">Wash</string>
+    <string name="wardrobe_stat_wears">Wears</string>
+    <string name="wardrobe_stat_price">Price</string>
+    <string name="wardrobe_stat_cpw">Cost/Wear</string>
+    <string name="wardrobe_stat_cpw_na">—</string>
     <string name="wardrobe_delete_item_title">Delete Item</string>
     <string name="wardrobe_delete_item_confirmation">Are you sure you want to delete this item? This action cannot be undone.</string>
     <string name="wardrobe_cancel">Cancel</string>
@@ -98,6 +103,21 @@
     <string name="wardrobe_wear_history_empty">Never worn yet</string>
     <string name="wardrobe_wear_history_untitled">Untitled outfit</string>
     <string name="wardrobe_wear_history_ootd">Outfit of the day</string>
+
+    <!-- Category pin shortcut -->
+    <string name="wardrobe_pin_category">Pin %1$s to home screen</string>
+
+    <!-- Bulk Wash / Laundry Day screen -->
+    <string name="bulk_wash_title">Laundry Day</string>
+    <string name="bulk_wash_select_all">Select all</string>
+    <string name="bulk_wash_deselect_all">Deselect all</string>
+    <plurals name="bulk_wash_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="bulk_wash_mark_clean">Mark Clean</string>
+    <string name="bulk_wash_mark_dirty">Mark Dirty</string>
+    <string name="bulk_wash_apply_error">Couldn\'t update some items. Please try again.</string>
 
     <!-- Brand Management — screen for viewing, adding, editing, and deleting clothing brands -->
     <!-- Title shown in the top app bar of the brand management screen -->

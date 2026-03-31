@@ -10,6 +10,19 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.1.2] — 2026-03-30
+
+Android App Shortcuts — Phase 1 intent-routing infrastructure (in progress).
+
+### Added
+- **`ShortcutActions`** — action/extra constants for all shortcut intents
+  (`ACTION_QUICK_ADD`, `ACTION_LOG_FIT`, `ACTION_LAUNDRY_DAY`, `ACTION_CATEGORY`).
+- **Shortcut intent routing** — `MainActivity` forwards shortcut intents via a
+  `MutableStateFlow`; `ClosetNavGraph` consumes them in a `LaunchedEffect` and
+  drives the `NavController` to the correct destination on cold-start and re-launch.
+
+---
+
 ## [0.1.1] — 2026-03-30
 
 Phase 2A + Phase 3 of the RAG pipeline: on-device embedding storage and the
@@ -84,6 +97,7 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Masked-Kunsiquat/closet/releases/tag/v0.1.0

@@ -1,7 +1,14 @@
 package com.closet.features.wardrobe
 
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ColorEntity
@@ -12,6 +19,7 @@ import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -81,12 +89,16 @@ private data class FilterSelections(
  */
 @HiltViewModel
 class ClosetViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+    savedStateHandle: SavedStateHandle,
     private val clothingRepository: ClothingRepository,
     private val lookupRepository: LookupRepository,
     private val storageRepository: StorageRepository
 ) : ViewModel() {
 
-    private val _selectedCategoryId    = MutableStateFlow<Long?>(null)
+    private val _selectedCategoryId    = MutableStateFlow<Long?>(
+        try { savedStateHandle.toRoute<ClosetDestination>().initialCategoryId } catch (_: Exception) { null }
+    )
     private val _selectedColorIds      = MutableStateFlow<Set<Long>>(emptySet())
     private val _selectedSeasonIds     = MutableStateFlow<Set<Long>>(emptySet())
     private val _selectedOccasionIds   = MutableStateFlow<Set<Long>>(emptySet())
@@ -216,6 +228,46 @@ class ClosetViewModel @Inject constructor(
         _selectedSeasonIds.value = emptySet()
         _selectedOccasionIds.value = emptySet()
         _selectedSizeSystemIds.value = emptySet()
+    }
+
+    /**
+     * Disables the pinned shortcut for [categoryId] with a human-readable [reason].
+     *
+     * Call this whenever a category is deleted so any launcher shortcut pointing to it
+     * shows the disabled state instead of navigating to a missing category.
+     * Categories are not yet deletable in the UI — this function is a hook for when
+     * that feature lands.
+     */
+    fun disableCategoryShortcut(categoryId: Long, reason: String) {
+        ShortcutManagerCompat.disableShortcuts(
+            appContext,
+            listOf("category_$categoryId"),
+            reason,
+        )
+    }
+
+    /**
+     * Requests the launcher to pin a shortcut for [categoryId] that deep-links back to
+     * the Closet screen pre-filtered to that category.
+     * No-op on launchers that don't support pinned shortcuts.
+     * Note: pinned shortcuts do not count against the static + dynamic shortcut slot budget.
+     */
+    fun pinCategoryShortcut(categoryId: Long, categoryName: String) {
+        val shortcutInfo = ShortcutInfoCompat.Builder(appContext, "category_$categoryId")
+            .setShortLabel(categoryName.take(10))
+            .setLongLabel(categoryName.take(25))
+            .setIcon(IconCompat.createWithResource(appContext, R.drawable.ic_shortcut_category))
+            .setIntent(
+                Intent().apply {
+                    action = "com.closet.shortcut.CATEGORY"
+                    setClassName(appContext.packageName, "com.closet.MainActivity")
+                    putExtra("com.closet.shortcut.extra.CATEGORY_ID", categoryId)
+                }
+            )
+            .build()
+        if (ShortcutManagerCompat.isRequestPinShortcutSupported(appContext)) {
+            ShortcutManagerCompat.requestPinShortcut(appContext, shortcutInfo, null)
+        }
     }
 }
 

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -68,6 +69,7 @@ fun ClosetScreen(
         onClearAdvancedFilters = viewModel::clearAdvancedFilters,
         onClearAllFilters = viewModel::clearAllFilters,
         resolveImagePath = viewModel::resolveImagePath,
+        onPinCategory = viewModel::pinCategoryShortcut,
         onAddItemClick = onAddItemClick,
         onItemClick = onItemClick,
         onSettingsClick = onSettingsClick,
@@ -103,6 +105,7 @@ internal fun ClosetContent(
     onClearAdvancedFilters: () -> Unit,
     onClearAllFilters: () -> Unit,
     resolveImagePath: (String?) -> File?,
+    onPinCategory: (Long, String) -> Unit = { _, _ -> },
     onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
     onSettingsClick: () -> Unit = {},
@@ -177,7 +180,8 @@ internal fun ClosetContent(
                 selectedCategoryId = selectedCategoryId,
                 favoritesOnly = favoritesOnly,
                 onCategorySelect = onCategorySelect,
-                onToggleFavorites = onToggleFavorites
+                onToggleFavorites = onToggleFavorites,
+                onPinCategory = onPinCategory,
             )
             
             val isFiltered = activeFilterCount > 0 || selectedCategoryId != null
@@ -211,6 +215,7 @@ private fun CategoryFilterRow(
     favoritesOnly: Boolean,
     onCategorySelect: (Long?) -> Unit,
     onToggleFavorites: () -> Unit,
+    onPinCategory: (Long, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyRow(
@@ -240,11 +245,24 @@ private fun CategoryFilterRow(
             )
         }
         items(categories, key = { it.id }) { category ->
-            FilterChip(
-                selected = selectedCategoryId == category.id,
-                onClick = { onCategorySelect(category.id) },
-                label = { Text(category.name) }
-            )
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                FilterChip(
+                    selected = selectedCategoryId == category.id,
+                    onClick = { onCategorySelect(category.id) },
+                    label = { Text(category.name) }
+                )
+                IconButton(
+                    onClick = { onPinCategory(category.id, category.name) },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PushPin,
+                        contentDescription = stringResource(R.string.wardrobe_pin_category, category.name),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
