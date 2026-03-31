@@ -69,13 +69,13 @@ highest-priority fix.
 
 ---
 
-## Phase 3 — "Log it" from recommendations 🔴
+## Phase 3 — "Log it" from recommendations ✅
 
 `onNavigateToLog = null` in `ClosetNavGraph.kt` line ~213 disables the "Log it" button on
 recommendation result cards. The blocker is that `OutfitBuilderDestination` has no
 `preselectedItemIds` param.
 
-- [ ] **§3.1 — Add `preselectedItemIds` to `OutfitBuilderDestination`**
+- [x] **§3.1 — Add `preselectedItemIds` to `OutfitBuilderDestination`**
   File: `features/wardrobe/src/main/kotlin/.../WardrobeNavigation.kt`
   ```kotlin
   @Serializable
@@ -85,12 +85,12 @@ recommendation result cards. The blocker is that `OutfitBuilderDestination` has 
   )
   ```
 
-- [ ] **§3.2 — Consume `preselectedItemIds` in `OutfitBuilderViewModel`**
+- [x] **§3.2 — Consume `preselectedItemIds` in `OutfitBuilderViewModel`**
   File: `features/outfits/src/main/kotlin/.../OutfitBuilderViewModel.kt`
   - In `init {}`, if `destination.preselectedItemIds` is non-empty, set
     `_selectedItems` from those IDs (load `ClothingItemWithMeta` via repository).
 
-- [ ] **§3.3 — Wire `onNavigateToLog` in `ClosetNavGraph.kt`**
+- [x] **§3.3 — Wire `onNavigateToLog` in `ClosetNavGraph.kt`**
   Replace `onNavigateToLog = null` with:
   ```kotlin
   onNavigateToLog = { itemIds ->
