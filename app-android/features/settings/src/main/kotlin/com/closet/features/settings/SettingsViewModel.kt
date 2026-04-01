@@ -206,9 +206,9 @@ class SettingsViewModel @Inject constructor(
     val geminiKey: StateFlow<String> = aiPrefsRepo.getGeminiApiKey()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
-    /** Model identifier for the Gemini provider. Empty = default (gemini-2.0-flash-lite). */
+    /** Model identifier for the Gemini provider. Defaults to gemini-2.0-flash-lite. */
     val geminiModel: StateFlow<String> = aiPrefsRepo.getGeminiModel()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "gemini-2.0-flash-lite")
 
     // ── Model discovery ───────────────────────────────────────────────────────
 

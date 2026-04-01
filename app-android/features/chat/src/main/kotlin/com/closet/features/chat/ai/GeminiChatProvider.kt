@@ -8,6 +8,7 @@ import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -29,7 +30,7 @@ import javax.inject.Singleton
  * (`system_instruction` + `contents`) rather than the OpenAI-compatible format.
  *
  * Configuration (all stored in [AiPreferencesRepository]):
- * - **API key** — [AiPreferencesRepository.getGeminiApiKey]; passed as `?key=` query param
+ * - **API key** — [AiPreferencesRepository.getGeminiApiKey]; sent as `x-goog-api-key` header
  * - **Model**   — [AiPreferencesRepository.getGeminiModel]; defaults to [DEFAULT_MODEL]
  *
  * Response: `candidates[0].content.parts[0].text` parsed by [ChatResponseParser].
@@ -56,7 +57,7 @@ class GeminiChatProvider @Inject constructor(
         val model = aiPreferencesRepository.getGeminiModel().first()
             .takeIf { it.isNotBlank() } ?: DEFAULT_MODEL
 
-        val endpoint = "$BASE_URL/$model:generateContent?key=$apiKey"
+        val endpoint = "$BASE_URL/$model:generateContent"
         val systemInstruction = "${ChatPromptPrefix.SYSTEM_PROMPT}\n\n$context"
 
         return try {
@@ -64,6 +65,7 @@ class GeminiChatProvider @Inject constructor(
 
             val responseText: String = client.post(endpoint) {
                 contentType(ContentType.Application.Json)
+                header("x-goog-api-key", apiKey)
                 setBody(requestBody)
             }.body()
 

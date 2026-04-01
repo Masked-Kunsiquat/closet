@@ -57,14 +57,13 @@ class OpenAiChatProvider @Inject constructor(
             return Result.failure(IllegalStateException("OpenAI-compatible API key is not configured"))
         }
 
-        val rawBaseUrl = aiPreferencesRepository.getOpenAiBaseUrl().first()
-        val completionsUrl = buildCompletionsUrl(rawBaseUrl)
         val model = aiPreferencesRepository.getOpenAiModel().first().takeIf { it.isNotBlank() }
             ?: DEFAULT_MODEL
-
         val systemContent = "${ChatPromptPrefix.SYSTEM_PROMPT}\n\n$context"
 
         return try {
+            val rawBaseUrl = aiPreferencesRepository.getOpenAiBaseUrl().first()
+            val completionsUrl = buildCompletionsUrl(rawBaseUrl)
             val requestBody = buildRequestBody(model, systemContent, userMessage)
 
             val responseText: String = client.post(completionsUrl) {
@@ -77,8 +76,7 @@ class OpenAiChatProvider @Inject constructor(
             ChatResponseParser.parse(content)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            val safeUrl = try { java.net.URI(completionsUrl).let { "${it.host}${it.path}" } } catch (_: Exception) { "unknown" }
-        Timber.tag(TAG).w(e, "OpenAiChatProvider inference failed (url=%s, model=%s)", safeUrl, model)
+            Timber.tag(TAG).w(e, "OpenAiChatProvider inference failed (model=%s)", model)
             Result.failure(e)
         }
     }
@@ -96,7 +94,7 @@ class OpenAiChatProvider @Inject constructor(
     private fun buildCompletionsUrl(raw: String): String {
         val base = (if (raw.isBlank()) DEFAULT_BASE_URL else raw).trimEnd('/')
         val path = try { java.net.URI(base).path ?: "" } catch (e: Exception) {
-            throw IllegalArgumentException("Invalid OpenAI base URL: $base — ${e.message}", e)
+            throw IllegalArgumentException("Invalid OpenAI base URL — ${e.message}", e)
         }
         return if (path.isBlank() || path == "/") "$base/v1/chat/completions" else "$base/chat/completions"
     }

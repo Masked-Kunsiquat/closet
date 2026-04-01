@@ -247,6 +247,11 @@ fun SettingsScreen(
                 viewModel.onAiProviderSelected(AiProvider.Anthropic)
                 viewModel.onAiToggled(true)
             },
+            onSwitchToGemini = {
+                nanoNotSupportedDismissed = true
+                viewModel.onAiProviderSelected(AiProvider.Gemini)
+                viewModel.onAiToggled(true)
+            },
             onDismiss = { nanoNotSupportedDismissed = true },
         )
     }
@@ -1445,12 +1450,13 @@ private fun PermissionRationaleDialog(
 
 /**
  * Dialog shown when Gemini Nano is not supported on the current device.
- * Offers to switch to OpenAI or Anthropic, or dismiss and stay on (disabled) On-Device.
+ * Offers to switch to OpenAI, Anthropic, or Gemini, or dismiss and stay on (disabled) On-Device.
  */
 @Composable
 private fun NanoNotSupportedDialog(
     onSwitchToOpenAi: () -> Unit,
     onSwitchToAnthropic: () -> Unit,
+    onSwitchToGemini: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -1466,6 +1472,9 @@ private fun NanoNotSupportedDialog(
             Column(horizontalAlignment = Alignment.End) {
                 TextButton(onClick = onSwitchToAnthropic) {
                     Text(stringResource(R.string.settings_ai_nano_not_supported_use_anthropic))
+                }
+                TextButton(onClick = onSwitchToGemini) {
+                    Text(stringResource(R.string.settings_ai_nano_not_supported_use_gemini))
                 }
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.settings_ai_nano_not_supported_dismiss))

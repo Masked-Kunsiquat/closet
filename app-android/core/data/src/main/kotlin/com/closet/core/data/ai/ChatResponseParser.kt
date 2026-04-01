@@ -37,20 +37,29 @@ object ChatResponseParser {
             "items" -> {
                 val idsElement = obj["item_ids"]
                     ?: throw IllegalArgumentException("'item_ids' missing in chat response (type='items')")
-                val ids = idsElement.jsonArray.mapNotNull { it.jsonPrimitive.longOrNull }
+                val ids = idsElement.jsonArray.map {
+                    it.jsonPrimitive.longOrNull
+                        ?: throw IllegalArgumentException("Non-long entry in 'item_ids' for type='items': $it")
+                }
                 if (ids.isEmpty()) throw IllegalArgumentException(
-                    "'item_ids' resolved to empty list in chat response (type='items', raw=$idsElement)"
+                    "'item_ids' is empty in chat response (type='items')"
                 )
                 ChatResponse.WithItems(text, ids)
             }
             "outfit" -> {
                 val idsElement = obj["item_ids"]
                     ?: throw IllegalArgumentException("'item_ids' missing in chat response (type='outfit')")
-                val ids = idsElement.jsonArray.mapNotNull { it.jsonPrimitive.longOrNull }
-                if (ids.isEmpty()) throw IllegalArgumentException(
-                    "'item_ids' resolved to empty list in chat response (type='outfit', raw=$idsElement)"
+                val ids = idsElement.jsonArray.map {
+                    it.jsonPrimitive.longOrNull
+                        ?: throw IllegalArgumentException("Non-long entry in 'item_ids' for type='outfit': $it")
+                }
+                if (ids.size !in 2..4) throw IllegalArgumentException(
+                    "outfit 'item_ids' must have 2–4 items, got ${ids.size}"
                 )
-                val reason = obj["reason"]?.jsonPrimitive?.content.orEmpty()
+                val reason = obj["reason"]?.jsonPrimitive?.content
+                if (reason.isNullOrBlank()) throw IllegalArgumentException(
+                    "'reason' is missing or blank in outfit response"
+                )
                 ChatResponse.WithOutfit(text, ids, reason)
             }
             else -> ChatResponse.Text(text)   // "text" + unknown types
