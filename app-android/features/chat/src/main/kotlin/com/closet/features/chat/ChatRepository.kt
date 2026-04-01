@@ -6,6 +6,7 @@ import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.features.chat.ai.ChatAiProviderSelector
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,17 +22,22 @@ class ChatRepository @Inject constructor(
     private val providerSelector: ChatAiProviderSelector,
 ) {
     suspend fun query(userMessage: String): Result<ChatResponse> {
-        val queryVec = encoder.encode(userMessage).getOrElse { return Result.failure(it) }
-        val itemIds = index.search(queryVec, topK = 5)
-        val items = if (itemIds.isEmpty()) {
-            emptyList()
-        } else {
-            val detailMap = clothingDao.getItemDetailsByIds(itemIds).associateBy { it.item.id }
-            itemIds.mapNotNull { detailMap[it] }   // restore cosine-similarity rank
+        return try {
+            val queryVec = encoder.encode(userMessage).getOrElse { return Result.failure(it) }
+            val itemIds = index.search(queryVec, topK = 5)
+            val items = if (itemIds.isEmpty()) {
+                emptyList()
+            } else {
+                val detailMap = clothingDao.getItemDetailsByIds(itemIds).associateBy { it.item.id }
+                itemIds.mapNotNull { detailMap[it] }   // restore cosine-similarity rank
+            }
+            val context = buildContextBlock(items)
+            val provider = providerSelector.current().getOrElse { return Result.failure(it) }
+            provider.chat(userMessage, context)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Result.failure(e)
         }
-        val context = buildContextBlock(items)
-        val provider = providerSelector.current().getOrElse { return Result.failure(it) }
-        return provider.chat(userMessage, context)
     }
 
     private fun buildContextBlock(items: List<ClothingItemDetail>): String {
@@ -49,16 +55,16 @@ class ChatRepository @Inject constructor(
                         append(sub.name)
                     }
                 }
-                if (category.isNotEmpty()) append(" — $category")
-                val colors = detail.colors.joinToString(", ") { it.name }
-                if (colors.isNotEmpty()) append(". Colors: $colors")
-                val occasions = detail.occasions.joinToString(", ") { it.name }
-                if (occasions.isNotEmpty()) append(". Occasions: $occasions")
-                val wearText = if (detail.wearCount == 1) "1 time" else "${detail.wearCount} times"
-                append(". Worn $wearText.")
-                item.imageCaption?.takeIf { it.isNotBlank() }?.let { append(" Photo: ${it.trim()}.") }
+                if (category.isNotEmpty()) append(" ($category)")
+                if (detail.colors.isNotEmpty()) {
+                    append(", Colors: ${detail.colors.joinToString { it.name }}")
+                }
+                if (detail.materials.isNotEmpty()) {
+                    append(", Materials: ${detail.materials.joinToString { it.name }}")
+                }
+                item.semanticDescription?.let { append(". Description: $it") }
                 appendLine()
             }
-        }.trim()
+        }
     }
 }
