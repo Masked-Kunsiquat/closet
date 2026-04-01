@@ -259,4 +259,9 @@ interface ClothingDao {
     /** Writes the ML Kit image caption for a single item. */
     @Query("UPDATE clothing_items SET image_caption = :caption, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateImageCaption(id: Long, caption: String, updatedAt: java.time.Instant)
+
+    /** Fetches fully-loaded [ClothingItemDetail] for a specific set of IDs (one-shot, for RAG context building). */
+    @Transaction
+    @Query("SELECT ci.*, $WEAR_COUNT_SUBQUERY FROM clothing_items ci WHERE ci.id IN (:ids)")
+    suspend fun getItemDetailsByIds(ids: List<Long>): List<ClothingItemDetail>
 }
