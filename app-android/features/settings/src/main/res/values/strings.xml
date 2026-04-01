@@ -91,6 +91,29 @@
     <string name="settings_ai_gemini_model">Model</string>
     <string name="settings_ai_gemini_model_placeholder">Leave blank for gemini-2.0-flash-lite default</string>
 
+    <!-- AI & Image Tools nav row (main settings screen) -->
+    <string name="settings_section_ai_tools">AI &amp; Image Tools</string>
+    <string name="settings_ai_tools_summary">AI scoring, image tools, search index</string>
+    <string name="settings_ai_tools_navigate">Open AI &amp; Image Tools settings</string>
+
+    <!-- AI settings sub-screen -->
+    <string name="settings_ai_screen_title">AI &amp; Image Tools</string>
+    <string name="settings_ai_subsection_assistant">Assistant</string>
+    <string name="settings_ai_subsection_provider">Provider</string>
+    <string name="settings_ai_subsection_index">Wardrobe Index</string>
+    <string name="settings_ai_subsection_enrichment">Image Enrichment</string>
+
+    <!-- Wardrobe Index items -->
+    <string name="settings_ai_index_title">Wardrobe search index</string>
+    <string name="settings_ai_index_empty">Not yet indexed — tap Rebuild to start</string>
+    <string name="settings_ai_index_rebuild">Rebuild</string>
+    <string name="settings_ai_index_building">Building search index\u2026</string>
+    <string name="settings_ai_index_progress">%1$d of %2$d items</string>
+    <plurals name="settings_ai_index_size">
+        <item quantity="one">%d item indexed</item>
+        <item quantity="other">%d items indexed</item>
+    </plurals>
+
     <!-- Wardrobe section -->
     <string name="settings_section_wardrobe">Wardrobe</string>
     <string name="settings_wardrobe_laundry_day">Laundry Day</string>

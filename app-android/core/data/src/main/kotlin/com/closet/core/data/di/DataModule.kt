@@ -3,7 +3,9 @@ package com.closet.core.data.di
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.closet.core.data.BuildConfig
@@ -123,6 +125,14 @@ object DataModule {
 
             override fun cancel() {
                 workManager.cancelUniqueWork(EmbeddingWork.NAME)
+            }
+
+            override fun runNow() {
+                workManager.enqueueUniqueWork(
+                    EmbeddingWork.IMMEDIATE_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    OneTimeWorkRequestBuilder<EmbeddingWorker>().build(),
+                )
             }
         }
 

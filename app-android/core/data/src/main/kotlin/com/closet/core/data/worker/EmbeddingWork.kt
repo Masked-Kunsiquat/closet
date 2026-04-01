@@ -9,6 +9,12 @@ object EmbeddingWork {
     const val NAME = "embedding_worker"
 
     /**
+     * Unique work name for user-triggered one-time embedding runs (no charging/idle constraints).
+     * Separate from [NAME] so it doesn't cancel the periodic schedule.
+     */
+    const val IMMEDIATE_NAME = "embedding_worker_immediate"
+
+    /**
      * Identifies the model that produced an embedding.
      * Changing this value causes [EmbeddingWorker] to re-embed all items on the next run.
      */
@@ -40,4 +46,11 @@ interface EmbeddingScheduler {
 
     /** Cancels any pending or running embedding work. */
     fun cancel()
+
+    /**
+     * Enqueues a one-time embedding run immediately, without charging/idle constraints.
+     * Uses [EmbeddingWork.IMMEDIATE_NAME] so it doesn't interfere with the periodic schedule.
+     * Safe to call while the periodic work is scheduled — they run independently.
+     */
+    fun runNow()
 }

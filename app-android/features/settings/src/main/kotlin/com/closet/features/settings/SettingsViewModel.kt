@@ -11,6 +11,9 @@ import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.EmbeddingIndex
+import com.closet.core.data.worker.EmbeddingScheduler
+import com.closet.core.data.worker.EmbeddingWork
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
@@ -67,6 +70,8 @@ class SettingsViewModel @Inject constructor(
     private val batchSegmentationScheduler: BatchSegmentationScheduler,
     private val captionEnrichmentProvider: CaptionEnrichmentProvider,
     private val storageRepository: StorageRepository,
+    private val embeddingScheduler: EmbeddingScheduler,
+    private val embeddingIndex: EmbeddingIndex,
 ) : ViewModel() {
 
     // ── Appearance ────────────────────────────────────────────────────────────
@@ -400,6 +405,14 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
         }
+        // Refresh in-memory index size when a user-triggered rebuild completes.
+        viewModelScope.launch {
+            embeddingWorkInfo.collect { info ->
+                if (info?.state == WorkInfo.State.SUCCEEDED || info?.state == WorkInfo.State.FAILED) {
+                    _embeddingIndexSize.value = embeddingIndex.size
+                }
+            }
+        }
     }
 
     // ── Batch segmentation ────────────────────────────────────────────────────
@@ -520,6 +533,29 @@ class SettingsViewModel @Inject constructor(
             _captionResult.value = BatchCaptionProgress(done, total, failed)
             batchEnrichmentJob = null
         }
+    }
+
+    // ── Embedding index ───────────────────────────────────────────────────────
+
+    /**
+     * Live [WorkInfo] for user-triggered one-time embedding runs.
+     * `null` until the user taps "Rebuild" for the first time in this install.
+     */
+    val embeddingWorkInfo: StateFlow<WorkInfo?> =
+        workManager.getWorkInfosForUniqueWorkFlow(EmbeddingWork.IMMEDIATE_NAME)
+            .map { it.firstOrNull() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Number of items currently in the in-memory search index.
+     * Snapshotted at VM creation and refreshed when a rebuild run succeeds.
+     */
+    private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
+    val embeddingIndexSize: StateFlow<Int> = _embeddingIndexSize.asStateFlow()
+
+    /** Triggers an immediate one-time embedding run (no charging/idle constraints). */
+    fun triggerEmbeddingRebuild() {
+        embeddingScheduler.runNow()
     }
 
     private companion object {
