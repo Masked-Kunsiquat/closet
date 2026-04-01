@@ -581,7 +581,7 @@ original roadmap sketch above.
 
 ---
 
-### §4.5 — `features/chat` module (~half day)
+### §4.5 — `features/chat` module ✓ DONE
 
 New Gradle module. Depends on `core/data` and `core/ui`. No flavor split needed at the
 module level — `NanoChatProvider` handles its own `full`/`foss` source set split
@@ -606,7 +606,7 @@ UI preview skeleton already lives at:
 
 ---
 
-### §4.6 — Chat UI design
+### §4.6 — Chat UI design ✓ DONE
 
 Three message content types, surfaced as inline attachments rather than navigation:
 

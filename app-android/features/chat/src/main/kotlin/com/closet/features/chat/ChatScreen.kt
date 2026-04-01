@@ -22,8 +22,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -430,36 +433,32 @@ private fun OutfitMiniCard(
     Card(
         modifier = Modifier.fillMaxWidth(0.92f),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            val rows = items.take(4).chunked(2)
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                rows.forEach { rowItems ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        rowItems.forEach { item ->
-                            OutfitImageCell(
-                                item = item,
-                                onTap = { onItemTapped(item.id) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        if (rowItems.size < 2) Spacer(modifier = Modifier.weight(1f))
-                    }
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutfitImageGrid(
+                items = items.take(4),
+                onItemTapped = onItemTapped,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            // Stacked item names — same pattern as OutfitComboCard
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                items.forEach { item ->
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                text = items.joinToString(" · ") { it.name },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            Spacer(Modifier.height(4.dp))
+            // AI reason with AutoAwesome prefix
             Row(
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -477,10 +476,7 @@ private fun OutfitMiniCard(
                 )
             }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 10.dp),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -510,6 +506,38 @@ private fun OutfitMiniCard(
     }
 }
 
+/**
+ * 2-column grid of item images — mirrors [OutfitComboCard]'s [ItemImageGrid] with
+ * [BoxWithConstraints] so cells are properly sized squares at any card width.
+ */
+@Composable
+private fun OutfitImageGrid(
+    items: List<ChatItemSummary>,
+    onItemTapped: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val cellSpacing = 8.dp
+    val rowCount = (items.size + 1) / 2
+
+    BoxWithConstraints(modifier = modifier) {
+        val cellSize = (maxWidth - cellSpacing) / 2
+        val gridHeight = cellSize * rowCount + cellSpacing * (rowCount - 1).coerceAtLeast(0)
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.height(gridHeight),
+            contentPadding = PaddingValues(0.dp),
+            horizontalArrangement = Arrangement.spacedBy(cellSpacing),
+            verticalArrangement = Arrangement.spacedBy(cellSpacing),
+            userScrollEnabled = false,
+        ) {
+            items(items) { item ->
+                OutfitImageCell(item = item, onTap = { onItemTapped(item.id) })
+            }
+        }
+    }
+}
+
 @Composable
 private fun OutfitImageCell(
     item: ChatItemSummary,
@@ -519,8 +547,8 @@ private fun OutfitImageCell(
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(6.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onTap),
         contentAlignment = Alignment.Center,
     ) {
@@ -535,8 +563,8 @@ private fun OutfitImageCell(
             Icon(
                 imageVector = Icons.Default.Checkroom,
                 contentDescription = item.name,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             )
         }
     }
