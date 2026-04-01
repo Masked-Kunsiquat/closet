@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,18 +30,16 @@ class ChatViewModel @Inject constructor(
     private val embeddingIndex: EmbeddingIndex,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ChatUiState())
-    val uiState: StateFlow<ChatUiState> = _uiState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ChatUiState())
-
-    init {
-        _uiState.update { it.copy(isIndexReady = embeddingIndex.size > 0) }
-        viewModelScope.launch {
-            providerSelector.providerLabel().collect { label ->
-                _uiState.update { it.copy(providerLabel = label) }
-            }
-        }
-    }
+    private val _uiState = MutableStateFlow(ChatUiState(isIndexReady = embeddingIndex.size > 0))
+    val uiState: StateFlow<ChatUiState> = combine(
+        _uiState,
+        providerSelector.providerLabel(),
+    ) { state, label -> state.copy(providerLabel = label) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            ChatUiState(isIndexReady = embeddingIndex.size > 0),
+        )
 
     fun onInputChanged(text: String) {
         _uiState.update { it.copy(inputText = text) }

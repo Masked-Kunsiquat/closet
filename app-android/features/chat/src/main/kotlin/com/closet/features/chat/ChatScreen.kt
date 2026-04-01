@@ -56,6 +56,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -64,15 +66,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.ui.theme.ClosetTheme
+import com.closet.features.chat.R
 import com.closet.features.chat.model.ChatItemSummary
 import com.closet.features.chat.model.ChatMessage
-
-private val welcomeSuggestions = listOf(
-    "What should I wear tonight?",
-    "What haven't I worn lately?",
-    "What goes with my grey blazer?",
-    "Show me a work outfit",
-)
 
 // ─── Entry point ───────────────────────────────────────────────────────────────
 
@@ -112,10 +108,13 @@ private fun ChatContent(
     onNavigateToLog: ((List<Long>) -> Unit)?,
 ) {
     val listState = rememberLazyListState()
-    val messageCount = uiState.messages.size
+    val lastMessage = uiState.messages.lastOrNull()
 
-    LaunchedEffect(messageCount) {
-        if (messageCount > 0) listState.animateScrollToItem(messageCount - 1)
+    // Key on the last message object, not just count, so the scroll also fires
+    // when the Thinking placeholder is replaced by the real response.
+    LaunchedEffect(lastMessage) {
+        val lastIndex = uiState.messages.size - 1
+        if (lastIndex >= 0) listState.animateScrollToItem(lastIndex)
     }
 
     Scaffold(
@@ -124,7 +123,7 @@ private fun ChatContent(
                 title = {
                     Column {
                         Text(
-                            text = "Wardrobe Assistant",
+                            text = stringResource(R.string.chat_title),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Row(
@@ -138,7 +137,7 @@ private fun ChatContent(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                text = "Powered by ${uiState.providerLabel}",
+                                text = stringResource(R.string.chat_powered_by, uiState.providerLabel),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -208,18 +207,17 @@ private fun WelcomeContent(
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Ask me anything about\nyour wardrobe",
+            text = stringResource(R.string.chat_welcome_title),
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = if (isIndexReady) {
-                "I know what you own, what you've worn,\nand what works together."
-            } else {
-                "Your wardrobe index is still being built.\nResults may be limited until it's ready."
-            },
+            text = stringResource(
+                if (isIndexReady) R.string.chat_welcome_subtitle_ready
+                else R.string.chat_welcome_subtitle_not_ready
+            ),
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             color = if (isIndexReady) {
@@ -229,11 +227,12 @@ private fun WelcomeContent(
             },
         )
         Spacer(Modifier.height(24.dp))
+        val suggestions = stringArrayResource(R.array.chat_welcome_suggestions)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            welcomeSuggestions.forEach { suggestion ->
+            suggestions.forEach { suggestion ->
                 AssistChip(
                     onClick = { onSuggestionSelected(suggestion) },
                     label = { Text(suggestion, style = MaterialTheme.typography.bodySmall) },
@@ -263,7 +262,7 @@ private fun IndexNotReadyBanner() {
             tint = MaterialTheme.colorScheme.onTertiaryContainer,
         )
         Text(
-            text = "Wardrobe index still building — results may be limited",
+            text = stringResource(R.string.chat_index_building_notice),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onTertiaryContainer,
         )
@@ -293,7 +292,7 @@ private fun MessageList(
                 IndexNotReadyBanner()
             }
         }
-        itemsIndexed(messages) { index, msg ->
+        itemsIndexed(messages) { _, msg ->
             when (msg) {
                 is ChatMessage.User -> UserBubble(msg.text)
                 is ChatMessage.Assistant.Text -> AssistantBubble(msg.text)
@@ -534,14 +533,14 @@ private fun OutfitMiniCard(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         modifier = Modifier.height(32.dp),
                     ) {
-                        Text(text = "Log it", style = MaterialTheme.typography.labelMedium)
+                        Text(text = stringResource(R.string.chat_action_log_it), style = MaterialTheme.typography.labelMedium)
                     }
                 } else {
                     Spacer(Modifier.width(1.dp))
                 }
                 TextButton(onClick = onAlternatives) {
                     Text(
-                        text = "Alternatives →",
+                        text = stringResource(R.string.chat_action_alternatives),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -705,7 +704,7 @@ private fun ChatInputBar(
                 onValueChange = onInputChanged,
                 placeholder = {
                     Text(
-                        text = "Ask about your wardrobe…",
+                        text = stringResource(R.string.chat_input_placeholder),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 },
@@ -720,7 +719,7 @@ private fun ChatInputBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = "Send",
+                    contentDescription = stringResource(R.string.chat_send_button_description),
                     modifier = Modifier.size(20.dp),
                 )
             }

@@ -43,9 +43,10 @@ class ChatRepository @Inject constructor(
                 val name = detail.brand?.let { "${it.name} ${item.name}" } ?: item.name
                 append("${idx + 1}. [ID:${item.id}] $name")
                 val category = buildString {
-                    detail.category?.let { cat ->
-                        append(cat.name)
-                        detail.subcategory?.let { sub -> append(" > ${sub.name}") }
+                    detail.category?.let { cat -> append(cat.name) }
+                    detail.subcategory?.let { sub ->
+                        if (isNotEmpty()) append(" > ")
+                        append(sub.name)
                     }
                 }
                 if (category.isNotEmpty()) append(" — $category")
