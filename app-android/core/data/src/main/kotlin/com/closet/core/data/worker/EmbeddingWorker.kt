@@ -8,6 +8,7 @@ import androidx.work.workDataOf
 import com.closet.core.data.dao.EmbeddingDao
 import com.closet.core.data.model.ItemEmbeddingEntity
 import com.closet.core.data.util.EmbeddingEncoder
+import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingWork.KEY_DONE
 import com.closet.core.data.worker.EmbeddingWork.KEY_FAILED
 import com.closet.core.data.worker.EmbeddingWork.KEY_TOTAL
@@ -45,6 +46,7 @@ class EmbeddingWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val embeddingDao: EmbeddingDao,
     private val encoder: EmbeddingEncoder,
+    private val embeddingIndex: EmbeddingIndex,
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -52,18 +54,19 @@ class EmbeddingWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        // ── 1. Guard: encoder must be available (model + vocab assets present) ─
-        if (!encoder.isAvailable) {
-            Timber.e("EmbeddingWorker: encoder not available — model or vocab asset missing")
-            return@withContext Result.failure(workDataOf("error" to "encoder_not_available"))
-        }
-
-        // ── 2. Determine work queue ──────────────────────────────────────────
+        // ── 1. Determine work queue — check before touching the encoder so
+        //       periodic no-op runs never trigger lazy ONNX model loading.
         val itemIds = embeddingDao.getItemIdsNeedingEmbedding(MODEL_VERSION)
         val total   = itemIds.size
         if (total == 0) {
             Timber.d("EmbeddingWorker: nothing to embed")
             return@withContext Result.success(workDataOf(KEY_DONE to 0, KEY_TOTAL to 0, KEY_FAILED to 0))
+        }
+
+        // ── 2. Guard: encoder must be available (model + vocab assets present) ─
+        if (!encoder.isAvailable) {
+            Timber.e("EmbeddingWorker: encoder not available — model or vocab asset missing")
+            return@withContext Result.failure(workDataOf("error" to "encoder_not_available"))
         }
 
         val items = embeddingDao.getTextsForEmbedding(itemIds)
@@ -102,6 +105,13 @@ class EmbeddingWorker @AssistedInject constructor(
         }
 
         Timber.d("EmbeddingWorker: done=%d failed=%d total=%d", done, failed, total)
+
+        // ── 4. Refresh in-memory index so new vectors are immediately searchable ─
+        if (done > 0) {
+            runCatching { embeddingIndex.reload() }
+                .onFailure { Timber.e(it, "EmbeddingWorker: index reload failed after embedding run") }
+        }
+
         Result.success(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
     }
 

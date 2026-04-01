@@ -2,6 +2,7 @@ package com.closet.core.data.util
 
 import com.closet.core.data.dao.EmbeddingDao
 import com.closet.core.data.model.ItemEmbeddingEntity
+import com.closet.core.data.worker.EmbeddingWork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -38,11 +39,18 @@ class EmbeddingIndex @Inject constructor(
 
     @Volatile private var index: List<Pair<Long, FloatArray>> = emptyList()
 
+    /**
+     * Set to `true` after the first successful [load] call, even if the DB returned
+     * zero rows. Distinct from [index.isNotEmpty()] so callers can tell "never loaded"
+     * from "loaded but wardrobe has no embeddings yet".
+     */
+    @Volatile private var loaded = false
+
     /** Number of items currently in the index. Useful for logging and empty-state guards. */
     val size: Int get() = index.size
 
     /** `true` once [load] has completed at least one successful DB read. */
-    val isLoaded: Boolean get() = index.isNotEmpty()
+    val isLoaded: Boolean get() = loaded
 
     /**
      * Loads all stored embeddings from the database into memory.
@@ -58,8 +66,31 @@ class EmbeddingIndex @Inject constructor(
      */
     suspend fun load() = withContext(Dispatchers.IO) {
         val rows = embeddingDao.getAll()
-        index = rows.map { entity -> entity.itemId to entity.toFloatArray() }
-        Timber.d("EmbeddingIndex: loaded %d vectors", index.size)
+        val newIndex = mutableListOf<Pair<Long, FloatArray>>()
+        var skipped = 0
+        for (entity in rows) {
+            // Skip vectors produced by a different model version — their geometry
+            // is incompatible with the current encoder's output space.
+            if (entity.modelVersion != EmbeddingWork.MODEL_VERSION) {
+                skipped++
+                continue
+            }
+            val vec = entity.toFloatArray()
+            // Guard against truncated or corrupted BLOBs that would cause
+            // ArrayIndexOutOfBoundsException inside dot().
+            if (vec.size != EmbeddingEncoder.HIDDEN_SIZE) {
+                Timber.w(
+                    "EmbeddingIndex: skipping item %d — vector size %d != %d",
+                    entity.itemId, vec.size, EmbeddingEncoder.HIDDEN_SIZE,
+                )
+                skipped++
+                continue
+            }
+            newIndex.add(entity.itemId to vec)
+        }
+        index = newIndex
+        loaded = true
+        Timber.d("EmbeddingIndex: loaded %d vectors, skipped %d stale/malformed", newIndex.size, skipped)
     }
 
     /**

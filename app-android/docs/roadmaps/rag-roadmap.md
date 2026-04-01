@@ -402,8 +402,11 @@ logic into a shared singleton:
 ```kotlin
 @Singleton
 class EmbeddingEncoder @Inject constructor(@ApplicationContext val context: Context) {
+    /** `true` if both the ONNX model and vocabulary loaded successfully. */
+    val isAvailable: Boolean
+
     /** Encodes [text] using the same ONNX model as EmbeddingWorker. < 50 ms on flagship. */
-    suspend fun encode(text: String): FloatArray
+    suspend fun encode(text: String): Result<FloatArray>
 }
 ```
 
@@ -564,8 +567,8 @@ class ChatRepository @Inject constructor(
 
 Pipeline inside `query()`:
 
-```
-1. encoder.encode(userMessage)                    → queryVec: FloatArray
+```text
+1. encoder.encode(userMessage)                    → Result<FloatArray> (queryVec)
 2. index.search(queryVec, topK = 5)               → List<Long> (item IDs)
 3. clothingDao.getItemDetails(ids)                → List<ClothingItemDetail>
 4. buildContextBlock(details)                     → String (formatted prose)
@@ -584,7 +587,7 @@ New Gradle module. Depends on `core/data` and `core/ui`. No flavor split needed 
 module level — `NanoChatProvider` handles its own `full`/`foss` source set split
 (same pattern as `NanoProvider` in `features/recommendations`).
 
-```
+```text
 features/chat/
   src/
     main/kotlin/com/closet/features/chat/
