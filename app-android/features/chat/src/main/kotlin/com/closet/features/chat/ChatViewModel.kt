@@ -72,7 +72,7 @@ class ChatViewModel @Inject constructor(
                 onFailure = { error ->
                     if (error is CancellationException) throw error
                     Timber.w(error, "ChatViewModel: query failed")
-                    val errorText = error.message ?: "Something went wrong"
+                    val errorText = "Something went wrong. Please try again."
                     _uiState.update { state ->
                         state.copy(
                             messages = state.messages.dropLast(1) +
