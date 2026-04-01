@@ -76,8 +76,9 @@ class OpenAiChatProvider @Inject constructor(
             ChatResponseParser.parse(content)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Timber.tag(TAG).w(e, "OpenAiChatProvider inference failed (model=%s)", model)
-            Result.failure(e)
+            val redacted = IllegalStateException("OpenAiChatProvider inference failed (model=$model)", e)
+            Timber.tag(TAG).w(redacted, "inference failed")
+            Result.failure(redacted)
         }
     }
 
