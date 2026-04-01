@@ -18,6 +18,7 @@ private const val TAG = "EncryptedKeyStore"
 private const val PREFS_FILE = "ai_keys_encrypted"
 private const val KEY_OPENAI = "openai_api_key"
 private const val KEY_ANTHROPIC = "anthropic_api_key"
+private const val KEY_GEMINI = "gemini_api_key"
 
 /**
  * Secure storage for AI provider API keys, backed by [EncryptedSharedPreferences].
@@ -50,12 +51,16 @@ class EncryptedKeyStore @Inject constructor(
 
     private val _openAiKey = MutableStateFlow(prefs.getString(KEY_OPENAI, "") ?: "")
     private val _anthropicKey = MutableStateFlow(prefs.getString(KEY_ANTHROPIC, "") ?: "")
+    private val _geminiKey = MutableStateFlow(prefs.getString(KEY_GEMINI, "") ?: "")
 
     /** A [Flow] of the stored OpenAI-compatible API key. Emits immediately on collection. */
     fun openAiKeyFlow(): Flow<String> = _openAiKey.asStateFlow()
 
     /** A [Flow] of the stored Anthropic API key. Emits immediately on collection. */
     fun anthropicKeyFlow(): Flow<String> = _anthropicKey.asStateFlow()
+
+    /** A [Flow] of the stored Gemini API key. Emits immediately on collection. */
+    fun geminiKeyFlow(): Flow<String> = _geminiKey.asStateFlow()
 
     /**
      * Persists [key] for the OpenAI-compatible provider and updates the in-memory flow.
@@ -84,6 +89,20 @@ class EncryptedKeyStore @Inject constructor(
             _anthropicKey.value = key
         } else {
             Timber.tag(TAG).e("setAnthropicKey: commit() returned false — key not persisted")
+        }
+        committed
+    }
+
+    /**
+     * Persists [key] for the Gemini provider and updates the in-memory flow.
+     * Returns `true` when committed; `false` on write failure.
+     */
+    suspend fun setGeminiKey(key: String): Boolean = withContext(Dispatchers.IO) {
+        val committed = prefs.edit().putString(KEY_GEMINI, key).commit()
+        if (committed) {
+            _geminiKey.value = key
+        } else {
+            Timber.tag(TAG).e("setGeminiKey: commit() returned false — key not persisted")
         }
         committed
     }

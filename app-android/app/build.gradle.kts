@@ -77,6 +77,7 @@ dependencies {
     implementation(project(":features:stats"))
     implementation(project(":features:settings"))
     implementation(project(":features:recommendations"))
+    implementation(project(":features:chat"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
