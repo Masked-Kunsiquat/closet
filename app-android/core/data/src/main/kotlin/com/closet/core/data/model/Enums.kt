@@ -123,17 +123,19 @@ enum class StyleVibe(val label: String) {
 }
 
 /**
- * AI inference provider for outfit coherence scoring (Phase 2).
+ * AI inference provider for outfit coherence scoring (Phase 2) and RAG chat (Phase 4).
  * Stored as the enum [name] string in DataStore.
  *
  * - [Nano]     — on-device MLKit GenAI Prompt API; no API key, default/F-Droid option.
  * - [OpenAi]   — OpenAI-compatible HTTP endpoint; covers OpenAI, Gemini cloud, Ollama, Groq.
  * - [Anthropic] — Claude via Anthropic API; different endpoint structure (x-api-key header).
+ * - [Gemini]   — Google Gemini via native generateContent API; chat-only in the current release.
  */
 enum class AiProvider(val label: String) {
     Nano("On-device (Nano)"),
     OpenAi("OpenAI-compatible"),
-    Anthropic("Anthropic (Claude)");
+    Anthropic("Anthropic (Claude)"),
+    Gemini("Google Gemini");
 
     companion object {
         fun fromString(value: String): AiProvider =

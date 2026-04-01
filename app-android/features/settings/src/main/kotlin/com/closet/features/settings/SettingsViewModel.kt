@@ -200,6 +200,16 @@ class SettingsViewModel @Inject constructor(
     val anthropicModel: StateFlow<String> = aiPrefsRepo.getAnthropicModel()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
+    // ── Gemini fields ─────────────────────────────────────────────────────────
+
+    /** API key for the Gemini provider. Stored encrypted via [EncryptedKeyStore]. */
+    val geminiKey: StateFlow<String> = aiPrefsRepo.getGeminiApiKey()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    /** Model identifier for the Gemini provider. Defaults to gemini-2.0-flash-lite. */
+    val geminiModel: StateFlow<String> = aiPrefsRepo.getGeminiModel()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "gemini-2.0-flash-lite")
+
     // ── Model discovery ───────────────────────────────────────────────────────
 
     private val _openAiModels = MutableStateFlow<List<String>>(emptyList())
@@ -296,6 +306,14 @@ class SettingsViewModel @Inject constructor(
 
     fun onAnthropicModelChanged(model: String) {
         viewModelScope.launch { aiPrefsRepo.setAnthropicModel(model) }
+    }
+
+    fun onGeminiKeyChanged(key: String) {
+        viewModelScope.launch { aiPrefsRepo.setGeminiApiKey(key) }
+    }
+
+    fun onGeminiModelChanged(model: String) {
+        viewModelScope.launch { aiPrefsRepo.setGeminiModel(model) }
     }
 
     // ── Nano init sequence ────────────────────────────────────────────────────

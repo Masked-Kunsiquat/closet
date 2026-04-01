@@ -120,6 +120,11 @@ class OutfitCoherenceScorer @Inject constructor(
                 }
                 anthropicProvider
             }
+            AiProvider.Gemini -> {
+                // No outfit-scoring Gemini provider — Gemini is chat-only in the current release.
+                Timber.tag(TAG).d("Gemini selected but has no outfit-scoring provider — falling back to programmatic result")
+                return null
+            }
         }
 
         // 3. Cap the combo pool at MAX_COMBOS; providers require at least 3 combos to select from.

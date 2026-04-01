@@ -453,7 +453,7 @@ Invalidate + reload after `EmbeddingWorker` completes a run.
 
 ---
 
-### §4.3 — Multi-provider `ChatAiProvider` (~1-2 days)
+### §4.3 — Multi-provider `ChatAiProvider` ✓ DONE
 
 The chat feature is **multi-modal from day one**: Gemini Nano (on-device), Claude,
 OpenAI-compatible, and Google Gemini (cloud). This mirrors the existing

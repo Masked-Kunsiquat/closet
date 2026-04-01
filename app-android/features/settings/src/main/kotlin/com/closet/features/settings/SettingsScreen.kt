@@ -129,6 +129,8 @@ fun SettingsScreen(
     val styleVibe by viewModel.styleVibe.collectAsStateWithLifecycle()
     val anthropicKey by viewModel.anthropicKey.collectAsStateWithLifecycle()
     val anthropicModel by viewModel.anthropicModel.collectAsStateWithLifecycle()
+    val geminiKey by viewModel.geminiKey.collectAsStateWithLifecycle()
+    val geminiModel by viewModel.geminiModel.collectAsStateWithLifecycle()
     val openAiModels by viewModel.openAiModels.collectAsStateWithLifecycle()
     val openAiModelsLoading by viewModel.openAiModelsLoading.collectAsStateWithLifecycle()
     val anthropicModels by viewModel.anthropicModels.collectAsStateWithLifecycle()
@@ -245,6 +247,11 @@ fun SettingsScreen(
                 viewModel.onAiProviderSelected(AiProvider.Anthropic)
                 viewModel.onAiToggled(true)
             },
+            onSwitchToGemini = {
+                nanoNotSupportedDismissed = true
+                viewModel.onAiProviderSelected(AiProvider.Gemini)
+                viewModel.onAiToggled(true)
+            },
             onDismiss = { nanoNotSupportedDismissed = true },
         )
     }
@@ -293,6 +300,10 @@ fun SettingsScreen(
         anthropicModel = anthropicModel,
         onAnthropicKeyChanged = viewModel::onAnthropicKeyChanged,
         onAnthropicModelChanged = viewModel::onAnthropicModelChanged,
+        geminiKey = geminiKey,
+        geminiModel = geminiModel,
+        onGeminiKeyChanged = viewModel::onGeminiKeyChanged,
+        onGeminiModelChanged = viewModel::onGeminiModelChanged,
         openAiModels = openAiModels,
         openAiModelsLoading = openAiModelsLoading,
         anthropicModels = anthropicModels,
@@ -352,6 +363,10 @@ internal fun SettingsContent(
     anthropicModel: String,
     onAnthropicKeyChanged: (String) -> Unit,
     onAnthropicModelChanged: (String) -> Unit,
+    geminiKey: String,
+    geminiModel: String,
+    onGeminiKeyChanged: (String) -> Unit,
+    onGeminiModelChanged: (String) -> Unit,
     openAiModels: List<String>,
     openAiModelsLoading: Boolean,
     anthropicModels: List<String>,
@@ -496,6 +511,14 @@ internal fun SettingsContent(
                             modelsLoading = anthropicModelsLoading,
                             onApiKeyChanged = onAnthropicKeyChanged,
                             onModelChanged = onAnthropicModelChanged,
+                        )
+                    }
+                    AiProvider.Gemini -> item {
+                        GeminiFieldsItem(
+                            apiKey = geminiKey,
+                            model = geminiModel,
+                            onApiKeyChanged = onGeminiKeyChanged,
+                            onModelChanged = onGeminiModelChanged,
                         )
                     }
                 }
@@ -837,6 +860,7 @@ private fun AiProviderItem(
                                     AiProvider.Nano -> stringResource(R.string.settings_ai_provider_nano)
                                     AiProvider.OpenAi -> stringResource(R.string.settings_ai_provider_openai)
                                     AiProvider.Anthropic -> stringResource(R.string.settings_ai_provider_anthropic)
+                                    AiProvider.Gemini -> stringResource(R.string.settings_ai_provider_gemini)
                                 },
                             )
                         },
@@ -1147,6 +1171,61 @@ private fun AnthropicFieldsItem(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GeminiFieldsItem(
+    apiKey: String,
+    model: String,
+    onApiKeyChanged: (String) -> Unit,
+    onModelChanged: (String) -> Unit,
+) {
+    var keyVisible by remember { mutableStateOf(false) }
+
+    ListItem(
+        headlineContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = onApiKeyChanged,
+                    label = { Text(stringResource(R.string.settings_ai_gemini_key)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_gemini_key_placeholder)) },
+                    singleLine = true,
+                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Next,
+                    ),
+                    trailingIcon = {
+                        val cd = stringResource(
+                            if (keyVisible) R.string.settings_ai_gemini_hide_key
+                            else R.string.settings_ai_gemini_show_key,
+                        )
+                        IconButton(onClick = { keyVisible = !keyVisible }) {
+                            Icon(
+                                imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = cd,
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = onModelChanged,
+                    label = { Text(stringResource(R.string.settings_ai_gemini_model)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_gemini_model_placeholder)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+    )
+}
+
 /** URL preset chip strip shown below the base URL field. Tapping a chip fills in the URL. */
 @Composable
 private fun UrlPresetChips(
@@ -1371,12 +1450,13 @@ private fun PermissionRationaleDialog(
 
 /**
  * Dialog shown when Gemini Nano is not supported on the current device.
- * Offers to switch to OpenAI or Anthropic, or dismiss and stay on (disabled) On-Device.
+ * Offers to switch to OpenAI, Anthropic, or Gemini, or dismiss and stay on (disabled) On-Device.
  */
 @Composable
 private fun NanoNotSupportedDialog(
     onSwitchToOpenAi: () -> Unit,
     onSwitchToAnthropic: () -> Unit,
+    onSwitchToGemini: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -1392,6 +1472,9 @@ private fun NanoNotSupportedDialog(
             Column(horizontalAlignment = Alignment.End) {
                 TextButton(onClick = onSwitchToAnthropic) {
                     Text(stringResource(R.string.settings_ai_nano_not_supported_use_anthropic))
+                }
+                TextButton(onClick = onSwitchToGemini) {
+                    Text(stringResource(R.string.settings_ai_nano_not_supported_use_gemini))
                 }
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.settings_ai_nano_not_supported_dismiss))
@@ -1436,6 +1519,10 @@ private fun SettingsContentDefaultPreview() {
             anthropicModel = "",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = emptyList(),
@@ -1489,6 +1576,10 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             anthropicModel = "",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = emptyList(),
@@ -1542,6 +1633,10 @@ private fun SettingsContentWeatherGooglePreview() {
             anthropicModel = "",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = emptyList(),
@@ -1595,6 +1690,10 @@ private fun SettingsContentAiNanoCheckingPreview() {
             anthropicModel = "",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = emptyList(),
@@ -1648,6 +1747,10 @@ private fun SettingsContentAiNanoDownloadingPreview() {
             anthropicModel = "",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = emptyList(),
@@ -1701,6 +1804,10 @@ private fun SettingsContentAiNanoNotSupportedPreview() {
             anthropicModel = "",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = emptyList(),
@@ -1754,6 +1861,10 @@ private fun SettingsContentAiOpenAiPreview() {
             anthropicModel = "",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = emptyList(),
@@ -1809,6 +1920,10 @@ private fun SettingsContentAiAnthropicPreview() {
             anthropicModel = "claude-haiku-4-5-20251001",
             onAnthropicKeyChanged = {},
             onAnthropicModelChanged = {},
+            geminiKey = "",
+            geminiModel = "",
+            onGeminiKeyChanged = {},
+            onGeminiModelChanged = {},
             openAiModels = emptyList(),
             openAiModelsLoading = false,
             anthropicModels = listOf("claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"),

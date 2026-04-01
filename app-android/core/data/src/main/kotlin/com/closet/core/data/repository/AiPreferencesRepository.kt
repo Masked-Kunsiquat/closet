@@ -40,6 +40,7 @@ class AiPreferencesRepository(
     private val openAiBaseUrlKey = stringPreferencesKey("ai_openai_base_url")
     private val openAiModelKey = stringPreferencesKey("ai_openai_model")
     private val anthropicModelKey = stringPreferencesKey("ai_anthropic_model")
+    private val geminiModelKey = stringPreferencesKey("ai_gemini_model")
     private val nanoAiReadyKey = booleanPreferencesKey("ai_nano_ready")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
     private val styleVibeKey = stringPreferencesKey("ai_style_vibe")
@@ -94,6 +95,14 @@ class AiPreferencesRepository(
 
     suspend fun setAnthropicApiKey(key: String) = encryptedKeyStore.setAnthropicKey(key)
 
+    /**
+     * API key for the Gemini provider (Google Gemini native API).
+     * Stored encrypted via [EncryptedKeyStore]. Returns an empty string when not set.
+     */
+    fun getGeminiApiKey(): Flow<String> = encryptedKeyStore.geminiKeyFlow()
+
+    suspend fun setGeminiApiKey(key: String) = encryptedKeyStore.setGeminiKey(key)
+
     // ── OpenAI-compatible non-sensitive config ────────────────────────────────
 
     /**
@@ -137,6 +146,21 @@ class AiPreferencesRepository(
     suspend fun setAnthropicModel(model: String) {
         context.aiDataStore.edit { prefs ->
             prefs[anthropicModelKey] = model
+        }
+    }
+
+    // ── Gemini non-sensitive config ───────────────────────────────────────────
+
+    /**
+     * Model identifier for the Gemini provider. Defaults to `gemini-2.0-flash-lite` when not set.
+     */
+    fun getGeminiModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
+        prefs[geminiModelKey] ?: "gemini-2.0-flash-lite"
+    }
+
+    suspend fun setGeminiModel(model: String) {
+        context.aiDataStore.edit { prefs ->
+            prefs[geminiModelKey] = model
         }
     }
 
