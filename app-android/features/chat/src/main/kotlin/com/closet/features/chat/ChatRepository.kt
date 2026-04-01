@@ -40,12 +40,12 @@ class ChatRepository @Inject constructor(
             appendLine("Wardrobe context (${items.size} items):")
             items.forEachIndexed { idx, detail ->
                 val item = detail.item
-                val name = if (detail.brand != null) "${detail.brand.name} ${item.name}" else item.name
+                val name = detail.brand?.let { "${it.name} ${item.name}" } ?: item.name
                 append("${idx + 1}. [ID:${item.id}] $name")
                 val category = buildString {
-                    if (detail.category != null) {
-                        append(detail.category.name)
-                        if (detail.subcategory != null) append(" > ${detail.subcategory.name}")
+                    detail.category?.let { cat ->
+                        append(cat.name)
+                        detail.subcategory?.let { sub -> append(" > ${sub.name}") }
                     }
                 }
                 if (category.isNotEmpty()) append(" — $category")
@@ -55,7 +55,7 @@ class ChatRepository @Inject constructor(
                 if (occasions.isNotEmpty()) append(". Occasions: $occasions")
                 val wearText = if (detail.wearCount == 1) "1 time" else "${detail.wearCount} times"
                 append(". Worn $wearText.")
-                if (!item.imageCaption.isNullOrBlank()) append(" Photo: ${item.imageCaption.trim()}.")
+                item.imageCaption?.takeIf { it.isNotBlank() }?.let { append(" Photo: ${it.trim()}.") }
                 appendLine()
             }
         }.trim()

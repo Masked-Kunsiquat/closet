@@ -1,12 +1,14 @@
-package com.closet.features.recommendations.chat
+package com.closet.features.chat
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,15 +19,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,37 +46,22 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.closet.core.ui.theme.ClosetTheme
-
-// ─── Local preview-only data model ────────────────────────────────────────────
-
-private data class ChatItem(val name: String, val colorIndex: Int)
-
-private data class ChatOutfit(
-    val items: List<ChatItem>,
-    val reason: String,
-)
-
-private sealed interface ChatMsg {
-    data class User(val text: String) : ChatMsg
-    sealed interface Assistant : ChatMsg {
-        data class Plain(val text: String) : Assistant
-        data class WithItems(val text: String, val items: List<ChatItem>) : Assistant
-        data class WithOutfit(val text: String, val outfit: ChatOutfit) : Assistant
-        data object Thinking : Assistant
-    }
-}
-
-// ─── Sample preview conversations ─────────────────────────────────────────────
+import com.closet.features.chat.model.ChatItemSummary
+import com.closet.features.chat.model.ChatMessage
 
 private val welcomeSuggestions = listOf(
     "What should I wear tonight?",
@@ -81,75 +70,50 @@ private val welcomeSuggestions = listOf(
     "Show me a work outfit",
 )
 
-private val textOnlyConvo = listOf(
-    ChatMsg.User("How many times have I worn my navy chinos?"),
-    ChatMsg.Assistant.Plain(
-        "Your Navy Chinos have been worn 14 times. Last worn 19 days ago, on March 12th. " +
-            "They're one of your 5 most-worn items this year."
-    ),
-)
-
-private val itemRailConvo = listOf(
-    ChatMsg.User("What haven't I worn in over a month?"),
-    ChatMsg.Assistant.WithItems(
-        text = "These 5 items haven't been worn in over 30 days:",
-        items = listOf(
-            ChatItem("Burgundy Sweater", 0),
-            ChatItem("Linen Trousers", 1),
-            ChatItem("White Sneakers", 2),
-            ChatItem("Denim Jacket", 3),
-            ChatItem("Striped Tee", 0),
-        ),
-    ),
-)
-
-private val outfitConvo = listOf(
-    ChatMsg.User("Something for a casual dinner tonight?"),
-    ChatMsg.Assistant.WithOutfit(
-        text = "Here's something that works well for a casual dinner:",
-        outfit = ChatOutfit(
-            items = listOf(
-                ChatItem("Navy Blazer", 3),
-                ChatItem("White Tee", 2),
-                ChatItem("Chinos", 1),
-                ChatItem("Brown Loafers", 0),
-            ),
-            reason = "The blazer elevates it without being formal, and the chinos keep the vibe relaxed.",
-        ),
-    ),
-)
-
-private val thinkingConvo = listOf(
-    ChatMsg.User("Suggest something for a weekend brunch"),
-    ChatMsg.Assistant.Thinking,
-)
-
-// ─── Placeholder colors ────────────────────────────────────────────────────────
+// ─── Entry point ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun placeholderColor(index: Int): Color = when (index % 4) {
-    0 -> MaterialTheme.colorScheme.primaryContainer
-    1 -> MaterialTheme.colorScheme.secondaryContainer
-    2 -> MaterialTheme.colorScheme.tertiaryContainer
-    else -> MaterialTheme.colorScheme.surfaceVariant
-}
-
-@Composable
-private fun placeholderOnColor(index: Int): Color = when (index % 4) {
-    0 -> MaterialTheme.colorScheme.onPrimaryContainer
-    1 -> MaterialTheme.colorScheme.onSecondaryContainer
-    2 -> MaterialTheme.colorScheme.onTertiaryContainer
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
-}
-
-// ─── Screen ────────────────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ChatScreen(
-    messages: List<ChatMsg>,
-    modifier: Modifier = Modifier,
+fun ChatScreen(
+    onNavigateToItem: (Long) -> Unit,
+    onNavigateToRecommendations: () -> Unit,
+    onNavigateToLog: ((List<Long>) -> Unit)?,
+    viewModel: ChatViewModel = hiltViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    ChatContent(
+        uiState = uiState,
+        onInputChanged = viewModel::onInputChanged,
+        onSendMessage = viewModel::sendMessage,
+        onSuggestionSelected = { suggestion ->
+            viewModel.onInputChanged(suggestion)
+            viewModel.sendMessage()
+        },
+        onNavigateToItem = onNavigateToItem,
+        onNavigateToRecommendations = onNavigateToRecommendations,
+        onNavigateToLog = onNavigateToLog,
+    )
+}
+
+// ─── Content (stateless for previews) ─────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ChatContent(
+    uiState: ChatUiState,
+    onInputChanged: (String) -> Unit,
+    onSendMessage: () -> Unit,
+    onSuggestionSelected: (String) -> Unit,
+    onNavigateToItem: (Long) -> Unit,
+    onNavigateToRecommendations: () -> Unit,
+    onNavigateToLog: ((List<Long>) -> Unit)?,
+) {
+    val listState = rememberLazyListState()
+    val messageCount = uiState.messages.size
+
+    LaunchedEffect(messageCount) {
+        if (messageCount > 0) listState.animateScrollToItem(messageCount - 1)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -170,7 +134,7 @@ private fun ChatScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                text = "Powered by AI",
+                                text = "Powered by ${uiState.providerLabel}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -179,14 +143,27 @@ private fun ChatScreen(
                 },
             )
         },
-        bottomBar = { ChatInputBar() },
-        modifier = modifier,
+        bottomBar = {
+            ChatInputBar(
+                inputText = uiState.inputText,
+                isLoading = uiState.isLoading,
+                onInputChanged = onInputChanged,
+                onSend = onSendMessage,
+            )
+        },
     ) { padding ->
-        if (messages.isEmpty()) {
-            WelcomeContent(modifier = Modifier.padding(padding))
+        if (uiState.messages.isEmpty()) {
+            WelcomeContent(
+                onSuggestionSelected = onSuggestionSelected,
+                modifier = Modifier.padding(padding),
+            )
         } else {
             MessageList(
-                messages = messages,
+                messages = uiState.messages,
+                listState = listState,
+                onNavigateToItem = onNavigateToItem,
+                onNavigateToRecommendations = onNavigateToRecommendations,
+                onNavigateToLog = onNavigateToLog,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -197,7 +174,10 @@ private fun ChatScreen(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun WelcomeContent(modifier: Modifier = Modifier) {
+private fun WelcomeContent(
+    onSuggestionSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -240,7 +220,7 @@ private fun WelcomeContent(modifier: Modifier = Modifier) {
         ) {
             welcomeSuggestions.forEach { suggestion ->
                 AssistChip(
-                    onClick = {},
+                    onClick = { onSuggestionSelected(suggestion) },
                     label = { Text(suggestion, style = MaterialTheme.typography.bodySmall) },
                 )
             }
@@ -252,23 +232,38 @@ private fun WelcomeContent(modifier: Modifier = Modifier) {
 
 @Composable
 private fun MessageList(
-    messages: List<ChatMsg>,
+    messages: List<ChatMessage>,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onNavigateToItem: (Long) -> Unit,
+    onNavigateToRecommendations: () -> Unit,
+    onNavigateToLog: ((List<Long>) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        messages.forEach { msg ->
+        items(messages, key = { it.hashCode() }) { msg ->
             when (msg) {
-                is ChatMsg.User -> UserBubble(msg.text)
-                is ChatMsg.Assistant.Plain -> AssistantBubble(msg.text)
-                is ChatMsg.Assistant.WithItems -> AssistantBubbleWithItems(msg.text, msg.items)
-                is ChatMsg.Assistant.WithOutfit -> AssistantBubbleWithOutfit(msg.text, msg.outfit)
-                is ChatMsg.Assistant.Thinking -> ThinkingBubble()
+                is ChatMessage.User -> UserBubble(msg.text)
+                is ChatMessage.Assistant.Text -> AssistantBubble(msg.text)
+                is ChatMessage.Assistant.WithItems -> AssistantBubbleWithItems(
+                    text = msg.text,
+                    items = msg.items,
+                    onItemTapped = onNavigateToItem,
+                )
+                is ChatMessage.Assistant.WithOutfit -> AssistantBubbleWithOutfit(
+                    text = msg.text,
+                    items = msg.items,
+                    reason = msg.reason,
+                    onItemTapped = onNavigateToItem,
+                    onLogIt = onNavigateToLog?.let { cb -> { cb(msg.items.map { it.id }) } },
+                    onAlternatives = onNavigateToRecommendations,
+                )
+                is ChatMessage.Assistant.Thinking -> ThinkingBubble()
+                is ChatMessage.Assistant.Error -> ErrorBubble(msg.text)
             }
         }
     }
@@ -287,10 +282,8 @@ private fun UserBubble(text: String) {
                 .widthIn(max = 280.dp)
                 .clip(
                     RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = 16.dp,
-                        bottomEnd = 4.dp,
+                        topStart = 16.dp, topEnd = 16.dp,
+                        bottomStart = 16.dp, bottomEnd = 4.dp,
                     )
                 )
                 .background(MaterialTheme.colorScheme.primaryContainer)
@@ -308,9 +301,9 @@ private fun UserBubble(text: String) {
 // ─── Bubble: plain assistant ───────────────────────────────────────────────────
 
 @Composable
-private fun AssistantBubble(text: String) {
+private fun AssistantBubble(text: String, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Start,
     ) {
         Box(
@@ -318,10 +311,8 @@ private fun AssistantBubble(text: String) {
                 .widthIn(max = 280.dp)
                 .clip(
                     RoundedCornerShape(
-                        topStart = 4.dp,
-                        topEnd = 16.dp,
-                        bottomStart = 16.dp,
-                        bottomEnd = 16.dp,
+                        topStart = 4.dp, topEnd = 16.dp,
+                        bottomStart = 16.dp, bottomEnd = 16.dp,
                     )
                 )
                 .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -339,7 +330,11 @@ private fun AssistantBubble(text: String) {
 // ─── Bubble: assistant + item rail ────────────────────────────────────────────
 
 @Composable
-private fun AssistantBubbleWithItems(text: String, items: List<ChatItem>) {
+private fun AssistantBubbleWithItems(
+    text: String,
+    items: List<ChatItemSummary>,
+    onItemTapped: (Long) -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -347,34 +342,44 @@ private fun AssistantBubbleWithItems(text: String, items: List<ChatItem>) {
         AssistantBubble(text)
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp),
         ) {
             items(items) { item ->
-                ItemChip(item)
+                ItemChip(item = item, onTap = { onItemTapped(item.id) })
             }
         }
     }
 }
 
 @Composable
-private fun ItemChip(item: ChatItem) {
+private fun ItemChip(item: ChatItemSummary, onTap: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.clickable(onClick = onTap),
     ) {
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(placeholderColor(item.colorIndex)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                imageVector = Icons.Default.Checkroom,
-                contentDescription = null,
-                modifier = Modifier.size(28.dp),
-                tint = placeholderOnColor(item.colorIndex).copy(alpha = 0.6f),
-            )
+            if (item.imageFile != null) {
+                AsyncImage(
+                    model = item.imageFile,
+                    contentDescription = item.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Checkroom,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+            }
         }
         Text(
             text = item.name,
@@ -391,57 +396,69 @@ private fun ItemChip(item: ChatItem) {
 // ─── Bubble: assistant + outfit mini-card ─────────────────────────────────────
 
 @Composable
-private fun AssistantBubbleWithOutfit(text: String, outfit: ChatOutfit) {
+private fun AssistantBubbleWithOutfit(
+    text: String,
+    items: List<ChatItemSummary>,
+    reason: String,
+    onItemTapped: (Long) -> Unit,
+    onLogIt: (() -> Unit)?,
+    onAlternatives: () -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         AssistantBubble(text)
-        OutfitMiniCard(outfit)
+        OutfitMiniCard(
+            items = items,
+            reason = reason,
+            onItemTapped = onItemTapped,
+            onLogIt = onLogIt,
+            onAlternatives = onAlternatives,
+        )
     }
 }
 
 @Composable
-private fun OutfitMiniCard(outfit: ChatOutfit) {
+private fun OutfitMiniCard(
+    items: List<ChatItemSummary>,
+    reason: String,
+    onItemTapped: (Long) -> Unit,
+    onLogIt: (() -> Unit)?,
+    onAlternatives: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(0.92f),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            // 2×2 grid — two Rows of two cells each
-            val rows = outfit.items.chunked(2)
+            val rows = items.take(4).chunked(2)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 rows.forEach { rowItems ->
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         rowItems.forEach { item ->
                             OutfitImageCell(
                                 item = item,
+                                onTap = { onItemTapped(item.id) },
                                 modifier = Modifier.weight(1f),
                             )
                         }
-                        // Pad to 2 columns if last row has 1 item
-                        if (rowItems.size < 2) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
+                        if (rowItems.size < 2) Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // Item names
             Text(
-                text = outfit.items.joinToString(" · ") { it.name },
+                text = items.joinToString(" · ") { it.name },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // AI reason
             Spacer(Modifier.height(4.dp))
             Row(
                 verticalAlignment = Alignment.Top,
@@ -450,13 +467,11 @@ private fun OutfitMiniCard(outfit: ChatOutfit) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(12.dp)
-                        .padding(top = 2.dp),
+                    modifier = Modifier.size(12.dp).padding(top = 2.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = outfit.reason,
+                    text = reason,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -467,26 +482,23 @@ private fun OutfitMiniCard(outfit: ChatOutfit) {
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
 
-            // Inline actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(
-                    onClick = {},
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 12.dp,
-                        vertical = 4.dp,
-                    ),
-                    modifier = Modifier.height(32.dp),
-                ) {
-                    Text(
-                        text = "Log it",
-                        style = MaterialTheme.typography.labelMedium,
-                    )
+                if (onLogIt != null) {
+                    OutlinedButton(
+                        onClick = onLogIt,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp),
+                    ) {
+                        Text(text = "Log it", style = MaterialTheme.typography.labelMedium)
+                    }
+                } else {
+                    Spacer(Modifier.width(1.dp))
                 }
-                TextButton(onClick = {}) {
+                TextButton(onClick = onAlternatives) {
                     Text(
                         text = "Alternatives →",
                         style = MaterialTheme.typography.labelMedium,
@@ -499,20 +511,34 @@ private fun OutfitMiniCard(outfit: ChatOutfit) {
 }
 
 @Composable
-private fun OutfitImageCell(item: ChatItem, modifier: Modifier = Modifier) {
+private fun OutfitImageCell(
+    item: ChatItemSummary,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(6.dp))
-            .background(placeholderColor(item.colorIndex)),
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onTap),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = Icons.Default.Checkroom,
-            contentDescription = item.name,
-            modifier = Modifier.size(24.dp),
-            tint = placeholderOnColor(item.colorIndex).copy(alpha = 0.5f),
-        )
+        if (item.imageFile != null) {
+            AsyncImage(
+                model = item.imageFile,
+                contentDescription = item.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Checkroom,
+                contentDescription = item.name,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            )
+        }
     }
 }
 
@@ -528,10 +554,8 @@ private fun ThinkingBubble() {
             modifier = Modifier
                 .clip(
                     RoundedCornerShape(
-                        topStart = 4.dp,
-                        topEnd = 16.dp,
-                        bottomStart = 16.dp,
-                        bottomEnd = 16.dp,
+                        topStart = 4.dp, topEnd = 16.dp,
+                        bottomStart = 16.dp, bottomEnd = 16.dp,
                     )
                 )
                 .background(MaterialTheme.colorScheme.surfaceVariant)
@@ -562,13 +586,40 @@ private fun ThinkingBubble() {
     }
 }
 
+// ─── Bubble: error ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun ErrorBubble(text: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.ErrorOutline,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.error,
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+}
+
 // ─── Input bar ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ChatInputBar() {
-    Surface(
-        tonalElevation = 2.dp,
-    ) {
+private fun ChatInputBar(
+    inputText: String,
+    isLoading: Boolean,
+    onInputChanged: (String) -> Unit,
+    onSend: () -> Unit,
+) {
+    Surface(tonalElevation = 2.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -577,8 +628,8 @@ private fun ChatInputBar() {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
+                value = inputText,
+                onValueChange = onInputChanged,
                 placeholder = {
                     Text(
                         text = "Ask about your wardrobe…",
@@ -590,7 +641,8 @@ private fun ChatInputBar() {
                 modifier = Modifier.weight(1f),
             )
             FilledIconButton(
-                onClick = {},
+                onClick = onSend,
+                enabled = inputText.isNotBlank() && !isLoading,
                 modifier = Modifier.size(48.dp),
             ) {
                 Icon(
@@ -606,71 +658,70 @@ private fun ChatInputBar() {
 // ─── Previews ─────────────────────────────────────────────────────────────────
 
 @Preview(showBackground = true, name = "Welcome - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "Welcome - Dark",
-)
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Welcome - Dark")
 @Composable
 private fun WelcomePreview() {
     ClosetTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
-            ChatScreen(messages = emptyList())
+            ChatContent(
+                uiState = ChatUiState(),
+                onInputChanged = {},
+                onSendMessage = {},
+                onSuggestionSelected = {},
+                onNavigateToItem = {},
+                onNavigateToRecommendations = {},
+                onNavigateToLog = null,
+            )
         }
     }
 }
 
-@Preview(showBackground = true, name = "Text Answer - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "Text Answer - Dark",
-)
+@Preview(showBackground = true, name = "Text Answer - Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun TextAnswerPreview() {
     ClosetTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
-            ChatScreen(messages = textOnlyConvo)
+            ChatContent(
+                uiState = ChatUiState(
+                    messages = listOf(
+                        ChatMessage.User("How many times have I worn my navy chinos?"),
+                        ChatMessage.Assistant.Text(
+                            "Your Navy Chinos have been worn 14 times. Last worn 19 days ago."
+                        ),
+                    ),
+                    providerLabel = "Claude",
+                ),
+                onInputChanged = {},
+                onSendMessage = {},
+                onSuggestionSelected = {},
+                onNavigateToItem = {},
+                onNavigateToRecommendations = {},
+                onNavigateToLog = null,
+            )
         }
     }
 }
 
-@Preview(showBackground = true, name = "Item Rail - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "Item Rail - Dark",
-)
-@Composable
-private fun ItemRailPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ChatScreen(messages = itemRailConvo)
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Outfit Card - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "Outfit Card - Dark",
-)
-@Composable
-private fun OutfitCardPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ChatScreen(messages = outfitConvo)
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Thinking - Light")
+@Preview(showBackground = true, name = "Thinking - Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun ThinkingPreview() {
     ClosetTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
-            ChatScreen(messages = thinkingConvo)
+            ChatContent(
+                uiState = ChatUiState(
+                    messages = listOf(
+                        ChatMessage.User("Suggest something for a weekend brunch"),
+                        ChatMessage.Assistant.Thinking,
+                    ),
+                    isLoading = true,
+                ),
+                onInputChanged = {},
+                onSendMessage = {},
+                onSuggestionSelected = {},
+                onNavigateToItem = {},
+                onNavigateToRecommendations = {},
+                onNavigateToLog = null,
+            )
         }
     }
 }
