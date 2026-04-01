@@ -360,6 +360,24 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ── Embedding index ───────────────────────────────────────────────────────
+
+    /**
+     * Live [WorkInfo] for user-triggered one-time embedding runs.
+     * `null` until the user taps "Rebuild" for the first time in this install.
+     */
+    val embeddingWorkInfo: StateFlow<WorkInfo?> =
+        workManager.getWorkInfosForUniqueWorkFlow(EmbeddingWork.IMMEDIATE_NAME)
+            .map { it.firstOrNull() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Number of items currently in the in-memory search index.
+     * Snapshotted at VM creation and refreshed when a rebuild run succeeds.
+     */
+    private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
+    val embeddingIndexSize: StateFlow<Int> = _embeddingIndexSize.asStateFlow()
+
     init {
         // Debounced model discovery: fetch models 800ms after any upstream input settles.
         // Gated by aiEnabled + selectedAiProvider so no network requests fire when AI is
@@ -534,24 +552,6 @@ class SettingsViewModel @Inject constructor(
             batchEnrichmentJob = null
         }
     }
-
-    // ── Embedding index ───────────────────────────────────────────────────────
-
-    /**
-     * Live [WorkInfo] for user-triggered one-time embedding runs.
-     * `null` until the user taps "Rebuild" for the first time in this install.
-     */
-    val embeddingWorkInfo: StateFlow<WorkInfo?> =
-        workManager.getWorkInfosForUniqueWorkFlow(EmbeddingWork.IMMEDIATE_NAME)
-            .map { it.firstOrNull() }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    /**
-     * Number of items currently in the in-memory search index.
-     * Snapshotted at VM creation and refreshed when a rebuild run succeeds.
-     */
-    private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
-    val embeddingIndexSize: StateFlow<Int> = _embeddingIndexSize.asStateFlow()
 
     /** Triggers an immediate one-time embedding run (no charging/idle constraints). */
     fun triggerEmbeddingRebuild() {
