@@ -33,6 +33,8 @@ import com.closet.features.outfits.journalScreen
 import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.outfitsScreen
 import com.closet.features.outfits.wardrobePickerScreen
+import com.closet.features.chat.ChatRoute
+import com.closet.features.chat.chatScreen
 import com.closet.features.recommendations.navigateToRecommendations
 import com.closet.features.recommendations.recommendationScreen
 import com.closet.features.settings.navigateToSettings
@@ -69,6 +71,7 @@ private val topLevelRoutes = listOf(
     TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, CoreUiR.drawable.ic_icon_t_shirt),
     TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, CoreUiR.drawable.ic_icon_calendar_dots),
     TopLevelRoute(StatsRoute, StatsRoute::class, R.string.nav_stats, CoreUiR.drawable.ic_icon_chart_bar),
+    TopLevelRoute(ChatRoute, ChatRoute::class, R.string.nav_chat, CoreUiR.drawable.ic_icon_chat_circle),
 )
 
 private fun NavDestination?.isTopLevel() =
@@ -223,6 +226,14 @@ fun ClosetNavGraph(
             settingsScreen(
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToBulkWash = { navController.navigate(BulkWashDestination) },
+            )
+
+            chatScreen(
+                onNavigateToItem = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) },
+                onNavigateToRecommendations = { navController.navigateToRecommendations() },
+                onNavigateToLog = { itemIds ->
+                    navController.navigate(OutfitBuilderDestination(preselectedItemIds = itemIds))
+                },
             )
         }
     }

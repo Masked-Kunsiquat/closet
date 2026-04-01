@@ -638,7 +638,7 @@ Simple to wire — one extra `collectAsStateWithLifecycle()` in the screen.
 
 ---
 
-### §4.7 — Navigation wiring (~half day)
+### §4.7 — Navigation wiring ✓ DONE
 
 **Modify:** `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt`
 
