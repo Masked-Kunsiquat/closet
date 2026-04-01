@@ -391,7 +391,7 @@ Follow the existing `BatchSegmentationScheduler` interface pattern:
 
 ## Phase 4 — Retrieval & Chat UI
 
-### §4.1 — Extract `EmbeddingEncoder` (~half day)
+### §4.1 — Extract `EmbeddingEncoder` ✓ DONE
 
 The ONNX tokenize → embed → L2-normalise pipeline currently lives as private methods
 inside `EmbeddingWorker`. Before Phase 4 can do query-time embedding, extract that
@@ -411,7 +411,7 @@ Both `EmbeddingWorker` and the new `ChatRepository` delegate to this class.
 
 ---
 
-### §4.2 — `EmbeddingIndex` singleton (~half day)
+### §4.2 — `EmbeddingIndex` singleton ✓ DONE
 
 Load all stored embeddings into memory once at app start so query-time search is
 instantaneous. At 300 items × 384 dims × 4 bytes ≈ 460 KB this is negligible.

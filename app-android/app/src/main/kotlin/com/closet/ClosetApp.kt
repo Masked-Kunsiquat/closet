@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -27,6 +28,7 @@ class ClosetApp : Application(), Configuration.Provider {
     @Inject lateinit var aiPreferencesRepository: AiPreferencesRepository
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var embeddingScheduler: EmbeddingScheduler
+    @Inject lateinit var embeddingIndex: EmbeddingIndex
 
     override fun getWorkManagerConfiguration(): Configuration =
         Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -40,6 +42,12 @@ class ClosetApp : Application(), Configuration.Provider {
         }
         // Register the periodic embedding worker (charging + idle; no-op if already queued).
         embeddingScheduler.schedule()
+
+        // Pre-load embedding index so the chat screen is warm on first open.
+        applicationScope.launch {
+            runCatching { embeddingIndex.load() }
+                .onFailure { Timber.tag("ClosetApp").e(it, "EmbeddingIndex load failed — chat retrieval will be unavailable until next launch") }
+        }
 
         // Migrate any API keys previously stored as plaintext in DataStore to EncryptedKeyStore.
         // No-op after the first run or if keys were never set.
