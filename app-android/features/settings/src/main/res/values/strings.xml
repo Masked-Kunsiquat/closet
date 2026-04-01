@@ -50,6 +50,7 @@
     <string name="settings_ai_provider_nano">On-device</string>
     <string name="settings_ai_provider_openai">OpenAI</string>
     <string name="settings_ai_provider_anthropic">Anthropic</string>
+    <string name="settings_ai_provider_gemini">Gemini</string>
 
     <!-- Nano status messages -->
     <string name="settings_ai_nano_checking">Checking device compatibility…</string>
@@ -80,6 +81,14 @@
     <string name="settings_ai_anthropic_key_placeholder">Paste your sk-ant-… key here</string>
     <string name="settings_ai_anthropic_model">Model</string>
     <string name="settings_ai_anthropic_model_placeholder">Leave blank for Haiku default</string>
+
+    <!-- Gemini provider config -->
+    <string name="settings_ai_gemini_show_key">Show API key</string>
+    <string name="settings_ai_gemini_hide_key">Hide API key</string>
+    <string name="settings_ai_gemini_key">API key</string>
+    <string name="settings_ai_gemini_key_placeholder">Paste your Gemini API key here</string>
+    <string name="settings_ai_gemini_model">Model</string>
+    <string name="settings_ai_gemini_model_placeholder">Leave blank for gemini-2.0-flash-lite default</string>
 
     <!-- Wardrobe section -->
     <string name="settings_section_wardrobe">Wardrobe</string>

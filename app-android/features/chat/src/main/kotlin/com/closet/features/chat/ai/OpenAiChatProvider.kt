@@ -77,7 +77,8 @@ class OpenAiChatProvider @Inject constructor(
             ChatResponseParser.parse(content)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Timber.tag(TAG).w(e, "OpenAiChatProvider inference failed (url=%s, model=%s)", completionsUrl, model)
+            val safeUrl = try { java.net.URI(completionsUrl).let { "${it.host}${it.path}" } } catch (_: Exception) { "unknown" }
+        Timber.tag(TAG).w(e, "OpenAiChatProvider inference failed (url=%s, model=%s)", safeUrl, model)
             Result.failure(e)
         }
     }
@@ -94,7 +95,9 @@ class OpenAiChatProvider @Inject constructor(
      */
     private fun buildCompletionsUrl(raw: String): String {
         val base = (if (raw.isBlank()) DEFAULT_BASE_URL else raw).trimEnd('/')
-        val path = try { java.net.URI(base).path ?: "" } catch (e: Exception) { "" }
+        val path = try { java.net.URI(base).path ?: "" } catch (e: Exception) {
+            throw IllegalArgumentException("Invalid OpenAI base URL: $base — ${e.message}", e)
+        }
         return if (path.isBlank() || path == "/") "$base/v1/chat/completions" else "$base/chat/completions"
     }
 
@@ -120,13 +123,21 @@ class OpenAiChatProvider @Inject constructor(
             ?: error("choices[0].message.content missing from OpenAI response")
     }
 
-    /** Wraps a string in JSON double-quotes, escaping backslashes, quotes, and control characters. */
-    private fun String.asJsonString(): String =
-        "\"${replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
-            .replace("\b", "\\b")
-            .replace("\u000C", "\\f")}\""
+    /** Wraps a string in JSON double-quotes, escaping backslashes, quotes, and all U+0000..U+001F control chars. */
+    private fun String.asJsonString(): String = buildString {
+        append('"')
+        for (c in this@asJsonString) {
+            when (c) {
+                '"'      -> append("\\\"")
+                '\\'     -> append("\\\\")
+                '\n'     -> append("\\n")
+                '\r'     -> append("\\r")
+                '\t'     -> append("\\t")
+                '\b'     -> append("\\b")
+                '\u000C' -> append("\\f")
+                else     -> if (c.code < 0x20) append("\\u%04x".format(c.code)) else append(c)
+            }
+        }
+        append('"')
+    }
 }

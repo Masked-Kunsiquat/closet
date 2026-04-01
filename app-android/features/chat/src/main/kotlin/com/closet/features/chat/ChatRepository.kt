@@ -23,7 +23,12 @@ class ChatRepository @Inject constructor(
     suspend fun query(userMessage: String): Result<ChatResponse> {
         val queryVec = encoder.encode(userMessage).getOrElse { return Result.failure(it) }
         val itemIds = index.search(queryVec, topK = 5)
-        val items = if (itemIds.isEmpty()) emptyList() else clothingDao.getItemDetailsByIds(itemIds)
+        val items = if (itemIds.isEmpty()) {
+            emptyList()
+        } else {
+            val detailMap = clothingDao.getItemDetailsByIds(itemIds).associateBy { it.item.id }
+            itemIds.mapNotNull { detailMap[it] }   // restore cosine-similarity rank
+        }
         val context = buildContextBlock(items)
         val provider = providerSelector.current().getOrElse { return Result.failure(it) }
         return provider.chat(userMessage, context)

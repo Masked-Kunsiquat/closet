@@ -455,6 +455,7 @@ class RecommendationViewModel @Inject constructor(
      * - [AiProvider.Nano]      — [AiPreferencesRepository.getAiReady] must be true (model downloaded).
      * - [AiProvider.OpenAi]   — an API key must have been stored.
      * - [AiProvider.Anthropic] — an API key must have been stored.
+     * - [AiProvider.Gemini]   — an API key must have been stored.
      *
      * The master [AiPreferencesRepository.getAiEnabled] toggle is checked first; if the
      * user has AI off, this returns false without reading provider-specific state.
@@ -467,6 +468,7 @@ class RecommendationViewModel @Inject constructor(
             AiProvider.Nano -> aiPrefsRepo.getAiReady().first()
             AiProvider.OpenAi -> aiPrefsRepo.getOpenAiApiKey().first().isNotBlank()
             AiProvider.Anthropic -> aiPrefsRepo.getAnthropicApiKey().first().isNotBlank()
+            AiProvider.Gemini -> aiPrefsRepo.getGeminiApiKey().first().isNotBlank()
         }
     }
 

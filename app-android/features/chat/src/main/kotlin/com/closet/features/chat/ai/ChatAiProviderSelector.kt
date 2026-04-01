@@ -32,39 +32,44 @@ class ChatAiProviderSelector @Inject constructor(
      * not configured (key missing or Nano not ready).
      */
     suspend fun current(): Result<ChatAiProvider> {
-        return when (val provider = aiPreferencesRepository.getSelectedProvider().first()) {
-            AiProvider.Nano -> {
-                val ready = aiPreferencesRepository.getAiReady().first()
-                if (!ready) {
-                    Result.failure(IllegalStateException("Gemini Nano is not ready — open Settings to set it up"))
-                } else {
-                    Result.success(nanoProvider)
+        return try {
+            when (val provider = aiPreferencesRepository.getSelectedProvider().first()) {
+                AiProvider.Nano -> {
+                    val ready = aiPreferencesRepository.getAiReady().first()
+                    if (!ready) {
+                        Result.failure(IllegalStateException("Gemini Nano is not ready — open Settings to set it up"))
+                    } else {
+                        Result.success(nanoProvider)
+                    }
+                }
+                AiProvider.OpenAi -> {
+                    val key = aiPreferencesRepository.getOpenAiApiKey().first()
+                    if (key.isBlank()) {
+                        Result.failure(IllegalStateException("OpenAI-compatible API key is not configured"))
+                    } else {
+                        Result.success(openAiProvider)
+                    }
+                }
+                AiProvider.Anthropic -> {
+                    val key = aiPreferencesRepository.getAnthropicApiKey().first()
+                    if (key.isBlank()) {
+                        Result.failure(IllegalStateException("Anthropic API key is not configured"))
+                    } else {
+                        Result.success(anthropicProvider)
+                    }
+                }
+                AiProvider.Gemini -> {
+                    val key = aiPreferencesRepository.getGeminiApiKey().first()
+                    if (key.isBlank()) {
+                        Result.failure(IllegalStateException("Gemini API key is not configured"))
+                    } else {
+                        Result.success(geminiProvider)
+                    }
                 }
             }
-            AiProvider.OpenAi -> {
-                val key = aiPreferencesRepository.getOpenAiApiKey().first()
-                if (key.isBlank()) {
-                    Result.failure(IllegalStateException("OpenAI-compatible API key is not configured"))
-                } else {
-                    Result.success(openAiProvider)
-                }
-            }
-            AiProvider.Anthropic -> {
-                val key = aiPreferencesRepository.getAnthropicApiKey().first()
-                if (key.isBlank()) {
-                    Result.failure(IllegalStateException("Anthropic API key is not configured"))
-                } else {
-                    Result.success(anthropicProvider)
-                }
-            }
-            AiProvider.Gemini -> {
-                val key = aiPreferencesRepository.getGeminiApiKey().first()
-                if (key.isBlank()) {
-                    Result.failure(IllegalStateException("Gemini API key is not configured"))
-                } else {
-                    Result.success(geminiProvider)
-                }
-            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Result.failure(e)
         }
     }
 

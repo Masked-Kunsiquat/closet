@@ -35,15 +35,21 @@ object ChatResponseParser {
 
         when (type) {
             "items" -> {
-                val ids = obj["item_ids"]?.jsonArray
-                    ?.mapNotNull { it.jsonPrimitive.longOrNull }
-                    ?: emptyList()
+                val idsElement = obj["item_ids"]
+                    ?: throw IllegalArgumentException("'item_ids' missing in chat response (type='items')")
+                val ids = idsElement.jsonArray.mapNotNull { it.jsonPrimitive.longOrNull }
+                if (ids.isEmpty()) throw IllegalArgumentException(
+                    "'item_ids' resolved to empty list in chat response (type='items', raw=$idsElement)"
+                )
                 ChatResponse.WithItems(text, ids)
             }
             "outfit" -> {
-                val ids = obj["item_ids"]?.jsonArray
-                    ?.mapNotNull { it.jsonPrimitive.longOrNull }
-                    ?: emptyList()
+                val idsElement = obj["item_ids"]
+                    ?: throw IllegalArgumentException("'item_ids' missing in chat response (type='outfit')")
+                val ids = idsElement.jsonArray.mapNotNull { it.jsonPrimitive.longOrNull }
+                if (ids.isEmpty()) throw IllegalArgumentException(
+                    "'item_ids' resolved to empty list in chat response (type='outfit', raw=$idsElement)"
+                )
                 val reason = obj["reason"]?.jsonPrimitive?.content.orEmpty()
                 ChatResponse.WithOutfit(text, ids, reason)
             }

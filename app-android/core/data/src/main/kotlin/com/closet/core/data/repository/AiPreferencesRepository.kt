@@ -155,7 +155,7 @@ class AiPreferencesRepository(
      * Model identifier for the Gemini provider. Defaults to `gemini-2.0-flash-lite` when not set.
      */
     fun getGeminiModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
-        prefs[geminiModelKey] ?: ""
+        prefs[geminiModelKey] ?: "gemini-2.0-flash-lite"
     }
 
     suspend fun setGeminiModel(model: String) {

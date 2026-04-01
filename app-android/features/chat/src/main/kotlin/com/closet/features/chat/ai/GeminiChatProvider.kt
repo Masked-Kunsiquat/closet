@@ -100,13 +100,21 @@ class GeminiChatProvider @Inject constructor(
             ?: error("candidates[0].content.parts[0].text missing from Gemini response")
     }
 
-    /** Wraps a string in JSON double-quotes, escaping backslashes, control characters, and quotes. */
-    private fun String.asJsonString(): String =
-        "\"${replace("\\", "\\\\")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
-            .replace("\b", "\\b")
-            .replace("\u000C", "\\f")
-            .replace("\"", "\\\"")}\""
+    /** Wraps a string in JSON double-quotes, escaping backslashes, quotes, and all U+0000..U+001F control chars. */
+    private fun String.asJsonString(): String = buildString {
+        append('"')
+        for (c in this@asJsonString) {
+            when (c) {
+                '"'      -> append("\\\"")
+                '\\'     -> append("\\\\")
+                '\n'     -> append("\\n")
+                '\r'     -> append("\\r")
+                '\t'     -> append("\\t")
+                '\b'     -> append("\\b")
+                '\u000C' -> append("\\f")
+                else     -> if (c.code < 0x20) append("\\u%04x".format(c.code)) else append(c)
+            }
+        }
+        append('"')
+    }
 }
