@@ -389,71 +389,265 @@ Follow the existing `BatchSegmentationScheduler` interface pattern:
 
 ---
 
-## Phase 4 — Retrieval & Chat UI (High-Level)
+## Phase 4 — Retrieval & Chat UI
 
-### Query-time retrieval (cosine similarity in Kotlin)
+### §4.1 — Extract `EmbeddingEncoder` ✓ DONE
 
-At query time, embed the user's natural-language prompt using the same ONNX model
-(synchronous call, < 50 ms on a flagship NPU). Then retrieve the top-K nearest
-items from the in-memory embedding store.
+The ONNX tokenize → embed → L2-normalise pipeline currently lives as private methods
+inside `EmbeddingWorker`. Before Phase 4 can do query-time embedding, extract that
+logic into a shared singleton:
 
-**New DAO query:**
-
-```kotlin
-@Query("SELECT * FROM item_embeddings")
-suspend fun getAll(): List<ItemEmbeddingEntity>
-```
-
-Load all embeddings once at app start into a `List<Pair<Long, FloatArray>>` held in
-a singleton `EmbeddingIndex`. At query time:
+**New file:** `core/data/src/main/kotlin/com/closet/core/data/util/EmbeddingEncoder.kt`
 
 ```kotlin
-fun search(queryVec: FloatArray, topK: Int = 5): List<Long> {
-    return embeddingIndex
-        .map { (id, vec) -> id to cosineSimilarity(queryVec, vec) }
-        .sortedByDescending { it.second }
-        .take(topK)
-        .map { it.first }
+@Singleton
+class EmbeddingEncoder @Inject constructor(@ApplicationContext val context: Context) {
+    /** `true` if both the ONNX model and vocabulary loaded successfully. */
+    val isAvailable: Boolean
+
+    /** Encodes [text] using the same ONNX model as EmbeddingWorker. < 50 ms on flagship. */
+    suspend fun encode(text: String): Result<FloatArray>
 }
 ```
 
-`cosineSimilarity` is a trivial dot-product on L2-normalised vectors (just `dot(a, b)`
-since both are unit-length after embedding).
+Both `EmbeddingWorker` and the new `ChatRepository` delegate to this class.
 
-### Context injection into the on-device LLM
+---
 
-Retrieve the top-5 item IDs → load their `ClothingItemDetail` from `ClothingDao` →
-format as a context block → prepend to the user's message as a system prompt before
-passing to `NanoProvider` (the Gemini Nano Prompt API already wired in
-`features/recommendations`).
+### §4.2 — `EmbeddingIndex` singleton ✓ DONE
 
-Prompt structure:
+Load all stored embeddings into memory once at app start so query-time search is
+instantaneous. At 300 items × 384 dims × 4 bytes ≈ 460 KB this is negligible.
 
-```text
-[SYSTEM]
-You are a personal wardrobe assistant. The user's relevant clothing items are:
+**New file:** `core/data/src/main/kotlin/com/closet/core/data/util/EmbeddingIndex.kt`
 
-1. White Nike Air Max Sneaker — Footwear > Sneakers — Worn 12 times
-   Colors: White, Grey | Occasions: Casual, Sport
-   Caption: "A white mesh sneaker photographed against a clean background."
+```kotlin
+@Singleton
+class EmbeddingIndex @Inject constructor(private val embeddingDao: EmbeddingDao) {
+    private var index: List<Pair<Long, FloatArray>> = emptyList()
 
-2. … (up to 5 items)
+    suspend fun load() {
+        index = embeddingDao.getAll().map { entity ->
+            entity.itemId to entity.toFloatArray()
+        }
+    }
 
-Answer the user's question based only on the items above. Do not invent items.
-[USER]
-{user_message}
+    /** Returns item IDs ranked by cosine similarity to [queryVec], highest first. */
+    fun search(queryVec: FloatArray, topK: Int = 5): List<Long> =
+        index
+            .map { (id, vec) -> id to dot(queryVec, vec) }  // L2-normalised → dot = cosine
+            .sortedByDescending { it.second }
+            .take(topK)
+            .map { it.first }
+
+    private fun dot(a: FloatArray, b: FloatArray): Float {
+        var sum = 0f
+        for (i in a.indices) sum += a[i] * b[i]
+        return sum
+    }
+}
 ```
 
-### Chat UI
+Call `EmbeddingIndex.load()` in `ClosetApp.onCreate()` (or lazily on first chat open).
+Invalidate + reload after `EmbeddingWorker` completes a run.
 
-A new `features/assistant/` module:
-- `AssistantScreen.kt` — scrollable message list + bottom text-field (identical UX
-  pattern to a standard chat UI; Material 3 `ListItem` rows)
-- `AssistantViewModel.kt` — orchestrates embed → retrieve → format → Nano call
-- Entry point added to `ClosetNavGraph.kt`; reachable from the wardrobe top-app-bar
-  via a dedicated icon
+---
 
-The chat history is in-memory only for the session (no persistence needed in v1).
+### §4.3 — Multi-provider `ChatAiProvider` (~1-2 days)
+
+The chat feature is **multi-modal from day one**: Gemini Nano (on-device), Claude,
+OpenAI-compatible, and Google Gemini (cloud). This mirrors the existing
+`OutfitAiProvider` pattern in `features/recommendations`.
+
+#### Add `Gemini` to the `AiProvider` enum
+
+**Modify:** `core/data/src/main/kotlin/com/closet/core/data/model/Enums.kt`
+
+```kotlin
+enum class AiProvider(val label: String) {
+    Nano("On-device (Nano)"),
+    OpenAi("OpenAI-compatible"),
+    Anthropic("Anthropic (Claude)"),
+    Gemini("Google Gemini");          // ← new
+    …
+}
+```
+
+Also add `Gemini` API key storage to `AiPreferencesRepository` (alongside the
+existing `getAnthropicApiKey` / `getOpenAiApiKey` pair).
+
+#### `ChatAiProvider` interface
+
+**New file:** `core/data/src/main/kotlin/com/closet/core/data/ai/ChatAiProvider.kt`
+
+```kotlin
+interface ChatAiProvider {
+    /**
+     * Sends [userMessage] to the model with [context] prepended as a system prompt.
+     * Returns a [ChatResponse] describing what the UI should render, or
+     * [Result.failure] on any error. Never throws.
+     */
+    suspend fun chat(userMessage: String, context: String): Result<ChatResponse>
+}
+
+/**
+ * Structured response returned by every [ChatAiProvider] implementation.
+ * The model is instructed to emit this schema so the UI can choose the
+ * correct message type without post-hoc classification.
+ */
+sealed interface ChatResponse {
+    /** Plain conversational answer — no items to surface. */
+    data class Text(val text: String) : ChatResponse
+
+    /**
+     * Answer references specific wardrobe items (e.g. "haven't worn lately").
+     * [itemIds] are the resolved DB IDs from the retrieval step — always non-empty.
+     */
+    data class WithItems(val text: String, val itemIds: List<Long>) : ChatResponse
+
+    /**
+     * Answer is an outfit suggestion.
+     * [itemIds] are the 2-4 items that form the outfit — always non-empty.
+     * [reason] is the AI's one-sentence rationale.
+     */
+    data class WithOutfit(val text: String, val itemIds: List<Long>, val reason: String) : ChatResponse
+}
+```
+
+#### Provider implementations
+
+| Class | File | Notes |
+|-------|------|-------|
+| `NanoChatProvider` | `features/chat/src/full/…` | Wraps Gemini Nano Prompt API; full flavor only; FOSS stub returns `UnsupportedOperationException` |
+| `AnthropicChatProvider` | `features/chat/src/main/…` | Ktor POST to `api.anthropic.com/v1/messages`; reuses `AiHttpClient` + `AiPreferencesRepository`; same auth pattern as `AnthropicProvider` |
+| `OpenAiChatProvider` | `features/chat/src/main/…` | Ktor POST to configurable base URL (compatible with OpenAI, Ollama, LM Studio, etc.) |
+| `GeminiChatProvider` | `features/chat/src/main/…` | Ktor POST to `generativelanguage.googleapis.com`; needs Gemini API key in `AiPreferencesRepository` |
+
+A `ChatAiProviderSelector` (injected into `ChatRepository`) reads
+`AiPreferencesRepository.getSelectedProvider()` at call time and delegates to the
+appropriate implementation — same pattern as `OutfitCoherenceScorer`.
+
+#### Structured response schema
+
+All providers are given the same system prompt instructing them to reply **only**
+with a JSON object:
+
+```json
+{
+  "type": "text" | "items" | "outfit",
+  "text": "…",
+  "item_ids": [3, 7, 12],
+  "reason": "…"
+}
+```
+
+- `item_ids` is always a list of DB item IDs from the context block (so the IDs are
+  already constrained to real wardrobe items — the model cannot hallucinate unknown IDs).
+- `reason` is only present when `type = "outfit"`.
+- For providers that support native tool/function calling (Anthropic, OpenAI), prefer
+  that over schema-in-prompt for reliability.
+
+---
+
+### §4.4 — `ChatRepository` (~1-2 days)
+
+**New file:** `core/data/src/main/kotlin/com/closet/core/data/repository/ChatRepository.kt`
+
+```kotlin
+@Singleton
+class ChatRepository @Inject constructor(
+    private val encoder: EmbeddingEncoder,
+    private val index: EmbeddingIndex,
+    private val clothingDao: ClothingDao,
+    private val providerSelector: ChatAiProviderSelector,
+) {
+    suspend fun query(userMessage: String): Result<ChatResponse>
+}
+```
+
+Pipeline inside `query()`:
+
+```text
+1. encoder.encode(userMessage)                    → Result<FloatArray> (queryVec)
+2. index.search(queryVec, topK = 5)               → List<Long> (item IDs)
+3. clothingDao.getItemDetails(ids)                → List<ClothingItemDetail>
+4. buildContextBlock(details)                     → String (formatted prose)
+5. providerSelector.current().chat(userMessage, contextBlock)  → Result<ChatResponse>
+```
+
+`buildContextBlock` formats each item as a numbered entry (name, category, wear count,
+colors, occasions, image caption if present) — identical to the prompt structure in the
+original roadmap sketch above.
+
+---
+
+### §4.5 — `features/chat` module (~half day)
+
+New Gradle module. Depends on `core/data` and `core/ui`. No flavor split needed at the
+module level — `NanoChatProvider` handles its own `full`/`foss` source set split
+(same pattern as `NanoProvider` in `features/recommendations`).
+
+```text
+features/chat/
+  src/
+    main/kotlin/com/closet/features/chat/
+      ChatNavigation.kt          — @Serializable ChatDestination, navigateTo*, chatScreen ext
+      ChatScreen.kt              — root Composable; collects ChatViewModel state
+      ChatViewModel.kt           — StateFlow<ChatUiState>, sendMessage()
+      ChatUiState.kt             — message list, loading, input
+      model/ChatMessage.kt       — domain message model (User / Assistant subtypes)
+    full/kotlin/…/chat/ai/NanoChatProvider.kt
+    foss/kotlin/…/chat/ai/NanoChatProvider.kt   — stub
+```
+
+UI preview skeleton already lives at:
+`features/recommendations/src/main/kotlin/…/recommendations/chat/ChatPreview.kt`
+— move into `features/chat/` when the module is created.
+
+---
+
+### §4.6 — Chat UI design
+
+Three message content types, surfaced as inline attachments rather than navigation:
+
+| Type | Trigger | Renders |
+|------|---------|---------|
+| `Text` | Factual Q&A ("how many times have I worn X?") | Plain assistant bubble |
+| `WithItems` | Item-set queries ("what haven't I worn?") | Bubble + horizontal `LazyRow` of tappable item chips → item detail |
+| `WithOutfit` | Outfit queries ("what should I wear tonight?") | Bubble + compact `OutfitMiniCard` |
+
+**`OutfitMiniCard`** (inline in the chat thread, not a navigation target):
+- 2×2 image grid — same visual language as `OutfitComboCard` in `features/recommendations`
+- AI reason line with `AutoAwesome` icon prefix
+- Two inline actions: **"Log it"** (outlined button) + **"Alternatives →"** (text button
+  → deeplinks to `RecommendationDestination` with occasion/context pre-seeded)
+
+**Welcome state:** centered wardrobe icon + 4 `AssistChip` suggestion prompts
+("What should I wear tonight?", "What haven't I worn lately?", etc.) — replaced by
+the message list on first send.
+
+**Entry point:** 5th bottom-nav tab (alongside Closet, Outfits, Journal, Stats).
+Chat is a distinct interaction paradigm, not a detail screen — a tab is appropriate.
+
+**Top bar subtitle ("Powered by AI"):** Displays the active provider's `label` from
+`AiProvider.label` (e.g. "Powered by Claude", "Powered by On-device (Nano)"). Sourced
+from `AiPreferencesRepository.getSelectedProvider()` as a `StateFlow` in the ViewModel.
+Simple to wire — one extra `collectAsStateWithLifecycle()` in the screen.
+
+**Chat history:** In-memory for the session only (no DB table in v1). Clear on screen exit.
+
+---
+
+### §4.7 — Navigation wiring (~half day)
+
+**Modify:** `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt`
+
+1. Add `ChatDestination` to `topLevelRoutes` list (5th tab, chat-bubble icon from `core/ui`)
+2. Call `chatScreen(navController)` inside the `NavHost` block
+3. Pass `onNavigateToItem = { id → navController.navigateToDetail(id) }` so item chips
+   in chat messages navigate to item detail
+4. Pass `onNavigateToRecommendations = { navController.navigateToRecommendations() }` for
+   the "Alternatives →" CTA on outfit cards
 
 ---
 
