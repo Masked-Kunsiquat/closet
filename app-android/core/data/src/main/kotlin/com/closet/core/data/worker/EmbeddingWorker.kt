@@ -1,9 +1,5 @@
 package com.closet.core.data.worker
 
-import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtException
-import ai.onnxruntime.OrtSession
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -11,8 +7,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.EmbeddingDao
 import com.closet.core.data.model.ItemEmbeddingEntity
-import com.closet.core.data.util.TokenizerOutput
-import com.closet.core.data.util.WordPieceTokenizer
+import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.worker.EmbeddingWork.KEY_DONE
 import com.closet.core.data.worker.EmbeddingWork.KEY_FAILED
 import com.closet.core.data.worker.EmbeddingWork.KEY_TOTAL
@@ -23,12 +18,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.LongBuffer
 import java.time.Instant
-import kotlin.math.sqrt
 
 /**
  * Background worker that embeds every clothing item whose `semantic_description` is populated
@@ -40,52 +32,30 @@ import kotlin.math.sqrt
  *
  * Per-item pipeline:
  * 1. Concatenate `semanticDescription + " " + imageCaption` (caption optional).
- * 2. Tokenise with [WordPieceTokenizer] (BERT WordPiece, `vocab.txt` from assets).
- * 3. Run `snowflake-arctic-embed-xs` INT8 ONNX session → `last_hidden_state` [1, seq, 384].
- * 4. Mean-pool over non-padding tokens → L2-normalise → 384-float unit vector.
- * 5. Serialise as little-endian float32 BLOB → upsert into `item_embeddings`.
+ * 2. Delegate encode call to [EmbeddingEncoder] → 384-float unit vector.
+ * 3. Serialise as little-endian float32 BLOB → upsert into `item_embeddings`.
  *
- * **Asset requirements** (must be present before the worker produces results):
- * - `assets/models/arctic-embed-xs-q8.onnx`  (~23 MB, INT8 quantized)
- * - `assets/models/vocab.txt`                (~250 KB, BERT uncased vocabulary)
- *
- * If either asset is missing the worker returns [Result.failure] with an `"error"` key
- * so WorkManager stops retrying until the next periodic interval.
+ * ONNX inference and tokenisation are handled entirely by [EmbeddingEncoder]. If the
+ * encoder is unavailable (model or vocab asset missing), the worker returns [Result.failure]
+ * immediately so WorkManager stops retrying until the next periodic interval.
  */
 @HiltWorker
 class EmbeddingWorker @AssistedInject constructor(
-    @Assisted private val context: Context,
+    @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val embeddingDao: EmbeddingDao,
+    private val encoder: EmbeddingEncoder,
 ) : CoroutineWorker(context, params) {
 
     companion object {
         val WORK_NAME = EmbeddingWork.NAME
-
-        private const val MODEL_ASSET = "models/arctic-embed-xs-q8.onnx"
-        private const val VOCAB_ASSET  = "models/vocab.txt"
-
-        /** Embedding dimension of `snowflake-arctic-embed-xs`. */
-        private const val HIDDEN_SIZE = 384
-
-        /** Sequence length fed to the model — longer texts are truncated. */
-        private const val MAX_SEQ_LEN = 128
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        // ── 1. Load assets ───────────────────────────────────────────────────
-        val modelBytes = try {
-            context.assets.open(MODEL_ASSET).use { it.readBytes() }
-        } catch (e: IOException) {
-            Timber.e(e, "EmbeddingWorker: model asset not found at $MODEL_ASSET — add the ONNX file to assets/models/")
-            return@withContext Result.failure(workDataOf("error" to "model_not_found"))
-        }
-
-        val tokenizer = try {
-            WordPieceTokenizer(context.assets.open(VOCAB_ASSET))
-        } catch (e: IOException) {
-            Timber.e(e, "EmbeddingWorker: vocab asset not found at $VOCAB_ASSET — add vocab.txt to assets/models/")
-            return@withContext Result.failure(workDataOf("error" to "vocab_not_found"))
+        // ── 1. Guard: encoder must be available (model + vocab assets present) ─
+        if (!encoder.isAvailable) {
+            Timber.e("EmbeddingWorker: encoder not available — model or vocab asset missing")
+            return@withContext Result.failure(workDataOf("error" to "encoder_not_available"))
         }
 
         // ── 2. Determine work queue ──────────────────────────────────────────
@@ -98,114 +68,41 @@ class EmbeddingWorker @AssistedInject constructor(
 
         val items = embeddingDao.getTextsForEmbedding(itemIds)
 
-        // ── 3. Open ONNX session and embed ───────────────────────────────────
+        // ── 3. Embed each item ───────────────────────────────────────────────
         var done   = 0
         var failed = 0
 
-        val env = OrtEnvironment.getEnvironment()
-        try {
-            OrtSession.SessionOptions().use { options ->
-                env.createSession(modelBytes, options).use { session ->
-                    for (item in items) {
-                        try {
-                            val text = buildString {
-                                append(item.semanticDescription)
-                                item.imageCaption?.let { append(' ').append(it) }
-                            }
-
-                            val tokens = tokenizer.encode(text, MAX_SEQ_LEN)
-                            val vector = embed(env, session, tokens)
-
-                            embeddingDao.upsert(
-                                ItemEmbeddingEntity(
-                                    itemId        = item.id,
-                                    embeddingBlob = floatsToBlob(vector),
-                                    modelVersion  = MODEL_VERSION,
-                                    inputSnapshot = text,
-                                    embeddedAt    = Instant.now(),
-                                )
-                            )
-                            done++
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            Timber.e(e, "EmbeddingWorker: failed to embed item ${item.id}")
-                            failed++
-                        }
-
-                        setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
-                    }
+        for (item in items) {
+            try {
+                val text = buildString {
+                    append(item.semanticDescription)
+                    item.imageCaption?.let { append(' ').append(it) }
                 }
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: OrtException) {
-            Timber.e(e, "EmbeddingWorker: ONNX session error")
-            return@withContext Result.failure(workDataOf("error" to "onnx_session_failed"))
-        }
 
-        Timber.d("EmbeddingWorker: done=$done failed=$failed total=$total")
-        return@withContext Result.success(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
-    }
+                val vector = encoder.encode(text).getOrThrow()
 
-    // ─── Inference helpers ────────────────────────────────────────────────────
-
-    /**
-     * Runs one ONNX inference pass and returns an L2-normalised 384-float embedding.
-     *
-     * Inputs: `input_ids`, `attention_mask`, `token_type_ids` — all Long[1][seqLen].
-     * Output: `last_hidden_state` Float[1][seqLen][384] → mean-pool → L2-normalise.
-     */
-    private fun embed(
-        env: OrtEnvironment,
-        session: OrtSession,
-        tokens: TokenizerOutput,
-    ): FloatArray {
-        val seqLen = tokens.inputIds.size.toLong()
-        val shape  = longArrayOf(1L, seqLen)
-
-        OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.inputIds), shape).use { inputIdsTensor ->
-            OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.attentionMask), shape).use { maskTensor ->
-                OnnxTensor.createTensor(env, LongBuffer.wrap(tokens.tokenTypeIds), shape).use { typesTensor ->
-                    val inputs = mapOf(
-                        "input_ids"      to inputIdsTensor,
-                        "attention_mask" to maskTensor,
-                        "token_type_ids" to typesTensor,
+                embeddingDao.upsert(
+                    ItemEmbeddingEntity(
+                        itemId        = item.id,
+                        embeddingBlob = floatsToBlob(vector),
+                        modelVersion  = MODEL_VERSION,
+                        inputSnapshot = text,
+                        embeddedAt    = Instant.now(),
                     )
-                    session.run(inputs).use { result ->
-                        @Suppress("UNCHECKED_CAST")
-                        val hidden = (result[0].value as Array<Array<FloatArray>>)[0] // [seqLen][384]
-                        return l2Normalize(meanPool(hidden, tokens.attentionMask))
-                    }
-                }
+                )
+                done++
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "EmbeddingWorker: failed to embed item %d", item.id)
+                failed++
             }
-        }
-    }
 
-    /**
-     * Mean-pools token embeddings, weighting only real (non-padding) positions
-     * (attention mask == 1).
-     */
-    private fun meanPool(hidden: Array<FloatArray>, attentionMask: LongArray): FloatArray {
-        val sum   = FloatArray(HIDDEN_SIZE)
-        var count = 0
-        for (i in hidden.indices) {
-            if (attentionMask[i] == 1L) {
-                val tok = hidden[i]
-                for (j in 0 until HIDDEN_SIZE) sum[j] += tok[j]
-                count++
-            }
+            setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
         }
-        if (count > 0) for (j in sum.indices) sum[j] /= count
-        return sum
-    }
 
-    /** Divides [vector] by its L2 norm, producing a unit vector for cosine similarity. */
-    private fun l2Normalize(vector: FloatArray): FloatArray {
-        var norm = 0f
-        for (v in vector) norm += v * v
-        norm = sqrt(norm)
-        return if (norm > 1e-12f) FloatArray(vector.size) { vector[it] / norm } else vector
+        Timber.d("EmbeddingWorker: done=%d failed=%d total=%d", done, failed, total)
+        Result.success(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
     }
 
     /**
