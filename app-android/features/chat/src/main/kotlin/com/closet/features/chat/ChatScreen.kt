@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -157,12 +158,14 @@ private fun ChatContent(
     ) { padding ->
         if (uiState.messages.isEmpty()) {
             WelcomeContent(
+                isIndexReady = uiState.isIndexReady,
                 onSuggestionSelected = onSuggestionSelected,
                 modifier = Modifier.padding(padding),
             )
         } else {
             MessageList(
                 messages = uiState.messages,
+                isIndexReady = uiState.isIndexReady,
                 listState = listState,
                 onNavigateToItem = onNavigateToItem,
                 onNavigateToRecommendations = onNavigateToRecommendations,
@@ -178,6 +181,7 @@ private fun ChatContent(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WelcomeContent(
+    isIndexReady: Boolean,
     onSuggestionSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -211,10 +215,18 @@ private fun WelcomeContent(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "I know what you own, what you've worn,\nand what works together.",
+            text = if (isIndexReady) {
+                "I know what you own, what you've worn,\nand what works together."
+            } else {
+                "Your wardrobe index is still being built.\nResults may be limited until it's ready."
+            },
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (isIndexReady) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.tertiary
+            },
         )
         Spacer(Modifier.height(24.dp))
         FlowRow(
@@ -231,11 +243,39 @@ private fun WelcomeContent(
     }
 }
 
+// ─── Index not-ready banner ────────────────────────────────────────────────────
+
+@Composable
+private fun IndexNotReadyBanner() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.tertiaryContainer)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+        Text(
+            text = "Wardrobe index still building — results may be limited",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+    }
+}
+
 // ─── Message list ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun MessageList(
     messages: List<ChatMessage>,
+    isIndexReady: Boolean,
     listState: androidx.compose.foundation.lazy.LazyListState,
     onNavigateToItem: (Long) -> Unit,
     onNavigateToRecommendations: () -> Unit,
@@ -248,7 +288,12 @@ private fun MessageList(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(messages, key = { it.hashCode() }) { msg ->
+        if (!isIndexReady) {
+            item(key = "index_notice") {
+                IndexNotReadyBanner()
+            }
+        }
+        itemsIndexed(messages) { index, msg ->
             when (msg) {
                 is ChatMessage.User -> UserBubble(msg.text)
                 is ChatMessage.Assistant.Text -> AssistantBubble(msg.text)

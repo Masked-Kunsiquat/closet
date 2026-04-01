@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.EmbeddingIndex
 import com.closet.features.chat.ai.ChatAiProviderSelector
 import com.closet.features.chat.model.ChatItemSummary
 import com.closet.features.chat.model.ChatMessage
@@ -25,6 +26,7 @@ class ChatViewModel @Inject constructor(
     private val clothingDao: ClothingDao,
     private val storageRepository: StorageRepository,
     private val providerSelector: ChatAiProviderSelector,
+    private val embeddingIndex: EmbeddingIndex,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -32,6 +34,7 @@ class ChatViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ChatUiState())
 
     init {
+        _uiState.update { it.copy(isIndexReady = embeddingIndex.size > 0) }
         viewModelScope.launch {
             providerSelector.providerLabel().collect { label ->
                 _uiState.update { it.copy(providerLabel = label) }
@@ -47,6 +50,7 @@ class ChatViewModel @Inject constructor(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
 
+        _uiState.update { it.copy(isIndexReady = embeddingIndex.size > 0) }
         _uiState.update { state ->
             state.copy(
                 messages = state.messages + ChatMessage.User(text) + ChatMessage.Assistant.Thinking,
