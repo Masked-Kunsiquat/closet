@@ -54,7 +54,8 @@ class ChatRepository @Inject constructor(
             appendLine("Wardrobe context (${items.size} items):")
             items.forEachIndexed { idx, detail ->
                 val item = detail.item
-                val name = detail.brand?.let { "${it.name} ${item.name}" } ?: item.name
+                val name = (detail.brand?.let { "${it.name} ${item.name}" } ?: item.name)
+                    .replace(Regex("\\s+"), " ").trim()
                 append("${idx + 1}. [ID:${item.id}] $name")
                 val category = buildString {
                     detail.category?.let { cat -> append(cat.name) }
@@ -71,7 +72,8 @@ class ChatRepository @Inject constructor(
                     append(", Materials: ${detail.materials.joinToString { it.name }}")
                 }
                 item.semanticDescription?.let { desc ->
-                    val sanitized = desc.substringBefore("Notes:").trim()
+                    val sanitized = desc.substringBefore("Notes:")
+                        .replace(Regex("\\s+"), " ").trim()
                     if (sanitized.isNotEmpty()) append(". $sanitized")
                 }
                 appendLine()

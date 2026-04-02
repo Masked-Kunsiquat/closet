@@ -3,17 +3,13 @@ package com.closet.features.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
-import androidx.work.WorkManager
-import com.closet.core.data.util.BitmapUtils
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.repository.CaptionEnrichmentProvider
-import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
-import com.closet.core.data.worker.EmbeddingWork
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
@@ -26,25 +22,68 @@ import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Instant
 import timber.log.Timber
+import java.util.UUID
 import javax.inject.Inject
+
+// ---------------------------------------------------------------------------
+// Intermediate grouping types — private to this file
+// ---------------------------------------------------------------------------
+
+private data class AppPrefs(
+    val accent: ClosetAccent,
+    val temperatureUnit: TemperatureUnit,
+    val weatherService: WeatherService,
+)
+
+private data class AiCorePrefs(
+    val aiEnabled: Boolean,
+    val styleVibe: StyleVibe,
+    val selectedAiProvider: AiProvider,
+    val nanoStatus: NanoStatus,
+)
+
+private data class OpenAiPrefs(
+    val key: String,
+    val baseUrl: String,
+    val model: String,
+    val models: List<String>,
+    val modelsLoading: Boolean,
+)
+
+private data class AnthropicPrefs(
+    val key: String,
+    val model: String,
+    val models: List<String>,
+    val modelsLoading: Boolean,
+)
+
+private data class GeminiPrefs(val key: String, val model: String)
+
+private data class EmbeddingState(val workInfo: WorkInfo?, val indexSize: Int)
+
+private data class CaptionState(
+    val eligibleCount: Int,
+    val progress: com.closet.core.data.ai.BatchCaptionProgress?,
+    val result: com.closet.core.data.ai.BatchCaptionResult?,
+)
+
+private data class SegmentationState(
+    val eligibleCount: Int,
+    val workInfo: WorkInfo?,
+    val lastHandledBatchId: UUID?,
+)
 
 /**
  * ViewModel for the Settings screen.
@@ -56,7 +95,6 @@ class SettingsViewModel @Inject constructor(
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val weatherPreferencesRepository: WeatherPreferencesRepository,
     private val clothingDao: ClothingDao,
-    private val storageRepository: StorageRepository,
     private val modelDiscovery: ModelDiscoveryRepository,
     private val nanoInitializer: NanoInitializer,
     private val embeddingScheduler: EmbeddingScheduler,
@@ -65,190 +103,142 @@ class SettingsViewModel @Inject constructor(
     private val captionEnrichmentProvider: CaptionEnrichmentProvider,
 ) : ViewModel() {
 
-    // ── App Settings ──────────────────────────────────────────────────────────
+    // ── Private mutable state ─────────────────────────────────────────────────
 
-    val accent: StateFlow<ClosetAccent> = preferencesRepository.accent
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ClosetAccent.Blue)
-
-    fun onAccentSelected(accent: ClosetAccent) {
-        viewModelScope.launch {
-            preferencesRepository.setAccent(accent)
-        }
-    }
-
-    val temperatureUnit: StateFlow<TemperatureUnit> = weatherPreferencesRepository.unit
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TemperatureUnit.Celsius)
-
-    fun onTemperatureUnitSelected(unit: TemperatureUnit) {
-        viewModelScope.launch {
-            weatherPreferencesRepository.setUnit(unit)
-        }
-    }
-
-    val weatherService: StateFlow<WeatherService> = weatherPreferencesRepository.service
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WeatherService.OpenWeatherMap)
-
-    fun onWeatherServiceSelected(service: WeatherService) {
-        viewModelScope.launch {
-            weatherPreferencesRepository.setService(service)
-        }
-    }
-
-    // ── AI Settings ───────────────────────────────────────────────────────────
-
-    val aiEnabled: StateFlow<Boolean> = aiPreferencesRepository.aiEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    fun onAiToggled(enabled: Boolean) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setAiEnabled(enabled)
-        }
-    }
-
-    val styleVibe: StateFlow<StyleVibe> = aiPreferencesRepository.styleVibe
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StyleVibe.SmartCasual)
-
-    fun onStyleVibeSelected(vibe: StyleVibe) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setStyleVibe(vibe)
-        }
-    }
-
-    val selectedAiProvider: StateFlow<AiProvider> = aiPreferencesRepository.selectedProvider
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AiProvider.Gemini)
-
-    fun onAiProviderSelected(provider: AiProvider) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setSelectedProvider(provider)
-        }
-    }
-
-    val nanoStatus: StateFlow<com.closet.core.data.ai.NanoStatus> = nanoInitializer.status
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.closet.core.data.ai.NanoStatus.Idle)
-
-    // ── Provider Keys & Models ────────────────────────────────────────────────
-
-    val openAiKey: StateFlow<String> = aiPreferencesRepository.openAiKey
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun onOpenAiKeyChanged(key: String) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setOpenAiKey(key)
-        }
-    }
-
-    val openAiBaseUrl: StateFlow<String> = aiPreferencesRepository.openAiBaseUrl
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun onOpenAiBaseUrlChanged(url: String) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setOpenAiBaseUrl(url)
-        }
-    }
-
-    val openAiModel: StateFlow<String> = aiPreferencesRepository.openAiModel
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun onOpenAiModelChanged(model: String) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setOpenAiModel(model)
-        }
-    }
-
-    val anthropicKey: StateFlow<String> = aiPreferencesRepository.anthropicKey
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun onAnthropicKeyChanged(key: String) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setAnthropicKey(key)
-        }
-    }
-
-    val anthropicModel: StateFlow<String> = aiPreferencesRepository.anthropicModel
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun onAnthropicModelChanged(model: String) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setAnthropicModel(model)
-        }
-    }
-
-    val geminiKey: StateFlow<String> = aiPreferencesRepository.geminiKey
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun onGeminiKeyChanged(key: String) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setGeminiKey(key)
-        }
-    }
-
-    val geminiModel: StateFlow<String> = aiPreferencesRepository.geminiModel
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun onGeminiModelChanged(model: String) {
-        viewModelScope.launch {
-            aiPreferencesRepository.setGeminiModel(model)
-        }
-    }
-
-    // ── Model Discovery ──────────────────────────────────────────────────────
-
+    private val _nanoStatus = MutableStateFlow<NanoStatus>(NanoStatus.Idle)
     private val _openAiModels = MutableStateFlow<List<String>>(emptyList())
-    val openAiModels: StateFlow<List<String>> = _openAiModels.asStateFlow()
-
     private val _openAiModelsLoading = MutableStateFlow(false)
-    val openAiModelsLoading: StateFlow<Boolean> = _openAiModelsLoading.asStateFlow()
-
     private val _anthropicModels = MutableStateFlow<List<String>>(emptyList())
-    val anthropicModels: StateFlow<List<String>> = _anthropicModels.asStateFlow()
-
     private val _anthropicModelsLoading = MutableStateFlow(false)
-    val anthropicModelsLoading: StateFlow<Boolean> = _anthropicModelsLoading.asStateFlow()
-
-    // ── Search Index ──────────────────────────────────────────────────────────
-
-    /** Live status of the background embedding work. */
-    val embeddingWorkInfo: StateFlow<WorkInfo?> = embeddingScheduler.workInfo
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
     private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
-    val embeddingIndexSize: StateFlow<Int> = _embeddingIndexSize.asStateFlow()
 
-    fun onRebuildEmbeddingIndex() {
-        embeddingScheduler.runNow()
-    }
+    // ── Intermediate flows (private, used to build uiState) ───────────────────
 
-    // ── Batch Captioning ──────────────────────────────────────────────────────
+    private val appPrefsFlow = combine(
+        preferencesRepository.accent,
+        weatherPreferencesRepository.unit,
+        weatherPreferencesRepository.service,
+    ) { accent, unit, service -> AppPrefs(accent, unit, service) }
 
-    val captionSupported: Boolean = captionEnrichmentProvider.isSupported
+    private val aiCorePrefsFlow = combine(
+        aiPreferencesRepository.aiEnabled,
+        aiPreferencesRepository.styleVibe,
+        aiPreferencesRepository.selectedProvider,
+        _nanoStatus,
+    ) { enabled, vibe, provider, nano -> AiCorePrefs(enabled, vibe, provider, nano) }
 
-    val captionEligibleCount: StateFlow<Int> = clothingDao.getCaptionEligibleCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    private val openAiPrefsFlow = combine(
+        aiPreferencesRepository.openAiKey,
+        aiPreferencesRepository.openAiBaseUrl,
+        aiPreferencesRepository.openAiModel,
+        _openAiModels,
+        _openAiModelsLoading,
+    ) { key, baseUrl, model, models, loading -> OpenAiPrefs(key, baseUrl, model, models, loading) }
 
-    val batchCaptionProgress: StateFlow<com.closet.core.data.ai.BatchCaptionProgress?> = captionEnrichmentProvider.progress
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val anthropicPrefsFlow = combine(
+        aiPreferencesRepository.anthropicKey,
+        aiPreferencesRepository.anthropicModel,
+        _anthropicModels,
+        _anthropicModelsLoading,
+    ) { key, model, models, loading -> AnthropicPrefs(key, model, models, loading) }
 
-    val captionResult: StateFlow<com.closet.core.data.ai.BatchCaptionResult?> = captionEnrichmentProvider.result
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    private val geminiPrefsFlow = combine(
+        aiPreferencesRepository.geminiKey,
+        aiPreferencesRepository.geminiModel,
+    ) { key, model -> GeminiPrefs(key, model) }
 
-    fun onStartBatchCaption() {
-        viewModelScope.launch {
-            captionEnrichmentProvider.startBatchEnrichment()
-        }
-    }
+    private val embeddingStateFlow = combine(
+        embeddingScheduler.workInfo,
+        _embeddingIndexSize,
+    ) { workInfo, size -> EmbeddingState(workInfo, size) }
 
-    fun onCaptionResultConsumed() {
-        captionEnrichmentProvider.consumeResult()
-    }
+    private val captionStateFlow = combine(
+        clothingDao.getCaptionEligibleCount(),
+        captionEnrichmentProvider.progress,
+        captionEnrichmentProvider.result,
+    ) { eligible, progress, result -> CaptionState(eligible, progress, result) }
+
+    private val segmentationStateFlow = combine(
+        clothingDao.getSegmentationEligibleCount(),
+        batchSegmentationScheduler.workInfo,
+        preferencesRepository.lastHandledBatchId.map { raw ->
+            runCatching { raw?.let { UUID.fromString(it) } }.getOrNull()
+        },
+    ) { eligible, workInfo, batchId -> SegmentationState(eligible, workInfo, batchId) }
+
+    // ── Public single state flow ──────────────────────────────────────────────
+
+    val uiState: StateFlow<SettingsUiState> = combine(
+        combine(appPrefsFlow, aiCorePrefsFlow, openAiPrefsFlow) { app, ai, openAi ->
+            Triple(app, ai, openAi)
+        },
+        combine(anthropicPrefsFlow, geminiPrefsFlow, embeddingStateFlow) { anth, gem, emb ->
+            Triple(anth, gem, emb)
+        },
+        combine(captionStateFlow, segmentationStateFlow) { cap, seg -> cap to seg },
+    ) { (app, ai, openAi), (anth, gem, emb), (cap, seg) ->
+        SettingsUiState(
+            accent = app.accent,
+            temperatureUnit = app.temperatureUnit,
+            weatherService = app.weatherService,
+            aiEnabled = ai.aiEnabled,
+            styleVibe = ai.styleVibe,
+            selectedAiProvider = ai.selectedAiProvider,
+            nanoStatus = ai.nanoStatus,
+            openAiKey = openAi.key,
+            openAiBaseUrl = openAi.baseUrl,
+            openAiModel = openAi.model,
+            openAiModels = openAi.models,
+            openAiModelsLoading = openAi.modelsLoading,
+            anthropicKey = anth.key,
+            anthropicModel = anth.model,
+            anthropicModels = anth.models,
+            anthropicModelsLoading = anth.modelsLoading,
+            geminiKey = gem.key,
+            geminiModel = gem.model,
+            embeddingWorkInfo = emb.workInfo,
+            embeddingIndexSize = emb.indexSize,
+            captionSupported = captionEnrichmentProvider.isSupported,
+            captionEligibleCount = cap.eligibleCount,
+            batchCaptionProgress = cap.progress,
+            captionResult = cap.result,
+            segmentationSupported = batchSegmentationScheduler.isSupported,
+            segmentationEligibleCount = seg.eligibleCount,
+            batchSegWorkInfo = seg.workInfo,
+            lastHandledBatchId = seg.lastHandledBatchId,
+        )
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        SettingsUiState(
+            captionSupported = captionEnrichmentProvider.isSupported,
+            segmentationSupported = batchSegmentationScheduler.isSupported,
+        ),
+    )
 
     // ── Initialization ────────────────────────────────────────────────────────
 
     init {
-        // Fetch OpenAI models when key or base URL changes.
+        // Track Gemini Nano init status.
         viewModelScope.launch {
-            combine(openAiKey, openAiBaseUrl, aiEnabled) { key, url, enabled -> 
-                Triple(key, url, enabled) 
+            _nanoStatus.value = NanoStatus.Checking
+            nanoInitializer.initNanoFlow().collect { result ->
+                _nanoStatus.value = when (result) {
+                    is NanoInitResult.Downloading -> NanoStatus.Downloading(result.progressPct)
+                    is NanoInitResult.Success -> NanoStatus.Ready
+                    is NanoInitResult.Failed -> NanoStatus.Failed(result.reason)
+                    NanoInitResult.NotSupported -> NanoStatus.NotSupported
+                }
             }
+        }
+
+        // Fetch OpenAI models when key, base URL, or AI-enabled changes.
+        viewModelScope.launch {
+            combine(
+                aiPreferencesRepository.openAiKey,
+                aiPreferencesRepository.openAiBaseUrl,
+                aiPreferencesRepository.aiEnabled,
+            ) { key, url, enabled -> Triple(key, url, enabled) }
                 .debounce(800)
                 .collectLatest { (key, url, enabled) ->
                     if (!enabled || key.isBlank()) {
@@ -266,12 +256,15 @@ class SettingsViewModel @Inject constructor(
                 }
         }
 
-        // Fetch Anthropic models when key changes.
+        // Fetch Anthropic models when key or AI-enabled changes.
         viewModelScope.launch {
-            combine(anthropicKey, aiEnabled) { key, enabled -> key to enabled }
+            combine(
+                aiPreferencesRepository.anthropicKey,
+                aiPreferencesRepository.aiEnabled,
+            ) { key, enabled -> key to enabled }
                 .debounce(800)
-                .collectLatest { (key, shouldFetch) ->
-                    if (!shouldFetch || key.isBlank()) {
+                .collectLatest { (key, enabled) ->
+                    if (!enabled || key.isBlank()) {
                         _anthropicModels.value = emptyList()
                         return@collectLatest
                     }
@@ -285,9 +278,10 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
         }
-        // Refresh in-memory index size when a user-triggered rebuild completes.
+
+        // Refresh in-memory index size when a rebuild completes.
         viewModelScope.launch {
-            embeddingWorkInfo.collect { info ->
+            embeddingScheduler.workInfo.collect { info ->
                 if (info?.state == WorkInfo.State.SUCCEEDED || info?.state == WorkInfo.State.FAILED) {
                     try {
                         embeddingIndex.load()
@@ -301,42 +295,87 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // ── Batch segmentation ────────────────────────────────────────────────────
+    // ── App settings event handlers ───────────────────────────────────────────
 
-    /** `false` on FOSS builds — hides the batch segmentation row entirely. */
-    val segmentationSupported: Boolean = batchSegmentationScheduler.isSupported
+    fun onAccentSelected(accent: ClosetAccent) {
+        viewModelScope.launch { preferencesRepository.setAccent(accent) }
+    }
 
-    /**
-     * Count of wardrobe items still eligible for background removal (non-PNG images).
-     * Updates reactively whenever the clothing_items table changes.
-     */
-    val segmentationEligibleCount: StateFlow<Int> = clothingDao.getSegmentationEligibleCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    fun onTemperatureUnitSelected(unit: TemperatureUnit) {
+        viewModelScope.launch { weatherPreferencesRepository.setUnit(unit) }
+    }
 
-    /**
-     * Live [WorkInfo] for the unique batch segmentation job. `null` when no run has
-     * been enqueued yet in this install. Use [WorkInfo.state] to drive UI and
-     * [WorkInfo.progress] to show a progress bar.
-     */
-    val batchSegWorkInfo: StateFlow<WorkInfo?> = batchSegmentationScheduler.workInfo
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    fun onWeatherServiceSelected(service: WeatherService) {
+        viewModelScope.launch { weatherPreferencesRepository.setService(service) }
+    }
 
-    /**
-     * The ID of the last segmentation job for which we showed a result snackbar.
-     * Persisted in DataStore via [PreferencesRepository].
-     */
-    val lastHandledBatchId: StateFlow<java.util.UUID?> = preferencesRepository.lastHandledBatchId
-        .map { it?.let { java.util.UUID.fromString(it) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    // ── AI settings event handlers ────────────────────────────────────────────
+
+    fun onAiToggled(enabled: Boolean) {
+        viewModelScope.launch { aiPreferencesRepository.setAiEnabled(enabled) }
+    }
+
+    fun onStyleVibeSelected(vibe: StyleVibe) {
+        viewModelScope.launch { aiPreferencesRepository.setStyleVibe(vibe) }
+    }
+
+    fun onAiProviderSelected(provider: AiProvider) {
+        viewModelScope.launch { aiPreferencesRepository.setSelectedProvider(provider) }
+    }
+
+    // ── Provider key/model event handlers ────────────────────────────────────
+
+    fun onOpenAiKeyChanged(key: String) {
+        viewModelScope.launch { aiPreferencesRepository.setOpenAiKey(key) }
+    }
+
+    fun onOpenAiBaseUrlChanged(url: String) {
+        viewModelScope.launch { aiPreferencesRepository.setOpenAiBaseUrl(url) }
+    }
+
+    fun onOpenAiModelChanged(model: String) {
+        viewModelScope.launch { aiPreferencesRepository.setOpenAiModel(model) }
+    }
+
+    fun onAnthropicKeyChanged(key: String) {
+        viewModelScope.launch { aiPreferencesRepository.setAnthropicKey(key) }
+    }
+
+    fun onAnthropicModelChanged(model: String) {
+        viewModelScope.launch { aiPreferencesRepository.setAnthropicModel(model) }
+    }
+
+    fun onGeminiKeyChanged(key: String) {
+        viewModelScope.launch { aiPreferencesRepository.setGeminiKey(key) }
+    }
+
+    fun onGeminiModelChanged(model: String) {
+        viewModelScope.launch { aiPreferencesRepository.setGeminiModel(model) }
+    }
+
+    // ── Search index event handlers ───────────────────────────────────────────
+
+    fun onRebuildEmbeddingIndex() {
+        embeddingScheduler.runNow()
+    }
+
+    // ── Batch captioning event handlers ───────────────────────────────────────
+
+    fun onStartBatchCaption() {
+        captionEnrichmentProvider.startBatchEnrichment()
+    }
+
+    fun onCaptionResultConsumed() {
+        captionEnrichmentProvider.consumeResult()
+    }
+
+    // ── Batch segmentation event handlers ─────────────────────────────────────
 
     fun onStartBatchSegmentation() {
         batchSegmentationScheduler.schedule()
     }
 
-    /**
-     * Updates the 'last handled' ID so we don't show the same success snackbar twice.
-     */
-    fun onBatchResultHandled(id: java.util.UUID) {
+    fun onBatchResultHandled(id: UUID) {
         viewModelScope.launch {
             preferencesRepository.setLastHandledBatchId(id.toString())
         }

@@ -48,7 +48,6 @@ import androidx.work.WorkInfo
 import com.closet.core.data.ai.AiProvider
 import com.closet.core.data.ai.BatchCaptionProgress
 import com.closet.core.data.ai.BatchCaptionResult
-import com.closet.core.data.ai.NanoStatus
 import com.closet.core.data.ai.StyleVibe
 import com.closet.core.data.work.BatchSegmentationWork
 import com.closet.core.ui.theme.ClosetTheme
@@ -60,43 +59,16 @@ fun AiSettingsScreen(
     onNavigateUp: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val aiEnabled by viewModel.aiEnabled.collectAsStateWithLifecycle()
-    val selectedAiProvider by viewModel.selectedAiProvider.collectAsStateWithLifecycle()
-    val nanoStatus by viewModel.nanoStatus.collectAsStateWithLifecycle()
-    val openAiKey by viewModel.openAiKey.collectAsStateWithLifecycle()
-    val openAiBaseUrl by viewModel.openAiBaseUrl.collectAsStateWithLifecycle()
-    val openAiModel by viewModel.openAiModel.collectAsStateWithLifecycle()
-    val styleVibe by viewModel.styleVibe.collectAsStateWithLifecycle()
-    val anthropicKey by viewModel.anthropicKey.collectAsStateWithLifecycle()
-    val anthropicModel by viewModel.anthropicModel.collectAsStateWithLifecycle()
-    val geminiKey by viewModel.geminiKey.collectAsStateWithLifecycle()
-    val geminiModel by viewModel.geminiModel.collectAsStateWithLifecycle()
-    val openAiModels by viewModel.openAiModels.collectAsStateWithLifecycle()
-    val openAiModelsLoading by viewModel.openAiModelsLoading.collectAsStateWithLifecycle()
-    val anthropicModels by viewModel.anthropicModels.collectAsStateWithLifecycle()
-    val anthropicModelsLoading by viewModel.anthropicModelsLoading.collectAsStateWithLifecycle()
-
-    val embeddingWorkInfo by viewModel.embeddingWorkInfo.collectAsStateWithLifecycle()
-    val embeddingIndexSize by viewModel.embeddingIndexSize.collectAsStateWithLifecycle()
-
-    val segmentationSupported = viewModel.segmentationSupported
-    val segmentationEligibleCount by viewModel.segmentationEligibleCount.collectAsStateWithLifecycle()
-    val batchSegWorkInfo by viewModel.batchSegWorkInfo.collectAsStateWithLifecycle()
-
-    val captionSupported = viewModel.captionSupported
-    val captionEligibleCount by viewModel.captionEligibleCount.collectAsStateWithLifecycle()
-    val batchCaptionProgress by viewModel.batchCaptionProgress.collectAsStateWithLifecycle()
-    val captionResult by viewModel.captionResult.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val view = LocalView.current
     val snackbarHostState = remember { SnackbarHostState() }
     var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
-    val lastHandledBatchId by viewModel.lastHandledBatchId.collectAsStateWithLifecycle()
 
-    LaunchedEffect(batchSegWorkInfo?.id, batchSegWorkInfo?.state) {
-        val info = batchSegWorkInfo ?: return@LaunchedEffect
-        if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledBatchId) {
+    LaunchedEffect(uiState.batchSegWorkInfo?.id, uiState.batchSegWorkInfo?.state) {
+        val info = uiState.batchSegWorkInfo ?: return@LaunchedEffect
+        if (info.state == WorkInfo.State.SUCCEEDED && info.id != uiState.lastHandledBatchId) {
             viewModel.onBatchResultHandled(info.id)
             val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
             val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
@@ -113,15 +85,15 @@ fun AiSettingsScreen(
         }
     }
 
-    LaunchedEffect(batchCaptionProgress) {
-        view.keepScreenOn = batchCaptionProgress != null
+    LaunchedEffect(uiState.batchCaptionProgress) {
+        view.keepScreenOn = uiState.batchCaptionProgress != null
     }
     DisposableEffect(Unit) {
         onDispose { view.keepScreenOn = false }
     }
 
-    LaunchedEffect(captionResult) {
-        val result = captionResult ?: return@LaunchedEffect
+    LaunchedEffect(uiState.captionResult) {
+        val result = uiState.captionResult ?: return@LaunchedEffect
         viewModel.onCaptionResultConsumed()
         val msg = if (result.failed > 0) {
             context.resources.getQuantityString(
@@ -135,13 +107,13 @@ fun AiSettingsScreen(
         snackbarHostState.showSnackbar(msg)
     }
 
-    LaunchedEffect(nanoStatus) {
-        if (nanoStatus !is NanoStatus.NotSupported) {
+    LaunchedEffect(uiState.nanoStatus) {
+        if (uiState.nanoStatus !is NanoStatus.NotSupported) {
             nanoNotSupportedDismissed = false
         }
     }
 
-    if (nanoStatus is NanoStatus.NotSupported && !nanoNotSupportedDismissed) {
+    if (uiState.nanoStatus is NanoStatus.NotSupported && !nanoNotSupportedDismissed) {
         NanoNotSupportedDialog(
             onSwitchToOpenAi = {
                 nanoNotSupportedDismissed = true
@@ -165,41 +137,41 @@ fun AiSettingsScreen(
     }
 
     AiSettingsContent(
-        aiEnabled = aiEnabled,
+        aiEnabled = uiState.aiEnabled,
         onAiToggled = viewModel::onAiToggled,
-        styleVibe = styleVibe,
+        styleVibe = uiState.styleVibe,
         onStyleVibeSelected = viewModel::onStyleVibeSelected,
-        selectedAiProvider = selectedAiProvider,
+        selectedAiProvider = uiState.selectedAiProvider,
         onAiProviderSelected = viewModel::onAiProviderSelected,
-        nanoStatus = nanoStatus,
-        openAiKey = openAiKey,
-        openAiBaseUrl = openAiBaseUrl,
-        openAiModel = openAiModel,
+        nanoStatus = uiState.nanoStatus,
+        openAiKey = uiState.openAiKey,
+        openAiBaseUrl = uiState.openAiBaseUrl,
+        openAiModel = uiState.openAiModel,
         onOpenAiKeyChanged = viewModel::onOpenAiKeyChanged,
         onOpenAiBaseUrlChanged = viewModel::onOpenAiBaseUrlChanged,
         onOpenAiModelChanged = viewModel::onOpenAiModelChanged,
-        anthropicKey = anthropicKey,
-        anthropicModel = anthropicModel,
+        anthropicKey = uiState.anthropicKey,
+        anthropicModel = uiState.anthropicModel,
         onAnthropicKeyChanged = viewModel::onAnthropicKeyChanged,
         onAnthropicModelChanged = viewModel::onAnthropicModelChanged,
-        geminiKey = geminiKey,
-        geminiModel = geminiModel,
+        geminiKey = uiState.geminiKey,
+        geminiModel = uiState.geminiModel,
         onGeminiKeyChanged = viewModel::onGeminiKeyChanged,
         onGeminiModelChanged = viewModel::onGeminiModelChanged,
-        openAiModels = openAiModels,
-        openAiModelsLoading = openAiModelsLoading,
-        anthropicModels = anthropicModels,
-        anthropicModelsLoading = anthropicModelsLoading,
-        embeddingIndexSize = embeddingIndexSize,
-        embeddingWorkInfo = embeddingWorkInfo,
+        openAiModels = uiState.openAiModels,
+        openAiModelsLoading = uiState.openAiModelsLoading,
+        anthropicModels = uiState.anthropicModels,
+        anthropicModelsLoading = uiState.anthropicModelsLoading,
+        embeddingIndexSize = uiState.embeddingIndexSize,
+        embeddingWorkInfo = uiState.embeddingWorkInfo,
         onRebuildEmbeddingIndex = viewModel::onRebuildEmbeddingIndex,
-        segmentationSupported = segmentationSupported,
-        segmentationEligibleCount = segmentationEligibleCount,
-        batchSegWorkInfo = batchSegWorkInfo,
+        segmentationSupported = uiState.segmentationSupported,
+        segmentationEligibleCount = uiState.segmentationEligibleCount,
+        batchSegWorkInfo = uiState.batchSegWorkInfo,
         onStartBatchSegmentation = viewModel::onStartBatchSegmentation,
-        captionSupported = captionSupported,
-        captionEligibleCount = captionEligibleCount,
-        batchCaptionProgress = batchCaptionProgress,
+        captionSupported = uiState.captionSupported,
+        captionEligibleCount = uiState.captionEligibleCount,
+        batchCaptionProgress = uiState.batchCaptionProgress,
         onStartBatchCaption = viewModel::onStartBatchCaption,
         onNavigateUp = onNavigateUp,
         snackbarHostState = snackbarHostState,
