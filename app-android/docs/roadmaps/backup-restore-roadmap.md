@@ -45,7 +45,7 @@ backup-2026-04-01/
 - [x] Create `BackupForegroundService` — starts in foreground with a persistent notification, exposes a `progress: StateFlow<BackupProgress>` via a bound service or broadcast, stops itself when work completes or is cancelled
 
 ### 1.2 Data model
-- [ ] Create `BackupManifest` data class (schema version, app version, timestamp, image count, `apiKeysExcluded: Boolean`)
+- [x] Create `BackupManifest` data class (schema version, app version, timestamp, image count, `apiKeysExcluded: Boolean`)
 - [x] Create `BackupProgress` sealed class: `Idle | Running(step, done, total) | Success(outputUri) | Error(message)`
 
 ### 1.3 Export — `BackupRepository.export()`
