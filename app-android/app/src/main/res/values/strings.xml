@@ -19,4 +19,8 @@
     <string name="shortcut_laundry_long">Bulk mark wash status</string>
     <string name="shortcut_category_short">Category</string>
     <string name="shortcut_category_long">Browse category</string>
+
+    <!-- Backup / Restore -->
+    <string name="backup_notification_preparing_export">Preparing backup…</string>
+    <string name="backup_notification_preparing_restore">Preparing restore…</string>
 </resources>

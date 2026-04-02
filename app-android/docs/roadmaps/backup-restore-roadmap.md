@@ -40,13 +40,13 @@ backup-2026-04-01/
 ## Phase 1 — Local backup to file
 
 ### 1.1 Infrastructure
-- [ ] Add `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC` permissions to `AndroidManifest.xml`
-- [ ] Create notification channel `backup_restore` in `ClosetApp.onCreate()`
-- [ ] Create `BackupForegroundService` — starts in foreground with a persistent notification, exposes a `progress: StateFlow<BackupProgress>` via a bound service or broadcast, stops itself when work completes or is cancelled
+- [x] Add `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC` permissions to `AndroidManifest.xml`
+- [x] Create notification channel `backup_restore` in `ClosetApp.onCreate()`
+- [x] Create `BackupForegroundService` — starts in foreground with a persistent notification, exposes a `progress: StateFlow<BackupProgress>` via a bound service or broadcast, stops itself when work completes or is cancelled
 
 ### 1.2 Data model
 - [ ] Create `BackupManifest` data class (schema version, app version, timestamp, image count, `apiKeysExcluded: Boolean`)
-- [ ] Create `BackupProgress` sealed class: `Idle | Running(step, done, total) | Success(outputUri) | Error(message)`
+- [x] Create `BackupProgress` sealed class: `Idle | Running(step, done, total) | Success(outputUri) | Error(message)`
 
 ### 1.3 Export — `BackupRepository.export()`
 - [ ] `PRAGMA wal_checkpoint(FULL)` on the Room DB before copying (flush WAL to main file)
