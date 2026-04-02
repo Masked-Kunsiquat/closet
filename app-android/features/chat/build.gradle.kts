@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -21,6 +22,10 @@ android {
         create("foss") { dimension = "distribution" }
     }
 
+    buildFeatures {
+        compose = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -35,6 +40,18 @@ kotlin {
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:ui"))
+
+    // Compose
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.compose.material.icons.extended)
+    debugImplementation(libs.androidx.ui.tooling)
+
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
@@ -42,6 +59,14 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
+
+    // Lifecycle
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Image loading
+    implementation(libs.coil.compose)
 
     // Ktor HTTP client
     implementation(libs.ktor.client.okhttp)

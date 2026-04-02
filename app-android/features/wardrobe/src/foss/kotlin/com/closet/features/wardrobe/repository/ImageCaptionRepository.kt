@@ -1,7 +1,12 @@
 package com.closet.features.wardrobe.repository
 
 import android.graphics.Bitmap
+import com.closet.core.data.ai.BatchCaptionProgress
+import com.closet.core.data.ai.BatchCaptionResult
 import com.closet.core.data.repository.CaptionEnrichmentProvider
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,4 +30,11 @@ class ImageCaptionRepository @Inject constructor() : CaptionEnrichmentProvider {
     override suspend fun isModelDownloaded(): Boolean = false
 
     override suspend fun ensureModelDownloaded() { /* no-op in FOSS builds */ }
+
+    override val progress: StateFlow<BatchCaptionProgress?> = MutableStateFlow(null)
+    override val result: StateFlow<BatchCaptionResult?> = MutableStateFlow(null)
+
+    override fun startBatchEnrichment() { /* no-op in FOSS builds */ }
+
+    override fun consumeResult() { /* no-op in FOSS builds */ }
 }

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Top bar -->
+    <string name="chat_title">Wardrobe Assistant</string>
+    <string name="chat_powered_by">Powered by %s</string>
+
+    <!-- Welcome state -->
+    <string name="chat_welcome_title">Ask me anything about\nyour wardrobe</string>
+    <string name="chat_welcome_subtitle_ready">I know what you own, what you\'ve worn,\nand what works together.</string>
+    <string name="chat_welcome_subtitle_not_ready">Your wardrobe index is still being built.\nResults may be limited until it\'s ready.</string>
+
+    <!-- Welcome suggestions -->
+    <string-array name="chat_welcome_suggestions">
+        <item>What should I wear tonight?</item>
+        <item>What haven\'t I worn lately?</item>
+        <item>What goes with my grey blazer?</item>
+        <item>Show me a work outfit</item>
+    </string-array>
+
+    <!-- Input bar -->
+    <string name="chat_input_placeholder">Ask about your wardrobe\u2026</string>
+    <string name="chat_send_button_description">Send</string>
+
+    <!-- Outfit card actions -->
+    <string name="chat_action_log_it">Log it</string>
+    <string name="chat_action_alternatives">Alternatives \u2192</string>
+
+    <!-- Index not-ready banner -->
+    <string name="chat_index_building_notice">Wardrobe index still building — results may be limited</string>
+</resources>

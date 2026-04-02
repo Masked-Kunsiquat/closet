@@ -1,5 +1,8 @@
 package com.closet.core.data.worker
 
+import androidx.work.WorkInfo
+import kotlinx.coroutines.flow.Flow
+
 /**
  * Constants shared between [EmbeddingWorker] and any observer (e.g. a future Settings screen)
  * so neither module needs to depend on the other.
@@ -7,6 +10,12 @@ package com.closet.core.data.worker
 object EmbeddingWork {
     /** Unique work name for [androidx.work.WorkManager.enqueueUniquePeriodicWork]. */
     const val NAME = "embedding_worker"
+
+    /**
+     * Unique work name for user-triggered one-time embedding runs (no charging/idle constraints).
+     * Separate from [NAME] so it doesn't cancel the periodic schedule.
+     */
+    const val IMMEDIATE_NAME = "embedding_worker_immediate"
 
     /**
      * Identifies the model that produced an embedding.
@@ -40,4 +49,18 @@ interface EmbeddingScheduler {
 
     /** Cancels any pending or running embedding work. */
     fun cancel()
+
+    /**
+     * Enqueues a one-time embedding run immediately, without charging/idle constraints.
+     * Uses [EmbeddingWork.IMMEDIATE_NAME] so it doesn't interfere with the periodic schedule.
+     * Safe to call while the periodic work is scheduled — they run independently.
+     *
+     * **Not idempotent.** The implementation enqueues with [androidx.work.ExistingWorkPolicy.REPLACE],
+     * so calling [runNow] while an immediate run is already in flight will cancel that run and
+     * start a new one. Avoid rapid successive calls to prevent unintended cancellations.
+     */
+    fun runNow()
+
+    /** Live [WorkInfo] for the immediate one-time run ([EmbeddingWork.IMMEDIATE_NAME]). */
+    val workInfo: Flow<WorkInfo?>
 }

@@ -310,6 +310,25 @@ Store float arrays as `ByteBuffer.allocate(dims * 4).apply { asFloatBuffer().put
 }
 ```
 
+**Migration 5→6 (shipped):** Add `input_snapshot TEXT` to `item_embeddings` for
+embedding staleness detection. When a clothing item's `semantic_description` or
+`image_caption` changes, `EmbeddingWorker` compares the current concatenated text
+against the stored snapshot — if they differ, it re-embeds the item. This column
+is populated at upsert time; `null` rows are treated as always-stale.
+
+**New file:** `core/data/src/main/kotlin/com/closet/core/data/migrations/Migration5To6.kt`
+
+```kotlin
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+        db.execSQL("ALTER TABLE item_embeddings ADD COLUMN input_snapshot TEXT")
+    }
+}
+```
+
+---
+
 **Phase 2B (future, when warranted):** Migrate to `sqlite-vss` for native ANN
 (approximate nearest-neighbour) search. Requires bundling the `sqlite-vss` native
 `.so` for `arm64-v8a` (primary) and `armeabi-v7a` (fallback). Use a custom
@@ -549,7 +568,7 @@ with a JSON object:
 
 ---
 
-### §4.4 — `ChatRepository` (~1-2 days)
+### §4.4 — `ChatRepository` ✓ DONE
 
 **New file:** `core/data/src/main/kotlin/com/closet/core/data/repository/ChatRepository.kt`
 
@@ -581,7 +600,7 @@ original roadmap sketch above.
 
 ---
 
-### §4.5 — `features/chat` module (~half day)
+### §4.5 — `features/chat` module ✓ DONE
 
 New Gradle module. Depends on `core/data` and `core/ui`. No flavor split needed at the
 module level — `NanoChatProvider` handles its own `full`/`foss` source set split
@@ -606,7 +625,7 @@ UI preview skeleton already lives at:
 
 ---
 
-### §4.6 — Chat UI design
+### §4.6 — Chat UI design ✓ DONE
 
 Three message content types, surfaced as inline attachments rather than navigation:
 
@@ -638,7 +657,7 @@ Simple to wire — one extra `collectAsStateWithLifecycle()` in the screen.
 
 ---
 
-### §4.7 — Navigation wiring (~half day)
+### §4.7 — Navigation wiring ✓ DONE
 
 **Modify:** `app/src/main/kotlin/com/closet/navigation/ClosetNavGraph.kt`
 

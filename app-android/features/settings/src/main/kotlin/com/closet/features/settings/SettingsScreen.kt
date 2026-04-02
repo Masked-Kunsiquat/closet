@@ -9,20 +9,16 @@ import android.provider.Settings
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,22 +28,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -55,21 +42,15 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.work.WorkInfo
-import com.closet.core.data.worker.BatchSegmentationWork
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -81,11 +62,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
@@ -93,8 +70,6 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import com.closet.core.data.model.AiProvider
-import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.ui.theme.ClosetAccent
@@ -112,87 +87,24 @@ import com.closet.core.ui.theme.ClosetTheme
 fun SettingsScreen(
     onNavigateUp: () -> Unit,
     onNavigateToBulkWash: () -> Unit = {},
+    onNavigateToAiSettings: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val accent by viewModel.accent.collectAsStateWithLifecycle()
-    val dynamicColor by viewModel.dynamicColor.collectAsStateWithLifecycle()
-    val weatherEnabled by viewModel.weatherEnabled.collectAsStateWithLifecycle()
-    val weatherService by viewModel.weatherService.collectAsStateWithLifecycle()
-    val googleApiKey by viewModel.googleApiKey.collectAsStateWithLifecycle()
-    val temperatureUnit by viewModel.temperatureUnit.collectAsStateWithLifecycle()
-    val aiEnabled by viewModel.aiEnabled.collectAsStateWithLifecycle()
-    val selectedAiProvider by viewModel.selectedAiProvider.collectAsStateWithLifecycle()
-    val nanoStatus by viewModel.nanoStatus.collectAsStateWithLifecycle()
-    val openAiKey by viewModel.openAiKey.collectAsStateWithLifecycle()
-    val openAiBaseUrl by viewModel.openAiBaseUrl.collectAsStateWithLifecycle()
-    val openAiModel by viewModel.openAiModel.collectAsStateWithLifecycle()
-    val styleVibe by viewModel.styleVibe.collectAsStateWithLifecycle()
-    val anthropicKey by viewModel.anthropicKey.collectAsStateWithLifecycle()
-    val anthropicModel by viewModel.anthropicModel.collectAsStateWithLifecycle()
-    val geminiKey by viewModel.geminiKey.collectAsStateWithLifecycle()
-    val geminiModel by viewModel.geminiModel.collectAsStateWithLifecycle()
-    val openAiModels by viewModel.openAiModels.collectAsStateWithLifecycle()
-    val openAiModelsLoading by viewModel.openAiModelsLoading.collectAsStateWithLifecycle()
-    val anthropicModels by viewModel.anthropicModels.collectAsStateWithLifecycle()
-    val anthropicModelsLoading by viewModel.anthropicModelsLoading.collectAsStateWithLifecycle()
-
-    val segmentationSupported = viewModel.segmentationSupported
-    val segmentationEligibleCount by viewModel.segmentationEligibleCount.collectAsStateWithLifecycle()
-    val batchSegWorkInfo by viewModel.batchSegWorkInfo.collectAsStateWithLifecycle()
-
-    val captionSupported = viewModel.captionSupported
-    val captionEligibleCount by viewModel.captionEligibleCount.collectAsStateWithLifecycle()
-    val batchCaptionProgress by viewModel.batchCaptionProgress.collectAsStateWithLifecycle()
-    val captionResult by viewModel.captionResult.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val accent = uiState.accent
+    val dynamicColor = uiState.dynamicColor
+    val weatherEnabled = uiState.weatherEnabled
+    val weatherService = uiState.weatherService
+    val googleApiKey = uiState.googleApiKey
+    val temperatureUnit = uiState.temperatureUnit
 
     val context = LocalContext.current
-    val view = LocalView.current
     val activity = LocalActivity.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showRationaleDialog by remember { mutableStateOf(false) }
-    var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
 
     val deniedMessage = stringResource(R.string.settings_location_snackbar)
-
-    // Show a snackbar once per completed batch run. lastHandledBatchId lives in the
-    // ViewModel so it survives the screen leaving composition and coming back — a
-    // local `remember` would reset to null and re-fire the snackbar on re-entry.
-    val lastHandledBatchId by viewModel.lastHandledBatchId.collectAsStateWithLifecycle()
-    LaunchedEffect(batchSegWorkInfo?.id, batchSegWorkInfo?.state) {
-        val info = batchSegWorkInfo ?: return@LaunchedEffect
-        if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledBatchId) {
-            viewModel.onBatchResultHandled(info.id)
-            val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
-            val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
-            val msg = if (failed > 0) {
-                context.resources.getQuantityString(R.plurals.settings_wardrobe_batch_result_with_failures, done, done, failed)
-            } else {
-                context.resources.getQuantityString(R.plurals.settings_wardrobe_batch_result, done, done)
-            }
-            snackbarHostState.showSnackbar(msg)
-        }
-    }
-
-    // Keep screen on while batch caption enrichment is running (Image Description API requirement).
-    // LaunchedEffect handles the reactive set; DisposableEffect guarantees reset on composition exit.
-    LaunchedEffect(batchCaptionProgress) {
-        view.keepScreenOn = batchCaptionProgress != null
-    }
-    DisposableEffect(Unit) {
-        onDispose { view.keepScreenOn = false }
-    }
-
-    LaunchedEffect(captionResult) {
-        val result = captionResult ?: return@LaunchedEffect
-        viewModel.onCaptionResultConsumed()
-        val msg = if (result.failed > 0) {
-            context.resources.getQuantityString(R.plurals.settings_wardrobe_caption_result_with_failures, result.done, result.done, result.failed)
-        } else {
-            context.resources.getQuantityString(R.plurals.settings_wardrobe_caption_result, result.done, result.done)
-        }
-        snackbarHostState.showSnackbar(msg)
-    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -230,32 +142,6 @@ fun SettingsScreen(
         }
     }
 
-    // Reset dismissed flag if nanoStatus moves away from NotSupported (e.g. user switched provider)
-    if (nanoStatus !is NanoStatus.NotSupported) {
-        nanoNotSupportedDismissed = false
-    }
-
-    if (nanoStatus is NanoStatus.NotSupported && !nanoNotSupportedDismissed) {
-        NanoNotSupportedDialog(
-            onSwitchToOpenAi = {
-                nanoNotSupportedDismissed = true
-                viewModel.onAiProviderSelected(AiProvider.OpenAi)
-                viewModel.onAiToggled(true)
-            },
-            onSwitchToAnthropic = {
-                nanoNotSupportedDismissed = true
-                viewModel.onAiProviderSelected(AiProvider.Anthropic)
-                viewModel.onAiToggled(true)
-            },
-            onSwitchToGemini = {
-                nanoNotSupportedDismissed = true
-                viewModel.onAiProviderSelected(AiProvider.Gemini)
-                viewModel.onAiToggled(true)
-            },
-            onDismiss = { nanoNotSupportedDismissed = true },
-        )
-    }
-
     if (showRationaleDialog) {
         PermissionRationaleDialog(
             onOpenSettings = {
@@ -283,39 +169,7 @@ fun SettingsScreen(
         onGoogleApiKeyChange = viewModel::setGoogleApiKey,
         onTemperatureUnitChange = viewModel::setTemperatureUnit,
         onClearCache = viewModel::clearForecastCache,
-        aiEnabled = aiEnabled,
-        selectedAiProvider = selectedAiProvider,
-        nanoStatus = nanoStatus,
-        openAiKey = openAiKey,
-        openAiBaseUrl = openAiBaseUrl,
-        openAiModel = openAiModel,
-        onAiToggled = viewModel::onAiToggled,
-        onAiProviderSelected = viewModel::onAiProviderSelected,
-        onOpenAiKeyChanged = viewModel::onOpenAiKeyChanged,
-        onOpenAiBaseUrlChanged = viewModel::onOpenAiBaseUrlChanged,
-        onOpenAiModelChanged = viewModel::onOpenAiModelChanged,
-        styleVibe = styleVibe,
-        onStyleVibeSelected = viewModel::onStyleVibeSelected,
-        anthropicKey = anthropicKey,
-        anthropicModel = anthropicModel,
-        onAnthropicKeyChanged = viewModel::onAnthropicKeyChanged,
-        onAnthropicModelChanged = viewModel::onAnthropicModelChanged,
-        geminiKey = geminiKey,
-        geminiModel = geminiModel,
-        onGeminiKeyChanged = viewModel::onGeminiKeyChanged,
-        onGeminiModelChanged = viewModel::onGeminiModelChanged,
-        openAiModels = openAiModels,
-        openAiModelsLoading = openAiModelsLoading,
-        anthropicModels = anthropicModels,
-        anthropicModelsLoading = anthropicModelsLoading,
-        segmentationSupported = segmentationSupported,
-        segmentationEligibleCount = segmentationEligibleCount,
-        batchSegWorkInfo = batchSegWorkInfo,
-        onStartBatchSegmentation = viewModel::startBatchSegmentation,
-        captionSupported = captionSupported,
-        captionEligibleCount = captionEligibleCount,
-        batchCaptionProgress = batchCaptionProgress,
-        onStartBatchEnrichment = viewModel::startBatchEnrichment,
+        onNavigateToAiSettings = onNavigateToAiSettings,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
         onNavigateToBulkWash = onNavigateToBulkWash,
@@ -329,8 +183,8 @@ fun SettingsScreen(
  * - **Appearance**: dynamic color toggle (API 31+) + accent color picker.
  * - **Weather**: forecast toggle; when on — service picker, optional API key
  *   field (Google only), temperature unit picker, and a clear-cache action.
- * - **AI suggestions**: master toggle; when on — provider picker (Nano / OpenAI /
- *   Anthropic), provider-specific config fields.
+ * - **Wardrobe**: laundry day shortcut.
+ * - **AI & Image Tools**: single navigable row — opens [AiSettingsScreen].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -348,39 +202,7 @@ internal fun SettingsContent(
     onGoogleApiKeyChange: (String) -> Unit,
     onTemperatureUnitChange: (TemperatureUnit) -> Unit,
     onClearCache: () -> Unit,
-    aiEnabled: Boolean,
-    selectedAiProvider: AiProvider,
-    nanoStatus: NanoStatus,
-    openAiKey: String,
-    openAiBaseUrl: String,
-    openAiModel: String,
-    onAiToggled: (Boolean) -> Unit,
-    onAiProviderSelected: (AiProvider) -> Unit,
-    onOpenAiKeyChanged: (String) -> Unit,
-    onOpenAiBaseUrlChanged: (String) -> Unit,
-    onOpenAiModelChanged: (String) -> Unit,
-    anthropicKey: String,
-    anthropicModel: String,
-    onAnthropicKeyChanged: (String) -> Unit,
-    onAnthropicModelChanged: (String) -> Unit,
-    geminiKey: String,
-    geminiModel: String,
-    onGeminiKeyChanged: (String) -> Unit,
-    onGeminiModelChanged: (String) -> Unit,
-    openAiModels: List<String>,
-    openAiModelsLoading: Boolean,
-    anthropicModels: List<String>,
-    anthropicModelsLoading: Boolean,
-    styleVibe: StyleVibe,
-    onStyleVibeSelected: (StyleVibe) -> Unit,
-    segmentationSupported: Boolean,
-    segmentationEligibleCount: Int,
-    batchSegWorkInfo: WorkInfo?,
-    onStartBatchSegmentation: () -> Unit,
-    captionSupported: Boolean,
-    captionEligibleCount: Int,
-    batchCaptionProgress: BatchCaptionProgress?,
-    onStartBatchEnrichment: () -> Unit,
+    onNavigateToAiSettings: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     onNavigateToBulkWash: () -> Unit = {},
@@ -464,66 +286,6 @@ internal fun SettingsContent(
                 ClearCacheItem(onClick = onClearCache)
             }
 
-            // ── AI suggestions ────────────────────────────────────────────────
-            item {
-                SettingsSectionHeader(stringResource(R.string.settings_section_ai))
-            }
-            item {
-                AiToggleItem(
-                    enabled = aiEnabled,
-                    onCheckedChange = onAiToggled,
-                )
-            }
-            if (aiEnabled) {
-                item {
-                    AiProviderItem(
-                        selected = selectedAiProvider,
-                        onSelect = onAiProviderSelected,
-                    )
-                }
-                item {
-                    StyleVibeItem(
-                        selected = styleVibe,
-                        onSelect = onStyleVibeSelected,
-                    )
-                }
-                when (selectedAiProvider) {
-                    AiProvider.Nano -> item {
-                        NanoStatusItem(status = nanoStatus)
-                    }
-                    AiProvider.OpenAi -> item {
-                        OpenAiFieldsItem(
-                            apiKey = openAiKey,
-                            baseUrl = openAiBaseUrl,
-                            model = openAiModel,
-                            models = openAiModels,
-                            modelsLoading = openAiModelsLoading,
-                            onApiKeyChanged = onOpenAiKeyChanged,
-                            onBaseUrlChanged = onOpenAiBaseUrlChanged,
-                            onModelChanged = onOpenAiModelChanged,
-                        )
-                    }
-                    AiProvider.Anthropic -> item {
-                        AnthropicFieldsItem(
-                            apiKey = anthropicKey,
-                            model = anthropicModel,
-                            models = anthropicModels,
-                            modelsLoading = anthropicModelsLoading,
-                            onApiKeyChanged = onAnthropicKeyChanged,
-                            onModelChanged = onAnthropicModelChanged,
-                        )
-                    }
-                    AiProvider.Gemini -> item {
-                        GeminiFieldsItem(
-                            apiKey = geminiKey,
-                            model = geminiModel,
-                            onApiKeyChanged = onGeminiKeyChanged,
-                            onModelChanged = onGeminiModelChanged,
-                        )
-                    }
-                }
-            }
-
             // ── Wardrobe ──────────────────────────────────────────────────────
             item {
                 SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
@@ -531,23 +293,13 @@ internal fun SettingsContent(
             item {
                 LaundryDayItem(onClick = onNavigateToBulkWash)
             }
-            if (segmentationSupported) {
-                item {
-                    BatchSegmentationItem(
-                        eligibleCount = segmentationEligibleCount,
-                        workInfo = batchSegWorkInfo,
-                        onStart = onStartBatchSegmentation,
-                    )
-                }
+
+            // ── AI & Image Tools ──────────────────────────────────────────────
+            item {
+                SettingsSectionHeader(stringResource(R.string.settings_section_ai_tools))
             }
-            if (captionSupported) {
-                item {
-                    BatchCaptionItem(
-                        eligibleCount = captionEligibleCount,
-                        progress = batchCaptionProgress,
-                        onStart = onStartBatchEnrichment,
-                    )
-                }
+            item {
+                AiToolsNavItem(onClick = onNavigateToAiSettings)
             }
         }
     }
@@ -556,7 +308,7 @@ internal fun SettingsContent(
 // ── Shared ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SettingsSectionHeader(title: String) {
+internal fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.labelLarge,
@@ -780,492 +532,7 @@ private fun ClearCacheItem(onClick: () -> Unit) {
     )
 }
 
-// ── AI items ──────────────────────────────────────────────────────────────────
-
-/**
- * Style vibe picker using a horizontally scrollable [SingleChoiceSegmentedButtonRow].
- * Visible only when AI is enabled. The selected vibe is passed to [OutfitCoherenceScorer]
- * so the AI provider can tailor its curation instruction.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StyleVibeItem(
-    selected: StyleVibe,
-    onSelect: (StyleVibe) -> Unit,
-) {
-    val vibes = StyleVibe.entries
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_ai_style_vibe)) },
-        supportingContent = {
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier
-                    .horizontalScroll(rememberScrollState())
-                    .padding(top = 8.dp),
-            ) {
-                vibes.forEachIndexed { index, vibe ->
-                    SegmentedButton(
-                        selected = vibe == selected,
-                        onClick = { onSelect(vibe) },
-                        shape = SegmentedButtonDefaults.itemShape(index, vibes.size),
-                        label = { Text(vibe.label) },
-                    )
-                }
-            }
-        },
-    )
-}
-
-/**
- * Master AI toggle. Default OFF.
- */
-@Composable
-private fun AiToggleItem(
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_ai_enabled)) },
-        supportingContent = { Text(stringResource(R.string.settings_ai_enabled_summary)) },
-        trailingContent = {
-            Switch(
-                checked = enabled,
-                onCheckedChange = onCheckedChange,
-            )
-        },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AiProviderItem(
-    selected: AiProvider,
-    onSelect: (AiProvider) -> Unit,
-) {
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_ai_provider)) },
-        supportingContent = {
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-            ) {
-                AiProvider.entries.forEachIndexed { index, provider ->
-                    SegmentedButton(
-                        selected = provider == selected,
-                        onClick = { onSelect(provider) },
-                        shape = SegmentedButtonDefaults.itemShape(index, AiProvider.entries.size),
-                        label = {
-                            Text(
-                                text = when (provider) {
-                                    AiProvider.Nano -> stringResource(R.string.settings_ai_provider_nano)
-                                    AiProvider.OpenAi -> stringResource(R.string.settings_ai_provider_openai)
-                                    AiProvider.Anthropic -> stringResource(R.string.settings_ai_provider_anthropic)
-                                    AiProvider.Gemini -> stringResource(R.string.settings_ai_provider_gemini)
-                                },
-                            )
-                        },
-                    )
-                }
-            }
-        },
-    )
-}
-
-/**
- * Status indicator shown below the provider picker when Nano is selected.
- *
- * - [NanoStatus.Idle] — nothing shown (init not yet started)
- * - [NanoStatus.Checking] — indeterminate [LinearProgressIndicator]
- * - [NanoStatus.Downloading] — determinate [LinearProgressIndicator] + percentage text
- * - [NanoStatus.Ready] — green checkmark + "Model ready"
- * - [NanoStatus.Failed] — error text
- * - [NanoStatus.NotSupported] — muted "Not supported on this device"
- */
-@Composable
-private fun NanoStatusItem(status: NanoStatus) {
-    AnimatedVisibility(visible = status !is NanoStatus.Idle) {
-        ListItem(
-            headlineContent = {
-                when (status) {
-                    NanoStatus.Idle -> Unit
-                    NanoStatus.Checking -> {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.settings_ai_nano_checking),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-                    is NanoStatus.Downloading -> {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.settings_ai_nano_downloading, status.progressPct),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LinearProgressIndicator(
-                                progress = { status.progressPct / 100f },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                    NanoStatus.Ready -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_ai_nano_ready),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                    is NanoStatus.Failed -> {
-                        Text(
-                            text = stringResource(R.string.settings_ai_nano_failed, status.message),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    NanoStatus.NotSupported -> {
-                        Text(
-                            text = stringResource(R.string.settings_ai_nano_not_supported),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            },
-        )
-    }
-}
-
-/**
- * OpenAI-compatible provider config fields:
- * - API key (password field with toggleable visibility)
- * - Base URL override with preset chips for common providers
- * - Model selector: ExposedDropdownMenuBox pre-populated from the models API,
- *   falling back to free-text if discovery fails or hasn't run yet
- *
- * All changes persist on every keystroke via the provided callbacks.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun OpenAiFieldsItem(
-    apiKey: String,
-    baseUrl: String,
-    model: String,
-    models: List<String>,
-    modelsLoading: Boolean,
-    onApiKeyChanged: (String) -> Unit,
-    onBaseUrlChanged: (String) -> Unit,
-    onModelChanged: (String) -> Unit,
-) {
-    var keyVisible by remember { mutableStateOf(false) }
-    var modelDropdownExpanded by remember { mutableStateOf(false) }
-
-    ListItem(
-        headlineContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // API key field with toggleable visibility
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = onApiKeyChanged,
-                    label = { Text(stringResource(R.string.settings_ai_openai_key)) },
-                    placeholder = { Text(stringResource(R.string.settings_ai_openai_key_placeholder)) },
-                    singleLine = true,
-                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Next,
-                    ),
-                    trailingIcon = {
-                        val cd = stringResource(
-                            if (keyVisible) R.string.settings_ai_openai_hide_key
-                            else R.string.settings_ai_openai_show_key,
-                        )
-                        IconButton(onClick = { keyVisible = !keyVisible }) {
-                            Icon(
-                                imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = cd,
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                // Base URL override + preset chips
-                OutlinedTextField(
-                    value = baseUrl,
-                    onValueChange = onBaseUrlChanged,
-                    label = { Text(stringResource(R.string.settings_ai_openai_base_url)) },
-                    placeholder = { Text(stringResource(R.string.settings_ai_openai_base_url_placeholder)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Next,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                UrlPresetChips(
-                    presets = OPENAI_URL_PRESETS,
-                    currentUrl = baseUrl,
-                    onSelect = onBaseUrlChanged,
-                )
-
-                // Model selector — dropdown when models are fetched, free-text otherwise
-                ExposedDropdownMenuBox(
-                    expanded = modelDropdownExpanded && models.isNotEmpty(),
-                    onExpandedChange = { if (models.isNotEmpty()) modelDropdownExpanded = it },
-                ) {
-                    OutlinedTextField(
-                        value = model,
-                        onValueChange = onModelChanged,
-                        label = { Text(stringResource(R.string.settings_ai_openai_model)) },
-                        placeholder = { Text(stringResource(R.string.settings_ai_openai_model_placeholder)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Done,
-                        ),
-                        trailingIcon = {
-                            if (modelsLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            } else if (models.isNotEmpty()) {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelDropdownExpanded)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryEditable),
-                    )
-                    ExposedDropdownMenu(
-                        expanded = modelDropdownExpanded && models.isNotEmpty(),
-                        onDismissRequest = { modelDropdownExpanded = false },
-                        modifier = Modifier.heightIn(max = 280.dp),
-                    ) {
-                        models.forEach { modelId ->
-                            DropdownMenuItem(
-                                text = { Text(modelId, style = MaterialTheme.typography.bodyMedium) },
-                                onClick = {
-                                    onModelChanged(modelId)
-                                    modelDropdownExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        },
-    )
-}
-
-/**
- * Anthropic provider config fields:
- * - API key (password field with toggleable visibility)
- * - Model selector: ExposedDropdownMenuBox pre-populated from the Anthropic models API,
- *   falling back to free-text entry. Default is claude-haiku-4-5-20251001 when blank.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AnthropicFieldsItem(
-    apiKey: String,
-    model: String,
-    models: List<String>,
-    modelsLoading: Boolean,
-    onApiKeyChanged: (String) -> Unit,
-    onModelChanged: (String) -> Unit,
-) {
-    var keyVisible by remember { mutableStateOf(false) }
-    var modelDropdownExpanded by remember { mutableStateOf(false) }
-
-    ListItem(
-        headlineContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // API key field with toggleable visibility
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = onApiKeyChanged,
-                    label = { Text(stringResource(R.string.settings_ai_anthropic_key)) },
-                    placeholder = { Text(stringResource(R.string.settings_ai_anthropic_key_placeholder)) },
-                    singleLine = true,
-                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Next,
-                    ),
-                    trailingIcon = {
-                        val cd = stringResource(
-                            if (keyVisible) R.string.settings_ai_anthropic_hide_key
-                            else R.string.settings_ai_anthropic_show_key,
-                        )
-                        IconButton(onClick = { keyVisible = !keyVisible }) {
-                            Icon(
-                                imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = cd,
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                // Model selector — dropdown when models are fetched, free-text otherwise
-                ExposedDropdownMenuBox(
-                    expanded = modelDropdownExpanded && models.isNotEmpty(),
-                    onExpandedChange = { if (models.isNotEmpty()) modelDropdownExpanded = it },
-                ) {
-                    OutlinedTextField(
-                        value = model,
-                        onValueChange = onModelChanged,
-                        label = { Text(stringResource(R.string.settings_ai_anthropic_model)) },
-                        placeholder = { Text(stringResource(R.string.settings_ai_anthropic_model_placeholder)) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Text,
-                            imeAction = ImeAction.Done,
-                        ),
-                        trailingIcon = {
-                            if (modelsLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            } else if (models.isNotEmpty()) {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelDropdownExpanded)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryEditable),
-                    )
-                    ExposedDropdownMenu(
-                        expanded = modelDropdownExpanded && models.isNotEmpty(),
-                        onDismissRequest = { modelDropdownExpanded = false },
-                        modifier = Modifier.heightIn(max = 280.dp),
-                    ) {
-                        models.forEach { modelId ->
-                            DropdownMenuItem(
-                                text = { Text(modelId, style = MaterialTheme.typography.bodyMedium) },
-                                onClick = {
-                                    onModelChanged(modelId)
-                                    modelDropdownExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun GeminiFieldsItem(
-    apiKey: String,
-    model: String,
-    onApiKeyChanged: (String) -> Unit,
-    onModelChanged: (String) -> Unit,
-) {
-    var keyVisible by remember { mutableStateOf(false) }
-
-    ListItem(
-        headlineContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = apiKey,
-                    onValueChange = onApiKeyChanged,
-                    label = { Text(stringResource(R.string.settings_ai_gemini_key)) },
-                    placeholder = { Text(stringResource(R.string.settings_ai_gemini_key_placeholder)) },
-                    singleLine = true,
-                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Next,
-                    ),
-                    trailingIcon = {
-                        val cd = stringResource(
-                            if (keyVisible) R.string.settings_ai_gemini_hide_key
-                            else R.string.settings_ai_gemini_show_key,
-                        )
-                        IconButton(onClick = { keyVisible = !keyVisible }) {
-                            Icon(
-                                imageVector = if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = cd,
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = model,
-                    onValueChange = onModelChanged,
-                    label = { Text(stringResource(R.string.settings_ai_gemini_model)) },
-                    placeholder = { Text(stringResource(R.string.settings_ai_gemini_model_placeholder)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Done,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-    )
-}
-
-/** URL preset chip strip shown below the base URL field. Tapping a chip fills in the URL. */
-@Composable
-private fun UrlPresetChips(
-    presets: List<Pair<String, String>>,
-    currentUrl: String,
-    onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        presets.forEach { (label, url) ->
-            SuggestionChip(
-                onClick = { onSelect(url) },
-                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-                colors = if (currentUrl == url) SuggestionChipDefaults.suggestionChipColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                ) else SuggestionChipDefaults.suggestionChipColors(),
-            )
-        }
-    }
-}
-
-/**
- * Well-known base URLs for OpenAI-compatible providers.
- *
- * Ollama preset uses the Android emulator host alias (10.0.2.2). On a physical device,
- * replace with the host machine's LAN IP, or use `adb reverse tcp:11434 tcp:11434` and
- * type http://localhost:11434 manually in the field.
- */
-private val OPENAI_URL_PRESETS = listOf(
-    "OpenAI" to "https://api.openai.com",
-    "Groq" to "https://api.groq.com/openai",
-    "Gemini" to "https://generativelanguage.googleapis.com/v1beta/openai",
-    "Mistral" to "https://api.mistral.ai",
-    "Ollama (Emulator)" to "http://10.0.2.2:11434",
-)
-
-// ── Wardrobe items ────────────────────────────────────────────────────────────
+// ── Wardrobe items + AI nav ───────────────────────────────────────────────────
 
 @Composable
 private fun LaundryDayItem(onClick: () -> Unit) {
@@ -1283,140 +550,18 @@ private fun LaundryDayItem(onClick: () -> Unit) {
 }
 
 @Composable
-private fun BatchSegmentationItem(
-    eligibleCount: Int,
-    workInfo: WorkInfo?,
-    onStart: () -> Unit,
-) {
-    val isRunning = workInfo?.state == WorkInfo.State.RUNNING ||
-        workInfo?.state == WorkInfo.State.ENQUEUED
-    var showConfirmDialog by remember { mutableStateOf(false) }
-
-    if (showConfirmDialog) {
-        AlertDialog(
-            onDismissRequest = { showConfirmDialog = false },
-            title = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showConfirmDialog = false
-                    onStart()
-                }) {
-                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) {
-                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_cancel))
-                }
-            },
-        )
-    }
-
-    if (isRunning) {
-        val done = workInfo?.progress?.getInt(BatchSegmentationWork.KEY_DONE, 0) ?: 0
-        val total = workInfo?.progress?.getInt(BatchSegmentationWork.KEY_TOTAL, 0) ?: 0
-        ListItem(
-            headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_removing_backgrounds))
-            },
-            supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        stringResource(
-                            R.string.settings_wardrobe_removing_backgrounds_progress,
-                            done,
-                            total,
-                        ),
-                    )
-                    LinearProgressIndicator(
-                        progress = { if (total > 0) done.toFloat() / total else 0f },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-        )
-    } else if (eligibleCount > 0) {
-        ListItem(
-            headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_remove_backgrounds))
-            },
-            supportingContent = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.settings_wardrobe_remove_backgrounds_summary,
-                        eligibleCount,
-                        eligibleCount,
-                    ),
-                )
-            },
-            modifier = Modifier.clickable { showConfirmDialog = true },
-        )
-    } else {
-        ListItem(
-            headlineContent = {
-                Text(
-                    stringResource(R.string.settings_wardrobe_all_done),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-        )
-    }
-}
-
-@Composable
-private fun BatchCaptionItem(
-    eligibleCount: Int,
-    progress: BatchCaptionProgress?,
-    onStart: () -> Unit,
-) {
-    if (progress != null) {
-        ListItem(
-            headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_enriching_descriptions))
-            },
-            supportingContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        stringResource(
-                            R.string.settings_wardrobe_enriching_descriptions_progress,
-                            progress.done,
-                            progress.total,
-                        ),
-                    )
-                    LinearProgressIndicator(
-                        progress = { if (progress.total > 0) progress.done.toFloat() / progress.total else 0f },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-        )
-    } else if (eligibleCount > 0) {
-        ListItem(
-            headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_enrich_descriptions))
-            },
-            supportingContent = {
-                Text(
-                    pluralStringResource(
-                        R.plurals.settings_wardrobe_enrich_descriptions_summary,
-                        eligibleCount,
-                        eligibleCount,
-                    ),
-                )
-            },
-            modifier = Modifier.clickable { onStart() },
-        )
-    } else {
-        ListItem(
-            headlineContent = {
-                Text(
-                    stringResource(R.string.settings_wardrobe_descriptions_up_to_date),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-        )
-    }
+private fun AiToolsNavItem(onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_section_ai_tools)) },
+        supportingContent = { Text(stringResource(R.string.settings_ai_tools_summary)) },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.settings_ai_tools_navigate),
+            )
+        },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
 }
 
 // ── Dialogs ───────────────────────────────────────────────────────────────────
@@ -1448,45 +593,9 @@ private fun PermissionRationaleDialog(
     )
 }
 
-/**
- * Dialog shown when Gemini Nano is not supported on the current device.
- * Offers to switch to OpenAI, Anthropic, or Gemini, or dismiss and stay on (disabled) On-Device.
- */
-@Composable
-private fun NanoNotSupportedDialog(
-    onSwitchToOpenAi: () -> Unit,
-    onSwitchToAnthropic: () -> Unit,
-    onSwitchToGemini: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_ai_nano_not_supported_dialog_title)) },
-        text = { Text(stringResource(R.string.settings_ai_nano_not_supported_dialog_message)) },
-        confirmButton = {
-            TextButton(onClick = onSwitchToOpenAi) {
-                Text(stringResource(R.string.settings_ai_nano_not_supported_use_openai))
-            }
-        },
-        dismissButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                TextButton(onClick = onSwitchToAnthropic) {
-                    Text(stringResource(R.string.settings_ai_nano_not_supported_use_anthropic))
-                }
-                TextButton(onClick = onSwitchToGemini) {
-                    Text(stringResource(R.string.settings_ai_nano_not_supported_use_gemini))
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.settings_ai_nano_not_supported_dismiss))
-                }
-            }
-        },
-    )
-}
-
 // ── Previews ──────────────────────────────────────────────────────────────────
 
-@Preview(showBackground = true, name = "Appearance / weather off")
+@Preview(showBackground = true, name = "Default — Dark")
 @Composable
 private fun SettingsContentDefaultPreview() {
     ClosetTheme {
@@ -1504,46 +613,14 @@ private fun SettingsContentDefaultPreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
-            aiEnabled = false,
-            selectedAiProvider = AiProvider.Nano,
-            nanoStatus = NanoStatus.Idle,
-            openAiKey = "",
-            openAiBaseUrl = "",
-            openAiModel = "",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            anthropicKey = "",
-            anthropicModel = "",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = emptyList(),
-            anthropicModelsLoading = false,
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
+            onNavigateToAiSettings = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
     }
 }
 
-@Preview(showBackground = true, name = "Weather on / Open-Meteo")
+@Preview(showBackground = true, name = "Weather on / Open-Meteo — Dark")
 @Composable
 private fun SettingsContentWeatherOpenMeteoPreview() {
     ClosetTheme {
@@ -1561,46 +638,14 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
-            aiEnabled = false,
-            selectedAiProvider = AiProvider.Nano,
-            nanoStatus = NanoStatus.Idle,
-            openAiKey = "",
-            openAiBaseUrl = "",
-            openAiModel = "",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            anthropicKey = "",
-            anthropicModel = "",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = emptyList(),
-            anthropicModelsLoading = false,
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
+            onNavigateToAiSettings = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
     }
 }
 
-@Preview(showBackground = true, name = "Weather on / Google + API key")
+@Preview(showBackground = true, name = "Weather on / Google + API key — Dark")
 @Composable
 private fun SettingsContentWeatherGooglePreview() {
     ClosetTheme {
@@ -1618,324 +663,7 @@ private fun SettingsContentWeatherGooglePreview() {
             onGoogleApiKeyChange = {},
             onTemperatureUnitChange = {},
             onClearCache = {},
-            aiEnabled = false,
-            selectedAiProvider = AiProvider.Nano,
-            nanoStatus = NanoStatus.Idle,
-            openAiKey = "",
-            openAiBaseUrl = "",
-            openAiModel = "",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            anthropicKey = "",
-            anthropicModel = "",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = emptyList(),
-            anthropicModelsLoading = false,
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "AI on / Nano checking")
-@Composable
-private fun SettingsContentAiNanoCheckingPreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Sage,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = false,
-            weatherService = WeatherService.OpenMeteo,
-            googleApiKey = "",
-            temperatureUnit = TemperatureUnit.Celsius,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            aiEnabled = true,
-            selectedAiProvider = AiProvider.Nano,
-            nanoStatus = NanoStatus.Checking,
-            openAiKey = "",
-            openAiBaseUrl = "",
-            openAiModel = "",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            anthropicKey = "",
-            anthropicModel = "",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = emptyList(),
-            anthropicModelsLoading = false,
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "AI on / Nano downloading 42%")
-@Composable
-private fun SettingsContentAiNanoDownloadingPreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Sage,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = false,
-            weatherService = WeatherService.OpenMeteo,
-            googleApiKey = "",
-            temperatureUnit = TemperatureUnit.Celsius,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            aiEnabled = true,
-            selectedAiProvider = AiProvider.Nano,
-            nanoStatus = NanoStatus.Downloading(42),
-            openAiKey = "",
-            openAiBaseUrl = "",
-            openAiModel = "",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            anthropicKey = "",
-            anthropicModel = "",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = emptyList(),
-            anthropicModelsLoading = false,
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "AI on / Nano not supported")
-@Composable
-private fun SettingsContentAiNanoNotSupportedPreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Sage,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = false,
-            weatherService = WeatherService.OpenMeteo,
-            googleApiKey = "",
-            temperatureUnit = TemperatureUnit.Celsius,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            aiEnabled = true,
-            selectedAiProvider = AiProvider.Nano,
-            nanoStatus = NanoStatus.NotSupported,
-            openAiKey = "",
-            openAiBaseUrl = "",
-            openAiModel = "",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            anthropicKey = "",
-            anthropicModel = "",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = emptyList(),
-            anthropicModelsLoading = false,
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "AI on / OpenAI fields")
-@Composable
-private fun SettingsContentAiOpenAiPreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Lavender,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = false,
-            weatherService = WeatherService.OpenMeteo,
-            googleApiKey = "",
-            temperatureUnit = TemperatureUnit.Celsius,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            aiEnabled = true,
-            selectedAiProvider = AiProvider.OpenAi,
-            nanoStatus = NanoStatus.Idle,
-            openAiKey = "sk-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
-            openAiBaseUrl = "",
-            openAiModel = "gpt-4o",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            anthropicKey = "",
-            anthropicModel = "",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = emptyList(),
-            anthropicModelsLoading = false,
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "AI on / Anthropic fields")
-@Composable
-private fun SettingsContentAiAnthropicPreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Rose,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = false,
-            weatherService = WeatherService.OpenMeteo,
-            googleApiKey = "",
-            temperatureUnit = TemperatureUnit.Celsius,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            aiEnabled = true,
-            selectedAiProvider = AiProvider.Anthropic,
-            nanoStatus = NanoStatus.Idle,
-            openAiKey = "",
-            openAiBaseUrl = "",
-            openAiModel = "",
-            onAiToggled = {},
-            onAiProviderSelected = {},
-            onOpenAiKeyChanged = {},
-            onOpenAiBaseUrlChanged = {},
-            onOpenAiModelChanged = {},
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            anthropicKey = "sk-ant-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
-            anthropicModel = "claude-haiku-4-5-20251001",
-            onAnthropicKeyChanged = {},
-            onAnthropicModelChanged = {},
-            geminiKey = "",
-            geminiModel = "",
-            onGeminiKeyChanged = {},
-            onGeminiModelChanged = {},
-            openAiModels = emptyList(),
-            openAiModelsLoading = false,
-            anthropicModels = listOf("claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"),
-            anthropicModelsLoading = false,
-            segmentationSupported = true,
-            segmentationEligibleCount = 3,
-            batchSegWorkInfo = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 2,
-            batchCaptionProgress = null,
-            onStartBatchEnrichment = {},
+            onNavigateToAiSettings = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )

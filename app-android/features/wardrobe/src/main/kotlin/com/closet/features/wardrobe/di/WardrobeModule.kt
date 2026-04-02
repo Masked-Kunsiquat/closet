@@ -3,7 +3,10 @@ package com.closet.features.wardrobe.di
 import android.content.Context
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.worker.BatchSegmentationScheduler
 import com.closet.core.data.worker.BatchSegmentationWork
@@ -16,6 +19,12 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+
+private val activeStates = setOf(
+    WorkInfo.State.ENQUEUED,
+    WorkInfo.State.RUNNING,
+    WorkInfo.State.BLOCKED,
+)
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -47,5 +56,10 @@ object WardrobeModule {
                     OneTimeWorkRequestBuilder<BatchSegmentationWorker>().build(),
                 )
             }
+            override val workInfo: Flow<WorkInfo?> =
+                workManager.getWorkInfosForUniqueWorkFlow(BatchSegmentationWork.NAME)
+                    .map { list ->
+                        list.firstOrNull { it.state in activeStates } ?: list.firstOrNull()
+                    }
         }
 }

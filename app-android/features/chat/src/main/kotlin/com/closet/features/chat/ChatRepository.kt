@@ -6,6 +6,7 @@ import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.features.chat.ai.ChatAiProviderSelector
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,17 +22,30 @@ class ChatRepository @Inject constructor(
     private val providerSelector: ChatAiProviderSelector,
 ) {
     suspend fun query(userMessage: String): Result<ChatResponse> {
-        val queryVec = encoder.encode(userMessage).getOrElse { return Result.failure(it) }
-        val itemIds = index.search(queryVec, topK = 5)
-        val items = if (itemIds.isEmpty()) {
-            emptyList()
-        } else {
-            val detailMap = clothingDao.getItemDetailsByIds(itemIds).associateBy { it.item.id }
-            itemIds.mapNotNull { detailMap[it] }   // restore cosine-similarity rank
+        return try {
+            val queryVec = encoder.encode(userMessage).getOrElse {
+                if (it is CancellationException) throw it
+                return Result.failure(it)
+            }
+            val itemIds = index.search(queryVec, topK = 5)
+            val items = if (itemIds.isEmpty()) {
+                emptyList()
+            } else {
+                val detailMap = clothingDao.getItemDetailsByIds(itemIds).associateBy { it.item.id }
+                itemIds.mapNotNull { detailMap[it] }   // restore cosine-similarity rank
+            }
+            val context = buildContextBlock(items)
+            val provider = providerSelector.current().getOrElse {
+                if (it is CancellationException) throw it
+                return Result.failure(it)
+            }
+            val chatResult = provider.chat(userMessage, context)
+            chatResult.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+            chatResult
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Result.failure(e)
         }
-        val context = buildContextBlock(items)
-        val provider = providerSelector.current().getOrElse { return Result.failure(it) }
-        return provider.chat(userMessage, context)
     }
 
     private fun buildContextBlock(items: List<ClothingItemDetail>): String {
@@ -40,22 +54,31 @@ class ChatRepository @Inject constructor(
             appendLine("Wardrobe context (${items.size} items):")
             items.forEachIndexed { idx, detail ->
                 val item = detail.item
-                val name = if (detail.brand != null) "${detail.brand.name} ${item.name}" else item.name
+                val name = (detail.brand?.let { "${it.name} ${item.name}" } ?: item.name)
+                    .replace(Regex("\\s+"), " ").trim()
                 append("${idx + 1}. [ID:${item.id}] $name")
                 val category = buildString {
-                    if (detail.category != null) {
-                        append(detail.category.name)
-                        if (detail.subcategory != null) append(" > ${detail.subcategory.name}")
+                    detail.category?.let { cat -> append(cat.name) }
+                    detail.subcategory?.let { sub ->
+                        if (isNotEmpty()) append(" > ")
+                        append(sub.name)
                     }
                 }
-                if (category.isNotEmpty()) append(" — $category")
-                val colors = detail.colors.joinToString(", ") { it.name }
-                if (colors.isNotEmpty()) append(". Colors: $colors")
-                val occasions = detail.occasions.joinToString(", ") { it.name }
-                if (occasions.isNotEmpty()) append(". Occasions: $occasions")
-                val wearText = if (detail.wearCount == 1) "1 time" else "${detail.wearCount} times"
-                append(". Worn $wearText.")
-                if (!item.imageCaption.isNullOrBlank()) append(" Photo: ${item.imageCaption.trim()}.")
+                if (category.isNotEmpty()) append(" ($category)")
+                if (detail.colors.isNotEmpty()) {
+                    append(", Colors: ${detail.colors.joinToString { it.name }}")
+                }
+                if (detail.materials.isNotEmpty()) {
+                    append(", Materials: ${detail.materials.joinToString { it.name }}")
+                }
+                val descText = item.semanticDescription
+                    ?.substringBefore("Notes:")
+                    ?.replace(Regex("\\s+"), " ")
+                    ?.trim()
+                    .orEmpty()
+                val captionText = item.imageCaption?.trim().orEmpty()
+                if (descText.isNotEmpty()) append(". $descText")
+                if (captionText.isNotEmpty()) append(". $captionText")
                 appendLine()
             }
         }.trim()
