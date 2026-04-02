@@ -78,6 +78,6 @@ class ChatRepository @Inject constructor(
                 }
                 appendLine()
             }
-        }
+        }.trim()
     }
 }

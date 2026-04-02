@@ -3,7 +3,10 @@ package com.closet.features.wardrobe.di
 import android.content.Context
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.worker.BatchSegmentationScheduler
 import com.closet.core.data.worker.BatchSegmentationWork
@@ -47,5 +50,8 @@ object WardrobeModule {
                     OneTimeWorkRequestBuilder<BatchSegmentationWorker>().build(),
                 )
             }
+            override val workInfo: Flow<WorkInfo?> =
+                workManager.getWorkInfosForUniqueWorkFlow(BatchSegmentationWork.NAME)
+                    .map { it.firstOrNull() }
         }
 }

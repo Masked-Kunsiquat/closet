@@ -43,8 +43,11 @@ import javax.inject.Inject
 
 private data class AppPrefs(
     val accent: ClosetAccent,
-    val temperatureUnit: TemperatureUnit,
+    val dynamicColor: Boolean,
+    val weatherEnabled: Boolean,
     val weatherService: WeatherService,
+    val googleApiKey: String,
+    val temperatureUnit: TemperatureUnit,
 )
 
 private data class AiCorePrefs(
@@ -117,10 +120,19 @@ class SettingsViewModel @Inject constructor(
     // ── Intermediate flows (private, used to build uiState) ───────────────────
 
     private val appPrefsFlow = combine(
-        preferencesRepository.accent,
-        weatherPreferencesRepository.unit,
-        weatherPreferencesRepository.service,
-    ) { accent, unit, service -> AppPrefs(accent, unit, service) }
+        combine(
+            preferencesRepository.accent,
+            preferencesRepository.getDynamicColor(),
+            weatherPreferencesRepository.getWeatherEnabled(),
+        ) { accent, dynamic, weatherEnabled -> Triple(accent, dynamic, weatherEnabled) },
+        combine(
+            weatherPreferencesRepository.getWeatherService(),
+            weatherPreferencesRepository.getGoogleApiKey(),
+            weatherPreferencesRepository.getTemperatureUnit(),
+        ) { service, apiKey, unit -> Triple(service, apiKey, unit) },
+    ) { (accent, dynamic, weatherEnabled), (service, apiKey, unit) ->
+        AppPrefs(accent, dynamic, weatherEnabled, service, apiKey, unit)
+    }
 
     private val aiCorePrefsFlow = combine(
         aiPreferencesRepository.aiEnabled,
@@ -182,8 +194,11 @@ class SettingsViewModel @Inject constructor(
     ) { (app, ai, openAi), (anth, gem, emb), (cap, seg) ->
         SettingsUiState(
             accent = app.accent,
-            temperatureUnit = app.temperatureUnit,
+            dynamicColor = app.dynamicColor,
+            weatherEnabled = app.weatherEnabled,
             weatherService = app.weatherService,
+            googleApiKey = app.googleApiKey,
+            temperatureUnit = app.temperatureUnit,
             aiEnabled = ai.aiEnabled,
             styleVibe = ai.styleVibe,
             selectedAiProvider = ai.selectedAiProvider,
@@ -301,16 +316,32 @@ class SettingsViewModel @Inject constructor(
 
     // ── App settings event handlers ───────────────────────────────────────────
 
-    fun onAccentSelected(accent: ClosetAccent) {
+    fun setAccent(accent: ClosetAccent) {
         viewModelScope.launch { preferencesRepository.setAccent(accent) }
     }
 
-    fun onTemperatureUnitSelected(unit: TemperatureUnit) {
-        viewModelScope.launch { weatherPreferencesRepository.setUnit(unit) }
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { preferencesRepository.setDynamicColor(enabled) }
     }
 
-    fun onWeatherServiceSelected(service: WeatherService) {
-        viewModelScope.launch { weatherPreferencesRepository.setService(service) }
+    fun setWeatherEnabled(enabled: Boolean) {
+        viewModelScope.launch { weatherPreferencesRepository.setWeatherEnabled(enabled) }
+    }
+
+    fun setTemperatureUnit(unit: TemperatureUnit) {
+        viewModelScope.launch { weatherPreferencesRepository.setTemperatureUnit(unit) }
+    }
+
+    fun setWeatherService(service: WeatherService) {
+        viewModelScope.launch { weatherPreferencesRepository.setWeatherService(service) }
+    }
+
+    fun setGoogleApiKey(key: String) {
+        viewModelScope.launch { weatherPreferencesRepository.setGoogleApiKey(key) }
+    }
+
+    fun clearForecastCache() {
+        viewModelScope.launch { weatherPreferencesRepository.clearCache() }
     }
 
     // ── AI settings event handlers ────────────────────────────────────────────

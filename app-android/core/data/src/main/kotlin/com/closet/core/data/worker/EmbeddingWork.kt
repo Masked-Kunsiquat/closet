@@ -1,5 +1,8 @@
 package com.closet.core.data.worker
 
+import androidx.work.WorkInfo
+import kotlinx.coroutines.flow.Flow
+
 /**
  * Constants shared between [EmbeddingWorker] and any observer (e.g. a future Settings screen)
  * so neither module needs to depend on the other.
@@ -53,4 +56,7 @@ interface EmbeddingScheduler {
      * Safe to call while the periodic work is scheduled — they run independently.
      */
     fun runNow()
+
+    /** Live [WorkInfo] for the immediate one-time run ([EmbeddingWork.IMMEDIATE_NAME]). */
+    val workInfo: Flow<WorkInfo?>
 }

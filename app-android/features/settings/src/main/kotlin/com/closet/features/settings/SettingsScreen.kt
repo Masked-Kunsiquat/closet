@@ -90,12 +90,13 @@ fun SettingsScreen(
     onNavigateToAiSettings: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val accent by viewModel.accent.collectAsStateWithLifecycle()
-    val dynamicColor by viewModel.dynamicColor.collectAsStateWithLifecycle()
-    val weatherEnabled by viewModel.weatherEnabled.collectAsStateWithLifecycle()
-    val weatherService by viewModel.weatherService.collectAsStateWithLifecycle()
-    val googleApiKey by viewModel.googleApiKey.collectAsStateWithLifecycle()
-    val temperatureUnit by viewModel.temperatureUnit.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val accent = uiState.accent
+    val dynamicColor = uiState.dynamicColor
+    val weatherEnabled = uiState.weatherEnabled
+    val weatherService = uiState.weatherService
+    val googleApiKey = uiState.googleApiKey
+    val temperatureUnit = uiState.temperatureUnit
 
     val context = LocalContext.current
     val activity = LocalActivity.current

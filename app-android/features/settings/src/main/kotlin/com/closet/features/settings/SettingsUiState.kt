@@ -19,8 +19,11 @@ import java.util.UUID
 data class SettingsUiState(
     // ── App ──────────────────────────────────────────────────────────────────
     val accent: ClosetAccent = ClosetAccent.Blue,
-    val temperatureUnit: TemperatureUnit = TemperatureUnit.Celsius,
+    val dynamicColor: Boolean = false,
+    val weatherEnabled: Boolean = false,
     val weatherService: WeatherService = WeatherService.OpenWeatherMap,
+    val googleApiKey: String = "",
+    val temperatureUnit: TemperatureUnit = TemperatureUnit.Celsius,
 
     // ── AI ───────────────────────────────────────────────────────────────────
     val aiEnabled: Boolean = false,

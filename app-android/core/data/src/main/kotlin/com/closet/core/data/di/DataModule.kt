@@ -7,7 +7,10 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import com.closet.core.data.BuildConfig
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.*
@@ -134,6 +137,10 @@ object DataModule {
                     OneTimeWorkRequestBuilder<EmbeddingWorker>().build(),
                 )
             }
+
+            override val workInfo: Flow<WorkInfo?> =
+                workManager.getWorkInfosForUniqueWorkFlow(EmbeddingWork.IMMEDIATE_NAME)
+                    .map { it.firstOrNull() }
         }
 
     /** Provides the [RecommendationRepository] singleton. */

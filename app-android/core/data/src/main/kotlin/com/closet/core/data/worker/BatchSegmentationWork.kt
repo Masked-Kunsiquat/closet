@@ -1,5 +1,8 @@
 package com.closet.core.data.worker
 
+import androidx.work.WorkInfo
+import kotlinx.coroutines.flow.Flow
+
 /**
  * Constants shared between `BatchSegmentationWorker` (features/wardrobe) and
  * `SettingsViewModel` (features/settings) so neither module needs to depend on the other.
@@ -20,4 +23,7 @@ interface BatchSegmentationScheduler {
     /** `false` on FOSS builds where ML Kit segmentation is unavailable. */
     val isSupported: Boolean
     fun schedule()
+
+    /** Live [WorkInfo] for the unique batch segmentation job ([BatchSegmentationWork.NAME]). */
+    val workInfo: Flow<WorkInfo?>
 }
