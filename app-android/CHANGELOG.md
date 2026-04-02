@@ -10,6 +10,78 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.2.0] — 2026-04-02
+
+Phase 4 of the RAG pipeline: wardrobe chat. Ask natural-language questions
+about your closet and get answers grounded in your actual items via
+cosine-similarity retrieval + your choice of AI provider.
+
+### Added
+- **`EmbeddingEncoder`** — extracted from `EmbeddingWorker`; encodes a query
+  string into a 384-float vector using the same ONNX model as the background
+  indexer, enabling query-time embedding without re-running the worker.
+- **`EmbeddingIndex`** — in-memory FAISS-style flat index loaded at app start;
+  `search(vec, topK)` returns item IDs ranked by cosine similarity.
+- **`ChatAiProvider` infrastructure** — pluggable provider abstraction with
+  three implementations: `OpenAiChatProvider` (OpenAI-compatible REST, supports
+  custom base URL for self-hosted models), `AnthropicChatProvider`, and
+  `GeminiChatProvider`; `ChatAiProviderSelector` resolves the active provider
+  from `AiPreferencesRepository` at call time.
+- **`ChatRepository`** — full RAG query pipeline: encode query → top-5 cosine
+  search → fetch `ClothingItemDetail` for matched IDs → build context block
+  (name, category, colours, materials, sanitised description) → call active
+  provider; `CancellationException` propagates correctly through all `Result`
+  unwrap points.
+- **Chat screen** (`features/chat`) — `ChatViewModel`, `ChatScreen`, and
+  `ChatUiState`; renders a scrolling message list with `OutfitMiniCard` for
+  outfit references, auto-scrolls to latest message, and handles cold-start
+  with an empty-state prompt.
+- **Chat as 5th bottom-nav tab** — navigation wiring in `ClosetNavGraph`; tab
+  hidden when AI is disabled in settings.
+- **AI Settings sub-screen** (`AiSettingsScreen`) — extracted from the main
+  Settings screen; shows provider picker, per-provider key/model fields with
+  live model-list fetch (OpenAI + Anthropic), embedding index size + rebuild
+  trigger, and batch caption/segmentation controls.
+- **`BatchCaptionProgress` / `BatchCaptionResult`** — data classes for
+  in-flight progress and terminal result of a batch caption enrichment run.
+- **Batch caption enrichment** — `CaptionEnrichmentProvider` now exposes
+  `progress`, `result`, and `startBatchEnrichment()`; the full-flavor
+  `ImageCaptionRepository` implements sequential on-device captioning with
+  IO-dispatched bitmap decode, per-item failure counting, and a guaranteed
+  `_progress = null` in a `finally` block.
+- **Caption result dedupe token** — `BatchCaptionResult` carries a `resultId`
+  UUID; `SettingsUiState` tracks `lastHandledCaptionId` so the result snackbar
+  is not re-shown on screen re-subscription.
+- **`SettingsUiState`** — single `StateFlow<SettingsUiState>` replaces the
+  previous ~20 individual public `StateFlow`s on `SettingsViewModel`; built
+  from nested `combine()` calls over private intermediate flows.
+
+### Fixed
+- **`CancellationException` propagation** — `ChatRepository` `getOrElse` lambdas
+  and `provider.chat()` result now rethrow `CancellationException` instead of
+  wrapping it in `Result.failure`, ensuring coroutine cancellation is never
+  swallowed.
+- **Stale embedding index** — `SettingsViewModel` reloads the in-memory index
+  after a user-triggered rebuild completes (WorkInfo `SUCCEEDED` / `FAILED`).
+- **`scheduleForceRebuild()` → `runNow()`** — corrected the call site to the
+  method that actually exists on `EmbeddingScheduler`.
+- **`UUID.fromString` crash** — `lastHandledBatchId` map now uses `runCatching`
+  so a malformed stored value emits `null` instead of crashing the flow.
+- **Bitmap decode on Main thread** — `BitmapUtils.decodeSampledBitmap` in
+  `ImageCaptionRepository.startBatchEnrichment` moved to `withContext(Dispatchers.IO)`.
+- **Null bitmap silently skipped** — an unreadable image now increments the
+  `failed` counter and logs a warning instead of silently `continue`-ing.
+- **`semanticDescription` leaking notes** — `ChatRepository` strips everything
+  from `"Notes:"` onward and collapses whitespace before appending to the RAG
+  context block.
+- **`LazyColumn` key collision** in `ChatScreen` — messages now keyed by stable ID.
+- **Cold-start UX** — chat screen shows an empty-state prompt rather than a
+  blank list on first launch.
+- Various `NanoStatus` type reference and `nanoInitializer.status` alignment
+  fixes in `SettingsViewModel`.
+
+---
+
 ## [0.1.2] — 2026-03-30
 
 Android App Shortcuts — Phase 1 intent-routing infrastructure (in progress).
@@ -97,7 +169,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Masked-Kunsiquat/closet/releases/tag/v0.1.0
