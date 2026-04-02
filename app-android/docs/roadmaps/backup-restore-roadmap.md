@@ -62,31 +62,13 @@ Periodic WorkManager job that writes a `.hangr` to a user-chosen folder (persist
 
 ---
 
-## Open questions
+## Decisions
 
-**1. Conflict strategy on restore**
-Overwrite everything, or merge with existing data?
-- Overwrite is simpler and predictable.
-- Merge is complex (junction tables, ID collisions) and probably not needed — restore implies "replace this install with the backup."
-- Leaning: **overwrite**.
-
-**2. Schema version mismatch**
-If the backup is DB version 5 and the current app is version 6, do we:
-- (a) Run Room migrations on the restored DB before opening it, or
-- (b) Block the restore with an error if versions don't match?
-- Leaning: **(a) run migrations** — cleaner for users who restore an older backup after an app update.
-
-**3. Image conflict on restore**
-If an image UUID already exists on device, do we overwrite or skip?
-- Leaning: **overwrite** — same UUID means same logical file; the backup copy is authoritative.
-
-**4. Large backup progress / cancellation**
-Large wardrobes = hundreds of MB of images. Options:
-- (a) Foreground service with notification progress
-- (b) Cancellable coroutine + in-screen progress UI (no notification)
-- (b) is simpler; foreground service only needed if we want the export to survive app backgrounding.
-- Decision needed before implementation.
-
-**5. Restore safety**
-Should restore require an explicit "I understand this will replace all current data" confirmation dialog, or is the file-picker flow enough friction?
-- Leaning: **yes, require confirmation dialog** — data loss is irreversible.
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | Conflict strategy on restore | **Overwrite** — restore implies "replace this install with the backup" |
+| 2 | Schema version mismatch | **Run Room migrations** on the restored DB before reopening |
+| 3 | Image conflict on restore | **Overwrite** — same UUID = same logical file; backup is authoritative |
+| 4 | Large backup progress / cancellation | **Foreground service + notification** — must survive app backgrounding for large wardrobes |
+| 5 | Restore safety | **Require confirmation dialog** — data loss is irreversible |
+| 6 | In-progress ZIP location | **`filesDir/backup_temp/`** — `cacheDir` can be OS-evicted mid-write; explicit cleanup after SAF handoff |
