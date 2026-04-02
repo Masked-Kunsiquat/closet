@@ -41,7 +41,8 @@ features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash,
 features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet
 features/stats/        — Stats screen, StatsViewModel, breakdown sections
 features/recommendations/ — Outfit recommendations, AI providers (NanoProvider, AnthropicProvider, OpenAiProvider)
-features/settings/     — Settings screen, AI toggle, model picker, key management
+features/settings/     — Settings screen, AI settings sub-screen, model picker, key management
+features/chat/         — RAG wardrobe chat: ChatScreen, ChatViewModel, ChatRepository, provider impls
 ```
 
 Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
@@ -54,7 +55,7 @@ Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
 
 ### Product flavors
 
-Two flavors on the `distribution` dimension. Only `app/`, `features/recommendations/`, and `features/wardrobe/` declare flavor dimensions; all other modules are single-variant.
+Two flavors on the `distribution` dimension. Only `app/`, `features/recommendations/`, `features/wardrobe/`, and `features/chat/` declare flavor dimensions; all other modules are single-variant.
 
 - **`full`** — includes GMS-backed features (MLKit GenAI Prompt API / Gemini Nano). Use for local dev, GitHub releases, sideload APKs. Android Studio defaults to `fullDebug`.
 - **`foss`** — no Google Play Services dependencies. GMS features are stubbed to no-ops. Target: F-Droid distribution.
@@ -89,7 +90,7 @@ Type-safe Compose Navigation (2.9.7+). Destinations are `@Serializable` data cla
 
 ### Design system
 
-Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose — mirroring the React Native version. Dynamic color (Material You) enabled on Android 12+. All color/theme tokens live in `core/ui/theme/`. Never hardcode colors; use the theme.
+Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose. Dynamic color (Material You) enabled on Android 12+. All color/theme tokens live in `core/ui/theme/`. Never hardcode colors; use the theme.
 
 ### Image handling
 
@@ -106,6 +107,10 @@ Timber. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` o
 ### Destructive actions
 
 Every destructive user action (delete item, delete outfit, delete log entry) must be guarded by an `AlertDialog` confirmation. Pattern: local `var showDeleteDialog by remember { mutableStateOf(false) }` → button sets it true → dialog calls the ViewModel. Never call a delete ViewModel function directly from a button click.
+
+### RAG pipeline (chat)
+
+`ChatRepository` runs: encode query via `EmbeddingEncoder` (ONNX, same model as `EmbeddingWorker`) → cosine search via `EmbeddingIndex` (top-5) → fetch `ClothingItemDetail` for matched IDs → build context block (name, category, colours, materials, `semanticDescription`, `imageCaption`) → call active provider via `ChatAiProviderSelector`. `CancellationException` must be rethrown at every `getOrElse` / `Result` unwrap point — never swallow it.
 
 ### MLKit namespaces
 
@@ -130,7 +135,12 @@ Two distinct MLKit namespaces — do not confuse them:
 | `core/data/src/.../migrations/AGENTS.md` | Full migration conventions and checklist |
 | `core/data/src/.../dao/StatsDao.kt` | Stats queries (wear counts, breakdowns by category/color/occasion) |
 | `features/stats/src/.../StatsViewModel.kt` | Stats state with `StatPeriod` filter |
+| `features/chat/src/.../ChatRepository.kt` | RAG query pipeline (encode → search → context → provider) |
+| `core/data/src/.../util/EmbeddingIndex.kt` | In-memory FAISS-style flat index; `search(vec, topK)` returns item IDs by cosine similarity |
+| `core/data/src/.../util/EmbeddingEncoder.kt` | Query-time ONNX encoder (reuses `EmbeddingWorker`'s model) |
+| `core/data/src/.../worker/EmbeddingWork.kt` | `EmbeddingScheduler` interface + work name constants |
+| `core/data/src/.../repository/AiPreferencesRepository.kt` | Encrypted storage for AI provider keys and model selections |
 
 ## What is deferred — do not build
 
-Collage builder, outfit planning for future dates, packing lists, weather API, goals/missions, cloud backup.
+Collage builder, outfit planning for future dates, packing lists, goals/missions, cloud backup.
