@@ -71,11 +71,14 @@ class ChatRepository @Inject constructor(
                 if (detail.materials.isNotEmpty()) {
                     append(", Materials: ${detail.materials.joinToString { it.name }}")
                 }
-                item.semanticDescription?.let { desc ->
-                    val sanitized = desc.substringBefore("Notes:")
-                        .replace(Regex("\\s+"), " ").trim()
-                    if (sanitized.isNotEmpty()) append(". $sanitized")
-                }
+                val descText = item.semanticDescription
+                    ?.substringBefore("Notes:")
+                    ?.replace(Regex("\\s+"), " ")
+                    ?.trim()
+                    .orEmpty()
+                val captionText = item.imageCaption?.trim().orEmpty()
+                if (descText.isNotEmpty()) append(". $descText")
+                if (captionText.isNotEmpty()) append(". $captionText")
                 appendLine()
             }
         }.trim()

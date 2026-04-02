@@ -256,9 +256,9 @@ interface ClothingDao {
     @Query("UPDATE clothing_items SET semantic_description = :text, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateSemanticDescription(id: Long, text: String, updatedAt: java.time.Instant)
 
-    /** Writes the ML Kit image caption for a single item. */
+    /** Writes the ML Kit image caption for a single item. Returns the number of rows affected (0 if the item was deleted). */
     @Query("UPDATE clothing_items SET image_caption = :caption, updated_at = :updatedAt WHERE id = :id")
-    suspend fun updateImageCaption(id: Long, caption: String, updatedAt: java.time.Instant)
+    suspend fun updateImageCaption(id: Long, caption: String, updatedAt: java.time.Instant): Int
 
     /** Fetches fully-loaded [ClothingItemDetail] for a specific set of IDs (one-shot, for RAG context building). */
     @Transaction

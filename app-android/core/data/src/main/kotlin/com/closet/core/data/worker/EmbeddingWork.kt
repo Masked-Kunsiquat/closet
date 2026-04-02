@@ -54,6 +54,10 @@ interface EmbeddingScheduler {
      * Enqueues a one-time embedding run immediately, without charging/idle constraints.
      * Uses [EmbeddingWork.IMMEDIATE_NAME] so it doesn't interfere with the periodic schedule.
      * Safe to call while the periodic work is scheduled — they run independently.
+     *
+     * **Not idempotent.** The implementation enqueues with [androidx.work.ExistingWorkPolicy.REPLACE],
+     * so calling [runNow] while an immediate run is already in flight will cancel that run and
+     * start a new one. Avoid rapid successive calls to prevent unintended cancellations.
      */
     fun runNow()
 

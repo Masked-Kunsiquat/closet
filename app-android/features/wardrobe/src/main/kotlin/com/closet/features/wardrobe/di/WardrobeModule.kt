@@ -20,6 +20,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+private val activeStates = setOf(
+    WorkInfo.State.ENQUEUED,
+    WorkInfo.State.RUNNING,
+    WorkInfo.State.BLOCKED,
+)
+
 @Module
 @InstallIn(SingletonComponent::class)
 object WardrobeModule {
@@ -52,6 +58,8 @@ object WardrobeModule {
             }
             override val workInfo: Flow<WorkInfo?> =
                 workManager.getWorkInfosForUniqueWorkFlow(BatchSegmentationWork.NAME)
-                    .map { it.firstOrNull() }
+                    .map { list ->
+                        list.firstOrNull { it.state in activeStates } ?: list.firstOrNull()
+                    }
         }
 }

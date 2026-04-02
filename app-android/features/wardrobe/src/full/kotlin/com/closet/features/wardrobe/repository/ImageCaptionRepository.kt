@@ -151,7 +151,10 @@ class ImageCaptionRepository @Inject constructor(
         enrichmentJob = repositoryScope.launch {
             try {
                 val items = clothingDao.getItemsNeedingCaption()
-                if (items.isEmpty()) return@launch
+                if (items.isEmpty()) {
+                    _result.value = BatchCaptionResult(done = 0, failed = 0)
+                    return@launch
+                }
                 _progress.value = BatchCaptionProgress(done = 0, total = items.size, failed = 0)
                 val imagesDir = File(context.filesDir, "closet_images")
                 var done = 0
@@ -168,8 +171,13 @@ class ImageCaptionRepository @Inject constructor(
                             failed++
                         } else {
                             val caption = describe(bitmap)
-                            clothingDao.updateImageCaption(item.id, caption, Instant.now())
-                            done++
+                            val updated = clothingDao.updateImageCaption(item.id, caption, Instant.now())
+                            if (updated == 1) {
+                                done++
+                            } else {
+                                Timber.w("Caption write skipped for item ${item.id} — item may have been deleted")
+                                failed++
+                            }
                         }
                     } catch (e: CancellationException) {
                         throw e
