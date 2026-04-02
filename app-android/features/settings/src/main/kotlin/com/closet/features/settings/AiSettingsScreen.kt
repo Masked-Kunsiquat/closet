@@ -94,6 +94,8 @@ fun AiSettingsScreen(
 
     LaunchedEffect(uiState.captionResult) {
         val result = uiState.captionResult ?: return@LaunchedEffect
+        if (result.resultId == uiState.lastHandledCaptionId) return@LaunchedEffect
+        viewModel.onCaptionResultHandled(result.resultId)
         viewModel.onCaptionResultConsumed()
         val msg = if (result.failed > 0) {
             context.resources.getQuantityString(

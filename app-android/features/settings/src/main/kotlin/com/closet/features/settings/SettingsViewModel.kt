@@ -77,6 +77,7 @@ private data class CaptionState(
     val eligibleCount: Int,
     val progress: com.closet.core.data.ai.BatchCaptionProgress?,
     val result: com.closet.core.data.ai.BatchCaptionResult?,
+    val lastHandledCaptionId: UUID?,
 )
 
 private data class SegmentationState(
@@ -111,6 +112,7 @@ class SettingsViewModel @Inject constructor(
     private val _anthropicModels = MutableStateFlow<List<String>>(emptyList())
     private val _anthropicModelsLoading = MutableStateFlow(false)
     private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
+    private val _lastHandledCaptionId = MutableStateFlow<UUID?>(null)
 
     // ── Intermediate flows (private, used to build uiState) ───────────────────
 
@@ -156,7 +158,8 @@ class SettingsViewModel @Inject constructor(
         clothingDao.getCaptionEligibleCount(),
         captionEnrichmentProvider.progress,
         captionEnrichmentProvider.result,
-    ) { eligible, progress, result -> CaptionState(eligible, progress, result) }
+        _lastHandledCaptionId,
+    ) { eligible, progress, result, lastHandled -> CaptionState(eligible, progress, result, lastHandled) }
 
     private val segmentationStateFlow = combine(
         clothingDao.getSegmentationEligibleCount(),
@@ -202,6 +205,7 @@ class SettingsViewModel @Inject constructor(
             captionEligibleCount = cap.eligibleCount,
             batchCaptionProgress = cap.progress,
             captionResult = cap.result,
+            lastHandledCaptionId = cap.lastHandledCaptionId,
             segmentationSupported = batchSegmentationScheduler.isSupported,
             segmentationEligibleCount = seg.eligibleCount,
             batchSegWorkInfo = seg.workInfo,
@@ -363,6 +367,10 @@ class SettingsViewModel @Inject constructor(
 
     fun onStartBatchCaption() {
         captionEnrichmentProvider.startBatchEnrichment()
+    }
+
+    fun onCaptionResultHandled(id: UUID) {
+        _lastHandledCaptionId.value = id
     }
 
     fun onCaptionResultConsumed() {

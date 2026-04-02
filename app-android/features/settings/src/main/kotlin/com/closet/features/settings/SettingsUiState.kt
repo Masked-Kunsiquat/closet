@@ -50,6 +50,8 @@ data class SettingsUiState(
     val captionEligibleCount: Int = 0,
     val batchCaptionProgress: BatchCaptionProgress? = null,
     val captionResult: BatchCaptionResult? = null,
+    /** ID of the last caption result the UI acknowledged; mirrors [lastHandledBatchId] for segmentation. */
+    val lastHandledCaptionId: UUID? = null,
 
     // ── Batch segmentation ────────────────────────────────────────────────────
     val segmentationSupported: Boolean = false,

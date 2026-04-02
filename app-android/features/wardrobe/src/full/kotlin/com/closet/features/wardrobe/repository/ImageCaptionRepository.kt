@@ -148,31 +148,44 @@ class ImageCaptionRepository @Inject constructor(
     override fun startBatchEnrichment() {
         if (enrichmentJob?.isActive == true) return
         enrichmentJob = repositoryScope.launch {
-            val items = clothingDao.getItemsNeedingCaption()
-            if (items.isEmpty()) return@launch
-            _progress.value = BatchCaptionProgress(done = 0, total = items.size, failed = 0)
-            val imagesDir = File(context.filesDir, "closet_images")
-            var done = 0
-            var failed = 0
-            for (item in items) {
-                val relativePath = item.imagePath ?: continue
-                try {
-                    val absolutePath = File(imagesDir, relativePath).absolutePath
-                    val bitmap = BitmapUtils.decodeSampledBitmap(absolutePath, maxDim = 512)
-                        ?: continue
-                    val caption = describe(bitmap)
-                    clothingDao.updateImageCaption(item.id, caption, Instant.now())
-                    done++
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Timber.w(e, "Caption failed for item ${item.id}")
-                    failed++
+            try {
+                val items = clothingDao.getItemsNeedingCaption()
+                if (items.isEmpty()) return@launch
+                _progress.value = BatchCaptionProgress(done = 0, total = items.size, failed = 0)
+                val imagesDir = File(context.filesDir, "closet_images")
+                var done = 0
+                var failed = 0
+                for (item in items) {
+                    val relativePath = item.imagePath ?: continue
+                    try {
+                        val absolutePath = File(imagesDir, relativePath).absolutePath
+                        val bitmap = withContext(Dispatchers.IO) {
+                            BitmapUtils.decodeSampledBitmap(absolutePath, maxDim = 512)
+                        }
+                        if (bitmap == null) {
+                            Timber.w("Failed to decode bitmap for item ${item.id}")
+                            failed++
+                        } else {
+                            val caption = describe(bitmap)
+                            clothingDao.updateImageCaption(item.id, caption, Instant.now())
+                            done++
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.w(e, "Caption failed for item ${item.id}")
+                        failed++
+                    }
+                    _progress.value = BatchCaptionProgress(done = done, total = items.size, failed = failed)
                 }
-                _progress.value = BatchCaptionProgress(done = done, total = items.size, failed = failed)
+                _result.value = BatchCaptionResult(done = done, failed = failed)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "Batch caption enrichment failed")
+            } finally {
+                _progress.value = null
             }
-            _result.value = BatchCaptionResult(done = done, failed = failed)
-            _progress.value = null
         }
     }
 
