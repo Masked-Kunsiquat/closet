@@ -215,7 +215,7 @@ class SettingsViewModel @Inject constructor(
     val embeddingIndexSize: StateFlow<Int> = _embeddingIndexSize.asStateFlow()
 
     fun onRebuildEmbeddingIndex() {
-        embeddingScheduler.scheduleForceRebuild()
+        embeddingScheduler.runNow()
     }
 
     // ── Batch Captioning ──────────────────────────────────────────────────────

@@ -53,6 +53,8 @@ import com.closet.core.data.ai.StyleVibe
 import com.closet.core.data.work.BatchSegmentationWork
 import com.closet.core.ui.theme.ClosetTheme
 
+private val GEMINI_MODELS = listOf("gemini-1.5-flash", "gemini-1.5-pro")
+
 @Composable
 fun AiSettingsScreen(
     onNavigateUp: () -> Unit,
@@ -478,7 +480,7 @@ private fun AiProviderSection(
                             onApiKeyChanged = onGeminiKeyChanged,
                             model = geminiModel,
                             onModelChanged = onGeminiModelChanged,
-                            availableModels = listOf("gemini-1.5-flash", "gemini-1.5-pro"),
+                            availableModels = GEMINI_MODELS,
                             isLoadingModels = false,
                             keyLabel = stringResource(R.string.settings_ai_gemini_key),
                             modelLabel = stringResource(R.string.settings_ai_gemini_model),

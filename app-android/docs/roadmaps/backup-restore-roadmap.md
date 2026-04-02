@@ -16,7 +16,7 @@
 ## Phase 1 — Local backup to file (ZIP export/import)
 
 **Format:** A single `.hangr` ZIP:
-```
+```text
 backup-2026-04-01/
   manifest.json          ← schema version, app version, timestamp, image count
   closet.db

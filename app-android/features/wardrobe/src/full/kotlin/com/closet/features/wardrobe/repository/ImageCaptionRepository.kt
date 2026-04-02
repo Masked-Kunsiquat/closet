@@ -67,6 +67,8 @@ class ImageCaptionRepository @Inject constructor(
         }
     }
 
+    override fun consumeResult() { /* no batch result state in this implementation yet */ }
+
     /**
      * Returns `true` if the on-device Image Description model is downloaded and ready.
      */

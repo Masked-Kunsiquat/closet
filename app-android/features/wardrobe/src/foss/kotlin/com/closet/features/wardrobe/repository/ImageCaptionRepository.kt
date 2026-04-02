@@ -25,4 +25,6 @@ class ImageCaptionRepository @Inject constructor() : CaptionEnrichmentProvider {
     override suspend fun isModelDownloaded(): Boolean = false
 
     override suspend fun ensureModelDownloaded() { /* no-op in FOSS builds */ }
+
+    override fun consumeResult() { /* no-op in FOSS builds */ }
 }

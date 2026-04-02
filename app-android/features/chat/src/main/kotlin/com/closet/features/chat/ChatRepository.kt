@@ -23,7 +23,10 @@ class ChatRepository @Inject constructor(
 ) {
     suspend fun query(userMessage: String): Result<ChatResponse> {
         return try {
-            val queryVec = encoder.encode(userMessage).getOrElse { return Result.failure(it) }
+            val queryVec = encoder.encode(userMessage).getOrElse {
+                if (it is CancellationException) throw it
+                return Result.failure(it)
+            }
             val itemIds = index.search(queryVec, topK = 5)
             val items = if (itemIds.isEmpty()) {
                 emptyList()
@@ -32,8 +35,13 @@ class ChatRepository @Inject constructor(
                 itemIds.mapNotNull { detailMap[it] }   // restore cosine-similarity rank
             }
             val context = buildContextBlock(items)
-            val provider = providerSelector.current().getOrElse { return Result.failure(it) }
-            provider.chat(userMessage, context)
+            val provider = providerSelector.current().getOrElse {
+                if (it is CancellationException) throw it
+                return Result.failure(it)
+            }
+            val chatResult = provider.chat(userMessage, context)
+            chatResult.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+            chatResult
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Result.failure(e)
@@ -62,7 +70,10 @@ class ChatRepository @Inject constructor(
                 if (detail.materials.isNotEmpty()) {
                     append(", Materials: ${detail.materials.joinToString { it.name }}")
                 }
-                item.semanticDescription?.let { append(". Description: $it") }
+                item.semanticDescription?.let { desc ->
+                    val sanitized = desc.substringBefore("Notes:").trim()
+                    if (sanitized.isNotEmpty()) append(". $sanitized")
+                }
                 appendLine()
             }
         }

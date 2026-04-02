@@ -40,4 +40,11 @@ interface CaptionEnrichmentProvider {
      * is re-thrown unchanged. See [describe] for the rationale.
      */
     suspend fun ensureModelDownloaded()
+
+    /**
+     * Signals that the UI has consumed the most recent batch-caption result.
+     * Implementations should clear any cached result state so the same result is not
+     * shown again after the user dismisses the summary.
+     */
+    fun consumeResult()
 }
