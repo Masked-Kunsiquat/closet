@@ -45,6 +45,11 @@
             MissingForegroundServiceTypeException at runtime.
         -->
         <service
+            android:name=".backup.BackupForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
             tools:node="merge" />

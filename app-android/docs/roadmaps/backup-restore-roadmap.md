@@ -3,7 +3,7 @@
 ## What gets backed up
 
 | Asset | Notes |
-|---|---|
+|-------|-------|
 | `closet.db` | All user data — clothing, outfits, logs, embeddings |
 | `closet_images/` | UUID-named JPG/PNG files, referenced by relative path in DB |
 | `closet_prefs.pb` | Accent, dynamic color |
@@ -11,82 +11,85 @@
 | `weather_prefs.pb` | Weather service, unit |
 | API keys | Device-locked via Android Keystore — **cannot** be exported; user must re-enter |
 
----
+## ZIP format (`.hangr`)
 
-## Phase 1 — Local backup to file (ZIP export/import)
-
-**Format:** A single `.hangr` ZIP:
 ```text
 backup-2026-04-01/
-  manifest.json          ← schema version, app version, timestamp, image count
+  manifest.json     ← schema version, app version, timestamp, image count, api_keys_excluded: true
   closet.db
-  images/                ← flat copy of closet_images/ (same filenames)
+  images/           ← flat copy of closet_images/ (same filenames)
   prefs/
     closet_prefs.pb
     ai_prefs.pb
     weather_prefs.pb
 ```
 
-API keys are intentionally excluded. Manifest records their absence so restore can prompt the user.
+## Decisions
 
-**Export flow:**
-1. `CHECKPOINT` WAL on the DB (flush to main file), then copy `closet.db`
-2. Copy image files
-3. Copy DataStore `.pb` files
-4. ZIP everything → write via SAF `ACTION_CREATE_DOCUMENT` (saves to user-chosen location)
-
-**Import flow:**
-1. User picks `.hangr` file via SAF `ACTION_OPEN_DOCUMENT`
-2. Read manifest — validate schema version compatibility
-3. Stop DB connection, replace `closet.db`, reopen
-4. Copy images into `closet_images/`, overwrite on conflict
-5. Replace `.pb` pref files
-6. If manifest schema version < current app version → run Room migrations on restored DB
-7. Show banner: "API keys were not restored — re-enter in Settings"
-
-**UI:** Two buttons in Settings → "Export backup" / "Restore from backup". Progress indicator for large image sets.
+| # | Decision |
+|---|----------|
+| Conflict on restore | Overwrite everything |
+| Schema version mismatch | Run Room migrations on the restored DB before reopening |
+| Image conflict | Overwrite — same UUID = same logical file |
+| Progress / cancellation | Foreground service + notification |
+| Restore safety | Require confirmation dialog |
+| In-progress ZIP location | `filesDir/backup_temp/` — explicit cleanup after SAF handoff |
 
 ---
 
-## Phase 2 — Android Auto Backup (zero-effort cloud)
+## Phase 1 — Local backup to file
 
-`res/xml/backup_rules.xml` — include `closet.db`, `closet_images/`, the three `.pb` files; exclude `ai_keys_encrypted` (device-locked, would corrupt on a different device).
+### 1.1 Infrastructure
+- [x] Add `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC` permissions to `AndroidManifest.xml`
+- [x] Create notification channel `backup_restore` in `ClosetApp.onCreate()`
+- [x] Create `BackupForegroundService` — starts in foreground with a persistent notification, exposes a `progress: StateFlow<BackupProgress>` via a bound service or broadcast, stops itself when work completes or is cancelled
 
-Runs automatically. No UI needed. Complements Phase 1 — Auto Backup has a 25 MB cap on older Android so large wardrobes will overflow; Phase 1 remains the full backup path.
+### 1.2 Data model
+- [x] Create `BackupManifest` data class (schema version, app version, timestamp, image count, `apiKeysExcluded: Boolean`)
+- [x] Create `BackupProgress` sealed class: `Idle | Running(step, done, total) | Success(outputUri) | Error(message)`
+
+### 1.3 Export — `BackupRepository.export()`
+- [x] `PRAGMA wal_checkpoint(FULL)` on the Room DB before copying (flush WAL to main file)
+- [x] Copy `closet.db` → `filesDir/backup_temp/closet.db`
+- [x] Copy all files from `closet_images/` → `filesDir/backup_temp/images/`
+- [x] Copy the three `.pb` DataStore files → `filesDir/backup_temp/prefs/`
+- [x] Serialize and write `manifest.json`
+- [x] ZIP `filesDir/backup_temp/` → `filesDir/backup_temp.hangr`
+- [x] Hand the finished ZIP to the caller via SAF `ACTION_CREATE_DOCUMENT` (suggested filename `hangr-backup-<date>.hangr`)
+- [x] Delete `filesDir/backup_temp/` and `backup_temp.hangr` after SAF write completes (or on cancellation)
+
+### 1.4 Restore — `RestoreRepository.restore(uri)`
+- [x] Open `.hangr` via SAF `ACTION_OPEN_DOCUMENT`, unzip to `filesDir/restore_temp/`
+- [x] Read and validate `manifest.json` — reject if `schemaVersion > current DB version` (can't migrate forward)
+- [x] Close the Room DB connection (`ClothingDatabase.closeAndReset()`)
+- [x] Overwrite `closet.db` with the restored copy
+- [x] Reopen Room DB and run any pending migrations if `schemaVersion < current`
+- [x] Overwrite images in `closet_images/` from `restore_temp/images/` (full replacement)
+- [x] Overwrite the three `.pb` pref files
+- [x] Delete `filesDir/restore_temp/`
+- [x] Emit success; show "API keys were not restored — re-enter in Settings" banner (UI in 1.5)
+
+### 1.5 ViewModel + UI
+- [x] Create `BackupViewModel` — exposes `BackupProgress` state, triggers export/restore via the foreground service
+- [x] Add "Export backup" and "Restore from backup" rows to `SettingsScreen`
+- [x] Export: launch `ACTION_CREATE_DOCUMENT` → on result start `BackupForegroundService` in export mode
+- [x] Restore: launch `ACTION_OPEN_DOCUMENT` → show confirmation `AlertDialog` → on confirm start `BackupForegroundService` in restore mode
+- [x] Show progress UI (linear progress bar + step label) while service is running
+- [x] Show post-restore snackbar: "API keys were not restored — re-enter in Settings"
+
+---
+
+## Phase 2 — Android Auto Backup
+
+- [ ] Create `res/xml/backup_rules.xml` — include `closet.db`, `closet_images/`, the three `.pb` files; exclude `ai_keys_encrypted`
+- [ ] Wire `android:dataExtractionRules` (API 31+) and `android:fullBackupContent` (API 30 and below) in `AndroidManifest.xml`
+
+> Auto Backup has a 25 MB cap on older Android — large wardrobes will overflow. Phase 1 remains the full backup path.
 
 ---
 
 ## Phase 3 — Scheduled auto-export (deferred)
 
-Periodic WorkManager job that writes a `.hangr` to a user-chosen folder (persisted SAF URI). Rolling local backup without user intervention.
+Periodic WorkManager job that writes a `.hangr` to a user-chosen folder (persisted SAF URI). Rolling local backup without user intervention. Depends on Phase 1 infrastructure.
 
 ---
-
-## Open questions
-
-**1. Conflict strategy on restore**
-Overwrite everything, or merge with existing data?
-- Overwrite is simpler and predictable.
-- Merge is complex (junction tables, ID collisions) and probably not needed — restore implies "replace this install with the backup."
-- Leaning: **overwrite**.
-
-**2. Schema version mismatch**
-If the backup is DB version 5 and the current app is version 6, do we:
-- (a) Run Room migrations on the restored DB before opening it, or
-- (b) Block the restore with an error if versions don't match?
-- Leaning: **(a) run migrations** — cleaner for users who restore an older backup after an app update.
-
-**3. Image conflict on restore**
-If an image UUID already exists on device, do we overwrite or skip?
-- Leaning: **overwrite** — same UUID means same logical file; the backup copy is authoritative.
-
-**4. Large backup progress / cancellation**
-Large wardrobes = hundreds of MB of images. Options:
-- (a) Foreground service with notification progress
-- (b) Cancellable coroutine + in-screen progress UI (no notification)
-- (b) is simpler; foreground service only needed if we want the export to survive app backgrounding.
-- Decision needed before implementation.
-
-**5. Restore safety**
-Should restore require an explicit "I understand this will replace all current data" confirmation dialog, or is the file-picker flow enough friction?
-- Leaning: **yes, require confirmation dialog** — data loss is irreversible.

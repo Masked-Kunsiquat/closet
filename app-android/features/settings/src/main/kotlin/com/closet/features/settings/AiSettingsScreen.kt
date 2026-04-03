@@ -45,14 +45,42 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.work.WorkInfo
-import com.closet.core.data.ai.AiProvider
 import com.closet.core.data.ai.BatchCaptionProgress
 import com.closet.core.data.ai.BatchCaptionResult
-import com.closet.core.data.ai.StyleVibe
-import com.closet.core.data.work.BatchSegmentationWork
+import com.closet.core.data.model.AiProvider
+import com.closet.core.data.model.StyleVibe
+import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.core.ui.theme.ClosetTheme
 
 private val GEMINI_MODELS = listOf("gemini-1.5-flash", "gemini-1.5-pro")
+
+private val AiProvider.labelRes: Int
+    get() = when (this) {
+        AiProvider.Nano -> R.string.settings_ai_provider_nano
+        AiProvider.OpenAi -> R.string.settings_ai_provider_openai
+        AiProvider.Anthropic -> R.string.settings_ai_provider_anthropic
+        AiProvider.Gemini -> R.string.settings_ai_provider_gemini
+    }
+
+private val StyleVibe.labelRes: Int
+    get() = when (this) {
+        StyleVibe.SmartCasual -> R.string.settings_style_vibe_smart_casual
+        StyleVibe.Minimalist -> R.string.settings_style_vibe_minimalist
+        StyleVibe.Streetwear -> R.string.settings_style_vibe_streetwear
+        StyleVibe.Business -> R.string.settings_style_vibe_business
+        StyleVibe.Casual -> R.string.settings_style_vibe_casual
+        StyleVibe.Formal -> R.string.settings_style_vibe_formal
+    }
+
+private val StyleVibe.descriptionRes: Int
+    get() = when (this) {
+        StyleVibe.SmartCasual -> R.string.settings_style_vibe_smart_casual_desc
+        StyleVibe.Minimalist -> R.string.settings_style_vibe_minimalist_desc
+        StyleVibe.Streetwear -> R.string.settings_style_vibe_streetwear_desc
+        StyleVibe.Business -> R.string.settings_style_vibe_business_desc
+        StyleVibe.Casual -> R.string.settings_style_vibe_casual_desc
+        StyleVibe.Formal -> R.string.settings_style_vibe_formal_desc
+    }
 
 @Composable
 fun AiSettingsScreen(
@@ -385,7 +413,7 @@ private fun AiProviderSection(
         )
 
         AiProvider.entries.forEach { provider ->
-            val isNano = provider == AiProvider.GeminiNano
+            val isNano = provider == AiProvider.Nano
             val isEnabled = !isNano || nanoStatus !is NanoStatus.NotSupported
 
             ListItem(
@@ -401,9 +429,10 @@ private fun AiProviderSection(
                         Text(
                             text = when (nanoStatus) {
                                 is NanoStatus.NotSupported -> stringResource(R.string.settings_ai_nano_status_not_supported)
-                                is NanoStatus.Loading -> stringResource(R.string.settings_ai_nano_status_loading)
+                                is NanoStatus.Checking, is NanoStatus.Downloading -> stringResource(R.string.settings_ai_nano_status_loading)
                                 is NanoStatus.Ready -> stringResource(R.string.settings_ai_nano_status_ready)
                                 is NanoStatus.Idle -> stringResource(R.string.settings_ai_nano_status_idle)
+                                is NanoStatus.Failed -> nanoStatus.message
                             },
                             color = color,
                         )
@@ -460,7 +489,7 @@ private fun AiProviderSection(
                             modelLabel = stringResource(R.string.settings_ai_gemini_model),
                         )
                     }
-                    AiProvider.GeminiNano -> { /* No settings for Nano */ }
+                    AiProvider.Nano -> { /* No settings for Nano */ }
                 }
             }
         }
@@ -780,14 +809,14 @@ private fun NanoNotSupportedDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.settings_ai_nano_not_supported_dialog_message))
-                
+
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                
+
                 Text(
                     text = stringResource(R.string.settings_ai_nano_not_supported_alternatives),
                     style = MaterialTheme.typography.labelLarge,
                 )
-                
+
                 TextButton(
                     onClick = onSwitchToOpenAi,
                     modifier = Modifier.fillMaxWidth(),

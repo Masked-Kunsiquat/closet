@@ -37,6 +37,8 @@ import com.closet.features.chat.ChatRoute
 import com.closet.features.chat.chatScreen
 import com.closet.features.recommendations.navigateToRecommendations
 import com.closet.features.recommendations.recommendationScreen
+import com.closet.backup.backupScreen
+import com.closet.backup.navigateToBackup
 import com.closet.features.settings.aiSettingsScreen
 import com.closet.features.settings.navigateToAiSettings
 import com.closet.features.settings.navigateToSettings
@@ -229,9 +231,14 @@ fun ClosetNavGraph(
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToBulkWash = { navController.navigate(BulkWashDestination) },
                 onNavigateToAiSettings = { navController.navigateToAiSettings() },
+                onNavigateToBackup = { navController.navigateToBackup() },
             )
 
             aiSettingsScreen(
+                onNavigateUp = { navController.popBackStack() },
+            )
+
+            backupScreen(
                 onNavigateUp = { navController.popBackStack() },
             )
 

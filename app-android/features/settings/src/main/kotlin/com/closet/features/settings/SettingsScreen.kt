@@ -88,6 +88,7 @@ fun SettingsScreen(
     onNavigateUp: () -> Unit,
     onNavigateToBulkWash: () -> Unit = {},
     onNavigateToAiSettings: () -> Unit = {},
+    onNavigateToBackup: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -170,6 +171,7 @@ fun SettingsScreen(
         onTemperatureUnitChange = viewModel::setTemperatureUnit,
         onClearCache = viewModel::clearForecastCache,
         onNavigateToAiSettings = onNavigateToAiSettings,
+        onNavigateToBackup = onNavigateToBackup,
         snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
         onNavigateToBulkWash = onNavigateToBulkWash,
@@ -203,6 +205,7 @@ internal fun SettingsContent(
     onTemperatureUnitChange: (TemperatureUnit) -> Unit,
     onClearCache: () -> Unit,
     onNavigateToAiSettings: () -> Unit,
+    onNavigateToBackup: () -> Unit,
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     onNavigateToBulkWash: () -> Unit = {},
@@ -284,6 +287,14 @@ internal fun SettingsContent(
             }
             item {
                 ClearCacheItem(onClick = onClearCache)
+            }
+
+            // ── Backup & Restore ──────────────────────────────────────────────
+            item {
+                SettingsSectionHeader(stringResource(R.string.settings_section_backup))
+            }
+            item {
+                BackupNavItem(onClick = onNavigateToBackup)
             }
 
             // ── Wardrobe ──────────────────────────────────────────────────────
@@ -550,6 +561,21 @@ private fun LaundryDayItem(onClick: () -> Unit) {
 }
 
 @Composable
+private fun BackupNavItem(onClick: () -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_section_backup)) },
+        supportingContent = { Text(stringResource(R.string.settings_backup_summary)) },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.settings_backup_navigate),
+            )
+        },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+@Composable
 private fun AiToolsNavItem(onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_section_ai_tools)) },
@@ -614,6 +640,7 @@ private fun SettingsContentDefaultPreview() {
             onTemperatureUnitChange = {},
             onClearCache = {},
             onNavigateToAiSettings = {},
+            onNavigateToBackup = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -639,6 +666,7 @@ private fun SettingsContentWeatherOpenMeteoPreview() {
             onTemperatureUnitChange = {},
             onClearCache = {},
             onNavigateToAiSettings = {},
+            onNavigateToBackup = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )
@@ -664,6 +692,7 @@ private fun SettingsContentWeatherGooglePreview() {
             onTemperatureUnitChange = {},
             onClearCache = {},
             onNavigateToAiSettings = {},
+            onNavigateToBackup = {},
             snackbarHostState = remember { SnackbarHostState() },
             onNavigateUp = {},
         )

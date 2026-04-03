@@ -19,4 +19,23 @@
     <string name="shortcut_laundry_long">Bulk mark wash status</string>
     <string name="shortcut_category_short">Category</string>
     <string name="shortcut_category_long">Browse category</string>
+
+    <!-- Backup / Restore -->
+    <string name="backup_notification_preparing_export">Preparing backup…</string>
+    <string name="backup_notification_preparing_restore">Preparing restore…</string>
+    <string name="backup_title">Backup &amp; Restore</string>
+    <string name="backup_navigate_up">Back</string>
+    <string name="backup_export">Export backup</string>
+    <string name="backup_export_summary">Save your wardrobe to a .hangr file</string>
+    <string name="backup_restore">Restore from backup</string>
+    <string name="backup_restore_summary">Replace your wardrobe with a .hangr file</string>
+    <string name="backup_confirm_title">Restore backup?</string>
+    <string name="backup_confirm_message">This will overwrite all your wardrobe data, images, and settings. This cannot be undone.</string>
+    <string name="backup_confirm_ok">Restore</string>
+    <string name="backup_confirm_cancel">Cancel</string>
+    <string name="backup_success_export">Backup saved successfully</string>
+    <string name="backup_restart_title">Restore complete</string>
+    <string name="backup_restart_message">Your wardrobe has been restored.\n\nAPI keys were not included in the backup — re-enter them in AI &amp; Image Tools settings.\n\nTap Restart to apply the restore.</string>
+    <string name="backup_restart_ok">Restart now</string>
+    <string name="backup_error_title">Operation failed</string>
 </resources>

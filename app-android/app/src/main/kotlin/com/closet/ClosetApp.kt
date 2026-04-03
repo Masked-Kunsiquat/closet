@@ -1,8 +1,11 @@
 package com.closet
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.closet.backup.BackupForegroundService
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
@@ -30,6 +33,19 @@ class ClosetApp : Application(), Configuration.Provider {
     @Inject lateinit var embeddingScheduler: EmbeddingScheduler
     @Inject lateinit var embeddingIndex: EmbeddingIndex
 
+    private fun createNotificationChannels() {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(
+            NotificationChannel(
+                BackupForegroundService.CHANNEL_ID,
+                "Backup & Restore",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Progress notifications for backup and restore operations"
+            },
+        )
+    }
+
     override fun getWorkManagerConfiguration(): Configuration =
         Configuration.Builder().setWorkerFactory(workerFactory).build()
 
@@ -40,6 +56,7 @@ class ClosetApp : Application(), Configuration.Provider {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+        createNotificationChannels()
         // Register the periodic embedding worker (charging + idle; no-op if already queued).
         embeddingScheduler.schedule()
 

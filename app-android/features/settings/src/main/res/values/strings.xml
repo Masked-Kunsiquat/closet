@@ -98,10 +98,38 @@
 
     <!-- AI settings sub-screen -->
     <string name="settings_ai_screen_title">AI &amp; Image Tools</string>
+    <string name="settings_ai_title">AI &amp; Image Tools</string>
+    <string name="settings_ai_enable">AI features</string>
+    <string name="settings_ai_enable_summary">Enable AI-powered outfit scoring and wardrobe tools</string>
+    <string name="settings_wardrobe_management">Wardrobe management</string>
+    <string name="settings_ai_nano_status_not_supported">Not supported on this device</string>
+    <string name="settings_ai_nano_status_loading">Checking device compatibility…</string>
+    <string name="settings_ai_nano_status_ready">Model ready</string>
+    <string name="settings_ai_nano_status_idle">Not initialized</string>
+    <string name="settings_ai_models_loading">Loading…</string>
+    <string name="settings_wardrobe_search_index">Wardrobe search index</string>
+    <string name="settings_wardrobe_search_index_rebuilding">Building search index…</string>
+    <string name="settings_wardrobe_search_index_rebuild">Rebuild</string>
+    <string name="settings_wardrobe_all_backgrounds_removed">All backgrounds already removed</string>
+    <string name="settings_ai_nano_not_supported_alternatives">Switch to a cloud provider</string>
     <string name="settings_ai_subsection_assistant">Assistant</string>
     <string name="settings_ai_subsection_provider">Provider</string>
     <string name="settings_ai_subsection_index">Wardrobe Index</string>
     <string name="settings_ai_subsection_enrichment">Image Enrichment</string>
+
+    <!-- Style vibe options -->
+    <string name="settings_style_vibe_smart_casual">Smart Casual</string>
+    <string name="settings_style_vibe_smart_casual_desc">Polished but relaxed — office-ready basics with a comfortable twist</string>
+    <string name="settings_style_vibe_minimalist">Minimalist</string>
+    <string name="settings_style_vibe_minimalist_desc">Clean lines, neutral palette, nothing excess</string>
+    <string name="settings_style_vibe_streetwear">Streetwear</string>
+    <string name="settings_style_vibe_streetwear_desc">Bold graphics, relaxed silhouettes, sneaker-driven looks</string>
+    <string name="settings_style_vibe_business">Business</string>
+    <string name="settings_style_vibe_business_desc">Professional and polished for formal work environments</string>
+    <string name="settings_style_vibe_casual">Casual</string>
+    <string name="settings_style_vibe_casual_desc">Everyday comfortable — jeans, tees, and easy layers</string>
+    <string name="settings_style_vibe_formal">Formal</string>
+    <string name="settings_style_vibe_formal_desc">Elevated occasions — suits, dresses, and refined details</string>
 
     <!-- Wardrobe Index items -->
     <string name="settings_ai_index_title">Wardrobe search index</string>
@@ -113,6 +141,15 @@
         <item quantity="one">%d item indexed</item>
         <item quantity="other">%d items indexed</item>
     </plurals>
+    <plurals name="settings_wardrobe_search_index_summary">
+        <item quantity="one">%d item indexed</item>
+        <item quantity="other">%d items indexed</item>
+    </plurals>
+
+    <!-- Backup & Restore section -->
+    <string name="settings_section_backup">Backup &amp; Restore</string>
+    <string name="settings_backup_summary">Export or restore your wardrobe</string>
+    <string name="settings_backup_navigate">Open Backup &amp; Restore settings</string>
 
     <!-- Wardrobe section -->
     <string name="settings_section_wardrobe">Wardrobe</string>

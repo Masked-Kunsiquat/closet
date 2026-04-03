@@ -33,17 +33,20 @@ fun NavController.navigateToAiSettings() {
  * @param onNavigateUp         Called when the user taps the back arrow.
  * @param onNavigateToBulkWash Called when the user taps the Laundry Day row.
  * @param onNavigateToAiSettings Called when the user taps the AI & Image Tools row.
+ * @param onNavigateToBackup   Called when the user taps the Backup & Restore row.
  */
 fun NavGraphBuilder.settingsScreen(
     onNavigateUp: () -> Unit,
     onNavigateToBulkWash: () -> Unit = {},
     onNavigateToAiSettings: () -> Unit = {},
+    onNavigateToBackup: () -> Unit = {},
 ) {
     composable<SettingsRoute> {
         SettingsScreen(
             onNavigateUp = onNavigateUp,
             onNavigateToBulkWash = onNavigateToBulkWash,
             onNavigateToAiSettings = onNavigateToAiSettings,
+            onNavigateToBackup = onNavigateToBackup,
         )
     }
 }
