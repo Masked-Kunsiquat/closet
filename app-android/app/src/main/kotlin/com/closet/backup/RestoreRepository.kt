@@ -26,7 +26,7 @@ import javax.inject.Singleton
  * 6. Replace `closet_images/` with the restored images (full replacement)
  * 7. Overwrite DataStore preference files
  * 8. Delete `filesDir/restore_temp/`
- * 9. Return [Result.success] — caller must restart the process for the refreshed DB and
+ * 9. Return [kotlin.Result] success — caller must restart the process for the refreshed DB and
  *    DataStore instances to take effect across all Hilt-injected singletons
  *
  * API keys are device-locked and are never in the backup; the "re-enter keys" banner is
@@ -116,7 +116,11 @@ class RestoreRepository @Inject constructor(
                 }
                 onProgress(BackupProgress.Running("Restoring images", imageFiles.size, imageFiles.size))
 
-                // 7. Overwrite DataStore preference files
+                // 7. Overwrite DataStore preference files.
+                // Note: copying .preferences_pb files on disk does NOT invalidate the in-memory
+                // DataStore caches held by Hilt singletons (closet_prefs, ai_prefs, weather_prefs).
+                // A full process restart is required for the restored prefs to take effect —
+                // BackupScreen shows a non-dismissable restart dialog after this step completes.
                 val datastoreDir = File(context.filesDir, "datastore").also { it.mkdirs() }
                 val prefsSrc = File(tempDir, "prefs")
                 PREF_STORE_NAMES.forEach { name ->

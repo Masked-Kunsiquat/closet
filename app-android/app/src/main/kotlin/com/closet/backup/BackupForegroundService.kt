@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import com.closet.R
 import dagger.hilt.android.AndroidEntryPoint
+import CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -64,9 +65,15 @@ class BackupForegroundService : Service() {
          */
         val progress: StateFlow<BackupProgress> = _progress.asStateFlow()
 
-        /** Called by [BackupViewModel] after the UI has handled a terminal [BackupProgress] state. */
+        /**
+         * Called by [BackupViewModel] after the UI has handled a terminal [BackupProgress] state.
+         * No-ops if an operation is currently [BackupProgress.Running] to avoid clobbering
+         * in-flight progress.
+         */
         fun resetProgress() {
-            _progress.value = BackupProgress.Idle
+            if (_progress.value !is BackupProgress.Running) {
+                _progress.value = BackupProgress.Idle
+            }
         }
     }
 
@@ -90,9 +97,16 @@ class BackupForegroundService : Service() {
                 Timber.d("BackupForegroundService: export requested to $outputUri")
                 startForegroundCompat(buildNotification(getString(R.string.backup_notification_preparing_export)))
                 activeJob = serviceScope.launch {
-                    backupRepository.export(outputUri, ::reportProgress)
-                        .onSuccess { reportProgress(BackupProgress.Success(outputUri)) }
-                        .onFailure { e -> reportProgress(BackupProgress.Error(e.message ?: "Export failed")) }
+                    try {
+                        backupRepository.export(outputUri, ::reportProgress)
+                            .onSuccess { reportProgress(BackupProgress.Success(outputUri)) }
+                            .onFailure { e -> reportProgress(BackupProgress.Error(e.message ?: "Export failed")) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.e(e, "Unexpected export error")
+                        reportProgress(BackupProgress.Error(e.message ?: "Export failed"))
+                    }
                 }
             }
             ACTION_RESTORE -> {
@@ -105,9 +119,16 @@ class BackupForegroundService : Service() {
                 Timber.d("BackupForegroundService: restore requested from $sourceUri")
                 startForegroundCompat(buildNotification(getString(R.string.backup_notification_preparing_restore)))
                 activeJob = serviceScope.launch {
-                    restoreRepository.restore(sourceUri, ::reportProgress)
-                        .onSuccess { reportProgress(BackupProgress.Success()) }
-                        .onFailure { e -> reportProgress(BackupProgress.Error(e.message ?: "Restore failed")) }
+                    try {
+                        restoreRepository.restore(sourceUri, ::reportProgress)
+                            .onSuccess { reportProgress(BackupProgress.Success()) }
+                            .onFailure { e -> reportProgress(BackupProgress.Error(e.message ?: "Restore failed")) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.e(e, "Unexpected restore error")
+                        reportProgress(BackupProgress.Error(e.message ?: "Restore failed"))
+                    }
                 }
             }
             ACTION_CANCEL -> {
