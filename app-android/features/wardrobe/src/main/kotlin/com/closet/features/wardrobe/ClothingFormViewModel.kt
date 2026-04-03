@@ -563,7 +563,7 @@ class ClothingFormViewModel @Inject constructor(
                 val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                     ?: throw IllegalStateException("Could not decode image file: $path")
                 val masked = segmentationRepository.removeBackground(bitmap)
-                val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
+                val savedPath = storageRepository.saveBitmap(masked, UUID.randomUUID().toString())
                 val segmentedFile = storageRepository.getFile(savedPath)
                 _form.update { it.copy(
                     imagePath = savedPath,

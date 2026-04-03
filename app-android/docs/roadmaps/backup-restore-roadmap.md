@@ -119,10 +119,10 @@ Periodic WorkManager job that writes a `.hangr` to a user-chosen folder (persist
 
 `saveBitmap` saves a lossless PNG for background-removed items (requires alpha). PNG cannot be lossy; use WebP instead:
 
-- [ ] On API 30+: encode with `Bitmap.CompressFormat.WEBP_LOSSY` at quality 85 — supports alpha, ~50–70 % smaller than equivalent PNG
-- [ ] On API 26–29 (minSdk): fall back to PNG but apply the same 1600 px longest-edge cap (already ARGB_8888; large dimensions are the main cost driver)
-- [ ] Change output extension to `.webp` on API 30+ (the filename is a new UUID so no existing DB rows are affected)
-- [ ] Extract the format/extension decision into a private `segmentedFormat(): Pair<CompressFormat, String>` helper in `StorageRepository`
+- [x] On API 30+: encode with `Bitmap.CompressFormat.WEBP_LOSSY` at quality 85 — supports alpha, ~50–70 % smaller than equivalent PNG
+- [x] On API 26–29 (minSdk): fall back to PNG but apply the same 1600 px longest-edge cap (already ARGB_8888; large dimensions are the main cost driver)
+- [x] Change output extension to `.webp` on API 30+ (the filename is a new UUID so no existing DB rows are affected)
+- [x] Extract the format/extension decision into a private `segmentedFormat(): Pair<CompressFormat, String>` helper in `StorageRepository`
 
 ### 4.3 Migrate existing images (background WorkManager job)
 

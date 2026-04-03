@@ -113,7 +113,7 @@ class BatchSegmentationWorker @AssistedInject constructor(
                 // write fails after the PNG has already been saved to disk.
                 var savedPath: String? = null
                 try {
-                    savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
+                    savedPath = storageRepository.saveBitmap(masked, UUID.randomUUID().toString())
                     clothingDao.updateItemImagePath(item.id, savedPath, Instant.now())
                 } catch (e: Exception) {
                     // Best-effort cleanup of the orphaned PNG before re-throwing so

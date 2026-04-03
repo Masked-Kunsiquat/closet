@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -119,25 +120,65 @@ class StorageRepository @Inject constructor(
     }
 
     /**
-     * Saves a [Bitmap] as a PNG to the app's internal images directory.
+     * Saves a segmented [Bitmap] (with alpha) to the app's internal images directory.
      *
-     * The PNG encoder ignores the quality parameter, so lossless transparency is
-     * preserved — required for segmented images with transparent backgrounds.
+     * On API 30+: encodes as WEBP_LOSSY at [JPEG_QUALITY] — preserves alpha, ~50–70 % smaller than PNG.
+     * On API 26–29: falls back to lossless PNG, but caps at [MAX_DIMENSION] px on the longest edge
+     * to limit file size (alpha channel means we can't use lossy compression).
      *
-     * @param bitmap The bitmap to save (should be ARGB_8888 for transparency support).
-     * @param filename The target filename including extension (e.g. `"uuid.png"`).
-     * @return The relative path (filename only, no leading slash) — same convention as [saveImage].
+     * @param bitmap The segmented bitmap (ARGB_8888 with transparent background).
+     * @param baseName UUID-only base name without extension (e.g. `"550e8400-e29b-41d4-a716"`).
+     *                 The appropriate extension is appended automatically based on API level.
+     * @return The relative path (filename with extension) — same convention as [saveImage].
      */
-    suspend fun saveBitmap(bitmap: Bitmap, filename: String): String = withContext(Dispatchers.IO) {
+    suspend fun saveBitmap(bitmap: Bitmap, baseName: String): String = withContext(Dispatchers.IO) {
+        val (format, ext) = segmentedFormat()
+        val filename = "$baseName.$ext"
         val destFile = File(imagesDir, filename)
-        destFile.outputStream().use { out ->
-            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)) {
-                destFile.delete()
-                throw IOException("Bitmap.compress returned false for $filename")
-            }
+
+        // For the PNG fallback (API < 30) apply the same longest-edge cap as saveImage.
+        val toSave = if (format == Bitmap.CompressFormat.PNG &&
+            maxOf(bitmap.width, bitmap.height) > MAX_DIMENSION
+        ) {
+            val scale = MAX_DIMENSION.toFloat() / maxOf(bitmap.width, bitmap.height)
+            val scaled = Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * scale).toInt(),
+                (bitmap.height * scale).toInt(),
+                /* filter= */ true
+            )
+            scaled
+        } else {
+            bitmap
         }
+
+        val quality = if (format == Bitmap.CompressFormat.PNG) 100 else JPEG_QUALITY
+        try {
+            destFile.outputStream().use { out ->
+                if (!toSave.compress(format, quality, out)) {
+                    destFile.delete()
+                    throw IOException("Bitmap.compress returned false for $filename")
+                }
+            }
+        } finally {
+            if (toSave !== bitmap) toSave.recycle()
+        }
+
         filename
     }
+
+    /**
+     * Returns the [Bitmap.CompressFormat] and file extension to use for segmented images.
+     * WEBP_LOSSY (API 30+) supports alpha and is ~50–70 % smaller than an equivalent PNG.
+     * PNG is the lossless fallback for older devices.
+     */
+    private fun segmentedFormat(): Pair<Bitmap.CompressFormat, String> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            @Suppress("NewApi") // R == API 30, guarded by the version check above
+            Bitmap.CompressFormat.WEBP_LOSSY to "webp"
+        } else {
+            Bitmap.CompressFormat.PNG to "png"
+        }
 
     /**
      * Loads a Bitmap from a Uri.
