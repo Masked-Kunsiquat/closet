@@ -84,6 +84,11 @@ android {
             }
         }
     }
+    lint {
+        // androidx.startup.InitializationProvider is a transitive WorkManager dependency;
+        // lint can't resolve transitive classes in release mode — known false positive.
+        disable += "MissingClass"
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

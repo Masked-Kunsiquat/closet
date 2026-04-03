@@ -186,6 +186,9 @@ class BatchSegmentationWorker @AssistedInject constructor(
         }
     }
 
+    // dataSync is declared on SystemForegroundService in AndroidManifest.xml via tools:node="merge";
+    // WorkManager lint does not resolve merged manifests in library modules, so suppress the false positive.
+    @android.annotation.SuppressLint("SpecifyForegroundServiceType")
     private fun createForegroundInfo(done: Int, total: Int): ForegroundInfo {
         val notification = buildNotification(done, total)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
