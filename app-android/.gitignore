@@ -2,6 +2,7 @@
 **/build/
 .gradle/
 /build/
+*.apk
 
 # IDE settings
 .idea/
