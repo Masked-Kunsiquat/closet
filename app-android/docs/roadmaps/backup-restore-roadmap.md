@@ -108,12 +108,12 @@ Periodic WorkManager job that writes a `.hangr` to a user-chosen folder (persist
 
 `StorageRepository.saveImage(uri)` currently streams bytes verbatim. Replace with a decode → scale → re-encode pipeline:
 
-- [ ] In `saveImage`, decode the URI into a `Bitmap` via `BitmapFactory.decodeStream` with `inJustDecodeBounds` first pass to get dimensions without full load
-- [ ] Compute `inSampleSize` so the decoded bitmap's longest edge is ≤ 1600 px (power-of-two downsampling is fast and handled by the decoder)
-- [ ] Decode at that sample size, then do a final `Bitmap.createScaledBitmap` if the long edge is still > 1600 px after sampling
-- [ ] Re-encode to JPEG at quality 85 into the destination file (keep `.jpg` extension and UUID filename — no DB migration needed)
-- [ ] Recycle the intermediate bitmap
-- [ ] Add a `StorageRepository.MAX_DIMENSION = 1600` and `JPEG_QUALITY = 85` companion constants so they're easy to tune
+- [x] In `saveImage`, decode the URI into a `Bitmap` via `BitmapFactory.decodeStream` with `inJustDecodeBounds` first pass to get dimensions without full load
+- [x] Compute `inSampleSize` so the decoded bitmap's longest edge is ≤ 1600 px (power-of-two downsampling is fast and handled by the decoder)
+- [x] Decode at that sample size, then do a final `Bitmap.createScaledBitmap` if the long edge is still > 1600 px after sampling
+- [x] Re-encode to JPEG at quality 85 into the destination file (keep `.jpg` extension and UUID filename — no DB migration needed)
+- [x] Recycle the intermediate bitmap
+- [x] Add a `StorageRepository.MAX_DIMENSION = 1600` and `JPEG_QUALITY = 85` companion constants so they're easy to tune
 
 ### 4.2 Compress segmented images — `saveBitmap`
 
