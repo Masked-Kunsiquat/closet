@@ -32,8 +32,7 @@
         <!-- Weather preferences: weather service, unit -->
         <include domain="file" path="datastore/weather_prefs.preferences_pb" />
 
-        <!-- Explicitly exclude device-locked API key store (non-portable across Keystores) -->
-        <exclude domain="sharedpref" path="ai_keys_encrypted.xml" />
+        <!-- ai_keys_encrypted.xml omitted intentionally — device-locked, non-portable. -->
     </cloud-backup>
 
     <device-transfer>
@@ -52,7 +51,6 @@
         <!-- Weather preferences: weather service, unit -->
         <include domain="file" path="datastore/weather_prefs.preferences_pb" />
 
-        <!-- Explicitly exclude device-locked API key store (non-portable across Keystores) -->
-        <exclude domain="sharedpref" path="ai_keys_encrypted.xml" />
+        <!-- ai_keys_encrypted.xml omitted intentionally — device-locked, non-portable. -->
     </device-transfer>
 </data-extraction-rules>
