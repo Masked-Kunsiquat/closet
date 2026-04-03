@@ -81,8 +81,8 @@ backup-2026-04-01/
 
 ## Phase 2 — Android Auto Backup
 
-- [ ] Create `res/xml/backup_rules.xml` — include `closet.db`, `closet_images/`, the three `.pb` files; exclude `ai_keys_encrypted`
-- [ ] Wire `android:dataExtractionRules` (API 31+) and `android:fullBackupContent` (API 30 and below) in `AndroidManifest.xml`
+- [x] Create `res/xml/backup_rules.xml` — include `closet.db`, `closet_images/`, the three `.pb` files; exclude `ai_keys_encrypted`
+- [x] Wire `android:dataExtractionRules` (API 31+) and `android:fullBackupContent` (API 30 and below) in `AndroidManifest.xml`
 
 > Auto Backup has a 25 MB cap on older Android — large wardrobes will overflow. Phase 1 remains the full backup path.
 
