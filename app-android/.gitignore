@@ -15,6 +15,7 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+.env.build
 
 # OS generated files
 .DS_Store

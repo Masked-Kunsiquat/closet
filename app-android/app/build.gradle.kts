@@ -7,6 +7,26 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Signing credentials — resolved in priority order:
+//   1. Environment variables (set by `op run --env-file=.env.build` locally,
+//      or by GitHub Actions secrets in CI)
+//   2. keystore.properties fallback (gitignored local file)
+// If neither is present the release build type has no signingConfig (unsigned).
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = java.util.Properties().apply {
+    if (keystorePropertiesFile.exists()) load(keystorePropertiesFile.inputStream())
+}
+
+fun signingProp(envKey: String, propKey: String): String? =
+    System.getenv(envKey)?.takeIf { it.isNotBlank() }
+        ?: keystoreProperties.getProperty(propKey)?.takeIf { it.isNotBlank() }
+
+val signingStoreFile   = signingProp("KEYSTORE_FILE_PATH", "storeFile")
+val signingStorePass   = signingProp("KEYSTORE_PASSWORD",  "storePassword")
+val signingKeyAlias    = signingProp("KEY_ALIAS",          "keyAlias")
+val signingKeyPass     = signingProp("KEY_PASSWORD",       "keyPassword")
+val canSign            = listOf(signingStoreFile, signingStorePass, signingKeyAlias, signingKeyPass).all { it != null }
+
 android {
     namespace = "com.closet"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -39,6 +59,17 @@ android {
         }
     }
 
+    if (canSign) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(signingStoreFile!!)
+                storePassword = signingStorePass
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -46,6 +77,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (canSign) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -59,6 +93,19 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // Rename release APKs to hangr-<flavor>-<versionName>.apk
+    // e.g. hangr-full-0.3.0.apk, hangr-foss-0.3.0.apk
+    applicationVariants.configureEach {
+        if (buildType.name == "release") {
+            val flavor = flavorName
+            val version = versionName
+            outputs.configureEach {
+                val apkOutput = this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl
+                apkOutput?.outputFileName = "hangr-$flavor-$version.apk"
+            }
         }
     }
 }
