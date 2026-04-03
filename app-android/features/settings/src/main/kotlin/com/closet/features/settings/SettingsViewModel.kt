@@ -121,7 +121,7 @@ class SettingsViewModel @Inject constructor(
 
     private val appPrefsFlow = combine(
         combine(
-            preferencesRepository.accent,
+            preferencesRepository.getAccent(),
             preferencesRepository.getDynamicColor(),
             weatherPreferencesRepository.getWeatherEnabled(),
         ) { accent, dynamic, weatherEnabled -> Triple(accent, dynamic, weatherEnabled) },
@@ -135,30 +135,30 @@ class SettingsViewModel @Inject constructor(
     }
 
     private val aiCorePrefsFlow = combine(
-        aiPreferencesRepository.aiEnabled,
-        aiPreferencesRepository.styleVibe,
-        aiPreferencesRepository.selectedProvider,
+        aiPreferencesRepository.getAiEnabled(),
+        aiPreferencesRepository.getStyleVibe(),
+        aiPreferencesRepository.getSelectedProvider(),
         _nanoStatus,
     ) { enabled, vibe, provider, nano -> AiCorePrefs(enabled, vibe, provider, nano) }
 
     private val openAiPrefsFlow = combine(
-        aiPreferencesRepository.openAiKey,
-        aiPreferencesRepository.openAiBaseUrl,
-        aiPreferencesRepository.openAiModel,
+        aiPreferencesRepository.getOpenAiApiKey(),
+        aiPreferencesRepository.getOpenAiBaseUrl(),
+        aiPreferencesRepository.getOpenAiModel(),
         _openAiModels,
         _openAiModelsLoading,
     ) { key, baseUrl, model, models, loading -> OpenAiPrefs(key, baseUrl, model, models, loading) }
 
     private val anthropicPrefsFlow = combine(
-        aiPreferencesRepository.anthropicKey,
-        aiPreferencesRepository.anthropicModel,
+        aiPreferencesRepository.getAnthropicApiKey(),
+        aiPreferencesRepository.getAnthropicModel(),
         _anthropicModels,
         _anthropicModelsLoading,
     ) { key, model, models, loading -> AnthropicPrefs(key, model, models, loading) }
 
     private val geminiPrefsFlow = combine(
-        aiPreferencesRepository.geminiKey,
-        aiPreferencesRepository.geminiModel,
+        aiPreferencesRepository.getGeminiApiKey(),
+        aiPreferencesRepository.getGeminiModel(),
     ) { key, model -> GeminiPrefs(key, model) }
 
     private val embeddingStateFlow = combine(
@@ -254,9 +254,9 @@ class SettingsViewModel @Inject constructor(
         // Fetch OpenAI models when key, base URL, or AI-enabled changes.
         viewModelScope.launch {
             combine(
-                aiPreferencesRepository.openAiKey,
-                aiPreferencesRepository.openAiBaseUrl,
-                aiPreferencesRepository.aiEnabled,
+                aiPreferencesRepository.getOpenAiApiKey(),
+                aiPreferencesRepository.getOpenAiBaseUrl(),
+                aiPreferencesRepository.getAiEnabled(),
             ) { key, url, enabled -> Triple(key, url, enabled) }
                 .debounce(800)
                 .collectLatest { (key, url, enabled) ->
@@ -266,7 +266,7 @@ class SettingsViewModel @Inject constructor(
                     }
                     _openAiModelsLoading.value = true
                     try {
-                        modelDiscovery.fetchOpenAiModels(key, url.ifBlank { null })
+                        modelDiscovery.fetchOpenAiModels(key, url)
                             .onSuccess { _openAiModels.value = it }
                             .onFailure { _openAiModels.value = emptyList() }
                     } finally {
@@ -278,8 +278,8 @@ class SettingsViewModel @Inject constructor(
         // Fetch Anthropic models when key or AI-enabled changes.
         viewModelScope.launch {
             combine(
-                aiPreferencesRepository.anthropicKey,
-                aiPreferencesRepository.aiEnabled,
+                aiPreferencesRepository.getAnthropicApiKey(),
+                aiPreferencesRepository.getAiEnabled(),
             ) { key, enabled -> key to enabled }
                 .debounce(800)
                 .collectLatest { (key, enabled) ->
@@ -361,7 +361,7 @@ class SettingsViewModel @Inject constructor(
     // ── Provider key/model event handlers ────────────────────────────────────
 
     fun onOpenAiKeyChanged(key: String) {
-        viewModelScope.launch { aiPreferencesRepository.setOpenAiKey(key) }
+        viewModelScope.launch { aiPreferencesRepository.setOpenAiApiKey(key) }
     }
 
     fun onOpenAiBaseUrlChanged(url: String) {
@@ -373,7 +373,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onAnthropicKeyChanged(key: String) {
-        viewModelScope.launch { aiPreferencesRepository.setAnthropicKey(key) }
+        viewModelScope.launch { aiPreferencesRepository.setAnthropicApiKey(key) }
     }
 
     fun onAnthropicModelChanged(model: String) {
@@ -381,7 +381,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onGeminiKeyChanged(key: String) {
-        viewModelScope.launch { aiPreferencesRepository.setGeminiKey(key) }
+        viewModelScope.launch { aiPreferencesRepository.setGeminiApiKey(key) }
     }
 
     fun onGeminiModelChanged(model: String) {

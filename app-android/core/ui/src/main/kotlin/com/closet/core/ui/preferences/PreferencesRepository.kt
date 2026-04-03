@@ -30,6 +30,7 @@ class PreferencesRepository @Inject constructor(
 ) {
     private val accentKey = stringPreferencesKey("accent")
     private val dynamicColorKey = androidx.datastore.preferences.core.booleanPreferencesKey("dynamic_color")
+    private val lastHandledBatchIdKey = stringPreferencesKey("last_handled_batch_id")
 
     /**
      * Returns a [Flow] that emits the currently stored [ClosetAccent] and
@@ -66,6 +67,20 @@ class PreferencesRepository @Inject constructor(
     suspend fun setDynamicColor(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[dynamicColorKey] = enabled
+        }
+    }
+
+    /**
+     * The UUID string of the last batch segmentation job the UI acknowledged,
+     * used to suppress duplicate snackbars across recompositions. Null when unset.
+     */
+    val lastHandledBatchId: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[lastHandledBatchIdKey]
+    }
+
+    suspend fun setLastHandledBatchId(id: String) {
+        context.dataStore.edit { prefs ->
+            prefs[lastHandledBatchIdKey] = id
         }
     }
 }
