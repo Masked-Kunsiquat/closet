@@ -59,15 +59,15 @@ backup-2026-04-01/
 - [x] Delete `filesDir/backup_temp/` and `backup_temp.hangr` after SAF write completes (or on cancellation)
 
 ### 1.4 Restore — `RestoreRepository.restore(uri)`
-- [ ] Open `.hangr` via SAF `ACTION_OPEN_DOCUMENT`, unzip to `filesDir/restore_temp/`
-- [ ] Read and validate `manifest.json` — reject if `schemaVersion > current DB version` (can't migrate forward)
-- [ ] Close the Room DB connection (`ClothingDatabase.close()`)
-- [ ] Overwrite `closet.db` with the restored copy
-- [ ] Reopen Room DB and run any pending migrations if `schemaVersion < current`
-- [ ] Overwrite images in `closet_images/` from `restore_temp/images/` (overwrite on conflict)
-- [ ] Overwrite the three `.pb` pref files
-- [ ] Delete `filesDir/restore_temp/`
-- [ ] Emit success; show "API keys were not restored — re-enter in Settings" banner
+- [x] Open `.hangr` via SAF `ACTION_OPEN_DOCUMENT`, unzip to `filesDir/restore_temp/`
+- [x] Read and validate `manifest.json` — reject if `schemaVersion > current DB version` (can't migrate forward)
+- [x] Close the Room DB connection (`ClothingDatabase.closeAndReset()`)
+- [x] Overwrite `closet.db` with the restored copy
+- [x] Reopen Room DB and run any pending migrations if `schemaVersion < current`
+- [x] Overwrite images in `closet_images/` from `restore_temp/images/` (full replacement)
+- [x] Overwrite the three `.pb` pref files
+- [x] Delete `filesDir/restore_temp/`
+- [x] Emit success; show "API keys were not restored — re-enter in Settings" banner (UI in 1.5)
 
 ### 1.5 ViewModel + UI
 - [ ] Create `BackupViewModel` — exposes `BackupProgress` state, triggers export/restore via the foreground service

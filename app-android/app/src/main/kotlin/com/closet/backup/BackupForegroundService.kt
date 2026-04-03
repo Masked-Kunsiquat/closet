@@ -64,6 +64,7 @@ class BackupForegroundService : Service() {
     }
 
     @Inject lateinit var backupRepository: BackupRepository
+    @Inject lateinit var restoreRepository: RestoreRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var activeJob: Job? = null
@@ -96,7 +97,11 @@ class BackupForegroundService : Service() {
                 }
                 Timber.d("BackupForegroundService: restore requested from $sourceUri")
                 startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.backup_notification_preparing_restore)))
-                // TODO 1.4: activeJob = serviceScope.launch { restoreRepository.restore(sourceUri, ::reportProgress) }
+                activeJob = serviceScope.launch {
+                    restoreRepository.restore(sourceUri, ::reportProgress)
+                        .onSuccess { reportProgress(BackupProgress.Success()) }
+                        .onFailure { e -> reportProgress(BackupProgress.Error(e.message ?: "Restore failed")) }
+                }
             }
             ACTION_CANCEL -> {
                 Timber.d("BackupForegroundService: cancellation requested")

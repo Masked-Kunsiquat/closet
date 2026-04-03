@@ -75,6 +75,19 @@ abstract class ClothingDatabase : RoomDatabase() {
          * Returns a singleton instance of the database.
          * Initializes the database with seeding, unique indices, and triggers on first creation.
          */
+        /**
+         * Closes the current database connection and clears the singleton so the next call to
+         * [getDatabase] builds a fresh instance. Called by `RestoreRepository` before overwriting
+         * the database file; the process is restarted afterward so stale DAO references are never
+         * used in production code.
+         */
+        fun closeAndReset() {
+            synchronized(this) {
+                INSTANCE?.close()
+                INSTANCE = null
+            }
+        }
+
         fun getDatabase(context: Context): ClothingDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
