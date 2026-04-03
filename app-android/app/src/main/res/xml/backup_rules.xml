@@ -27,10 +27,6 @@
     <!-- Weather preferences: weather service, unit -->
     <include domain="file" path="datastore/weather_prefs.preferences_pb" />
 
-    <!--
-        Explicitly exclude the encrypted API key store even though <include> mode would
-        already omit it — belt-and-suspenders, since keys cannot be decrypted on a
-        different device's Keystore.
-    -->
-    <exclude domain="sharedpref" path="ai_keys_encrypted.xml" />
+    <!-- ai_keys_encrypted.xml is intentionally omitted — not listed here means not backed up.
+         The keys are device-locked via Android Keystore and non-portable across devices. -->
 </full-backup-content>
