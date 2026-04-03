@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android Auto Backup rules — used via android:dataExtractionRules on API 31+.
+    On API 30 and below android:fullBackupContent is used; see backup_rules.xml.
+
+    Using <include> restricts the backup to only the listed paths. AI provider API keys are
+    stored in EncryptedSharedPreferences (ai_keys_encrypted.xml) and are intentionally
+    excluded because they are bound to the Android Keystore of the originating device and
+    cannot be restored on a different device.
+
+    Note: Auto Backup has a 25 MB cap — large wardrobes may overflow.
+    Phase 1 (.hangr export) remains the full backup path; this is a best-effort supplement.
+-->
+<data-extraction-rules>
+    <!--
+        disableIfNoEncryptionCapabilities="true" skips cloud backup entirely on devices that
+        cannot encrypt backups, protecting the user's wardrobe data from unencrypted cloud storage.
+    -->
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <!-- User wardrobe data (clothing, outfits, logs, embeddings) -->
+        <include domain="database" path="closet.db" />
+
+        <!-- Wardrobe images — UUID-named JPG/PNG files referenced by relative path in closet.db -->
+        <include domain="file" path="closet_images" />
+
+        <!-- App preferences: accent colour, dynamic color -->
+        <include domain="file" path="datastore/closet_prefs.preferences_pb" />
+
+        <!-- AI preferences: selected provider, model names, style vibe (no API keys) -->
+        <include domain="file" path="datastore/ai_prefs.preferences_pb" />
+
+        <!-- Weather preferences: weather service, unit -->
+        <include domain="file" path="datastore/weather_prefs.preferences_pb" />
+
+        <!-- Explicitly exclude device-locked API key store (non-portable across Keystores) -->
+        <exclude domain="sharedpref" path="ai_keys_encrypted.xml" />
+    </cloud-backup>
+
+    <device-transfer>
+        <!-- User wardrobe data (clothing, outfits, logs, embeddings) -->
+        <include domain="database" path="closet.db" />
+
+        <!-- Wardrobe images — UUID-named JPG/PNG files referenced by relative path in closet.db -->
+        <include domain="file" path="closet_images" />
+
+        <!-- App preferences: accent colour, dynamic color -->
+        <include domain="file" path="datastore/closet_prefs.preferences_pb" />
+
+        <!-- AI preferences: selected provider, model names, style vibe (no API keys) -->
+        <include domain="file" path="datastore/ai_prefs.preferences_pb" />
+
+        <!-- Weather preferences: weather service, unit -->
+        <include domain="file" path="datastore/weather_prefs.preferences_pb" />
+
+        <!-- Explicitly exclude device-locked API key store (non-portable across Keystores) -->
+        <exclude domain="sharedpref" path="ai_keys_encrypted.xml" />
+    </device-transfer>
+</data-extraction-rules>
