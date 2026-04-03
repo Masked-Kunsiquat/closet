@@ -3,6 +3,8 @@ package com.closet.backup
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
+import android.app.ServiceInfo
+import android.os.Build
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -86,7 +88,7 @@ class BackupForegroundService : Service() {
                     return START_NOT_STICKY
                 }
                 Timber.d("BackupForegroundService: export requested to $outputUri")
-                startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.backup_notification_preparing_export)))
+                startForegroundCompat(buildNotification(getString(R.string.backup_notification_preparing_export)))
                 activeJob = serviceScope.launch {
                     backupRepository.export(outputUri, ::reportProgress)
                         .onSuccess { reportProgress(BackupProgress.Success(outputUri)) }
@@ -101,7 +103,7 @@ class BackupForegroundService : Service() {
                     return START_NOT_STICKY
                 }
                 Timber.d("BackupForegroundService: restore requested from $sourceUri")
-                startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.backup_notification_preparing_restore)))
+                startForegroundCompat(buildNotification(getString(R.string.backup_notification_preparing_restore)))
                 activeJob = serviceScope.launch {
                     restoreRepository.restore(sourceUri, ::reportProgress)
                         .onSuccess { reportProgress(BackupProgress.Success()) }
@@ -158,5 +160,19 @@ class BackupForegroundService : Service() {
     private fun updateNotification(text: String) {
         getSystemService(NotificationManager::class.java)
             .notify(NOTIFICATION_ID, buildNotification(text))
+    }
+
+    /**
+     * Calls the three-argument [startForeground] overload (API 29+) passing
+     * [ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC] to comply with the
+     * `android:foregroundServiceType="dataSync"` manifest declaration required on API 34+.
+     * Falls back to the two-argument overload on API 26–28.
+     */
+    private fun startForegroundCompat(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
     }
 }

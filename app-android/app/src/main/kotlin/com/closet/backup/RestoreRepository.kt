@@ -140,21 +140,30 @@ class RestoreRepository @Inject constructor(
         }
 
     /**
-     * Unzips [sourceUri] into [destDir]. Entries with path traversal (`..`) are skipped
-     * to prevent writing outside [destDir].
+     * Unzips [sourceUri] into [destDir]. Uses canonical-path comparison to ensure every
+     * extracted file lands inside [destDir], guarding against path-traversal attacks
+     * regardless of `..` encoding or leading separators in the entry name.
      */
     private fun unzip(sourceUri: Uri, destDir: File) {
+        val destDirCanonical = destDir.canonicalFile
         context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
             ZipInputStream(inputStream).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
-                    if (".." in entry.name) {
-                        Timber.tag(TAG).w("Skipping suspicious zip entry: ${entry.name}")
+                    // Strip any leading separators so File(destDir, name) always resolves
+                    // relative to destDir, even for entries like "/etc/passwd".
+                    val sanitizedName = entry.name.trimStart('/', '\\')
+                    val outFile = File(destDir, sanitizedName)
+                    val outFileCanonical = outFile.canonicalFile
+                    val isInsideDest = outFileCanonical.path.startsWith(
+                        destDirCanonical.path + File.separator
+                    ) || outFileCanonical.path == destDirCanonical.path
+                    if (!isInsideDest) {
+                        Timber.tag(TAG).w("Skipping path-traversal zip entry: ${entry.name}")
                         zis.closeEntry()
                         entry = zis.nextEntry
                         continue
                     }
-                    val outFile = File(destDir, entry.name)
                     if (entry.isDirectory) {
                         outFile.mkdirs()
                     } else {
