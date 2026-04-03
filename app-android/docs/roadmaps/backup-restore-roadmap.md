@@ -70,12 +70,12 @@ backup-2026-04-01/
 - [x] Emit success; show "API keys were not restored — re-enter in Settings" banner (UI in 1.5)
 
 ### 1.5 ViewModel + UI
-- [ ] Create `BackupViewModel` — exposes `BackupProgress` state, triggers export/restore via the foreground service
-- [ ] Add "Export backup" and "Restore from backup" rows to `SettingsScreen`
-- [ ] Export: launch `ACTION_CREATE_DOCUMENT` → on result start `BackupForegroundService` in export mode
-- [ ] Restore: launch `ACTION_OPEN_DOCUMENT` → show confirmation `AlertDialog` → on confirm start `BackupForegroundService` in restore mode
-- [ ] Show progress UI (linear progress bar + step label) while service is running
-- [ ] Show post-restore snackbar: "API keys were not restored — re-enter in Settings"
+- [x] Create `BackupViewModel` — exposes `BackupProgress` state, triggers export/restore via the foreground service
+- [x] Add "Export backup" and "Restore from backup" rows to `SettingsScreen`
+- [x] Export: launch `ACTION_CREATE_DOCUMENT` → on result start `BackupForegroundService` in export mode
+- [x] Restore: launch `ACTION_OPEN_DOCUMENT` → show confirmation `AlertDialog` → on confirm start `BackupForegroundService` in restore mode
+- [x] Show progress UI (linear progress bar + step label) while service is running
+- [x] Show post-restore snackbar: "API keys were not restored — re-enter in Settings"
 
 ---
 

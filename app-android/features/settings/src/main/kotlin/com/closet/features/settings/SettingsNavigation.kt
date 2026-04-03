@@ -38,12 +38,14 @@ fun NavGraphBuilder.settingsScreen(
     onNavigateUp: () -> Unit,
     onNavigateToBulkWash: () -> Unit = {},
     onNavigateToAiSettings: () -> Unit = {},
+    onNavigateToBackup: () -> Unit = {},
 ) {
     composable<SettingsRoute> {
         SettingsScreen(
             onNavigateUp = onNavigateUp,
             onNavigateToBulkWash = onNavigateToBulkWash,
             onNavigateToAiSettings = onNavigateToAiSettings,
+            onNavigateToBackup = onNavigateToBackup,
         )
     }
 }

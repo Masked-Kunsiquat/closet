@@ -146,6 +146,11 @@
         <item quantity="other">%d items indexed</item>
     </plurals>
 
+    <!-- Backup & Restore section -->
+    <string name="settings_section_backup">Backup &amp; Restore</string>
+    <string name="settings_backup_summary">Export or restore your wardrobe</string>
+    <string name="settings_backup_navigate">Open Backup &amp; Restore settings</string>
+
     <!-- Wardrobe section -->
     <string name="settings_section_wardrobe">Wardrobe</string>
     <string name="settings_wardrobe_laundry_day">Laundry Day</string>

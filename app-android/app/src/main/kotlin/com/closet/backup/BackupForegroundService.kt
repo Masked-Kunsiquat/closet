@@ -61,6 +61,11 @@ class BackupForegroundService : Service() {
          * Resets to [BackupProgress.Idle] when the service is destroyed mid-run.
          */
         val progress: StateFlow<BackupProgress> = _progress.asStateFlow()
+
+        /** Called by [BackupViewModel] after the UI has handled a terminal [BackupProgress] state. */
+        fun resetProgress() {
+            _progress.value = BackupProgress.Idle
+        }
     }
 
     @Inject lateinit var backupRepository: BackupRepository
