@@ -65,6 +65,21 @@ abstract class ClothingDatabase : RoomDatabase() {
     /** @return [EmbeddingDao] for RAG vector storage (Phase 2A). */
     abstract fun embeddingDao(): EmbeddingDao
 
+    /**
+     * Executes `PRAGMA wal_checkpoint(FULL)` to flush the WAL file into the main database
+     * file before a backup copy. Exposed here so callers in the `app` module don't need a
+     * direct dependency on Room's internal [openHelper] API.
+     */
+    fun checkpointWal() {
+        openHelper.writableDatabase.execSQL("PRAGMA wal_checkpoint(FULL)")
+    }
+
+    /**
+     * Returns the current SQLite schema version. Exposed here so callers in the `app` module
+     * don't need a direct dependency on Room's internal [openHelper] API.
+     */
+    val databaseVersion: Int get() = openHelper.readableDatabase.version
+
     companion object {
         private const val DATABASE_NAME = "closet.db"
 

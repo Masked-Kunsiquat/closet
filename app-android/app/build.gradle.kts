@@ -72,6 +72,7 @@ kotlin {
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:ui"))
+    implementation(libs.room.runtime)
     implementation(project(":features:wardrobe"))
     implementation(project(":features:outfits"))
     implementation(project(":features:stats"))

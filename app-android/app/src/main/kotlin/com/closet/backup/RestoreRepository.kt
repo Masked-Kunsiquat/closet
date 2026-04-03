@@ -72,7 +72,7 @@ class RestoreRepository @Inject constructor(
                     return@withContext Result.failure(Exception("Invalid backup: manifest.json not found"))
                 }
                 val manifest = json.decodeFromString<BackupManifest>(manifestFile.readText())
-                val currentVersion = database.openHelper.readableDatabase.version
+                val currentVersion = database.databaseVersion
                 if (manifest.schemaVersion > currentVersion) {
                     return@withContext Result.failure(
                         Exception(

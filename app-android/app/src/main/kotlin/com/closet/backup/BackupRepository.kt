@@ -73,9 +73,8 @@ class BackupRepository @Inject constructor(
 
                 // 1. Flush WAL so closet.db is a consistent snapshot
                 onProgress(BackupProgress.Running("Flushing database", 0, 0))
-                val db = database.openHelper.writableDatabase
-                db.execSQL("PRAGMA wal_checkpoint(FULL)")
-                val schemaVersion = db.version
+                val schemaVersion = database.databaseVersion
+                database.checkpointWal()
 
                 // 2. Copy database file
                 onProgress(BackupProgress.Running("Copying database", 0, 1))
