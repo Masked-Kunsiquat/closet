@@ -10,6 +10,92 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.3.0] — 2026-04-03
+
+Local backup and restore for the full wardrobe. Export your entire closet
+to a portable `.hangr` file and restore it on any device, with Android
+Auto Backup wired up as a best-effort supplement.
+
+### Added
+- **Backup & Restore screen** — reachable from Settings; two rows: "Export
+  backup" and "Restore from backup", with a determinate/indeterminate
+  progress bar and step label while the operation runs.
+- **`BackupRepository.export()`** — WAL checkpoint → copy `closet.db`,
+  `closet_images/`, and the three DataStore `.preferences_pb` files →
+  write `manifest.json` → ZIP to a temp file → hand off to SAF
+  `ACTION_CREATE_DOCUMENT`. Temp files always cleaned up in `finally`.
+- **`RestoreRepository.restore()`** — open `.hangr` via SAF, unzip to
+  temp with canonical-path traversal guard, validate manifest (rejects
+  backups from a newer schema version), close + overwrite the Room DB,
+  reopen to run any pending migrations, replace all images, overwrite
+  DataStore prefs. API keys are excluded from backups; a non-dismissable
+  restart dialog prompts the user to re-enter them after restore.
+- **`BackupForegroundService`** — drives export and restore on a
+  background coroutine; runs in the foreground so the OS cannot kill it
+  mid-operation on large wardrobes. Exposes `progress: StateFlow` observed
+  by `BackupViewModel`. Try-catch on both coroutine bodies so unexpected
+  exceptions always surface as `BackupProgress.Error` rather than leaving
+  the service stuck.
+- **`BackupManifest`** — serialised as `manifest.json` inside the ZIP;
+  carries `schemaVersion`, `appVersion`, `createdAt`, `imageCount`, and
+  `apiKeysExcluded: true`.
+- **`BackupProgress`** sealed interface — `Idle | Running(step, done,
+  total) | Success(outputUri?) | Error(message)`; distinguishes export
+  success (`outputUri != null`) from restore success (`null`) so the UI
+  shows the right post-completion action.
+- **`BackupViewModel`** — Hilt ViewModel that mirrors the service
+  `StateFlow` and starts/cancels the service via explicit intents.
+- **Android Auto Backup rules** — `backup_rules.xml`
+  (`<full-backup-content>`, API 30 and below) and
+  `data_extraction_rules.xml` (`<data-extraction-rules>`, API 31+);
+  both include `closet.db`, `closet_images/`, and the three preference
+  stores; both exclude `ai_keys_encrypted.xml` (device-locked Keystore,
+  non-portable). Cloud backup has `disableIfNoEncryptionCapabilities="true"`.
+- **`ClothingDatabase.checkpointWal()` / `.databaseVersion`** — thin
+  wrappers over `openHelper` so the `app` module can trigger a WAL flush
+  and read the schema version without a direct Room compile dependency.
+- **Image compression roadmap** (Phase 4 in
+  `docs/roadmaps/backup-restore-roadmap.md`) — actionable plan to cap
+  incoming photos at 1600 px / JPEG 85 %, use WebP-lossy for segmented
+  images on API 30+, and migrate existing libraries via a background
+  `ImageCompressionWorker`.
+
+### Fixed
+- **`AiSettingsScreen` compilation** — corrected imports for `AiProvider`,
+  `StyleVibe`, and `BatchSegmentationWork`; replaced non-existent
+  `AiProvider.GeminiNano` with `AiProvider.Nano`; made `NanoStatus`
+  `when` exhaustive with correct `Checking`, `Downloading`, and `Failed`
+  branches; added missing string resources.
+- **`SettingsUiState` enum defaults** — `ClosetAccent.Blue` →
+  `ClosetAccent.Amber`; `WeatherService.OpenWeatherMap` →
+  `WeatherService.OpenMeteo`.
+- **`SettingsViewModel` repository API alignment** — all
+  `aiPreferencesRepository.property` accesses replaced with their correct
+  `getMethod()` call-style; `setOpenAiKey` / `setAnthropicKey` /
+  `setGeminiKey` renamed to match actual method names; fixed
+  `fetchOpenAiModels` nullable-URL argument.
+- **`PreferencesRepository.setLastHandledBatchId`** — now returns
+  `Result<Unit>` and wraps the DataStore edit in try/catch; call site
+  in `SettingsViewModel` logs failures via Timber instead of silently
+  dropping them.
+- **`BackupForegroundService.resetProgress()`** — now no-ops when state
+  is `Running` to prevent clobbering an in-flight operation.
+- **Foreground service type compliance (API 34+)** — both `startForeground`
+  calls now use the three-argument overload with
+  `ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC` on API 29+, matching
+  the `android:foregroundServiceType="dataSync"` manifest declaration.
+- **`ServiceInfo` wrong package** — was `android.app.ServiceInfo`
+  (no `FOREGROUND_SERVICE_TYPE_*` constants there); corrected to
+  `android.content.pm.ServiceInfo`.
+- **`CancellationException` import** — a `replace_all` operation had
+  stripped the `kotlinx.coroutines.` package prefix from the import in
+  `BackupForegroundService`; restored.
+- **`room-runtime` missing from `app` module** — Kotlin compiler could not
+  resolve `RoomDatabase` as a supertype of `ClothingDatabase` in the `app`
+  module; added explicit `implementation(libs.room.runtime)` dependency.
+
+---
+
 ## [0.2.0] — 2026-04-02
 
 Phase 4 of the RAG pipeline: wardrobe chat. Ask natural-language questions
@@ -169,7 +255,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.0...v0.1.1
