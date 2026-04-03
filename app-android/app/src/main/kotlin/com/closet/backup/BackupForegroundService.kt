@@ -17,7 +17,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 /**
  * Foreground service that drives backup export and restore operations.
@@ -41,6 +43,9 @@ class BackupForegroundService : Service() {
         /** Cancel any running operation and stop the service. */
         const val ACTION_CANCEL = "com.closet.backup.ACTION_CANCEL"
 
+        /** String extra: SAF URI of the `.hangr` file to write. Required for [ACTION_EXPORT]. */
+        const val EXTRA_OUTPUT_URI = "output_uri"
+
         /** String extra: URI of the `.hangr` file to restore from. Required for [ACTION_RESTORE]. */
         const val EXTRA_SOURCE_URI = "source_uri"
 
@@ -58,6 +63,8 @@ class BackupForegroundService : Service() {
         val progress: StateFlow<BackupProgress> = _progress.asStateFlow()
     }
 
+    @Inject lateinit var backupRepository: BackupRepository
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var activeJob: Job? = null
 
@@ -66,9 +73,19 @@ class BackupForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_EXPORT -> {
-                Timber.d("BackupForegroundService: export requested")
+                val outputUri = intent.getStringExtra(EXTRA_OUTPUT_URI)?.toUri() ?: run {
+                    Timber.w("BackupForegroundService: export started without output URI")
+                    _progress.value = BackupProgress.Error("No output file provided")
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                Timber.d("BackupForegroundService: export requested to $outputUri")
                 startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.backup_notification_preparing_export)))
-                // TODO 1.3: activeJob = serviceScope.launch { backupRepository.export(::reportProgress) }
+                activeJob = serviceScope.launch {
+                    backupRepository.export(outputUri, ::reportProgress)
+                        .onSuccess { reportProgress(BackupProgress.Success(outputUri)) }
+                        .onFailure { e -> reportProgress(BackupProgress.Error(e.message ?: "Export failed")) }
+                }
             }
             ACTION_RESTORE -> {
                 val sourceUri = intent.getStringExtra(EXTRA_SOURCE_URI)?.toUri() ?: run {

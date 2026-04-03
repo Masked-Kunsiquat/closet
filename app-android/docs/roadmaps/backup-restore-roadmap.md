@@ -49,14 +49,14 @@ backup-2026-04-01/
 - [x] Create `BackupProgress` sealed class: `Idle | Running(step, done, total) | Success(outputUri) | Error(message)`
 
 ### 1.3 Export — `BackupRepository.export()`
-- [ ] `PRAGMA wal_checkpoint(FULL)` on the Room DB before copying (flush WAL to main file)
-- [ ] Copy `closet.db` → `filesDir/backup_temp/closet.db`
-- [ ] Copy all files from `closet_images/` → `filesDir/backup_temp/images/`
-- [ ] Copy the three `.pb` DataStore files → `filesDir/backup_temp/prefs/`
-- [ ] Serialize and write `manifest.json`
-- [ ] ZIP `filesDir/backup_temp/` → `filesDir/backup_temp.hangr`
-- [ ] Hand the finished ZIP to the caller via SAF `ACTION_CREATE_DOCUMENT` (suggested filename `hangr-backup-<date>.hangr`)
-- [ ] Delete `filesDir/backup_temp/` and `backup_temp.hangr` after SAF write completes (or on cancellation)
+- [x] `PRAGMA wal_checkpoint(FULL)` on the Room DB before copying (flush WAL to main file)
+- [x] Copy `closet.db` → `filesDir/backup_temp/closet.db`
+- [x] Copy all files from `closet_images/` → `filesDir/backup_temp/images/`
+- [x] Copy the three `.pb` DataStore files → `filesDir/backup_temp/prefs/`
+- [x] Serialize and write `manifest.json`
+- [x] ZIP `filesDir/backup_temp/` → `filesDir/backup_temp.hangr`
+- [x] Hand the finished ZIP to the caller via SAF `ACTION_CREATE_DOCUMENT` (suggested filename `hangr-backup-<date>.hangr`)
+- [x] Delete `filesDir/backup_temp/` and `backup_temp.hangr` after SAF write completes (or on cancellation)
 
 ### 1.4 Restore — `RestoreRepository.restore(uri)`
 - [ ] Open `.hangr` via SAF `ACTION_OPEN_DOCUMENT`, unzip to `filesDir/restore_temp/`
