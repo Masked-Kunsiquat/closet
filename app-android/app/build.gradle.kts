@@ -16,7 +16,7 @@ plugins {
 // If neither is present the release build type has no signingConfig (unsigned).
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.exists()) load(keystorePropertiesFile.inputStream())
+    if (keystorePropertiesFile.exists()) keystorePropertiesFile.inputStream().use { load(it) }
 }
 
 fun signingProp(envKey: String, propKey: String): String? =
