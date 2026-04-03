@@ -93,3 +93,62 @@ backup-2026-04-01/
 Periodic WorkManager job that writes a `.hangr` to a user-chosen folder (persisted SAF URI). Rolling local backup without user intervention. Depends on Phase 1 infrastructure.
 
 ---
+
+## Phase 4 — Image compression (storage optimisation)
+
+### Why this matters
+
+`StorageRepository.saveImage` currently does a raw byte copy — no resize, no re-encode. A modern phone photo is 3–8 MB; a segmented PNG (`saveBitmap`) adds another 1–4 MB. A wardrobe of 100 items with backgrounds removed can exceed 1 GB, burning through the 2 GB Auto Backup cap and bloating `.hangr` exports.
+
+**Target:** cap new images at ~1600 px on the longest edge, JPEG 85 % quality. Expected saving: 75–85 % per photo (8 MB → ~1–2 MB). Segmented PNGs handled separately because they require alpha channel.
+
+---
+
+### 4.1 Compress incoming photos — `saveImage`
+
+`StorageRepository.saveImage(uri)` currently streams bytes verbatim. Replace with a decode → scale → re-encode pipeline:
+
+- [ ] In `saveImage`, decode the URI into a `Bitmap` via `BitmapFactory.decodeStream` with `inJustDecodeBounds` first pass to get dimensions without full load
+- [ ] Compute `inSampleSize` so the decoded bitmap's longest edge is ≤ 1600 px (power-of-two downsampling is fast and handled by the decoder)
+- [ ] Decode at that sample size, then do a final `Bitmap.createScaledBitmap` if the long edge is still > 1600 px after sampling
+- [ ] Re-encode to JPEG at quality 85 into the destination file (keep `.jpg` extension and UUID filename — no DB migration needed)
+- [ ] Recycle the intermediate bitmap
+- [ ] Add a `StorageRepository.MAX_DIMENSION = 1600` and `JPEG_QUALITY = 85` companion constants so they're easy to tune
+
+### 4.2 Compress segmented images — `saveBitmap`
+
+`saveBitmap` saves a lossless PNG for background-removed items (requires alpha). PNG cannot be lossy; use WebP instead:
+
+- [ ] On API 30+: encode with `Bitmap.CompressFormat.WEBP_LOSSY` at quality 85 — supports alpha, ~50–70 % smaller than equivalent PNG
+- [ ] On API 26–29 (minSdk): fall back to PNG but apply the same 1600 px longest-edge cap (already ARGB_8888; large dimensions are the main cost driver)
+- [ ] Change output extension to `.webp` on API 30+ (the filename is a new UUID so no existing DB rows are affected)
+- [ ] Extract the format/extension decision into a private `segmentedFormat(): Pair<CompressFormat, String>` helper in `StorageRepository`
+
+### 4.3 Migrate existing images (background WorkManager job)
+
+New images will be compressed after 4.1/4.2, but existing users have a full library of uncompressed files. Migrate them in the background:
+
+- [ ] Create `ImageCompressionWorker : CoroutineWorker` in `core/data/worker/`
+- [ ] Query all `ClothingItem` rows with a non-null `imagePath` via `ClothingDao`
+- [ ] For each image file: check if long edge > 1600 px or file size > 1.5 MB — skip if already small
+- [ ] If compression is needed: compress to a temp file alongside the original → atomically rename to replace (same filename, so no DB update required)
+- [ ] Track progress via `setProgress` so a future UI can show it; log a summary at the end
+- [ ] Schedule once via `OneTimeWorkRequest` with `ExistingWorkPolicy.KEEP` on app start after a 30-second initial delay (idle + battery-not-low constraints)
+- [ ] Register the worker in `DataModule` / Hilt the same way `EmbeddingWorker` is registered
+
+### 4.4 Storage usage display (optional, deferred)
+
+- [ ] Add a "Storage used" row to Settings showing total size of `closet_images/` (computed on a background coroutine, formatted as MB/GB)
+- [ ] Show a "Compress existing images" manual trigger button that starts `ImageCompressionWorker` immediately — useful after migrating a large library
+
+---
+
+### Size estimate after compression
+
+| Scenario | Before | After |
+|---|---|---|
+| 100 items, photo only | ~400 MB | ~100 MB |
+| 100 items, photo + segmented | ~800 MB | ~150–200 MB |
+| Auto Backup headroom (2 GB cap) | ~250 items | ~1 000+ items |
+
+---
