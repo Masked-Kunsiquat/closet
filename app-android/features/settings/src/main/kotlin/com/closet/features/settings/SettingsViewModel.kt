@@ -417,6 +417,7 @@ class SettingsViewModel @Inject constructor(
     fun onBatchResultHandled(id: UUID) {
         viewModelScope.launch {
             preferencesRepository.setLastHandledBatchId(id.toString())
+                .onFailure { Timber.e(it, "Failed to persist last handled batch ID") }
         }
     }
 }

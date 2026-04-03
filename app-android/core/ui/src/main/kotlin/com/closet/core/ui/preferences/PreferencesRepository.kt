@@ -78,9 +78,12 @@ class PreferencesRepository @Inject constructor(
         prefs[lastHandledBatchIdKey]
     }
 
-    suspend fun setLastHandledBatchId(id: String) {
+    suspend fun setLastHandledBatchId(id: String): Result<Unit> = try {
         context.dataStore.edit { prefs ->
             prefs[lastHandledBatchIdKey] = id
         }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 }
