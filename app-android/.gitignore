@@ -11,6 +11,11 @@
 # Local configuration
 local.properties
 
+# Release signing — never commit keystores or passwords
+*.jks
+*.keystore
+keystore.properties
+
 # OS generated files
 .DS_Store
 Thumbs.db
