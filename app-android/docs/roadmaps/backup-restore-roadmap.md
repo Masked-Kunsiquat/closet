@@ -5,7 +5,7 @@
 | Asset | Notes |
 |-------|-------|
 | `closet.db` | All user data — clothing, outfits, logs, embeddings |
-| `closet_images/` | UUID-named JPG/PNG files, referenced by relative path in DB |
+| `closet_images/` | UUID-named JPG/PNG/WebP files, referenced by relative path in DB. New photos are JPEG; background-removed (segmented) images are WebP on API 30+ or PNG on API 26–29. Format/extension is determined by `StorageRepository.segmentedFormat()` — DB rows store the full filename so no mapping is needed on restore. |
 | `closet_prefs.pb` | Accent, dynamic color |
 | `ai_prefs.pb` | AI provider, models, style vibe |
 | `weather_prefs.pb` | Weather service, unit |
@@ -108,21 +108,21 @@ Periodic WorkManager job that writes a `.hangr` to a user-chosen folder (persist
 
 `StorageRepository.saveImage(uri)` currently streams bytes verbatim. Replace with a decode → scale → re-encode pipeline:
 
-- [ ] In `saveImage`, decode the URI into a `Bitmap` via `BitmapFactory.decodeStream` with `inJustDecodeBounds` first pass to get dimensions without full load
-- [ ] Compute `inSampleSize` so the decoded bitmap's longest edge is ≤ 1600 px (power-of-two downsampling is fast and handled by the decoder)
-- [ ] Decode at that sample size, then do a final `Bitmap.createScaledBitmap` if the long edge is still > 1600 px after sampling
-- [ ] Re-encode to JPEG at quality 85 into the destination file (keep `.jpg` extension and UUID filename — no DB migration needed)
-- [ ] Recycle the intermediate bitmap
-- [ ] Add a `StorageRepository.MAX_DIMENSION = 1600` and `JPEG_QUALITY = 85` companion constants so they're easy to tune
+- [x] In `saveImage`, decode the URI into a `Bitmap` via `BitmapFactory.decodeStream` with `inJustDecodeBounds` first pass to get dimensions without full load
+- [x] Compute `inSampleSize` so the decoded bitmap's longest edge is ≤ 1600 px (power-of-two downsampling is fast and handled by the decoder)
+- [x] Decode at that sample size, then do a final `Bitmap.createScaledBitmap` if the long edge is still > 1600 px after sampling
+- [x] Re-encode to JPEG at quality 85 into the destination file (keep `.jpg` extension and UUID filename — no DB migration needed)
+- [x] Recycle the intermediate bitmap
+- [x] Add a `StorageRepository.MAX_DIMENSION = 1600` and `JPEG_QUALITY = 85` companion constants so they're easy to tune
 
 ### 4.2 Compress segmented images — `saveBitmap`
 
 `saveBitmap` saves a lossless PNG for background-removed items (requires alpha). PNG cannot be lossy; use WebP instead:
 
-- [ ] On API 30+: encode with `Bitmap.CompressFormat.WEBP_LOSSY` at quality 85 — supports alpha, ~50–70 % smaller than equivalent PNG
-- [ ] On API 26–29 (minSdk): fall back to PNG but apply the same 1600 px longest-edge cap (already ARGB_8888; large dimensions are the main cost driver)
-- [ ] Change output extension to `.webp` on API 30+ (the filename is a new UUID so no existing DB rows are affected)
-- [ ] Extract the format/extension decision into a private `segmentedFormat(): Pair<CompressFormat, String>` helper in `StorageRepository`
+- [x] On API 30+: encode with `Bitmap.CompressFormat.WEBP_LOSSY` at quality 85 — supports alpha, ~50–70 % smaller than equivalent PNG
+- [x] On API 26–29 (minSdk): fall back to PNG but apply the same 1600 px longest-edge cap (already ARGB_8888; large dimensions are the main cost driver)
+- [x] Change output extension to `.webp` on API 30+ (the filename is a new UUID so no existing DB rows are affected)
+- [x] Extract the format/extension decision into a private `segmentedFormat(): Pair<CompressFormat, String>` helper in `StorageRepository`
 
 ### 4.3 Migrate existing images (background WorkManager job)
 

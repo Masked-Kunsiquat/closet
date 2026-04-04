@@ -193,4 +193,23 @@
         <item quantity="one">%1$d item enriched, %2$d skipped</item>
         <item quantity="other">%1$d items enriched, %2$d skipped</item>
     </plurals>
+
+    <!-- Image storage section -->
+    <string name="settings_image_storage">Image storage</string>
+    <string name="settings_image_storage_used">Storage used</string>
+    <string name="settings_image_storage_used_computing">Computing…</string>
+    <string name="settings_image_storage_used_summary">%s used by wardrobe images</string>
+    <string name="settings_image_compress">Compress existing images</string>
+    <string name="settings_image_compress_summary">Re-encode large photos to save space</string>
+    <string name="settings_image_compress_run">Run now</string>
+    <string name="settings_image_compress_running">Compressing images…</string>
+    <string name="settings_image_compress_progress">%1$d of %2$d images</string>
+    <plurals name="settings_image_compress_result">
+        <item quantity="one">Compressed %1$d image (%2$d skipped)</item>
+        <item quantity="other">Compressed %1$d images (%2$d skipped)</item>
+    </plurals>
+    <plurals name="settings_image_compress_result_with_failures">
+        <item quantity="one">Compressed %1$d image, %3$d failed (%2$d skipped)</item>
+        <item quantity="other">Compressed %1$d images, %3$d failed (%2$d skipped)</item>
+    </plurals>
 </resources>

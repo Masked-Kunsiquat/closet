@@ -398,9 +398,11 @@ class ClothingFormViewModel @Inject constructor(
                         purchaseLocation = entity.purchaseLocation ?: "",
                         notes = entity.notes ?: "",
                         imagePath = entity.imagePath,
-                        // PNG suffix means the image was previously segmented; hide the
-                        // "Remove background" button and suppress "Undo" (no revert target)
-                        hasSegmentedImage = entity.imagePath?.endsWith(".png") == true,
+                        // PNG (API < 30) or WebP (API 30+) suffix means the image was previously
+                        // segmented; hide the "Remove background" button and suppress "Undo".
+                        hasSegmentedImage = entity.imagePath?.let {
+                            it.endsWith(".png") || it.endsWith(".webp")
+                        } == true,
                         category = selectedCat,
                         subcategory = selectedSub,
                         selectedColors = colors,
@@ -563,7 +565,7 @@ class ClothingFormViewModel @Inject constructor(
                 val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                     ?: throw IllegalStateException("Could not decode image file: $path")
                 val masked = segmentationRepository.removeBackground(bitmap)
-                val savedPath = storageRepository.saveBitmap(masked, "${UUID.randomUUID()}.png")
+                val savedPath = storageRepository.saveBitmap(masked, UUID.randomUUID().toString())
                 val segmentedFile = storageRepository.getFile(savedPath)
                 _form.update { it.copy(
                     imagePath = savedPath,
