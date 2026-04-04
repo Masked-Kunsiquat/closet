@@ -63,13 +63,13 @@ Start with exactly these three patterns — don't grow this list speculatively:
 - [x] Add `ChatResponse.WithStat(text: String, label: String, value: String, itemIds: List<Long>)` to `ChatAiProvider.kt`
   - `label`: e.g. "Wear count", `value`: e.g. "14 times"
   - `itemIds`: empty list if the stat is aggregate, populated if it refers to specific items
-- [ ] Add `ChatMessage.Assistant.WithStat` mirror in `ChatMessage.kt`
-- [ ] Add `StatBubble` composable in `ChatScreen.kt` — compact card with label/value pair and optional item rail
+- [x] Add `ChatMessage.Assistant.WithStat` mirror in `ChatMessage.kt`
+- [x] Add `StatBubble` composable in `ChatScreen.kt` — compact card with label/value pair and optional item rail
 
 ### ViewModel
 
-- [ ] Map `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat` in `ChatViewModel.toAssistantMessage()`
-- [ ] Routed responses do **not** update `history` — they are data answers, not conversational turns; follow-ups on them fall through to RAG naturally
+- [x] Map `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat` in `ChatViewModel.toAssistantMessage()`
+- [x] Routed responses do **not** update `history` — they are data answers, not conversational turns; follow-ups on them fall through to RAG naturally
 
 ### Pitfalls
 

@@ -349,6 +349,13 @@ private fun MessageList(
                     onLogIt = onNavigateToLog?.let { cb -> { cb(msg.items.map { it.id }) } },
                     onAlternatives = onNavigateToRecommendations,
                 )
+                is ChatMessage.Assistant.WithStat -> StatBubble(
+                    text = msg.text,
+                    label = msg.label,
+                    value = msg.value,
+                    items = msg.items,
+                    onItemTapped = onNavigateToItem,
+                )
                 is ChatMessage.Assistant.Thinking -> ThinkingBubble()
                 is ChatMessage.Assistant.Error -> ErrorBubble(msg.text)
             }
@@ -650,6 +657,65 @@ private fun OutfitImageCell(
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             )
+        }
+    }
+}
+
+// ─── Bubble: stat card ────────────────────────────────────────────────────────
+
+@Composable
+private fun StatBubble(
+    text: String,
+    label: String,
+    value: String,
+    items: List<ChatItemSummary>,
+    onItemTapped: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        AssistantBubble(text)
+        Card(
+            modifier = Modifier.fillMaxWidth(0.92f),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                // Label / value row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                // Optional item rail — only shown when items are present
+                if (items.isNotEmpty()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(vertical = 2.dp),
+                    ) {
+                        items(items) { item ->
+                            ItemChip(item = item, onTap = { onItemTapped(item.id) })
+                        }
+                    }
+                }
+            }
         }
     }
 }
