@@ -339,9 +339,11 @@ interface ClothingDao {
     suspend fun getWearCountByName(query: String): WearCountResult?
 
     /**
-     * Returns all items that have not been worn on or after [cutoffDate] (YYYY-MM-DD).
-     * An item counts as worn if it appears in [outfit_log_items] linked to a log on or
-     * after [cutoffDate]. Items with no wear history at all are included.
+     * Returns all items that have not been worn after [cutoffDate] (YYYY-MM-DD, exclusive).
+     * An item counts as worn if it appears in [outfit_log_items] linked to a log strictly
+     * after [cutoffDate]. Items worn exactly on [cutoffDate] are treated as "not worn in N days"
+     * (boundary is exclusive so the label matches — "30 days" includes day-30 items).
+     * Items with no wear history at all are also included.
      * Used by [com.closet.features.chat.ChatRouter] for "haven't worn in N days" queries.
      */
     @Query("""
@@ -352,7 +354,7 @@ interface ClothingDao {
             FROM outfit_logs ol
             JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
             WHERE oli.clothing_item_id = ci.id
-            AND ol.date >= :cutoffDate
+            AND ol.date > :cutoffDate
         )
         ORDER BY ci.name ASC
     """)

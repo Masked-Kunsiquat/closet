@@ -11,12 +11,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LogDao {
 
-    /**
-     * Retrieves all outfit logs for a specific date, including metadata like outfit name and item count.
-     * @param date The date string (YYYY-MM-DD).
-     * @return A [Flow] emitting a list of [OutfitLogWithMeta].
-     */
-    @Query("""
+    companion object {
+        // Shared by getLogsByDate (Flow) and getLogsForDateOnce (suspend) — maintain SQL in one place.
+        const val LOGS_BY_DATE_QUERY = """
         SELECT
             ol.*,
             o.name AS outfit_name,
@@ -32,7 +29,15 @@ interface LogDao {
         WHERE ol.date = :date
         GROUP BY ol.id
         ORDER BY ol.is_ootd DESC, ol.created_at ASC
-    """)
+    """
+    }
+
+    /**
+     * Retrieves all outfit logs for a specific date, including metadata like outfit name and item count.
+     * @param date The date string (YYYY-MM-DD).
+     * @return A [Flow] emitting a list of [OutfitLogWithMeta].
+     */
+    @Query(LOGS_BY_DATE_QUERY)
     fun getLogsByDate(date: String): Flow<List<OutfitLogWithMeta>>
 
     /**
@@ -62,23 +67,7 @@ interface LogDao {
      * One-shot variant of [getLogsByDate] for use in the chat router where a [Flow] is not needed.
      * @param date The date string (YYYY-MM-DD).
      */
-    @Query("""
-        SELECT
-            ol.*,
-            o.name AS outfit_name,
-            COUNT(oi.clothing_item_id) AS item_count,
-            (SELECT ci.image_path
-             FROM outfit_items oi2
-             JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
-             WHERE oi2.outfit_id = ol.outfit_id AND ci.image_path IS NOT NULL
-             LIMIT 1) AS cover_image
-        FROM outfit_logs ol
-        LEFT JOIN outfits o     ON o.id  = ol.outfit_id
-        LEFT JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
-        WHERE ol.date = :date
-        GROUP BY ol.id
-        ORDER BY ol.is_ootd DESC, ol.created_at ASC
-    """)
+    @Query(LOGS_BY_DATE_QUERY)
     suspend fun getLogsForDateOnce(date: String): List<OutfitLogWithMeta>
 
     /**

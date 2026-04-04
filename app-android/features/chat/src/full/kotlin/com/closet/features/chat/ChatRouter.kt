@@ -14,7 +14,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Pre-LLM intent router for the chat feature.
+ * Full-flavor [ChatRouter]: uses ML Kit Language Identification to gate English-only
+ * pattern matching, then routes stat queries directly from DAO results.
  *
  * Intercepts user messages that have unambiguous, data-only answers and returns
  * them directly from DAO queries without going through the RAG + provider pipeline.
@@ -103,7 +104,7 @@ class ChatRouter @Inject constructor(
     private fun matchesWornOn(lower: String): Boolean =
         "what did i wear on" in lower ||
         "what was i wearing on" in lower ||
-        "wore on" in lower
+        WORE_ON_INTERROGATIVE_PATTERN.containsMatchIn(lower)
 
     private fun matchesNeverWorn(lower: String): Boolean =
         "never worn" in lower ||
@@ -159,6 +160,9 @@ class ChatRouter @Inject constructor(
 
     private suspend fun routeNotWornSince(lower: String): RouterResult {
         val days = extractDays(lower) ?: DEFAULT_UNWORN_DAYS
+        // Use strict "> cutoffDate" semantics: an item last worn exactly `days` days ago
+        // should appear in the results ("haven't worn in 30 days" includes day-30 boundary).
+        // The DAO predicate is now "ol.date > :cutoffDate" (exclusive), so cutoffDate = today - days.
         val cutoffDate = LocalDate.now().minusDays(days.toLong()).toString()
         val items = clothingDao.getItemsNotWornSince(cutoffDate)
 
@@ -335,5 +339,9 @@ class ChatRouter @Inject constructor(
         )
 
         private val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)""")
+
+        // Matches "what ... i wore on" with at most ~15 chars between "what" and "i" so that
+        // incidental uses like "what goes with what I wore on Tuesday?" don't trigger routing.
+        private val WORE_ON_INTERROGATIVE_PATTERN = Regex("""\bwhat\b.{0,15}\bi\b\s*\bwore on\b""")
     }
 }

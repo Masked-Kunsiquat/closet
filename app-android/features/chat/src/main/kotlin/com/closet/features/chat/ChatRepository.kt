@@ -18,6 +18,8 @@ import javax.inject.Singleton
  * [ChatRouter] is checked first. On a [ChatRouter.RouterResult.Routed] result the response is
  * returned immediately — the encoder, index, and provider are never touched. This keeps routed
  * responses zero-token-cost and fully offline.
+ *
+ * In the FOSS flavor [ChatRouter] is a no-op stub, so all queries go through the full pipeline.
  */
 @Singleton
 class ChatRepository @Inject constructor(

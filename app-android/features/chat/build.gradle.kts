@@ -81,10 +81,11 @@ dependencies {
     // Full flavor only; FOSS uses the regex-only ChatDateParser stub.
     "fullImplementation"(libs.mlkit.entity.extraction)
 
-    // MLKit Language Identification — bundled on-device model, no Play Services required.
-    // Used by ChatRouter to gate English-only pattern matching.
-    implementation(libs.mlkit.language.id)
-    implementation(libs.kotlinx.coroutines.play.services)
+    // MLKit Language Identification — used by ChatRouter (full flavor only; FOSS stub skips it).
+    "fullImplementation"(libs.mlkit.language.id)
+    // kotlinx coroutines Task.await() extension — depends on play-services-tasks transiently;
+    // full flavor only so the FOSS build stays GMS-free.
+    "fullImplementation"(libs.kotlinx.coroutines.play.services)
 
     // Logging
     implementation(libs.timber)
