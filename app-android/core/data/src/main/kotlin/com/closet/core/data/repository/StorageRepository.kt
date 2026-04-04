@@ -47,47 +47,56 @@ class StorageRepository @Inject constructor(
         val fileName = "${UUID.randomUUID()}.jpg"
         val destFile = File(imagesDir, fileName)
 
-        // First pass: read bounds only (no pixel allocation).
-        val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            BitmapFactory.decodeStream(input, null, boundsOpts)
-        } ?: throw IllegalStateException("Could not open input stream from Uri: $uri")
-
-        // Compute largest power-of-two inSampleSize that keeps longest edge ≤ MAX_DIMENSION.
-        val longest = maxOf(boundsOpts.outWidth, boundsOpts.outHeight)
-        var sampleSize = 1
-        while (longest / sampleSize > MAX_DIMENSION) sampleSize *= 2
-
-        // Second pass: decode at computed sample size.
-        val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-        val sampled = context.contentResolver.openInputStream(uri)?.use { input ->
-            BitmapFactory.decodeStream(input, null, decodeOpts)
-        } ?: throw IllegalStateException("Could not decode bitmap from Uri: $uri")
-
-        // Final scale-down if the long edge is still > MAX_DIMENSION after power-of-two sampling.
-        val finalBitmap = if (maxOf(sampled.width, sampled.height) > MAX_DIMENSION) {
-            val scale = MAX_DIMENSION.toFloat() / maxOf(sampled.width, sampled.height)
-            val scaled = Bitmap.createScaledBitmap(
-                sampled,
-                (sampled.width * scale).toInt(),
-                (sampled.height * scale).toInt(),
-                /* filter= */ true
-            )
-            sampled.recycle()
-            scaled
-        } else {
-            sampled
-        }
-
+        // Copy the URI content to a temp file first. Some content providers (e.g. Google Photos
+        // cloud-only items) only allow a single openInputStream call — re-opening the same URI for
+        // the second BitmapFactory pass would throw and surface as "unexpected error" in the UI.
+        val tempFile = File(imagesDir, "${UUID.randomUUID()}.tmp")
         try {
-            destFile.outputStream().use { out ->
-                if (!finalBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)) {
-                    destFile.delete()
-                    throw IOException("Bitmap.compress returned false for $fileName")
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                tempFile.outputStream().use { output -> input.copyTo(output) }
+            } ?: throw IllegalStateException("Could not open input stream from Uri: $uri")
+
+            // First pass: read bounds only (no pixel allocation).
+            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(tempFile.absolutePath, boundsOpts)
+
+            // Compute largest power-of-two inSampleSize that keeps longest edge ≤ MAX_DIMENSION.
+            val longest = maxOf(boundsOpts.outWidth, boundsOpts.outHeight)
+            var sampleSize = 1
+            while (longest / sampleSize > MAX_DIMENSION) sampleSize *= 2
+
+            // Second pass: decode at computed sample size.
+            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+            val sampled = BitmapFactory.decodeFile(tempFile.absolutePath, decodeOpts)
+                ?: throw IllegalStateException("Could not decode bitmap from Uri: $uri")
+
+            // Final scale-down if the long edge is still > MAX_DIMENSION after power-of-two sampling.
+            val finalBitmap = if (maxOf(sampled.width, sampled.height) > MAX_DIMENSION) {
+                val scale = MAX_DIMENSION.toFloat() / maxOf(sampled.width, sampled.height)
+                val scaled = Bitmap.createScaledBitmap(
+                    sampled,
+                    (sampled.width * scale).toInt(),
+                    (sampled.height * scale).toInt(),
+                    /* filter= */ true
+                )
+                sampled.recycle()
+                scaled
+            } else {
+                sampled
+            }
+
+            try {
+                destFile.outputStream().use { out ->
+                    if (!finalBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)) {
+                        destFile.delete()
+                        throw IOException("Bitmap.compress returned false for $fileName")
+                    }
                 }
+            } finally {
+                finalBitmap.recycle()
             }
         } finally {
-            finalBitmap.recycle()
+            tempFile.delete()
         }
 
         fileName
