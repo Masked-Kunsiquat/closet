@@ -92,6 +92,7 @@ class GeminiChatProvider @Inject constructor(
     ): String = buildString {
         append("{")
         append("\"system_instruction\":{\"parts\":[{\"text\":${systemInstruction.asJsonString()}}]},")
+        append("\"generationConfig\":{\"responseMimeType\":\"application/json\"},")
         append("\"contents\":[")
         history.forEachIndexed { i, turn ->
             // Gemini uses "model" for assistant turns, not "assistant"

@@ -22,7 +22,7 @@ description: Core engineering conventions for the Closet app. Use when writing a
 - Two product flavors: `full` (GMS features) and `foss` (no GMS, F-Droid target)
 
 ## Module Structure
-```
+```text
 app/                   — Application entry point, NavGraph, MainActivity
 core/data/             — Database, DAOs, Repositories, entities, DI module
 core/ui/               — Material 3 theme, shared Composable components
