@@ -36,6 +36,29 @@ interface LogDao {
     fun getLogsByDate(date: String): Flow<List<OutfitLogWithMeta>>
 
     /**
+     * One-shot variant of [getLogsByDate] for use in the chat router where a [Flow] is not needed.
+     * @param date The date string (YYYY-MM-DD).
+     */
+    @Query("""
+        SELECT
+            ol.*,
+            o.name AS outfit_name,
+            COUNT(oi.clothing_item_id) AS item_count,
+            (SELECT ci.image_path
+             FROM outfit_items oi2
+             JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
+             WHERE oi2.outfit_id = ol.outfit_id AND ci.image_path IS NOT NULL
+             LIMIT 1) AS cover_image
+        FROM outfit_logs ol
+        LEFT JOIN outfits o     ON o.id  = ol.outfit_id
+        LEFT JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+        WHERE ol.date = :date
+        GROUP BY ol.id
+        ORDER BY ol.is_ootd DESC, ol.created_at ASC
+    """)
+    suspend fun getLogsForDateOnce(date: String): List<OutfitLogWithMeta>
+
+    /**
      * Returns the row ID of an existing log for [outfitId] on [date], or null if none exists.
      * Used by [LogRepository.wearOutfitToday] to keep wear logging idempotent.
      */

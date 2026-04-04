@@ -50,9 +50,9 @@ Start with exactly these three patterns — don't grow this list speculatively:
 
 ### Data layer
 
-- [ ] Add `ChatRouter` class in `features/chat/` — takes the raw user message, returns `RouterResult` (either `Routed(response)` or `Unrouted`)
-- [ ] Add any missing DAO queries needed (wear count by fuzzy name, items not worn since date, logs for date)
-- [ ] `ChatRouter` does **pattern matching only** — no ML, no embeddings. Regex or `contains` on lowercased input. If the pattern doesn't match confidently, return `Unrouted` and fall through to RAG
+- [x] Add `ChatRouter` class in `features/chat/` — takes the raw user message, returns `RouterResult` (either `Routed(response)` or `Unrouted`)
+- [x] Add any missing DAO queries needed (wear count by fuzzy name, items not worn since date, logs for date)
+- [x] `ChatRouter` does **pattern matching only** — no ML, no embeddings. Regex or `contains` on lowercased input. If the pattern doesn't match confidently, return `Unrouted` and fall through to RAG
 
 ### Repository
 
@@ -60,7 +60,7 @@ Start with exactly these three patterns — don't grow this list speculatively:
 
 ### New response type — stat card
 
-- [ ] Add `ChatResponse.WithStat(text: String, label: String, value: String, itemIds: List<Long>)` to `ChatAiProvider.kt`
+- [x] Add `ChatResponse.WithStat(text: String, label: String, value: String, itemIds: List<Long>)` to `ChatAiProvider.kt`
   - `label`: e.g. "Wear count", `value`: e.g. "14 times"
   - `itemIds`: empty list if the stat is aggregate, populated if it refers to specific items
 - [ ] Add `ChatMessage.Assistant.WithStat` mirror in `ChatMessage.kt`

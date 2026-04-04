@@ -274,4 +274,55 @@ interface ClothingDao {
     /** Returns all non-null image paths; used by [ImageCompressionWorker] to build its work queue. */
     @Query("SELECT image_path FROM clothing_items WHERE image_path IS NOT NULL")
     suspend fun getAllImagePaths(): List<String>
+
+    // ── Chat router queries ───────────────────────────────────────────────────
+
+    /**
+     * Returns the single closest item whose name matches [query] (case-insensitive LIKE),
+     * along with its wear count. Returns null if no item matches.
+     * Used by [com.closet.features.chat.ChatRouter] for wear-count pattern queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path, $WEAR_COUNT_SUBQUERY
+        FROM clothing_items ci
+        WHERE ci.name LIKE '%' || :query || '%'
+        ORDER BY length(ci.name) ASC
+        LIMIT 1
+    """)
+    suspend fun getWearCountByName(query: String): WearCountResult?
+
+    /**
+     * Returns all items that have not been worn on or after [cutoffDate] (YYYY-MM-DD).
+     * An item counts as worn if it appears in [outfit_log_items] linked to a log on or
+     * after [cutoffDate]. Items with no wear history at all are included.
+     * Used by [com.closet.features.chat.ChatRouter] for "haven't worn in N days" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path
+        FROM clothing_items ci
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM outfit_logs ol
+            JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
+            WHERE oli.clothing_item_id = ci.id
+            AND ol.date >= :cutoffDate
+        )
+        ORDER BY ci.name ASC
+    """)
+    suspend fun getItemsNotWornSince(cutoffDate: String): List<NotWornItem>
 }
+
+/** Result of a wear-count lookup by item name — used by the [com.closet.features.chat.ChatRouter]. */
+data class WearCountResult(
+    val id: Long,
+    val name: String,
+    @ColumnInfo(name = "image_path") val imagePath: String?,
+    @ColumnInfo(name = "wear_count") val wearCount: Int,
+)
+
+/** A clothing item with no recent wear — returned by [ClothingDao.getItemsNotWornSince]. */
+data class NotWornItem(
+    val id: Long,
+    val name: String,
+    @ColumnInfo(name = "image_path") val imagePath: String?,
+)
