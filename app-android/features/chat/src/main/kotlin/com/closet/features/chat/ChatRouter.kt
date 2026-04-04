@@ -3,6 +3,9 @@ package com.closet.features.chat
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.dao.LogDao
+import com.google.mlkit.nl.languageid.LanguageIdentification
+import com.google.mlkit.nl.languageid.LanguageIdentificationOptions
+import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -37,15 +40,42 @@ class ChatRouter @Inject constructor(
         data object Unrouted : RouterResult
     }
 
+    // Language identifier configured with a 0.7 confidence threshold.
+    // Returns "und" (undetermined) when confidence < threshold — treated as non-English.
+    private val languageIdentifier = LanguageIdentification.getClient(
+        LanguageIdentificationOptions.Builder()
+            .setConfidenceThreshold(LANGUAGE_CONFIDENCE_THRESHOLD)
+            .build()
+    )
+
     suspend fun route(message: String): RouterResult {
+        // Language guard: only route if the message is confidently English.
+        // Non-English or low-confidence input falls through to RAG, which handles
+        // multilingual prompts naturally via the provider.
+        if (!isEnglish(message)) return RouterResult.Unrouted
+
         val lower = message.lowercase(Locale.ENGLISH).trim()
 
         return when {
-            matchesWearCount(lower)   -> routeWearCount(lower)
+            matchesWearCount(lower)    -> routeWearCount(lower)
             matchesNotWornSince(lower) -> routeNotWornSince(lower)
-            matchesWornOn(lower)      -> routeWornOn(lower)
-            else                      -> RouterResult.Unrouted
+            matchesWornOn(lower)       -> routeWornOn(lower)
+            else                       -> RouterResult.Unrouted
         }
+    }
+
+    /**
+     * Returns true if ML Kit identifies [text] as English with confidence ≥ [LANGUAGE_CONFIDENCE_THRESHOLD].
+     * On any identification failure, logs the error and returns true so the router still runs —
+     * a false negative (routing a non-English query) is less harmful than silently dropping
+     * all routing for the session.
+     */
+    private suspend fun isEnglish(text: String): Boolean = try {
+        languageIdentifier.identifyLanguage(text).await() == "en"
+    } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        Timber.w(e, "ChatRouter: language identification failed, proceeding with routing")
+        true
     }
 
     // ── Pattern matching ──────────────────────────────────────────────────────
@@ -199,6 +229,7 @@ class ChatRouter @Inject constructor(
 
     companion object {
         private const val DEFAULT_UNWORN_DAYS = 30
+        private const val LANGUAGE_CONFIDENCE_THRESHOLD = 0.7f
 
         private val ITEM_NAME_PATTERN = Regex(
             """(?:how many times (?:have i |did i |i've )?worn|worn) (?:my |the )?(.+?)(?:\?|$)"""
