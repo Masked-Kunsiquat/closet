@@ -43,6 +43,8 @@ data class SettingsUiState(
     val anthropicModelsLoading: Boolean = false,
     val geminiKey: String = "",
     val geminiModel: String = "",
+    val geminiModels: List<String> = emptyList(),
+    val geminiModelsLoading: Boolean = false,
 
     // ── Embedding index ───────────────────────────────────────────────────────
     val embeddingWorkInfo: WorkInfo? = null,

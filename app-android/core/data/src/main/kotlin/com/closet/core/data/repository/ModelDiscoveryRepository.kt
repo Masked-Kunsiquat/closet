@@ -36,6 +36,7 @@ class ModelDiscoveryRepository @Inject constructor(
         private const val DEFAULT_OPENAI_BASE = "https://api.openai.com"
         private const val ANTHROPIC_BASE = "https://api.anthropic.com"
         private const val ANTHROPIC_VERSION = "2023-06-01"
+        private const val GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
     }
 
     /**
@@ -88,12 +89,58 @@ class ModelDiscoveryRepository @Inject constructor(
         }
     }
 
+    /**
+     * Fetches the list of available Gemini model IDs from
+     * `GET https://generativelanguage.googleapis.com/v1beta/models`.
+     *
+     * Only models that support `generateContent` are included. The `models/` prefix is
+     * stripped so the returned IDs match what the Gemini API expects in the endpoint path
+     * (e.g. `gemini-2.0-flash`, not `models/gemini-2.0-flash`).
+     */
+    suspend fun fetchGeminiModels(apiKey: String): Result<List<String>> {
+        return try {
+            val response: HttpResponse = client.get("$GEMINI_BASE/models") {
+                header("x-goog-api-key", apiKey)
+            }
+            if (!response.status.isSuccess()) {
+                val body = response.body<String>()
+                Timber.tag(TAG).w("fetchGeminiModels: HTTP %s — %s", response.status, body.take(200))
+                return Result.failure(Exception("HTTP ${response.status.value}"))
+            }
+            Result.success(parseGeminiModelIds(response.body()))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "fetchGeminiModels failed")
+            Result.failure(e)
+        }
+    }
+
     /** Extracts the `id` field from each entry in the `data` array of the models response. */
     private fun parseModelIds(responseText: String): List<String> {
         val root = json.parseToJsonElement(responseText.trim()).jsonObject
         val data = root["data"]?.jsonArray ?: return emptyList()
         return data.mapNotNull { element ->
             element.jsonObject["id"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        }.sorted()
+    }
+
+    /**
+     * Parses the Gemini `/v1beta/models` response. Only models that advertise
+     * `generateContent` in their `supportedGenerationMethods` are included.
+     * The `models/` prefix is stripped from each name.
+     */
+    private fun parseGeminiModelIds(responseText: String): List<String> {
+        val root = json.parseToJsonElement(responseText.trim()).jsonObject
+        val models = root["models"]?.jsonArray ?: return emptyList()
+        return models.mapNotNull { element ->
+            val obj = element.jsonObject
+            val methods = obj["supportedGenerationMethods"]?.jsonArray
+                ?.mapNotNull { it.jsonPrimitive.content } ?: emptyList()
+            if ("generateContent" !in methods) return@mapNotNull null
+            val name = obj["name"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            name.removePrefix("models/")
         }.sorted()
     }
 }

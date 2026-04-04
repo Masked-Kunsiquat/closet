@@ -71,7 +71,7 @@ abstract class ClothingDatabase : RoomDatabase() {
      * direct dependency on Room's internal [openHelper] API.
      */
     fun checkpointWal() {
-        openHelper.writableDatabase.execSQL("PRAGMA wal_checkpoint(FULL)")
+        openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
     }
 
     /**

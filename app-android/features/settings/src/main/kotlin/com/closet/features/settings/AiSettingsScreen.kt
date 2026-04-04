@@ -52,8 +52,6 @@ import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.core.ui.theme.ClosetTheme
 
-private val GEMINI_MODELS = listOf("gemini-1.5-flash", "gemini-1.5-pro")
-
 private val AiProvider.labelRes: Int
     get() = when (this) {
         AiProvider.Nano -> R.string.settings_ai_provider_nano
@@ -143,7 +141,9 @@ fun AiSettingsScreen(
         }
     }
 
-    if (uiState.nanoStatus is NanoStatus.NotSupported && !nanoNotSupportedDismissed) {
+    if (uiState.selectedAiProvider == AiProvider.Nano &&
+        uiState.nanoStatus is NanoStatus.NotSupported &&
+        !nanoNotSupportedDismissed) {
         NanoNotSupportedDialog(
             onSwitchToOpenAi = {
                 nanoNotSupportedDismissed = true
@@ -192,6 +192,8 @@ fun AiSettingsScreen(
         openAiModelsLoading = uiState.openAiModelsLoading,
         anthropicModels = uiState.anthropicModels,
         anthropicModelsLoading = uiState.anthropicModelsLoading,
+        geminiModels = uiState.geminiModels,
+        geminiModelsLoading = uiState.geminiModelsLoading,
         embeddingIndexSize = uiState.embeddingIndexSize,
         embeddingWorkInfo = uiState.embeddingWorkInfo,
         onRebuildEmbeddingIndex = viewModel::onRebuildEmbeddingIndex,
@@ -236,6 +238,8 @@ private fun AiSettingsContent(
     openAiModelsLoading: Boolean,
     anthropicModels: List<String>,
     anthropicModelsLoading: Boolean,
+    geminiModels: List<String>,
+    geminiModelsLoading: Boolean,
     embeddingIndexSize: Int,
     embeddingWorkInfo: WorkInfo?,
     onRebuildEmbeddingIndex: () -> Unit,
@@ -309,6 +313,8 @@ private fun AiSettingsContent(
                     openAiModelsLoading = openAiModelsLoading,
                     anthropicModels = anthropicModels,
                     anthropicModelsLoading = anthropicModelsLoading,
+                    geminiModels = geminiModels,
+                    geminiModelsLoading = geminiModelsLoading,
                 )
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -403,6 +409,8 @@ private fun AiProviderSection(
     openAiModelsLoading: Boolean,
     anthropicModels: List<String>,
     anthropicModelsLoading: Boolean,
+    geminiModels: List<String>,
+    geminiModelsLoading: Boolean,
 ) {
     Column {
         Text(
@@ -483,8 +491,8 @@ private fun AiProviderSection(
                             onApiKeyChanged = onGeminiKeyChanged,
                             model = geminiModel,
                             onModelChanged = onGeminiModelChanged,
-                            availableModels = GEMINI_MODELS,
-                            isLoadingModels = false,
+                            availableModels = geminiModels,
+                            isLoadingModels = geminiModelsLoading,
                             keyLabel = stringResource(R.string.settings_ai_gemini_key),
                             modelLabel = stringResource(R.string.settings_ai_gemini_model),
                         )
@@ -882,6 +890,7 @@ private fun AiSettingsOffPreview() {
             onGeminiKeyChanged = {}, onGeminiModelChanged = {},
             openAiModels = emptyList(), openAiModelsLoading = false,
             anthropicModels = emptyList(), anthropicModelsLoading = false,
+            geminiModels = emptyList(), geminiModelsLoading = false,
             embeddingIndexSize = 0, embeddingWorkInfo = null,
             onRebuildEmbeddingIndex = {},
             segmentationSupported = true,

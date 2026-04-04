@@ -72,7 +72,12 @@ private data class AnthropicPrefs(
     val modelsLoading: Boolean,
 )
 
-private data class GeminiPrefs(val key: String, val model: String)
+private data class GeminiPrefs(
+    val key: String,
+    val model: String,
+    val models: List<String>,
+    val modelsLoading: Boolean,
+)
 
 private data class EmbeddingState(val workInfo: WorkInfo?, val indexSize: Int)
 
@@ -114,6 +119,8 @@ class SettingsViewModel @Inject constructor(
     private val _openAiModelsLoading = MutableStateFlow(false)
     private val _anthropicModels = MutableStateFlow<List<String>>(emptyList())
     private val _anthropicModelsLoading = MutableStateFlow(false)
+    private val _geminiModels = MutableStateFlow<List<String>>(emptyList())
+    private val _geminiModelsLoading = MutableStateFlow(false)
     private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
     private val _lastHandledCaptionId = MutableStateFlow<UUID?>(null)
 
@@ -159,7 +166,9 @@ class SettingsViewModel @Inject constructor(
     private val geminiPrefsFlow = combine(
         aiPreferencesRepository.getGeminiApiKey(),
         aiPreferencesRepository.getGeminiModel(),
-    ) { key, model -> GeminiPrefs(key, model) }
+        _geminiModels,
+        _geminiModelsLoading,
+    ) { key, model, models, loading -> GeminiPrefs(key, model, models, loading) }
 
     private val embeddingStateFlow = combine(
         embeddingScheduler.workInfo,
@@ -214,6 +223,8 @@ class SettingsViewModel @Inject constructor(
             anthropicModelsLoading = anth.modelsLoading,
             geminiKey = gem.key,
             geminiModel = gem.model,
+            geminiModels = gem.models,
+            geminiModelsLoading = gem.modelsLoading,
             embeddingWorkInfo = emb.workInfo,
             embeddingIndexSize = emb.indexSize,
             captionSupported = captionEnrichmentProvider.isSupported,
@@ -294,6 +305,29 @@ class SettingsViewModel @Inject constructor(
                             .onFailure { _anthropicModels.value = emptyList() }
                     } finally {
                         _anthropicModelsLoading.value = false
+                    }
+                }
+        }
+
+        // Fetch Gemini models when key or AI-enabled changes.
+        viewModelScope.launch {
+            combine(
+                aiPreferencesRepository.getGeminiApiKey(),
+                aiPreferencesRepository.getAiEnabled(),
+            ) { key, enabled -> key to enabled }
+                .debounce(800)
+                .collectLatest { (key, enabled) ->
+                    if (!enabled || key.isBlank()) {
+                        _geminiModels.value = emptyList()
+                        return@collectLatest
+                    }
+                    _geminiModelsLoading.value = true
+                    try {
+                        modelDiscovery.fetchGeminiModels(key)
+                            .onSuccess { _geminiModels.value = it }
+                            .onFailure { _geminiModels.value = emptyList() }
+                    } finally {
+                        _geminiModelsLoading.value = false
                     }
                 }
         }
