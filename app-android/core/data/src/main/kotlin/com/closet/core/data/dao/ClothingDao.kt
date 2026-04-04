@@ -278,6 +278,53 @@ interface ClothingDao {
     // ── Chat router queries ───────────────────────────────────────────────────
 
     /**
+     * Returns the total count of clothing items. Used by [com.closet.features.chat.ChatRouter]
+     * for "how many items do I own?" queries.
+     */
+    @Query("SELECT COUNT(*) FROM clothing_items")
+    suspend fun getItemCount(): Int
+
+    /**
+     * Returns all items that have never been worn (no entry in [outfit_log_items] at all).
+     * Used by [com.closet.features.chat.ChatRouter] for "what have I never worn?" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path
+        FROM clothing_items ci
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM outfit_log_items oli
+            WHERE oli.clothing_item_id = ci.id
+        )
+        ORDER BY ci.name ASC
+    """)
+    suspend fun getItemsNeverWorn(): List<NotWornItem>
+
+    /**
+     * Returns all items currently marked as dirty (wash_status = 'Dirty').
+     * Used by [com.closet.features.chat.ChatRouter] for "what's in my laundry?" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path
+        FROM clothing_items ci
+        WHERE ci.wash_status = 'Dirty'
+        ORDER BY ci.name ASC
+    """)
+    suspend fun getItemsNeedingWash(): List<NotWornItem>
+
+    /**
+     * Returns the single most-worn item across all time, or null if nothing has been worn.
+     * Used by [com.closet.features.chat.ChatRouter] for "what's my most worn item?" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path, $WEAR_COUNT_SUBQUERY
+        FROM clothing_items ci
+        ORDER BY wear_count DESC
+        LIMIT 1
+    """)
+    suspend fun getMostWornItem(): WearCountResult?
+
+    /**
      * Returns the single closest item whose name matches [query] (case-insensitive LIKE),
      * along with its wear count. Returns null if no item matches.
      * Used by [com.closet.features.chat.ChatRouter] for wear-count pattern queries.

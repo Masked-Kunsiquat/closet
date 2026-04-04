@@ -183,7 +183,9 @@ The `ChatRouter` pattern-matching is written for English. A non-English query th
 
 ### Phase 2 — Additional router intents
 
-The three shipped patterns are intentionally minimal. These are the strongest candidates for future expansion, ordered by confidence of intent and query simplicity. **Do not add speculatively** — add a pattern only when user feedback confirms it's a common miss.
+~~The three shipped patterns are intentionally minimal. These are the strongest candidates for future expansion~~ — all five additional patterns below have been implemented alongside the original three.
+
+**Shipped (8 patterns total):**
 
 | Query pattern | DAO / query | Notes |
 |---|---|---|

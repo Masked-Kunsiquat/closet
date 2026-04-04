@@ -20,10 +20,15 @@ import javax.inject.Singleton
  * them directly from DAO queries without going through the RAG + provider pipeline.
  * Faster, zero token cost, works fully offline.
  *
- * Three patterns are handled (per the Phase 2 spec — don't expand speculatively):
+ * Eight patterns are handled:
  * 1. "How many times have I worn [item]?" → [ClothingDao.getWearCountByName]
  * 2. "What haven't I worn in [N] days?"   → [ClothingDao.getItemsNotWornSince]
  * 3. "What did I wear on [date]?"         → [LogDao.getLogsForDateOnce]
+ * 4. "What have I never worn?"            → [ClothingDao.getItemsNeverWorn]
+ * 5. "What's in my laundry?"             → [ClothingDao.getItemsNeedingWash]
+ * 6. "What did I wear last?"             → [LogDao.getMostRecentLog]
+ * 7. "How many items do I own?"          → [ClothingDao.getItemCount]
+ * 8. "What's my most worn item?"         → [ClothingDao.getMostWornItem]
  *
  * If a pattern doesn't match confidently, or the DAO returns an ambiguous result,
  * [RouterResult.Unrouted] is returned and the caller falls through to RAG.
@@ -57,9 +62,15 @@ class ChatRouter @Inject constructor(
         val lower = message.lowercase(Locale.ENGLISH).trim()
 
         return when {
+            // Order matters: neverWorn before notWornSince (both contain "worn")
+            matchesNeverWorn(lower)    -> routeNeverWorn()
             matchesWearCount(lower)    -> routeWearCount(lower)
             matchesNotWornSince(lower) -> routeNotWornSince(lower)
             matchesWornOn(lower)       -> routeWornOn(lower)
+            matchesNeedsWash(lower)    -> routeNeedsWash()
+            matchesLastOutfit(lower)   -> routeLastOutfit()
+            matchesItemCount(lower)    -> routeItemCount()
+            matchesMostWorn(lower)     -> routeMostWorn()
             else                       -> RouterResult.Unrouted
         }
     }
@@ -93,6 +104,36 @@ class ChatRouter @Inject constructor(
         "what did i wear on" in lower ||
         "what was i wearing on" in lower ||
         "wore on" in lower
+
+    private fun matchesNeverWorn(lower: String): Boolean =
+        "never worn" in lower ||
+        "never been worn" in lower ||
+        ("never" in lower && "wear" in lower)
+
+    private fun matchesNeedsWash(lower: String): Boolean =
+        "laundry" in lower ||
+        "needs washing" in lower ||
+        "needs to be washed" in lower ||
+        "need to wash" in lower ||
+        ("dirty" in lower && ("clothes" in lower || "items" in lower || "what" in lower))
+
+    private fun matchesLastOutfit(lower: String): Boolean =
+        "what did i wear last" in lower ||
+        "what was i wearing last" in lower ||
+        "last outfit" in lower ||
+        "wore last" in lower ||
+        "most recent outfit" in lower
+
+    private fun matchesItemCount(lower: String): Boolean =
+        ("how many" in lower && ("items" in lower || "clothes" in lower || "pieces" in lower)) ||
+        "how big is my wardrobe" in lower ||
+        "size of my wardrobe" in lower
+
+    private fun matchesMostWorn(lower: String): Boolean =
+        "most worn" in lower ||
+        "wear the most" in lower ||
+        "what do i wear most" in lower ||
+        "most frequently worn" in lower
 
     // ── Routing handlers ─────────────────────────────────────────────────────
 
@@ -160,6 +201,96 @@ class ChatRouter @Inject constructor(
                 label = "Worn on $displayDate",
                 value = if (logs.isEmpty()) "Nothing logged" else "${logs.size} $outfitsLabel",
                 itemIds = emptyList(),
+            )
+        )
+    }
+
+    private suspend fun routeNeverWorn(): RouterResult {
+        val items = clothingDao.getItemsNeverWorn()
+        val itemsLabel = if (items.size == 1) "item" else "items"
+        val text = if (items.isEmpty()) {
+            "You've worn everything in your wardrobe — impressive!"
+        } else {
+            "You have ${items.size} $itemsLabel you've never worn."
+        }
+        return RouterResult.Routed(
+            ChatResponse.WithStat(
+                text = text,
+                label = "Never worn",
+                value = "${items.size} $itemsLabel",
+                itemIds = items.map { it.id },
+            )
+        )
+    }
+
+    private suspend fun routeNeedsWash(): RouterResult {
+        val items = clothingDao.getItemsNeedingWash()
+        val itemsLabel = if (items.size == 1) "item" else "items"
+        val text = if (items.isEmpty()) {
+            "Your laundry is all clear — nothing needs washing."
+        } else {
+            "You have ${items.size} $itemsLabel in your laundry."
+        }
+        return RouterResult.Routed(
+            ChatResponse.WithStat(
+                text = text,
+                label = "Needs washing",
+                value = "${items.size} $itemsLabel",
+                itemIds = items.map { it.id },
+            )
+        )
+    }
+
+    private suspend fun routeLastOutfit(): RouterResult {
+        val log = logDao.getMostRecentLog() ?: return RouterResult.Routed(
+            ChatResponse.WithStat(
+                text = "You haven't logged any outfits yet.",
+                label = "Last worn",
+                value = "Nothing logged",
+            )
+        )
+        val displayDate = formatDisplayDate(log.date)
+        val text = if (log.outfitName != null) {
+            "Your last logged outfit was ${log.outfitName} on $displayDate."
+        } else {
+            "Your last logged wear was on $displayDate."
+        }
+        return RouterResult.Routed(
+            ChatResponse.WithStat(
+                text = text,
+                label = "Last worn",
+                value = displayDate,
+            )
+        )
+    }
+
+    private suspend fun routeItemCount(): RouterResult {
+        val count = clothingDao.getItemCount()
+        val itemsLabel = if (count == 1) "item" else "items"
+        return RouterResult.Routed(
+            ChatResponse.WithStat(
+                text = "You have $count $itemsLabel in your wardrobe.",
+                label = "Wardrobe size",
+                value = "$count $itemsLabel",
+            )
+        )
+    }
+
+    private suspend fun routeMostWorn(): RouterResult {
+        val result = clothingDao.getMostWornItem() ?: return RouterResult.Routed(
+            ChatResponse.WithStat(
+                text = "You haven't logged any wears yet.",
+                label = "Most worn",
+                value = "Nothing logged",
+            )
+        )
+        val timesLabel = if (result.wearCount == 1) "time" else "times"
+        return RouterResult.Routed(
+            ChatResponse.WithStat(
+                text = "Your most worn item is the ${result.name}, worn ${result.wearCount} $timesLabel.",
+                label = "Most worn",
+                value = "${result.wearCount} $timesLabel",
+                itemIds = listOf(result.id),
             )
         )
     }
