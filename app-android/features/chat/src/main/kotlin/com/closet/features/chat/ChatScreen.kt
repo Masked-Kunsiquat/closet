@@ -33,10 +33,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Checkroom
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -88,6 +90,7 @@ fun ChatScreen(
             viewModel.onInputChanged(suggestion)
             viewModel.sendMessage()
         },
+        onClearChat = viewModel::clearChat,
         onNavigateToItem = onNavigateToItem,
         onNavigateToRecommendations = onNavigateToRecommendations,
         onNavigateToLog = onNavigateToLog,
@@ -103,6 +106,7 @@ private fun ChatContent(
     onInputChanged: (String) -> Unit,
     onSendMessage: () -> Unit,
     onSuggestionSelected: (String) -> Unit,
+    onClearChat: () -> Unit,
     onNavigateToItem: (Long) -> Unit,
     onNavigateToRecommendations: () -> Unit,
     onNavigateToLog: ((List<Long>) -> Unit)?,
@@ -140,6 +144,16 @@ private fun ChatContent(
                                 text = stringResource(R.string.chat_powered_by, uiState.providerLabel),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (uiState.messages.isNotEmpty()) {
+                        IconButton(onClick = onClearChat) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.chat_new_chat),
                             )
                         }
                     }
@@ -740,6 +754,7 @@ private fun WelcomePreview() {
                 onInputChanged = {},
                 onSendMessage = {},
                 onSuggestionSelected = {},
+                onClearChat = {},
                 onNavigateToItem = {},
                 onNavigateToRecommendations = {},
                 onNavigateToLog = null,
@@ -766,6 +781,7 @@ private fun TextAnswerPreview() {
                 onInputChanged = {},
                 onSendMessage = {},
                 onSuggestionSelected = {},
+                onClearChat = {},
                 onNavigateToItem = {},
                 onNavigateToRecommendations = {},
                 onNavigateToLog = null,
@@ -790,6 +806,7 @@ private fun ThinkingPreview() {
                 onInputChanged = {},
                 onSendMessage = {},
                 onSuggestionSelected = {},
+                onClearChat = {},
                 onNavigateToItem = {},
                 onNavigateToRecommendations = {},
                 onNavigateToLog = null,

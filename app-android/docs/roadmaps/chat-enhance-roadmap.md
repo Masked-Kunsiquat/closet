@@ -24,10 +24,10 @@ Add a rolling turn history so follow-up messages ("make it more casual", "swap t
 
 ### ViewModel
 
-- [ ] Add `private val history = mutableListOf<ConversationTurn>()` in `ChatViewModel`
-- [ ] On successful response: append user turn + assistant text to `history` — only after success, never on error or cancellation, so failed attempts don't pollute context
-- [ ] Cap history at **6 turns (3 exchanges)** before passing to repository — older turns are dropped, not stored anywhere persistently
-- [ ] Add `fun clearChat()` that resets both `_uiState.messages` and `history` — wire to a "New chat" action in `ChatScreen` top bar
+- [x] Add `private val history = mutableListOf<ConversationTurn>()` in `ChatViewModel`
+- [x] On successful response: append user turn + assistant text to `history` — only after success, never on error or cancellation, so failed attempts don't pollute context
+- [x] Cap history at **6 turns (3 exchanges)** before passing to repository — older turns are dropped, not stored anywhere persistently
+- [x] Add `fun clearChat()` that resets both `_uiState.messages` and `history` — wire to a "New chat" action in `ChatScreen` top bar
 
 ### Pitfalls
 

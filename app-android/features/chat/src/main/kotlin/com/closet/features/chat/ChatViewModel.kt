@@ -3,6 +3,7 @@ package com.closet.features.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.ai.ChatResponse
+import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.EmbeddingIndex
@@ -30,6 +31,10 @@ class ChatViewModel @Inject constructor(
     private val embeddingIndex: EmbeddingIndex,
 ) : ViewModel() {
 
+    // Rolling conversation history — max 6 turns (3 exchanges). Never persisted.
+    // Only appended on successful responses; cleared by clearChat().
+    private val history = mutableListOf<ConversationTurn>()
+
     private val _uiState = MutableStateFlow(ChatUiState(isIndexReady = embeddingIndex.size > 0))
     val uiState: StateFlow<ChatUiState> = combine(
         _uiState,
@@ -49,6 +54,9 @@ class ChatViewModel @Inject constructor(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
 
+        // Snapshot history before launching — immutable view passed to the coroutine.
+        val historySnapshot = history.toList()
+
         _uiState.update { it.copy(isIndexReady = embeddingIndex.size > 0) }
         _uiState.update { state ->
             state.copy(
@@ -59,9 +67,16 @@ class ChatViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            chatRepository.query(text).fold(
+            chatRepository.query(text, historySnapshot).fold(
                 onSuccess = { response ->
                     val message = response.toAssistantMessage()
+
+                    // Commit to history only on success — failed attempts must not pollute context.
+                    history.add(ConversationTurn(ConversationTurn.Role.User, text))
+                    history.add(ConversationTurn(ConversationTurn.Role.Assistant, response.conversationText))
+                    // Cap at 6 turns (3 exchanges) — drop oldest first.
+                    while (history.size > 6) history.removeAt(0)
+
                     _uiState.update { state ->
                         state.copy(
                             messages = state.messages.dropLast(1) + message,
@@ -85,11 +100,24 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    fun clearChat() {
+        history.clear()
+        _uiState.update { it.copy(messages = emptyList(), inputText = "") }
+    }
+
     private suspend fun ChatResponse.toAssistantMessage(): ChatMessage.Assistant = when (this) {
         is ChatResponse.Text -> ChatMessage.Assistant.Text(text)
         is ChatResponse.WithItems -> ChatMessage.Assistant.WithItems(text, lookupItems(itemIds))
         is ChatResponse.WithOutfit -> ChatMessage.Assistant.WithOutfit(text, lookupItems(itemIds), reason)
     }
+
+    /** The conversational text of any [ChatResponse], stored as the assistant's history turn. */
+    private val ChatResponse.conversationText: String
+        get() = when (this) {
+            is ChatResponse.Text -> text
+            is ChatResponse.WithItems -> text
+            is ChatResponse.WithOutfit -> text
+        }
 
     private suspend fun lookupItems(ids: List<Long>): List<ChatItemSummary> = try {
         val detailMap = clothingDao.getItemDetailsByIds(ids).associateBy { it.item.id }

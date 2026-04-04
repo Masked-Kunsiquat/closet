@@ -3,6 +3,7 @@
     <!-- Top bar -->
     <string name="chat_title">Wardrobe Assistant</string>
     <string name="chat_powered_by">Powered by %s</string>
+    <string name="chat_new_chat">New chat</string>
 
     <!-- Welcome state -->
     <string name="chat_welcome_title">Ask me anything about\nyour wardrobe</string>
