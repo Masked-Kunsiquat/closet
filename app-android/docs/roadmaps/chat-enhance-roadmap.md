@@ -180,3 +180,19 @@ The `ChatRouter` pattern-matching is written for English. A non-English query th
 - Works on all devices and API levels; no GMS or AICore requirement. Can be added to both `full` and `foss` flavors.
 - One call site: a single `languageIdentifier.identifyLanguage(message)` check at the top of `ChatRouter.route()` before any regex is evaluated.
 - Threshold suggestion: only proceed with routing if the top language tag is `"en"` with confidence ≥ 0.7; everything else is `Unrouted`.
+
+### Phase 2 — Additional router intents
+
+The three shipped patterns are intentionally minimal. These are the strongest candidates for future expansion, ordered by confidence of intent and query simplicity. **Do not add speculatively** — add a pattern only when user feedback confirms it's a common miss.
+
+| Query pattern | DAO / query | Notes |
+|---|---|---|
+| "What have I never worn?" | `WHERE wear_count = 0` | Zero ambiguity; reuses the `outfit_log_items` join pattern already in `getItemsNotWornSince` |
+| "What's in my laundry?" / "What needs washing?" | `WHERE wash_status = 'dirty'` | Direct, actionable; wash status is an existing field |
+| "What was my last outfit?" / "What did I wear last?" | `SELECT * FROM outfit_logs ORDER BY date DESC LIMIT 1` | Simple and unambiguous |
+| "How many items do I own?" / "How big is my wardrobe?" | `SELECT COUNT(*) FROM clothing_items` | Instant; zero AI value-add |
+| "What's my most worn item?" | `StatsDao` already has the ranked query | One-liner; `StatItem` result type already exists |
+
+**Patterns to avoid routing:**
+- "What [category] do I have?" — category name matching is fuzzy; RAG handles it better and won't silently return incomplete results if the user's term doesn't exactly match a subcategory name.
+- Any pattern where a confident-looking match could return a subset of the correct answer — a wrong routed response is worse than a slower RAG response.
