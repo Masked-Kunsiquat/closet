@@ -93,8 +93,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                     skipped++
                     continue
                 }
-                compressInPlace(file)
-                done++
+                if (compressInPlace(file)) done++
+                else skipped++
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -119,7 +119,8 @@ class ImageCompressionWorker @AssistedInject constructor(
         return maxOf(opts.outWidth, opts.outHeight) > MAX_DIMENSION
     }
 
-    private fun compressInPlace(file: File) {
+    /** Returns `true` if the original was replaced with a smaller re-encoded file, `false` if kept. */
+    private fun compressInPlace(file: File): Boolean {
         // First pass: bounds only.
         val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, boundsOpts)
@@ -140,8 +141,8 @@ class ImageCompressionWorker @AssistedInject constructor(
             val scale = MAX_DIMENSION.toFloat() / maxOf(sampled.width, sampled.height)
             val scaled = Bitmap.createScaledBitmap(
                 sampled,
-                (sampled.width * scale).toInt(),
-                (sampled.height * scale).toInt(),
+                (sampled.width * scale).toInt().coerceAtLeast(1),
+                (sampled.height * scale).toInt().coerceAtLeast(1),
                 /* filter= */ true,
             )
             sampled.recycle()
@@ -153,7 +154,8 @@ class ImageCompressionWorker @AssistedInject constructor(
         val format = formatFor(file.extension.lowercase(), finalBitmap.hasAlpha())
             ?: throw IOException("Unsupported image extension: ${file.extension}")
         val quality = if (format == Bitmap.CompressFormat.PNG) 100 else JPEG_QUALITY
-        val temp = File.createTempFile(file.nameWithoutExtension, ".tmp", file.parentFile)
+        val prefix = file.nameWithoutExtension.padEnd(3, '_')
+        val temp = File.createTempFile(prefix, ".tmp", file.parentFile)
 
         try {
             temp.outputStream().use { out ->
@@ -162,12 +164,14 @@ class ImageCompressionWorker @AssistedInject constructor(
                 }
             }
             // Only replace if the re-encoded file is actually smaller.
-            if (temp.length() < file.length()) {
+            return if (temp.length() < file.length()) {
                 if (!temp.renameTo(file)) {
                     throw IOException("Atomic rename failed for ${file.name}")
                 }
+                true
             } else {
                 temp.delete()
+                false
             }
         } finally {
             finalBitmap.recycle()
