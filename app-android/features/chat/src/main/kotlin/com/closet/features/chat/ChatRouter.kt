@@ -9,7 +9,6 @@ import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,6 +32,7 @@ import javax.inject.Singleton
 class ChatRouter @Inject constructor(
     private val clothingDao: ClothingDao,
     private val logDao: LogDao,
+    private val dateParser: ChatDateParser,
 ) {
 
     sealed interface RouterResult {
@@ -138,7 +138,7 @@ class ChatRouter @Inject constructor(
     }
 
     private suspend fun routeWornOn(lower: String): RouterResult {
-        val date = extractDate(lower) ?: run {
+        val date = dateParser.parseDate(lower) ?: run {
             Timber.d("ChatRouter: worn-on pattern matched but date not parseable")
             return RouterResult.Unrouted
         }
@@ -187,38 +187,6 @@ class ChatRouter @Inject constructor(
         return if ("week" in unit) count * 7 else count
     }
 
-    /**
-     * Extracts and parses a date string from a worn-on query.
-     *
-     * Only handles unambiguous formats:
-     * - ISO: `2026-04-04`
-     * - Month Day: `April 4`, `April 4th`, `Apr 4`
-     * - Month Day Year: `April 4, 2026`
-     *
-     * Returns an ISO date string (YYYY-MM-DD) or null if unparseable.
-     */
-    private fun extractDate(lower: String): String? {
-        // ISO date
-        ISO_DATE_PATTERN.find(lower)?.value?.let { return it }
-
-        // "Month Day" or "Month Day, Year"
-        val monthMatch = MONTH_DAY_PATTERN.find(lower) ?: return null
-        val monthStr = monthMatch.groupValues[1]
-        val dayStr = monthMatch.groupValues[2].replace(Regex("st|nd|rd|th"), "")
-        val yearStr = monthMatch.groupValues[3].trim().trimStart(',').trim()
-
-        val year = yearStr.toIntOrNull() ?: LocalDate.now().year
-        val monthNum = MONTH_NAMES[monthStr.lowercase(Locale.ENGLISH)] ?: return null
-
-        return try {
-            LocalDate.of(year, monthNum, dayStr.toInt()).format(DateTimeFormatter.ISO_LOCAL_DATE)
-        } catch (e: DateTimeParseException) {
-            null
-        } catch (e: Exception) {
-            null
-        }
-    }
-
     private fun formatDisplayDate(isoDate: String): String = try {
         LocalDate.parse(isoDate).format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH))
     } catch (e: Exception) {
@@ -236,28 +204,5 @@ class ChatRouter @Inject constructor(
         )
 
         private val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)""")
-
-        private val ISO_DATE_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
-
-        private val MONTH_DAY_PATTERN = Regex(
-            """(january|february|march|april|may|june|july|august|september|october|november|december|""" +
-            """jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\.?\s+(\d{1,2}(?:st|nd|rd|th)?),?\s*(\d{4})?""",
-            RegexOption.IGNORE_CASE
-        )
-
-        private val MONTH_NAMES = mapOf(
-            "january" to 1, "jan" to 1,
-            "february" to 2, "feb" to 2,
-            "march" to 3, "mar" to 3,
-            "april" to 4, "apr" to 4,
-            "may" to 5,
-            "june" to 6, "jun" to 6,
-            "july" to 7, "jul" to 7,
-            "august" to 8, "aug" to 8,
-            "september" to 9, "sep" to 9,
-            "october" to 10, "oct" to 10,
-            "november" to 11, "nov" to 11,
-            "december" to 12, "dec" to 12,
-        )
     }
 }
