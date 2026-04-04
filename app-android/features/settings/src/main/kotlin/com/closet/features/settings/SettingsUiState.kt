@@ -46,6 +46,12 @@ data class SettingsUiState(
     val geminiModels: List<String> = emptyList(),
     val geminiModelsLoading: Boolean = false,
 
+    // ── Image storage ─────────────────────────────────────────────────────────
+    /** Total bytes used by `closet_images/`. `-1` while the value is being computed. */
+    val storageUsedBytes: Long = -1L,
+    /** Live [WorkInfo] for the user-triggered immediate compression run. */
+    val compressionWorkInfo: WorkInfo? = null,
+
     // ── Embedding index ───────────────────────────────────────────────────────
     val embeddingWorkInfo: WorkInfo? = null,
     val embeddingIndexSize: Int = 0,

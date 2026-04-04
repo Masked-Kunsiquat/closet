@@ -264,4 +264,10 @@ interface ClothingDao {
     @Transaction
     @Query("SELECT ci.*, $WEAR_COUNT_SUBQUERY FROM clothing_items ci WHERE ci.id IN (:ids)")
     suspend fun getItemDetailsByIds(ids: List<Long>): List<ClothingItemDetail>
+
+    // ── Image compression ────────────────────────────────────────────────────
+
+    /** Returns all non-null image paths; used by [ImageCompressionWorker] to build its work queue. */
+    @Query("SELECT image_path FROM clothing_items WHERE image_path IS NOT NULL")
+    suspend fun getAllImagePaths(): List<String>
 }

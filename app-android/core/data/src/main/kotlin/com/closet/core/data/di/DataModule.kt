@@ -21,6 +21,9 @@ import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.EmbeddingWork
 import com.closet.core.data.worker.EmbeddingWorker
+import com.closet.core.data.worker.ImageCompressionScheduler
+import com.closet.core.data.worker.ImageCompressionWork
+import com.closet.core.data.worker.ImageCompressionWorker
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -140,6 +143,46 @@ object DataModule {
 
             override val workInfo: Flow<WorkInfo?> =
                 workManager.getWorkInfosForUniqueWorkFlow(EmbeddingWork.IMMEDIATE_NAME)
+                    .map { it.firstOrNull() }
+        }
+
+    /**
+     * Provides the [ImageCompressionScheduler] singleton.
+     *
+     * Auto-schedule: one-time job with idle + battery-not-low constraints and a 30-second delay
+     * (KEEP policy — safe to enqueue on every app start).
+     * Immediate: no constraints, REPLACE policy — cancels any in-flight run on re-trigger.
+     */
+    @Provides
+    @Singleton
+    fun provideImageCompressionScheduler(workManager: WorkManager): ImageCompressionScheduler =
+        object : ImageCompressionScheduler {
+            private val constraints = Constraints.Builder()
+                .setRequiresBatteryNotLow(true)
+                .setRequiresDeviceIdle(true)
+                .build()
+
+            override fun schedule() {
+                workManager.enqueueUniqueWork(
+                    ImageCompressionWork.NAME,
+                    ExistingWorkPolicy.KEEP,
+                    OneTimeWorkRequestBuilder<ImageCompressionWorker>()
+                        .setConstraints(constraints)
+                        .setInitialDelay(30L, TimeUnit.SECONDS)
+                        .build(),
+                )
+            }
+
+            override fun runNow() {
+                workManager.enqueueUniqueWork(
+                    ImageCompressionWork.IMMEDIATE_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    OneTimeWorkRequestBuilder<ImageCompressionWorker>().build(),
+                )
+            }
+
+            override val workInfo: Flow<WorkInfo?> =
+                workManager.getWorkInfosForUniqueWorkFlow(ImageCompressionWork.IMMEDIATE_NAME)
                     .map { it.firstOrNull() }
         }
 

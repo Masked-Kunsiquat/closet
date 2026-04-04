@@ -9,6 +9,7 @@ import com.closet.backup.BackupForegroundService
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
+import com.closet.core.data.worker.ImageCompressionScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ class ClosetApp : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var embeddingScheduler: EmbeddingScheduler
     @Inject lateinit var embeddingIndex: EmbeddingIndex
+    @Inject lateinit var imageCompressionScheduler: ImageCompressionScheduler
 
     private fun createNotificationChannels() {
         val nm = getSystemService(NotificationManager::class.java)
@@ -59,6 +61,8 @@ class ClosetApp : Application(), Configuration.Provider {
         createNotificationChannels()
         // Register the periodic embedding worker (charging + idle; no-op if already queued).
         embeddingScheduler.schedule()
+        // Schedule background image compression (idle + battery-not-low, 30 s delay; KEEP — no-op if queued).
+        imageCompressionScheduler.schedule()
 
         // Pre-load embedding index so the chat screen is warm on first open.
         applicationScope.launch {

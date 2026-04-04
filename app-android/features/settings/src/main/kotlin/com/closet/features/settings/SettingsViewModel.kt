@@ -3,6 +3,7 @@ package com.closet.features.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
+import android.content.Context
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.dao.ClothingDao
@@ -10,7 +11,9 @@ import com.closet.core.data.model.AiProvider
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
+import com.closet.core.data.worker.ImageCompressionScheduler
 import com.closet.core.data.model.StyleVibe
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.data.repository.AiPreferencesRepository
@@ -22,6 +25,7 @@ import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import java.io.File
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -94,12 +98,15 @@ private data class SegmentationState(
     val lastHandledBatchId: UUID?,
 )
 
+private data class StorageState(val usedBytes: Long, val compressionWorkInfo: WorkInfo?)
+
 /**
  * ViewModel for the Settings screen.
  */
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val preferencesRepository: PreferencesRepository,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val weatherPreferencesRepository: WeatherPreferencesRepository,
@@ -110,6 +117,7 @@ class SettingsViewModel @Inject constructor(
     private val embeddingIndex: EmbeddingIndex,
     private val batchSegmentationScheduler: BatchSegmentationScheduler,
     private val captionEnrichmentProvider: CaptionEnrichmentProvider,
+    private val imageCompressionScheduler: ImageCompressionScheduler,
 ) : ViewModel() {
 
     // ── Private mutable state ─────────────────────────────────────────────────
@@ -121,6 +129,7 @@ class SettingsViewModel @Inject constructor(
     private val _anthropicModelsLoading = MutableStateFlow(false)
     private val _geminiModels = MutableStateFlow<List<String>>(emptyList())
     private val _geminiModelsLoading = MutableStateFlow(false)
+    private val _storageUsedBytes = MutableStateFlow(-1L)
     private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
     private val _lastHandledCaptionId = MutableStateFlow<UUID?>(null)
 
@@ -190,6 +199,11 @@ class SettingsViewModel @Inject constructor(
         },
     ) { eligible, workInfo, batchId -> SegmentationState(eligible, workInfo, batchId) }
 
+    private val storageStateFlow = combine(
+        _storageUsedBytes,
+        imageCompressionScheduler.workInfo,
+    ) { bytes, workInfo -> StorageState(bytes, workInfo) }
+
     // ── Public single state flow ──────────────────────────────────────────────
 
     val uiState: StateFlow<SettingsUiState> = combine(
@@ -200,7 +214,8 @@ class SettingsViewModel @Inject constructor(
             Triple(anth, gem, emb)
         },
         combine(captionStateFlow, segmentationStateFlow) { cap, seg -> cap to seg },
-    ) { (app, ai, openAi), (anth, gem, emb), (cap, seg) ->
+        storageStateFlow,
+    ) { (app, ai, openAi), (anth, gem, emb), (cap, seg), storage ->
         SettingsUiState(
             accent = app.accent,
             dynamicColor = app.dynamicColor,
@@ -236,6 +251,8 @@ class SettingsViewModel @Inject constructor(
             segmentationEligibleCount = seg.eligibleCount,
             batchSegWorkInfo = seg.workInfo,
             lastHandledBatchId = seg.lastHandledBatchId,
+            storageUsedBytes = storage.usedBytes,
+            compressionWorkInfo = storage.compressionWorkInfo,
         )
     }.stateIn(
         viewModelScope,
@@ -346,7 +363,25 @@ class SettingsViewModel @Inject constructor(
                 }
             }
         }
+
+        // Compute closet_images/ storage size once on start, and refresh after each compression run.
+        viewModelScope.launch {
+            _storageUsedBytes.value = computeStorageBytes()
+            imageCompressionScheduler.workInfo.collect { info ->
+                if (info?.state == WorkInfo.State.SUCCEEDED || info?.state == WorkInfo.State.FAILED) {
+                    _storageUsedBytes.value = computeStorageBytes()
+                }
+            }
+        }
     }
+
+    private suspend fun computeStorageBytes(): Long =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            File(context.filesDir, "closet_images")
+                .walkTopDown()
+                .filter { it.isFile }
+                .sumOf { it.length() }
+        }
 
     // ── App settings event handlers ───────────────────────────────────────────
 
@@ -420,6 +455,12 @@ class SettingsViewModel @Inject constructor(
 
     fun onGeminiModelChanged(model: String) {
         viewModelScope.launch { aiPreferencesRepository.setGeminiModel(model) }
+    }
+
+    // ── Image compression event handlers ─────────────────────────────────────
+
+    fun onCompressImages() {
+        imageCompressionScheduler.runNow()
     }
 
     // ── Search index event handlers ───────────────────────────────────────────

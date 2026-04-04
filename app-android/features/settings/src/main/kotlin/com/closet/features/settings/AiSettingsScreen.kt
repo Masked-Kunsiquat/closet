@@ -91,6 +91,7 @@ fun AiSettingsScreen(
     val view = LocalView.current
     val snackbarHostState = remember { SnackbarHostState() }
     var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
+    var lastHandledCompressionId by remember { mutableStateOf<java.util.UUID?>(null) }
 
     LaunchedEffect(uiState.batchSegWorkInfo?.id, uiState.batchSegWorkInfo?.state) {
         val info = uiState.batchSegWorkInfo ?: return@LaunchedEffect
@@ -133,6 +134,26 @@ fun AiSettingsScreen(
             )
         }
         snackbarHostState.showSnackbar(msg)
+    }
+
+    LaunchedEffect(uiState.compressionWorkInfo?.id, uiState.compressionWorkInfo?.state) {
+        val info = uiState.compressionWorkInfo ?: return@LaunchedEffect
+        if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledCompressionId) {
+            lastHandledCompressionId = info.id
+            val done = info.outputData.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_DONE, 0)
+            val skipped = info.outputData.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_SKIPPED, 0)
+            val failed = info.outputData.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_FAILED, 0)
+            val msg = if (failed > 0) {
+                context.resources.getQuantityString(
+                    R.plurals.settings_image_compress_result_with_failures, done, done, skipped, failed,
+                )
+            } else {
+                context.resources.getQuantityString(
+                    R.plurals.settings_image_compress_result, done, done, skipped,
+                )
+            }
+            snackbarHostState.showSnackbar(msg)
+        }
     }
 
     LaunchedEffect(uiState.nanoStatus) {
@@ -194,6 +215,9 @@ fun AiSettingsScreen(
         anthropicModelsLoading = uiState.anthropicModelsLoading,
         geminiModels = uiState.geminiModels,
         geminiModelsLoading = uiState.geminiModelsLoading,
+        storageUsedBytes = uiState.storageUsedBytes,
+        compressionWorkInfo = uiState.compressionWorkInfo,
+        onCompressImages = viewModel::onCompressImages,
         embeddingIndexSize = uiState.embeddingIndexSize,
         embeddingWorkInfo = uiState.embeddingWorkInfo,
         onRebuildEmbeddingIndex = viewModel::onRebuildEmbeddingIndex,
@@ -240,6 +264,9 @@ private fun AiSettingsContent(
     anthropicModelsLoading: Boolean,
     geminiModels: List<String>,
     geminiModelsLoading: Boolean,
+    storageUsedBytes: Long,
+    compressionWorkInfo: WorkInfo?,
+    onCompressImages: () -> Unit,
     embeddingIndexSize: Int,
     embeddingWorkInfo: WorkInfo?,
     onRebuildEmbeddingIndex: () -> Unit,
@@ -348,6 +375,22 @@ private fun AiSettingsContent(
                     )
                 }
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
+                text = stringResource(R.string.settings_image_storage),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+
+            StorageUsedItem(storageUsedBytes = storageUsedBytes)
+
+            CompressImagesItem(
+                workInfo = compressionWorkInfo,
+                onStart = onCompressImages,
+            )
         }
     }
 }
@@ -802,6 +845,64 @@ private fun BatchCaptionItem(
     }
 }
 
+// ── Image storage ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun StorageUsedItem(storageUsedBytes: Long) {
+    val summary = if (storageUsedBytes < 0) {
+        stringResource(R.string.settings_image_storage_used_computing)
+    } else {
+        stringResource(R.string.settings_image_storage_used_summary, formatBytes(storageUsedBytes))
+    }
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_image_storage_used)) },
+        supportingContent = { Text(summary) },
+    )
+}
+
+@Composable
+private fun CompressImagesItem(
+    workInfo: WorkInfo?,
+    onStart: () -> Unit,
+) {
+    val isRunning = workInfo?.state == WorkInfo.State.RUNNING ||
+        workInfo?.state == WorkInfo.State.ENQUEUED
+
+    if (isRunning) {
+        val done = workInfo!!.progress.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_DONE, 0)
+        val total = workInfo.progress.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_TOTAL, 0)
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_image_compress_running)) },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.settings_image_compress_progress, done, total))
+                    LinearProgressIndicator(
+                        progress = { if (total > 0) done.toFloat() / total else 0f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+        )
+    } else {
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_image_compress)) },
+            supportingContent = { Text(stringResource(R.string.settings_image_compress_summary)) },
+            trailingContent = {
+                androidx.compose.material3.TextButton(onClick = onStart) {
+                    Text(stringResource(R.string.settings_image_compress_run))
+                }
+            },
+        )
+    }
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes >= 1_073_741_824L -> "%.1f GB".format(bytes / 1_073_741_824.0)
+    bytes >= 1_048_576L     -> "%.1f MB".format(bytes / 1_048_576.0)
+    bytes >= 1_024L         -> "%.1f KB".format(bytes / 1_024.0)
+    else                    -> "$bytes B"
+}
+
 // ── Nano Not Supported dialog ──────────────────────────────────────────────────
 
 @Composable
@@ -891,6 +992,8 @@ private fun AiSettingsOffPreview() {
             openAiModels = emptyList(), openAiModelsLoading = false,
             anthropicModels = emptyList(), anthropicModelsLoading = false,
             geminiModels = emptyList(), geminiModelsLoading = false,
+            storageUsedBytes = 24_800_000L, compressionWorkInfo = null,
+            onCompressImages = {},
             embeddingIndexSize = 0, embeddingWorkInfo = null,
             onRebuildEmbeddingIndex = {},
             segmentationSupported = true,
