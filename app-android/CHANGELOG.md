@@ -10,6 +10,75 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.4.0] — 2026-04-04
+
+Phase 4 of the image pipeline: automatic compression of incoming photos, segmented
+images, and a background worker that retroactively shrinks oversized items already
+in storage. All image paths in the database stay unchanged — no migrations needed.
+
+### Added
+- **Phase 4.1 — compress on save** — `StorageRepository.saveImage()` now resizes
+  any incoming photo so its longest edge is ≤ 1 600 px and re-encodes it as JPEG
+  at 85 % quality before writing to `closet_images/`.
+- **Phase 4.2 — WebP for segmented images** — `StorageRepository.saveSegmented()`
+  saves background-removed PNGs as WebP-Lossy on API 30+ and falls back to PNG on
+  older API levels; the `.webp` extension is stored in the database path.
+- **Phase 4.3 — `ImageCompressionWorker`** — background `CoroutineWorker` that
+  iterates every stored image path, skips files that already meet both the 1 600 px
+  and 1.5 MB thresholds, re-encodes candidates to a unique temp file, and replaces
+  the original only when the re-encoded file is smaller (atomic rename). Scheduled
+  idle + battery-not-low on every app start (KEEP policy) and triggerable
+  immediately from Settings.
+- **Phase 4.4 — Storage display in Settings** — storage card shows total image
+  count, size on disk, and a "Compress now" button that enqueues an immediate
+  compression run; a live progress indicator reports `done / total / skipped /
+  failed` while the worker runs.
+- **Gemini model discovery** — Settings screen now fetches available Gemini
+  models from the API rather than using a hardcoded list.
+
+### Fixed
+- **`StorageRepository` gallery photos** — switched to a single-pass URI read
+  (open once, copy to temp, close) to fix intermittent failures when reading
+  content-scheme URIs from the gallery.
+- **Segmented image sentinel** — the "already segmented" path check now covers
+  `.webp` files in addition to the original PNG sentinel so re-segmentation is
+  correctly skipped for WebP-saved items.
+- **`ImageCompressionWorker` — concurrent temp collision** — temp files are now
+  created with `File.createTempFile()` (unique per invocation) so concurrent
+  schedule + runNow worker instances never clobber each other's temp paths.
+- **`ImageCompressionWorker` — corrupt image handling** — `needsCompression()`
+  throws `IOException` when `BitmapFactory` bounds decode returns
+  `outWidth/outHeight ≤ 0`; corrupt images now increment `failed` instead of
+  being silently treated as already-compressed.
+- **`ImageCompressionWorker` — WebP/API mismatch** — `formatFor()` returns
+  `null` for `.webp` on API < 30 and unknown extensions; the call site throws
+  `IOException` rather than writing PNG bytes into a mismatched container.
+- **`ImageCompressionWorker` — `done` counter** — `done` is incremented only
+  when the atomic rename succeeds (temp was smaller); files where the re-encoded
+  output was larger than the original now increment `skipped` instead.
+- **`ImageCompressionWorker` — extreme aspect ratios** — scaled width/height are
+  clamped to `coerceAtLeast(1)` before `Bitmap.createScaledBitmap` to prevent
+  `IllegalArgumentException` on degenerate images.
+- **`ImageCompressionWorker` — short filename prefix** — temp file prefix is
+  padded to ≥ 3 chars to satisfy `File.createTempFile`'s minimum prefix length.
+- **`ImageCompressionWorker` — `inSampleSize` over-downscale** — the loop now
+  uses `while (longest / (sampleSize * 2) >= MAX_DIMENSION)` so the decoded
+  image stays at or above `MAX_DIMENSION`; the subsequent `createScaledBitmap`
+  step handles the precise trim rather than the power-of-two decode stepping
+  past the threshold and discarding extra detail.
+- **`ImageCompressionWorker` — batch abort on path error** — `canonicalPath`
+  resolution and `file.exists()` check moved inside the per-image `try` block
+  so an `IOException` or `SecurityException` during path resolution increments
+  `failed` and continues to the next image rather than aborting the whole batch.
+- **`DatePicker` epoch conversion** — date values are now converted using UTC to
+  avoid off-by-one-day errors in negative-offset timezones.
+- **Settings — backup WAL checkpoint** — WAL is flushed before the backup
+  export to ensure the copied database file is consistent.
+- **Settings — Nano download dialog guard** — the Nano model download dialog
+  is no longer shown when a download is already in progress.
+
+---
+
 ## [0.3.0] — 2026-04-03
 
 Local backup and restore for the full wardrobe. Export your entire closet
@@ -255,7 +324,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.1...v0.1.2
