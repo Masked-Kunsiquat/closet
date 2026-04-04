@@ -76,19 +76,18 @@ class ImageCompressionWorker @AssistedInject constructor(
         for (relativePath in paths) {
             setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_SKIPPED to skipped, KEY_FAILED to failed))
 
-            val file = File(imagesDir, relativePath)
-            // Reject any path that escapes closet_images/ via absolute paths or ../ traversal.
-            if (!file.canonicalPath.startsWith(imagesDirCanonical)) {
-                Timber.tag(TAG).w("Path escapes images dir, skipping: %s", relativePath)
-                skipped++
-                continue
-            }
-            if (!file.exists()) {
-                skipped++
-                continue
-            }
-
             try {
+                val file = File(imagesDir, relativePath)
+                // Reject any path that escapes closet_images/ via absolute paths or ../ traversal.
+                if (!file.canonicalPath.startsWith(imagesDirCanonical)) {
+                    Timber.tag(TAG).w("Path escapes images dir, skipping: %s", relativePath)
+                    skipped++
+                    continue
+                }
+                if (!file.exists()) {
+                    skipped++
+                    continue
+                }
                 if (!needsCompression(file)) {
                     skipped++
                     continue
@@ -128,7 +127,7 @@ class ImageCompressionWorker @AssistedInject constructor(
 
         // Compute power-of-two inSampleSize.
         var sampleSize = 1
-        while (longest / sampleSize > MAX_DIMENSION) sampleSize *= 2
+        while (longest / (sampleSize * 2) >= MAX_DIMENSION) sampleSize *= 2
 
         // Second pass: decode at computed sample size.
         val sampled = BitmapFactory.decodeFile(
