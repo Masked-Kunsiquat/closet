@@ -225,12 +225,16 @@ interface ClothingDao {
 
     // ── Batch segmentation ───────────────────────────────────────────────────
 
-    /** Returns all items that have an image and have not yet been segmented (no .png extension). */
-    @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND image_path NOT LIKE '%.png'")
+    /**
+     * Returns all items that have an image and have not yet been segmented.
+     * Excludes both `.png` (API < 30 segmented output) and `.webp` (API 30+ segmented output)
+     * so already-segmented items are not re-queued.
+     */
+    @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND image_path NOT LIKE '%.png' AND image_path NOT LIKE '%.webp'")
     suspend fun getItemsNeedingSegmentation(): List<ClothingItemEntity>
 
     /** Live count of items eligible for batch segmentation. Updates whenever the table changes. */
-    @Query("SELECT COUNT(*) FROM clothing_items WHERE image_path IS NOT NULL AND image_path NOT LIKE '%.png'")
+    @Query("SELECT COUNT(*) FROM clothing_items WHERE image_path IS NOT NULL AND image_path NOT LIKE '%.png' AND image_path NOT LIKE '%.webp'")
     fun getSegmentationEligibleCount(): Flow<Int>
 
     /** Replaces the stored image path for a single item and updates its timestamp. */

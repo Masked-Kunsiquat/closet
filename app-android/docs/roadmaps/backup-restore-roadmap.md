@@ -5,7 +5,7 @@
 | Asset | Notes |
 |-------|-------|
 | `closet.db` | All user data — clothing, outfits, logs, embeddings |
-| `closet_images/` | UUID-named JPG/PNG files, referenced by relative path in DB |
+| `closet_images/` | UUID-named JPG/PNG/WebP files, referenced by relative path in DB. New photos are JPEG; background-removed (segmented) images are WebP on API 30+ or PNG on API 26–29. Format/extension is determined by `StorageRepository.segmentedFormat()` — DB rows store the full filename so no mapping is needed on restore. |
 | `closet_prefs.pb` | Accent, dynamic color |
 | `ai_prefs.pb` | AI provider, models, style vibe |
 | `weather_prefs.pb` | Weather service, unit |

@@ -122,7 +122,7 @@ class ImageCompressionWorker @AssistedInject constructor(
         val sampled = BitmapFactory.decodeFile(
             file.absolutePath,
             BitmapFactory.Options().apply { inSampleSize = sampleSize },
-        ) ?: return // corrupted — skip silently
+        ) ?: throw IOException("Failed to decode image: ${file.absolutePath}")
 
         // Final scale if still above threshold.
         val finalBitmap = if (maxOf(sampled.width, sampled.height) > MAX_DIMENSION) {
@@ -167,14 +167,19 @@ class ImageCompressionWorker @AssistedInject constructor(
      * Picks the best [Bitmap.CompressFormat] for a file, keeping the original format where possible.
      *
      * - `.jpg` → JPEG (lossy, no alpha)
-     * - `.webp` or alpha on API 30+ → WEBP_LOSSY
-     * - `.png` or alpha on API < 30 → PNG (lossless; resizing already cut the size)
+     * - `.webp` without alpha on API 30+ → WEBP_LOSSY (lossy is fine, no transparency to degrade)
+     * - `.webp` with alpha on API 30+, or `.png` with alpha → WEBP_LOSSLESS / PNG to preserve edges
+     * - Everything else → PNG fallback
      */
     private fun formatFor(ext: String, hasAlpha: Boolean): Bitmap.CompressFormat = when {
         ext == "jpg" || ext == "jpeg" -> Bitmap.CompressFormat.JPEG
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && (ext == "webp" || hasAlpha) -> {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && ext == "webp" && !hasAlpha -> {
             @Suppress("NewApi")
             Bitmap.CompressFormat.WEBP_LOSSY
+        }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && hasAlpha -> {
+            @Suppress("NewApi")
+            Bitmap.CompressFormat.WEBP_LOSSLESS
         }
         else -> Bitmap.CompressFormat.PNG
     }
