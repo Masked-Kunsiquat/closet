@@ -56,6 +56,23 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Validate signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          missing=()
+          [ -z "$KEYSTORE_BASE64" ]  && missing+=("KEYSTORE_BASE64")
+          [ -z "$KEYSTORE_PASSWORD" ] && missing+=("KEYSTORE_PASSWORD")
+          [ -z "$KEY_ALIAS" ]         && missing+=("KEY_ALIAS")
+          [ -z "$KEY_PASSWORD" ]      && missing+=("KEY_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required signing secrets: ${missing[*]}"
+            exit 1
+          fi
+
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ${{ runner.temp }}/release.keystore
@@ -96,4 +113,4 @@ jobs:
         with:
           files: artifacts/*.apk
           body: |
-            See [CHANGELOG.md](${{ github.server_url }}/${{ github.repository }}/blob/main/app-android/CHANGELOG.md) for full release notes.
+            See [CHANGELOG.md](${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/app-android/CHANGELOG.md) for full release notes.
