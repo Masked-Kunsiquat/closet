@@ -168,3 +168,15 @@ The regex date parser in `ChatRouter` intentionally handles only unambiguous pat
 - Scope to the `full` flavor only; FOSS falls back to the existing strict regex path.
 - ~1.5 MB model download via Play Services on first use.
 - Drop-in replacement for the date-parsing branch inside `ChatRouter` — no changes needed to the DAO queries or the rest of the router.
+
+### Phase 2 — ML Kit Language Identification as a router guard
+
+The `ChatRouter` pattern-matching is written for English. A non-English query that partially overlaps an English pattern (e.g. a French query containing "worn") could trigger a false-positive match and return wrong data. [ML Kit Language ID](https://developers.google.com/ml-kit/language/identification) can gate the router: if the detected language is not English with sufficient confidence, skip pattern matching entirely and fall through to RAG.
+
+**When to consider it:** if the app ships to non-English locales or if user testing surfaces false-positive router matches on multilingual input.
+
+**Implementation notes:**
+- Uses `com.google.mlkit:language-id` — on-device, no network call, ~900 KB model bundled at install time.
+- Works on all devices and API levels; no GMS or AICore requirement. Can be added to both `full` and `foss` flavors.
+- One call site: a single `languageIdentifier.identifyLanguage(message)` check at the top of `ChatRouter.route()` before any regex is evaluated.
+- Threshold suggestion: only proceed with routing if the top language tag is `"en"` with confidence ≥ 0.7; everything else is `Unrouted`.
