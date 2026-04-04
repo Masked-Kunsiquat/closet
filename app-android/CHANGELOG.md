@@ -39,6 +39,23 @@ touching the RAG pipeline — faster, zero token cost, fully offline.
 - **Routed responses skip history** — `WithStat` answers are data facts, not
   conversational turns; they don't pollute the rolling history so follow-up
   questions continue to reach RAG naturally.
+- **ML Kit Language ID router guard** — `com.google.mlkit:language-id` (bundled,
+  ~900 KB, no Play Services required) gates the router on English-only input.
+  Non-English queries and low-confidence detections (< 0.7) skip pattern matching
+  and fall through to RAG. Works on both `full` and `foss` flavors.
+- **ML Kit Entity Extraction date parser** (`full` flavor) — `ChatDateParser` uses
+  the English entity extraction model (~5.6 MB, downloaded via Play Services on
+  first use) to handle natural date expressions ("yesterday", "last Monday",
+  "3 days ago") that the regex parser cannot handle; FOSS flavor uses regex only.
+  `setReferenceTime` is passed on every call so relative expressions resolve
+  correctly against the current moment.
+- **Extended router — 8 patterns total** — five additional intents beyond the
+  original three:
+  - "What have I never worn?" → `getItemsNeverWorn()`
+  - "What's in my laundry?" / "What needs washing?" → `getItemsNeedingWash()`
+  - "What did I wear last?" → `getMostRecentLog()`
+  - "How many items do I own?" → `getItemCount()`
+  - "What's my most worn item?" → `getMostWornItem()`
 
 ---
 
