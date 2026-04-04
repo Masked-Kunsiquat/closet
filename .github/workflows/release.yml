@@ -1,0 +1,99 @@
+name: Release
+
+# Builds signed Full and FOSS release APKs and publishes a GitHub Release.
+# Only fires on version tags (v*) — and only when that tag points to a commit
+# on main (enforced by the verify job).
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+
+  # ── 1. Guard ────────────────────────────────────────────────────────────────
+  # Abort early if the tag was pushed from a branch other than main.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Confirm tag is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "::error::Tag ${{ github.ref_name }} does not point to a commit on main. Aborting."
+            exit 1
+          fi
+
+  # ── 2. Build (parallel matrix) ──────────────────────────────────────────────
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - flavor: full
+            task: assembleFullRelease
+          - flavor: foss
+            task: assembleFossRelease
+
+    defaults:
+      run:
+        working-directory: app-android
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > ${{ runner.temp }}/release.keystore
+
+      - name: Build ${{ matrix.flavor }} release APK
+        env:
+          KEYSTORE_FILE_PATH: ${{ runner.temp }}/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew ${{ matrix.task }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hangr-${{ matrix.flavor }}-${{ github.ref_name }}
+          path: app-android/app/build/outputs/apk/${{ matrix.flavor }}/release/hangr-${{ matrix.flavor }}-*.apk
+          retention-days: 7
+
+  # ── 3. Publish GitHub Release ───────────────────────────────────────────────
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.apk
+          body: |
+            See [CHANGELOG.md](${{ github.server_url }}/${{ github.repository }}/blob/main/app-android/CHANGELOG.md) for full release notes.
