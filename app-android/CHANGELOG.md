@@ -10,6 +10,40 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.5.0] — 2026-04-04
+
+Phase 1 of the chat enhancement roadmap: multi-turn conversation history,
+a "New chat" action, and a hardened JSON parsing pipeline for AI responses.
+
+### Added
+- **Multi-turn conversation history** — `ChatViewModel` maintains a rolling
+  6-turn (3-exchange) history; each successful response appends user + assistant
+  turns, failed attempts never pollute context. History is never persisted — it
+  lives only for the duration of the session.
+- **History threading through providers** — `ChatAiProvider.chat()` now accepts
+  `history: List<ConversationTurn>`; `AnthropicChatProvider`, `OpenAiChatProvider`,
+  and `GeminiChatProvider` map it to their respective message-array formats.
+  `NanoChatProvider` flattens the last 1 exchange (2 turns) as a text prefix inside
+  the single-string prompt to stay within Nano's character budget.
+- **Context block sent once** — `ChatRepository` injects the wardrobe context block
+  only in the system preamble; subsequent history turns never re-include it, keeping
+  token cost flat across multi-turn sessions.
+- **"New chat" action** — top bar edit icon clears conversation history and message
+  list; guarded by an `AlertDialog` confirmation so accidental taps don't lose context.
+- **`ConversationTurn`** value class in `core/data/ai/` with a provider-agnostic
+  `Role` enum (`User` / `Assistant`).
+
+### Fixed
+- **Gemini prose responses** — added `"generationConfig":{"responseMimeType":"application/json"}`
+  to every Gemini request so the API enforces JSON output at the model level, preventing
+  the provider from returning plain text that crashes the parser.
+- **`ChatResponseParser` fallback** — parser now strips markdown code fences and
+  extracts the outermost `{…}` block from surrounding prose before attempting to
+  parse, so a stray non-JSON response degrades gracefully rather than throwing
+  `JsonDecodingException`.
+
+---
+
 ## [0.4.0] — 2026-04-04
 
 Phase 4 of the image pipeline: automatic compression of incoming photos, segmented
@@ -324,7 +358,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.1.2...v0.2.0
