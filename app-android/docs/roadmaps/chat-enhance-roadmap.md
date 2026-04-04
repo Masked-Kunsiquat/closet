@@ -56,7 +56,7 @@ Start with exactly these three patterns — don't grow this list speculatively:
 
 ### Repository
 
-- [ ] `ChatRepository.query()` checks `ChatRouter` first; on `Routed` result, package it into a `ChatResponse` and return early without calling the encoder or provider
+- [x] `ChatRepository.query()` checks `ChatRouter` first; on `Routed` result, package it into a `ChatResponse` and return early without calling the encoder or provider
 
 ### New response type — stat card
 

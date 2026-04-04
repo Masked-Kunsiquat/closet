@@ -13,10 +13,15 @@ import javax.inject.Singleton
 
 /**
  * Orchestrates the full RAG query pipeline:
- * encode query → retrieve top-K items → build context block → call AI provider.
+ * route → (if unrouted) encode query → retrieve top-K items → build context block → call AI provider.
+ *
+ * [ChatRouter] is checked first. On a [ChatRouter.RouterResult.Routed] result the response is
+ * returned immediately — the encoder, index, and provider are never touched. This keeps routed
+ * responses zero-token-cost and fully offline.
  */
 @Singleton
 class ChatRepository @Inject constructor(
+    private val router: ChatRouter,
     private val encoder: EmbeddingEncoder,
     private val index: EmbeddingIndex,
     private val clothingDao: ClothingDao,
@@ -27,6 +32,12 @@ class ChatRepository @Inject constructor(
         history: List<ConversationTurn> = emptyList(),
     ): Result<ChatResponse> {
         return try {
+            // Router check — short-circuits the RAG pipeline for stat queries.
+            when (val routed = router.route(userMessage)) {
+                is ChatRouter.RouterResult.Routed -> return Result.success(routed.response)
+                is ChatRouter.RouterResult.Unrouted -> Unit
+            }
+
             val queryVec = encoder.encode(userMessage).getOrElse {
                 if (it is CancellationException) throw it
                 return Result.failure(it)
