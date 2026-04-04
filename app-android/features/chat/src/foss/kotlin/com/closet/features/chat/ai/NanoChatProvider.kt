@@ -2,6 +2,7 @@ package com.closet.features.chat.ai
 
 import com.closet.core.data.ai.ChatAiProvider
 import com.closet.core.data.ai.ChatResponse
+import com.closet.core.data.ai.ConversationTurn
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,8 +25,11 @@ class NanoChatProvider @Inject constructor(
     private val json: Json,
 ) : ChatAiProvider {
 
-    override suspend fun chat(userMessage: String, context: String): Result<ChatResponse> =
-        Result.failure(
-            UnsupportedOperationException("Gemini Nano is not available in the FOSS build")
-        )
+    override suspend fun chat(
+        userMessage: String,
+        context: String,
+        history: List<ConversationTurn>,
+    ): Result<ChatResponse> = Result.failure(
+        UnsupportedOperationException("Gemini Nano is not available in the FOSS build")
+    )
 }

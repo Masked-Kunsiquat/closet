@@ -29,7 +29,7 @@ object ChatResponseParser {
      * or `text` fields, or structurally malformed. Providers wrap this in [runCatching].
      */
     fun parse(responseText: String): Result<ChatResponse> = runCatching {
-        val obj = json.parseToJsonElement(responseText.trim()).jsonObject
+        val obj = json.parseToJsonElement(extractJson(responseText)).jsonObject
         val type = obj["type"]?.jsonPrimitive?.content ?: error("missing 'type' field in chat response")
         val text = obj["text"]?.jsonPrimitive?.content ?: error("missing 'text' field in chat response")
 
@@ -64,5 +64,40 @@ object ChatResponseParser {
             }
             else -> ChatResponse.Text(text)   // "text" + unknown types
         }
+    }
+
+    /**
+     * Best-effort extraction of a JSON object from [raw].
+     *
+     * Handles three cases:
+     * 1. Already valid JSON — returned as-is after trimming.
+     * 2. JSON wrapped in a markdown code fence (```json … ```) — the inner block is extracted.
+     * 3. Prose with an embedded `{…}` object — the outermost braces are extracted.
+     *
+     * If none of the above yield a parseable result the original trimmed string is returned
+     * and the caller's [runCatching] will surface the [JsonDecodingException] naturally.
+     */
+    private fun extractJson(raw: String): String {
+        val trimmed = raw.trim()
+
+        // 1. Already starts with '{' — fast path.
+        if (trimmed.startsWith("{")) return trimmed
+
+        // 2. Markdown code fence: ```json\n{…}\n``` or ```\n{…}\n```
+        val fenceContent = trimmed
+            .removePrefix("```json").removePrefix("```")
+            .trimStart()
+        if (fenceContent.startsWith("{")) {
+            val end = fenceContent.lastIndexOf("```")
+            return if (end > 0) fenceContent.substring(0, end).trim() else fenceContent.trim()
+        }
+
+        // 3. Extract outermost { … } from prose.
+        val start = trimmed.indexOf('{')
+        val end = trimmed.lastIndexOf('}')
+        if (start >= 0 && end > start) return trimmed.substring(start, end + 1)
+
+        // Nothing found — let the caller's runCatching handle the parse failure.
+        return trimmed
     }
 }

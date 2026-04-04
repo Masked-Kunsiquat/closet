@@ -24,10 +24,18 @@ interface ChatAiProvider {
      * listing the top-K retrieved items with their IDs, names, wear counts, and metadata.
      * The system prompt instructs the model to reference only IDs present in this block.
      *
+     * [history] is an optional rolling list of prior turns (capped to the last 3 exchanges
+     * by the caller). Providers map this to their native message-array format; Nano
+     * flattens the last 1 exchange into the single-string prompt.
+     *
      * @return [Result.success] with a parsed [ChatResponse], or [Result.failure] on any
      *         error (key missing, HTTP error, JSON parse failure). Never throws.
      */
-    suspend fun chat(userMessage: String, context: String): Result<ChatResponse>
+    suspend fun chat(
+        userMessage: String,
+        context: String,
+        history: List<ConversationTurn> = emptyList(),
+    ): Result<ChatResponse>
 }
 
 /** Structured response returned by every [ChatAiProvider] implementation. */

@@ -4,6 +4,7 @@ import com.closet.core.data.ai.ChatAiProvider
 import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
+import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
@@ -51,7 +52,11 @@ class OpenAiChatProvider @Inject constructor(
         internal const val DEFAULT_MODEL = "gpt-4o-mini"
     }
 
-    override suspend fun chat(userMessage: String, context: String): Result<ChatResponse> {
+    override suspend fun chat(
+        userMessage: String,
+        context: String,
+        history: List<ConversationTurn>,
+    ): Result<ChatResponse> {
         val apiKey = aiPreferencesRepository.getOpenAiApiKey().first()
         if (apiKey.isBlank()) {
             return Result.failure(IllegalStateException("OpenAI-compatible API key is not configured"))
@@ -64,7 +69,7 @@ class OpenAiChatProvider @Inject constructor(
         return try {
             val rawBaseUrl = aiPreferencesRepository.getOpenAiBaseUrl().first()
             val completionsUrl = buildCompletionsUrl(rawBaseUrl)
-            val requestBody = buildRequestBody(model, systemContent, userMessage)
+            val requestBody = buildRequestBody(model, systemContent, userMessage, history)
 
             val responseText: String = client.post(completionsUrl) {
                 contentType(ContentType.Application.Json)
@@ -100,16 +105,24 @@ class OpenAiChatProvider @Inject constructor(
         return if (path.isBlank() || path == "/") "$base/v1/chat/completions" else "$base/chat/completions"
     }
 
-    private fun buildRequestBody(model: String, systemContent: String, userMessage: String): String =
-        buildString {
-            append("{")
-            append("\"model\":${model.asJsonString()},")
-            append("\"messages\":[")
-            append("{\"role\":\"system\",\"content\":${systemContent.asJsonString()}},")
-            append("{\"role\":\"user\",\"content\":${userMessage.asJsonString()}}")
-            append("]")
-            append("}")
+    private fun buildRequestBody(
+        model: String,
+        systemContent: String,
+        userMessage: String,
+        history: List<ConversationTurn>,
+    ): String = buildString {
+        append("{")
+        append("\"model\":${model.asJsonString()},")
+        append("\"messages\":[")
+        append("{\"role\":\"system\",\"content\":${systemContent.asJsonString()}}")
+        history.forEach { turn ->
+            val role = if (turn.role == ConversationTurn.Role.User) "user" else "assistant"
+            append(",{\"role\":\"$role\",\"content\":${turn.text.asJsonString()}}")
         }
+        append(",{\"role\":\"user\",\"content\":${userMessage.asJsonString()}}")
+        append("]")
+        append("}")
+    }
 
     private fun extractContent(responseText: String): String {
         val root = json.parseToJsonElement(responseText.trim()).jsonObject

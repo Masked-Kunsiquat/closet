@@ -3,6 +3,7 @@
     <!-- Top bar -->
     <string name="chat_title">Wardrobe Assistant</string>
     <string name="chat_powered_by">Powered by %s</string>
+    <string name="chat_new_chat">New chat</string>
 
     <!-- Welcome state -->
     <string name="chat_welcome_title">Ask me anything about\nyour wardrobe</string>
@@ -24,6 +25,12 @@
     <!-- Outfit card actions -->
     <string name="chat_action_log_it">Log it</string>
     <string name="chat_action_alternatives">Alternatives \u2192</string>
+
+    <!-- Clear chat dialog -->
+    <string name="chat_clear_dialog_title">Start new chat?</string>
+    <string name="chat_clear_dialog_message">This will clear the current conversation. This can\'t be undone.</string>
+    <string name="chat_clear_dialog_confirm">Clear</string>
+    <string name="chat_clear_dialog_cancel">Cancel</string>
 
     <!-- Index not-ready banner -->
     <string name="chat_index_building_notice">Wardrobe index still building — results may be limited</string>

@@ -4,6 +4,7 @@ import com.closet.core.data.ai.ChatAiProvider
 import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
+import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
@@ -48,7 +49,11 @@ class GeminiChatProvider @Inject constructor(
         internal const val DEFAULT_MODEL = "gemini-2.0-flash-lite"
     }
 
-    override suspend fun chat(userMessage: String, context: String): Result<ChatResponse> {
+    override suspend fun chat(
+        userMessage: String,
+        context: String,
+        history: List<ConversationTurn>,
+    ): Result<ChatResponse> {
         val apiKey = aiPreferencesRepository.getGeminiApiKey().first()
         if (apiKey.isBlank()) {
             return Result.failure(IllegalStateException("Gemini API key is not configured"))
@@ -61,7 +66,7 @@ class GeminiChatProvider @Inject constructor(
         val systemInstruction = "${ChatPromptPrefix.SYSTEM_PROMPT}\n\n$context"
 
         return try {
-            val requestBody = buildRequestBody(systemInstruction, userMessage)
+            val requestBody = buildRequestBody(systemInstruction, userMessage, history)
 
             val responseText: String = client.post(endpoint) {
                 contentType(ContentType.Application.Json)
@@ -80,13 +85,26 @@ class GeminiChatProvider @Inject constructor(
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private fun buildRequestBody(systemInstruction: String, userMessage: String): String =
-        buildString {
-            append("{")
-            append("\"system_instruction\":{\"parts\":[{\"text\":${systemInstruction.asJsonString()}}]},")
-            append("\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":${userMessage.asJsonString()}}]}]")
-            append("}")
+    private fun buildRequestBody(
+        systemInstruction: String,
+        userMessage: String,
+        history: List<ConversationTurn>,
+    ): String = buildString {
+        append("{")
+        append("\"system_instruction\":{\"parts\":[{\"text\":${systemInstruction.asJsonString()}}]},")
+        append("\"generationConfig\":{\"responseMimeType\":\"application/json\"},")
+        append("\"contents\":[")
+        history.forEachIndexed { i, turn ->
+            // Gemini uses "model" for assistant turns, not "assistant"
+            val role = if (turn.role == ConversationTurn.Role.User) "user" else "model"
+            if (i > 0) append(",")
+            append("{\"role\":\"$role\",\"parts\":[{\"text\":${turn.text.asJsonString()}}]}")
         }
+        if (history.isNotEmpty()) append(",")
+        append("{\"role\":\"user\",\"parts\":[{\"text\":${userMessage.asJsonString()}}]}")
+        append("]")
+        append("}")
+    }
 
     private fun extractText(responseText: String): String {
         val root = json.parseToJsonElement(responseText.trim()).jsonObject
