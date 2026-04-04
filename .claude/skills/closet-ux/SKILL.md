@@ -10,73 +10,79 @@ allowed-tools: Read, Grep, Glob
 Personal, calm, well-crafted. This is a wardrobe app — it should feel like opening a well-organized closet, not a spreadsheet. Clean over clever. Functional over decorative.
 
 ## Theming
-- **Dark mode by default**
-- Design tokens for all colors, spacing, typography — never hardcode values
-- Accent color themes: coral, ocean, etc. (user-selectable)
-- Consistent spacing scale — don't freehand margins/padding
+- **Material 3, dark-first palette**
+- Dynamic color (Material You) enabled on Android 12+
+- Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose — user-selectable
+- All color/theme tokens in `core/ui/theme/` — never hardcode colors, always use the theme
+- Consistent spacing — don't freehand margins/padding
 
 ## Typography
-- Clear hierarchy: screen title → section header → body → label → caption
-- Never mix font weights randomly — use the scale intentionally
+- Use Material 3 type scale (`MaterialTheme.typography.*`) — never hardcode font sizes
+- Clear hierarchy: `titleLarge` → `titleMedium` → `bodyMedium` → `bodySmall` → `labelSmall`
 - Labels on form fields, not just placeholders (placeholders disappear on input)
 
 ## Navigation & Screens
-Core screens:
+Bottom navigation with 5 tabs (Chat tab hidden when AI is disabled):
 - **Closet** — gallery/grid + list view, filterable/sortable
-- **Item Detail** — full item view with wear history
-- **Outfit Builder** — multi-item select, optional name, save
-- **Outfit Log / Journal** — calendar view with chips per date → tap → outfit grid
-- **Stats Dashboard** — analytics
-- **Settings** — theme, units, preferences
+- **Outfits** — outfit list, outfit builder, OOTD journal/calendar
+- **Stats** — analytics dashboard
+- **Recommendations** — outfit suggestions
+- **Chat** — RAG wardrobe chat (AI-enabled only)
+
+Additional screens reached via navigation: item detail, add/edit item form, settings, AI settings, backup/restore.
 
 ## Component Standards
 - Every list/grid must have an **empty state** — never show a blank screen
-- Loading states must be accounted for — skeletons preferred over spinners for content
-- Destructive actions (delete, status change to Sold/Donated/Lost) require confirmation
-- Forms: validate inline, not just on submit
-- Images: always show a placeholder when image is missing or loading
+- Loading states: skeletons preferred over spinners for content-heavy screens
+- Destructive actions (delete, status change to Sold/Donated/Lost) require `AlertDialog` confirmation
+- Forms: validate inline where possible, not only on submit
+- Images: always show a placeholder (`Icons.Default.Checkroom`) when image is missing or loading
 
 ## Closet Gallery
 - Grid is default, list is secondary
-- Filter/sort controls should be accessible without deep navigation
-- Items marked as favorite (`is_favorite`) get a subtle indicator — not loud
+- Filter/sort controls accessible without deep navigation
+- Items marked as favourite get a subtle indicator — not loud
+- Status badges for non-Active items (Sold, Donated, Lost)
 
 ## Item Card (Grid)
 - Image dominant
-- Item name visible
-- Subtle wear count or favorite indicator acceptable
-- Status badges for non-Active items (Sold, Donated, Lost)
+- Item name visible, truncated gracefully
+- Subtle wear count or favourite indicator acceptable
 
 ## Calendar / Journal View
 - Chips/counters per date showing outfit count
-- Tap date → outfit image grid for that day
-- OOTD should be visually distinguished
-- Empty days should look intentionally empty, not broken
+- Tap date → outfit detail sheet for that day
+- OOTD visually distinguished
+- Empty days look intentionally empty, not broken
 
 ## Stats Dashboard
-- Pie/donut charts for composition breakdowns (color, category, brand, etc.)
-- Time range filter: All Time / Past Month / Past 3 Months / Past Year
-- Most/least/never worn lists (top 10–15)
-- "X% of closet worn" as a headline stat
-- Closet total value with category breakdown
+- Vico column charts for wear breakdowns
+- Time range filter: All Time / This Month / Last 3 Months / This Year
+- Most/least/never worn lists
+- Breakdowns by category, colour, occasion
 
-## Micro-interactions & Polish
-- Swipe actions on list items are fine but must have visible affordances
-- Icon + label on nav tabs — icons alone are ambiguous
-- Haptics on meaningful actions (save, log outfit, mark OOTD)
-- Transitions should feel intentional — not instant, not sluggish
+## Chat Screen
+- Scrolling message list, auto-scrolls to latest
+- `OutfitMiniCard` for outfit suggestions (2×2 image grid + item names + reason + action row)
+- Item rail (`LazyRow` of `ItemChip`) for item-reference responses
+- Welcome screen with suggestion chips when conversation is empty
+- "Index building" notice banner when embedding index isn't ready
 
 ## Settings Screen
-- Use `SettingSelectRow` + `SelectModal` bottom sheet for all single-value picker settings (currency, temperature, week start, accent color) — no chip groups or inline toggles for selection
-- `Switch` is acceptable only for true boolean toggles (e.g. show/hide archived items)
-- Accent color row: show a color dot next to the current value in the row; show dots next to each option in the modal
-- Settings are grouped into cards by section: Appearance, Closet, Display, Calendar, About
+- Sections grouped into cards: Appearance, Wardrobe, AI, Backup, About
+- Single-value picker settings use a bottom sheet or dialog — no chip groups for selection
+- `Switch` only for true boolean toggles
+- Accent colour row: show colour dot next to current value
+
+## Micro-interactions & Polish
+- Haptics on meaningful actions (save, log outfit, mark OOTD)
+- Transitions intentional — not instant, not sluggish
+- Icons from `Icons.Default.*` or `Icons.Outlined.*` (Material Icons) — no custom icon strings
 
 ## Things to Avoid
 - Overloading any single screen with too many actions
 - Hiding primary actions in menus when they're used frequently
-- Inconsistent spacing or random font sizes
+- Hardcoded colors — always use `MaterialTheme.colorScheme.*`
 - Showing raw database IDs or technical strings to the user
-- Alert dialogs for non-destructive actions
+- `AlertDialog` for non-destructive actions
 - Placeholder-only form fields
-- Chip groups for single-value selection in Settings — use `SettingSelectRow` instead

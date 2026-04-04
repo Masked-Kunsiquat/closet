@@ -7,63 +7,69 @@ description: Write database migrations and seed data for the Closet app. Use whe
 
 ## Migration Conventions
 
-### File Naming
-Sequential, zero-padded, stored in `db/migrations/`:
-```
-db/migrations/001_initial_schema.ts
-db/migrations/002_add_icon_columns.ts
-```
+Full conventions and checklist: `app-android/core/data/src/main/kotlin/com/closet/core/data/migrations/AGENTS.md`
 
-### Structure
-```ts
-import { SQLiteDatabase } from 'expo-sqlite';
+### Key Rules
+- Migrations live in `ClothingDatabase.kt` as `Migration(from, to)` objects passed to `addMigrations()`
+- Never edit an applied migration — add a new one
+- Current DB version: **6**
+- Room schema JSON exported to `core/data/schemas/` — commit it alongside every migration
+- Run migration tests before any PR that touches the schema: `./gradlew connectedAndroidTest`
 
-export default {
-  version: 2,
-  async up(db: SQLiteDatabase) {
-    await db.execAsync(`
-      ALTER TABLE categories ADD COLUMN icon TEXT;
-    `);
-  },
-};
+### Every migration must start with:
+```kotlin
+override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+    // ... rest of migration
+}
 ```
 
-### Rules
-- Never skip version numbers
-- Never edit an already-applied migration — create a new one
-- Wrap multi-statement migrations in a transaction
-- Track applied migrations in a `schema_migrations` table:
-  ```sql
-  CREATE TABLE IF NOT EXISTS schema_migrations (
-    version INTEGER PRIMARY KEY,
-    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  ```
+### Migration Template
+```kotlin
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+        db.execSQL("ALTER TABLE clothing_items ADD COLUMN new_column TEXT")
+    }
+}
+```
+
+### OOTD Partial Index
+Lives in `ClothingDatabase.onOpen()`, not `onCreate()` or any migration:
+```kotlin
+override fun onOpen(db: SupportSQLiteDatabase) {
+    db.execSQL("PRAGMA foreign_keys = ON")
+    db.execSQL("""
+        CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day
+        ON outfit_logs(date) WHERE is_ootd = 1
+    """)
+}
+```
 
 ---
 
 ## Seed Data Conventions
 - All inserts use `INSERT OR IGNORE` — seeds must be idempotent
 - Never use `INSERT OR REPLACE` (breaks foreign key references via row ID change)
-- Seeds run after all migrations are applied
+- Seeds run in `DatabaseSeeder` on `onCreate` only
 - Values must match the canonical reference below exactly
 
-### Seed Template
-```ts
-export async function seedSeasons(db: SQLiteDatabase) {
-  const rows = [
-    { name: 'Spring', icon: 'flower' },
-    { name: 'Summer', icon: 'sun' },
-    { name: 'Fall', icon: 'leaf' },
-    { name: 'Winter', icon: 'snowflake' },
-    { name: 'All Season', icon: 'thermometer' },
-  ];
-  for (const row of rows) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)`,
-      [row.name, row.icon]
-    );
-  }
+### Seed Template (Kotlin)
+```kotlin
+private fun seedSeasons(db: SupportSQLiteDatabase) {
+    val seasons = listOf(
+        "Spring" to "flower",
+        "Summer" to "sun",
+        "Fall" to "leaf",
+        "Winter" to "snowflake",
+        "All Season" to "thermometer",
+    )
+    seasons.forEach { (name, icon) ->
+        db.execSQL(
+            "INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)",
+            arrayOf(name, icon)
+        )
+    }
 }
 ```
 
@@ -71,43 +77,27 @@ export async function seedSeasons(db: SQLiteDatabase) {
 
 ## Canonical Seed Values
 
-See [reference.md](reference.md) for the full seed tables.
+See [reference.md](reference.md) for full materials, patterns, subcategories, and size systems.
 
-### Quick reference — Categories
-| Name | Icon | sort_order |
-|------|------|------------|
-| Tops | `t-shirt` | 1 |
-| Bottoms | `pants` | 2 |
-| Outerwear | `hoodie` | 3 |
-| Dresses & Jumpsuits | `dress` | 4 |
-| Footwear | `sneaker` | 5 |
-| Accessories | `watch` | 6 |
-| Bags | `handbag` | 7 |
-| Activewear | `person-simple-running` | 8 |
-| Underwear & Intimates | `sock` | 9 |
-| Swimwear | `goggles` | 10 |
+### Categories
+| Name | sort_order |
+|------|------------|
+| Tops | 1 |
+| Bottoms | 2 |
+| Outerwear | 3 |
+| Dresses & Jumpsuits | 4 |
+| Footwear | 5 |
+| Accessories | 6 |
+| Bags | 7 |
+| Activewear | 8 |
+| Underwear & Intimates | 9 |
+| Swimwear | 10 |
 
-### Quick reference — Seasons
-| Name | Icon |
-|------|------|
-| Spring | `flower` |
-| Summer | `sun` |
-| Fall | `leaf` |
-| Winter | `snowflake` |
-| All Season | `thermometer` |
+### Seasons
+Spring, Summer, Fall, Winter, All Season
 
-### Quick reference — Occasions
-| Name | Icon |
-|------|------|
-| Casual | `coffee` |
-| Work/Business | `briefcase` |
-| Formal | `crown-simple` |
-| Athletic | `barbell` |
-| Loungewear | `couch` |
-| Date Night | `heart` |
-| Vacation | `island` |
-| Outdoor/Hiking | `mountains` |
-| Special Occasion | `cheers` |
+### Occasions
+Casual, Work/Business, Formal, Athletic, Loungewear, Date Night, Vacation, Outdoor/Hiking, Special Occasion
 
 ---
 
@@ -116,4 +106,5 @@ See [reference.md](reference.md) for the full seed tables.
 - Do not use absolute image paths anywhere, even as examples
 - Do not skip `INSERT OR IGNORE`
 - Do not add columns without a migration
-- Do not invent icon names — use only values from the Icon Selections reference
+- Do not forget to `DROP INDEX IF EXISTS one_ootd_per_day` at the top of every migration
+- Do not put the OOTD index in a migration or `onCreate` — it belongs in `onOpen` only
