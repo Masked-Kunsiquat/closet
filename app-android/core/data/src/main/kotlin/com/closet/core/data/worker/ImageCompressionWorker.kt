@@ -9,6 +9,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.ClothingDao
+import com.closet.core.data.repository.StorageRepository.Companion.IMAGES_DIR_NAME
 import com.closet.core.data.repository.StorageRepository.Companion.JPEG_QUALITY
 import com.closet.core.data.repository.StorageRepository.Companion.MAX_DIMENSION
 import com.closet.core.data.worker.ImageCompressionWork.KEY_DONE
@@ -37,7 +38,7 @@ import java.io.IOException
  * 3. Re-encode to a temp file, then atomically replace the original **only if the temp is smaller**.
  *    Same filename → no database update required.
  *
- * Format policy: JPEG for `.jpg` files, WEBP_LOSSY (API 30+) / PNG for alpha-channel files.
+ * Format policy: extension-first — JPEG for `.jpg`, PNG for `.png`, WEBP_LOSSY/LOSSLESS for `.webp` (API 30+).
  *
  * Scheduled as a one-time job by [ImageCompressionScheduler.schedule] on every app start
  * (idle + battery-not-low, 30 s initial delay, KEEP policy). Can also be triggered immediately
@@ -56,7 +57,8 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val imagesDir = File(applicationContext.filesDir, "closet_images")
+        val imagesDir = File(applicationContext.filesDir, IMAGES_DIR_NAME)
+        val imagesDirCanonical = imagesDir.canonicalPath + File.separator
         val paths = clothingDao.getAllImagePaths()
         val total = paths.size
 
@@ -75,6 +77,12 @@ class ImageCompressionWorker @AssistedInject constructor(
             setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_SKIPPED to skipped, KEY_FAILED to failed))
 
             val file = File(imagesDir, relativePath)
+            // Reject any path that escapes closet_images/ via absolute paths or ../ traversal.
+            if (!file.canonicalPath.startsWith(imagesDirCanonical)) {
+                Timber.tag(TAG).w("Path escapes images dir, skipping: %s", relativePath)
+                skipped++
+                continue
+            }
             if (!file.exists()) {
                 skipped++
                 continue
@@ -164,22 +172,28 @@ class ImageCompressionWorker @AssistedInject constructor(
     }
 
     /**
-     * Picks the best [Bitmap.CompressFormat] for a file, keeping the original format where possible.
+     * Picks the best [Bitmap.CompressFormat] to re-encode a file, keeping the original extension
+     * as the primary discriminator so the file's container format never changes.
      *
-     * - `.jpg` → JPEG (lossy, no alpha)
-     * - `.webp` without alpha on API 30+ → WEBP_LOSSY (lossy is fine, no transparency to degrade)
-     * - `.webp` with alpha on API 30+, or `.png` with alpha → WEBP_LOSSLESS / PNG to preserve edges
-     * - Everything else → PNG fallback
+     * - `.jpg` / `.jpeg` → JPEG
+     * - `.png`           → PNG (always, regardless of alpha — keeps lossless semantics)
+     * - `.webp`          → WEBP_LOSSY (no alpha, API 30+) or WEBP_LOSSLESS (alpha, API 30+)
+     *                       or PNG fallback on API < 30
+     * - unknown          → PNG fallback
      */
-    private fun formatFor(ext: String, hasAlpha: Boolean): Bitmap.CompressFormat = when {
-        ext == "jpg" || ext == "jpeg" -> Bitmap.CompressFormat.JPEG
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && ext == "webp" && !hasAlpha -> {
-            @Suppress("NewApi")
-            Bitmap.CompressFormat.WEBP_LOSSY
-        }
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && hasAlpha -> {
-            @Suppress("NewApi")
-            Bitmap.CompressFormat.WEBP_LOSSLESS
+    private fun formatFor(ext: String, hasAlpha: Boolean): Bitmap.CompressFormat = when (ext) {
+        "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
+        "png" -> Bitmap.CompressFormat.PNG
+        "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (hasAlpha) {
+                @Suppress("NewApi")
+                Bitmap.CompressFormat.WEBP_LOSSLESS
+            } else {
+                @Suppress("NewApi")
+                Bitmap.CompressFormat.WEBP_LOSSY
+            }
+        } else {
+            Bitmap.CompressFormat.PNG
         }
         else -> Bitmap.CompressFormat.PNG
     }

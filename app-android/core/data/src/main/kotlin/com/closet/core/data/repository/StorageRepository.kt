@@ -26,9 +26,10 @@ class StorageRepository @Inject constructor(
     companion object {
         const val MAX_DIMENSION = 1600
         const val JPEG_QUALITY = 85
+        const val IMAGES_DIR_NAME = "closet_images"
     }
 
-    private val imagesDir = File(context.filesDir, "closet_images").apply {
+    private val imagesDir = File(context.filesDir, IMAGES_DIR_NAME).apply {
         if (!exists()) mkdirs()
     }
 
