@@ -57,7 +57,7 @@ import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 
 // ─── DropdownSelector ────────────────────────────────────────────────────────
 
@@ -261,7 +261,7 @@ internal fun DatePickerField(
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = selectedDate
-                ?.atStartOfDay(ZoneId.systemDefault())
+                ?.atStartOfDay(ZoneOffset.UTC)
                 ?.toInstant()
                 ?.toEpochMilli()
         )
@@ -271,7 +271,7 @@ internal fun DatePickerField(
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
                         val date = Instant.ofEpochMilli(it)
-                            .atZone(ZoneId.systemDefault())
+                            .atZone(ZoneOffset.UTC)
                             .toLocalDate()
                         onDateChange(date)
                     }
