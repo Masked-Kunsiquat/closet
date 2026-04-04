@@ -1,6 +1,7 @@
 package com.closet.features.chat
 
 import com.closet.core.data.ai.ChatResponse
+import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.util.EmbeddingEncoder
@@ -21,7 +22,10 @@ class ChatRepository @Inject constructor(
     private val clothingDao: ClothingDao,
     private val providerSelector: ChatAiProviderSelector,
 ) {
-    suspend fun query(userMessage: String): Result<ChatResponse> {
+    suspend fun query(
+        userMessage: String,
+        history: List<ConversationTurn> = emptyList(),
+    ): Result<ChatResponse> {
         return try {
             val queryVec = encoder.encode(userMessage).getOrElse {
                 if (it is CancellationException) throw it
@@ -34,12 +38,14 @@ class ChatRepository @Inject constructor(
                 val detailMap = clothingDao.getItemDetailsByIds(itemIds).associateBy { it.item.id }
                 itemIds.mapNotNull { detailMap[it] }   // restore cosine-similarity rank
             }
+            // Context is built once and injected into the provider's system message only.
+            // History turns are passed separately — providers never re-inject context per turn.
             val context = buildContextBlock(items)
             val provider = providerSelector.current().getOrElse {
                 if (it is CancellationException) throw it
                 return Result.failure(it)
             }
-            val chatResult = provider.chat(userMessage, context)
+            val chatResult = provider.chat(userMessage, context, history)
             chatResult.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             chatResult
         } catch (e: Exception) {
