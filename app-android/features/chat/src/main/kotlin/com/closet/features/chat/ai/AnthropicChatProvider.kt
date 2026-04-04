@@ -4,6 +4,7 @@ import com.closet.core.data.ai.ChatAiProvider
 import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
+import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
@@ -52,7 +53,11 @@ class AnthropicChatProvider @Inject constructor(
         private const val MAX_OUTPUT_TOKENS = 1024
     }
 
-    override suspend fun chat(userMessage: String, context: String): Result<ChatResponse> {
+    override suspend fun chat(
+        userMessage: String,
+        context: String,
+        history: List<ConversationTurn>,
+    ): Result<ChatResponse> {
         val apiKey = aiPreferencesRepository.getAnthropicApiKey().first()
         if (apiKey.isBlank()) {
             return Result.failure(IllegalStateException("Anthropic API key is not configured"))
@@ -64,7 +69,7 @@ class AnthropicChatProvider @Inject constructor(
         val systemPrompt = "${ChatPromptPrefix.SYSTEM_PROMPT}\n\n$context"
 
         return try {
-            val requestBody = buildRequestBody(model, systemPrompt, userMessage)
+            val requestBody = buildRequestBody(model, systemPrompt, userMessage, history)
 
             val responseText: String = client.post(MESSAGES_ENDPOINT) {
                 contentType(ContentType.Application.Json)
@@ -84,17 +89,25 @@ class AnthropicChatProvider @Inject constructor(
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private fun buildRequestBody(model: String, systemPrompt: String, userMessage: String): String =
-        buildString {
-            append("{")
-            append("\"model\":${model.asJsonString()},")
-            append("\"max_tokens\":$MAX_OUTPUT_TOKENS,")
-            append("\"system\":${systemPrompt.asJsonString()},")
-            append("\"messages\":[")
-            append("{\"role\":\"user\",\"content\":${userMessage.asJsonString()}}")
-            append("]")
-            append("}")
+    private fun buildRequestBody(
+        model: String,
+        systemPrompt: String,
+        userMessage: String,
+        history: List<ConversationTurn>,
+    ): String = buildString {
+        append("{")
+        append("\"model\":${model.asJsonString()},")
+        append("\"max_tokens\":$MAX_OUTPUT_TOKENS,")
+        append("\"system\":${systemPrompt.asJsonString()},")
+        append("\"messages\":[")
+        history.forEach { turn ->
+            val role = if (turn.role == ConversationTurn.Role.User) "user" else "assistant"
+            append("{\"role\":\"$role\",\"content\":${turn.text.asJsonString()}},")
         }
+        append("{\"role\":\"user\",\"content\":${userMessage.asJsonString()}}")
+        append("]")
+        append("}")
+    }
 
     private fun extractText(responseText: String): String {
         val root = json.parseToJsonElement(responseText.trim()).jsonObject

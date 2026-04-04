@@ -4,6 +4,7 @@ import com.closet.core.data.ai.ChatAiProvider
 import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
+import com.closet.core.data.ai.ConversationTurn
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.TextPart
@@ -38,7 +39,11 @@ class NanoChatProvider @Inject constructor(
         private const val TAG = "NanoChatProvider"
     }
 
-    override suspend fun chat(userMessage: String, context: String): Result<ChatResponse> {
+    override suspend fun chat(
+        userMessage: String,
+        context: String,
+        history: List<ConversationTurn>,
+    ): Result<ChatResponse> {
         val status = try {
             model.checkStatus()
         } catch (e: Exception) {
@@ -54,7 +59,16 @@ class NanoChatProvider @Inject constructor(
         }
 
         return try {
-            val prompt = "${ChatPromptPrefix.SYSTEM_PROMPT}\n\nContext:\n$context\n\nUser: $userMessage"
+            // Nano's Prompt API is single-string only — prepend the last 1 exchange (2 turns)
+            // as a formatted text block rather than a message array.
+            val historyPrefix = history.takeLast(2)
+                .takeIf { it.isNotEmpty() }
+                ?.joinToString(separator = "\n", postfix = "\n\n") { turn ->
+                    val label = if (turn.role == ConversationTurn.Role.User) "User" else "Assistant"
+                    "$label: ${turn.text}"
+                }
+                .orEmpty()
+            val prompt = "${ChatPromptPrefix.SYSTEM_PROMPT}\n\nContext:\n$context\n\n${historyPrefix}User: $userMessage"
             val response = model.generateContent(
                 generateContentRequest(TextPart(prompt)) {
                     temperature = 0.2f
