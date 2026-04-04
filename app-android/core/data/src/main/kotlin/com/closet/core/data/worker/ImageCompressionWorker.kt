@@ -113,6 +113,9 @@ class ImageCompressionWorker @AssistedInject constructor(
         if (file.length() > MAX_FILE_BYTES) return true
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, opts)
+        if (opts.outWidth <= 0 || opts.outHeight <= 0) {
+            throw IOException("Failed to decode image bounds: ${file.absolutePath}")
+        }
         return maxOf(opts.outWidth, opts.outHeight) > MAX_DIMENSION
     }
 
@@ -148,8 +151,9 @@ class ImageCompressionWorker @AssistedInject constructor(
         }
 
         val format = formatFor(file.extension.lowercase(), finalBitmap.hasAlpha())
+            ?: throw IOException("Unsupported image extension: ${file.extension}")
         val quality = if (format == Bitmap.CompressFormat.PNG) 100 else JPEG_QUALITY
-        val temp = File(file.parent, "${file.nameWithoutExtension}.tmp")
+        val temp = File.createTempFile(file.nameWithoutExtension, ".tmp", file.parentFile)
 
         try {
             temp.outputStream().use { out ->
@@ -177,11 +181,11 @@ class ImageCompressionWorker @AssistedInject constructor(
      *
      * - `.jpg` / `.jpeg` → JPEG
      * - `.png`           → PNG (always, regardless of alpha — keeps lossless semantics)
-     * - `.webp`          → WEBP_LOSSY (no alpha, API 30+) or WEBP_LOSSLESS (alpha, API 30+)
-     *                       or PNG fallback on API < 30
-     * - unknown          → PNG fallback
+     * - `.webp`          → WEBP_LOSSY (no alpha, API 30+) or WEBP_LOSSLESS (alpha, API 30+);
+     *                       null on API < 30 (caller throws IOException)
+     * - unknown          → null (caller throws IOException)
      */
-    private fun formatFor(ext: String, hasAlpha: Boolean): Bitmap.CompressFormat = when (ext) {
+    private fun formatFor(ext: String, hasAlpha: Boolean): Bitmap.CompressFormat? = when (ext) {
         "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
         "png" -> Bitmap.CompressFormat.PNG
         "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -193,8 +197,8 @@ class ImageCompressionWorker @AssistedInject constructor(
                 Bitmap.CompressFormat.WEBP_LOSSY
             }
         } else {
-            Bitmap.CompressFormat.PNG
+            null
         }
-        else -> Bitmap.CompressFormat.PNG
+        else -> null
     }
 }
