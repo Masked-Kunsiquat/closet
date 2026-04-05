@@ -89,4 +89,7 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+
+    // Unit tests
+    testImplementation(libs.junit)
 }

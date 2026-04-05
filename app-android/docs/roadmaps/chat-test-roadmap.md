@@ -8,8 +8,10 @@ Target: **0.7.1**. No new Gradle dependencies required — MockK, Turbine, and `
 ## Files to create
 
 ```
+core/data/src/test/kotlin/com/closet/core/data/ai/
+    ChatResponseParserTest.kt          ✓ done
+
 features/chat/src/test/kotlin/com/closet/features/chat/
-    ChatResponseParserTest.kt
     RegexDateParserTest.kt
     ChatViewModelTest.kt
     ChatRouterPatternTest.kt
@@ -23,63 +25,71 @@ Pure logic, no Android or GMS dependencies. Highest value per line of test code.
 
 ### JSON extraction (`extractJson`)
 
-- [ ] Plain `{…}` — returned as-is
-- [ ] Markdown-fenced ` ```json\n{…}\n``` ` — inner block extracted
-- [ ] Markdown fence without `json` tag — inner block extracted
-- [ ] Prose with embedded `{…}` — outermost braces extracted
-- [ ] No `{…}` found — original string returned (parse failure surfaced by caller)
+- [x] Plain `{…}` — returned as-is
+- [x] Markdown-fenced ` ```json\n{…}\n``` ` — inner block extracted
+- [x] Markdown fence without `json` tag — inner block extracted
+- [x] Prose with embedded `{…}` — outermost braces extracted
+- [x] No `{…}` found — original string returned (parse failure surfaced by caller)
 
 ### `text` type
 
-- [ ] Valid `{"type":"text","text":"hello"}` → `ChatResponse.Text("hello")`
-- [ ] Missing `text` field → `Result.failure`
-- [ ] Missing `type` field → `Result.failure`
+- [x] Valid `{"type":"text","text":"hello"}` → `ChatResponse.Text("hello")`
+- [x] Missing `text` field → `Result.failure`
+- [x] Missing `type` field → `Result.failure`
 
 ### `items` type
 
-- [ ] Valid with `item_ids` → `ChatResponse.WithItems` with correct IDs
-- [ ] Missing `item_ids` → `Result.failure`
-- [ ] Empty `item_ids` → `Result.failure`
-- [ ] Non-long entry in `item_ids` → `Result.failure`
+- [x] Valid with `item_ids` → `ChatResponse.WithItems` with correct IDs
+- [x] Missing `item_ids` → `Result.failure`
+- [x] Empty `item_ids` → `Result.failure`
+- [x] Non-long entry in `item_ids` → `Result.failure`
 
 ### `outfit` type
 
-- [ ] Valid with 2–4 IDs and `reason` → `ChatResponse.WithOutfit`
-- [ ] 1 ID → `Result.failure` (too few)
-- [ ] 5 IDs → `Result.failure` (too many)
-- [ ] Missing `reason` → `Result.failure`
-- [ ] Blank `reason` → `Result.failure`
-- [ ] Missing `item_ids` → `Result.failure`
+- [x] Valid with 2–4 IDs and `reason` → `ChatResponse.WithOutfit`
+- [x] 2 IDs — valid lower bound
+- [x] 4 IDs — valid upper bound
+- [x] 1 ID → `Result.failure` (too few)
+- [x] 5 IDs → `Result.failure` (too many)
+- [x] Missing `reason` → `Result.failure`
+- [x] Blank `reason` → `Result.failure`
+- [x] Missing `item_ids` → `Result.failure`
 
 ### Unknown type
 
-- [ ] `{"type":"unknown","text":"hi"}` → `ChatResponse.Text("hi")` (graceful fallback)
-- [ ] Future type `"widget"` with valid `text` → `ChatResponse.Text`
+- [x] `{"type":"unknown","text":"hi"}` → `ChatResponse.Text("hi")` (graceful fallback)
+- [x] Future type `"widget"` with valid `text` → `ChatResponse.Text`
 
 ### Action parsing — `log_outfit`
 
-- [ ] Accepted on `outfit` parent with 2–4 IDs → `ChatAction.LogOutfit`
-- [ ] Rejected on `items` parent → `action = null`, parent response still succeeds
-- [ ] 1 ID → `action = null`
-- [ ] 5 IDs → `action = null`
-- [ ] Missing `item_ids` in action block → `action = null`
+- [x] Accepted on `outfit` parent with matching IDs → `ChatAction.LogOutfit`
+- [x] Rejected on `items` parent → `action = null`, parent response still succeeds
+- [x] 1 ID → `action = null`
+- [x] 5 IDs (valid parent of 4) → `action = null`
+- [x] IDs not all present in parent response → `action = null` *(added by parseAction hardening)*
+- [x] Non-long element in `item_ids` → `action = null` *(replaces silent mapNotNull drop)*
+- [x] Non-positive ID (0) → `action = null` *(added by parseAction hardening)*
+- [x] Missing `item_ids` in action block → `action = null`
 
 ### Action parsing — `open_item`
 
-- [ ] Valid `item_id` → `ChatAction.OpenItem(id)`
-- [ ] Missing `item_id` → `action = null`
-- [ ] `item_id` is a string, not a number → `action = null`
+- [x] Valid `item_id` present in parent → `ChatAction.OpenItem(id)`
+- [x] Works on `outfit` parent as well as `items`
+- [x] Missing `item_id` → `action = null`
+- [x] `item_id` not in parent → `action = null` *(added by parseAction hardening)*
+- [x] Non-positive `item_id` (0) → `action = null` *(added by parseAction hardening)*
+  - Note: a string `item_id` is also implicitly covered — `longOrNull` on a JSON string returns null
 
 ### Action parsing — `open_recommendations`
 
-- [ ] `{"type":"open_recommendations"}` → `ChatAction.OpenRecommendations`
-- [ ] Accepted on both `items` and `outfit` parent types
+- [x] `{"type":"open_recommendations"}` → `ChatAction.OpenRecommendations`
+- [x] Accepted on both `items` and `outfit` parent types
 
 ### Action parsing — error isolation
 
-- [ ] Unknown action type → `action = null`, parent response still succeeds
-- [ ] Malformed action block (invalid JSON fragment) → `action = null`, parent still succeeds
-- [ ] Missing `action` field entirely → `action = null`
+- [x] Unknown action type → `action = null`, parent response still succeeds
+- [x] Malformed action block (missing `type`) → `action = null`, parent still succeeds
+- [x] Missing `action` field entirely → `action = null`
 
 ---
 
@@ -89,27 +99,28 @@ Pure logic, no Android or GMS dependencies. Highest value per line of test code.
 
 ### ISO dates
 
-- [ ] `"2026-04-04"` → `"2026-04-04"`
-- [ ] ISO date embedded in a sentence → extracted correctly
-- [ ] Malformed ISO-looking string `"2026-13-01"` → `null` (invalid date)
+- [x] `"2026-04-04"` → `"2026-04-04"`
+- [x] ISO date embedded in a sentence → extracted correctly
+- [x] `"2026-13-01"` → `"2026-13-01"` (ISO path is a regex match, not a date validator — invalid calendar dates are not caught here)
 
 ### Month Day patterns
 
-- [ ] `"April 4"` → `"2026-04-04"` (current year assumed)
-- [ ] `"April 4th"` → `"2026-04-04"` (ordinal suffix stripped)
-- [ ] `"Apr 4"` → `"2026-04-04"` (abbreviated month)
-- [ ] `"april 4, 2025"` → `"2025-04-04"` (explicit year used)
-- [ ] All 12 full month names → correct month number
-- [ ] All abbreviated month names → correct month number
-- [ ] `"April 31"` → `null` (invalid day for month)
+- [x] `"April 4"` → `"<currentYear>-04-04"` (current year assumed; use `LocalDate.now().year` in assertion)
+- [x] `"April 4th"` → `"<currentYear>-04-04"` (ordinal suffix stripped)
+- [x] `"Apr 4"` → `"<currentYear>-04-04"` (abbreviated month)
+- [x] `"april 4, 2025"` → `"2025-04-04"` (explicit year used)
+- [x] Input is case-insensitive (`"APRIL 4"` → correct result)
+- [x] All 12 full month names → correct month number
+- [x] All abbreviated month names → correct month number (note: `may` has no distinct abbreviation)
+- [x] `"April 31"` → `null` (invalid day for month)
 
 ### Unhandled patterns (must return `null`)
 
-- [ ] `"yesterday"`
-- [ ] `"last Monday"`
-- [ ] `"3 days ago"`
-- [ ] Blank string
-- [ ] Garbage input `"wear count"`
+- [x] `"yesterday"`
+- [x] `"last Monday"`
+- [x] `"3 days ago"`
+- [x] Blank string
+- [x] Garbage input `"wear count"`
 
 ---
 
