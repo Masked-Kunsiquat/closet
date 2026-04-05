@@ -10,6 +10,50 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.7.1] — 2026-04-05
+
+Test coverage for Phases 1–3 of the chat enhancement roadmap, plus hardening
+of the `ChatRouter` pattern-matching logic.
+
+### Added
+- **`ChatViewModelTest`** — 14 unit tests covering message flow, rolling
+  conversation history (6-turn cap, stat responses excluded), `clearChat()`,
+  and `toAssistantMessage()` mapping for all response types. Uses
+  `UnconfinedTestDispatcher` + a `backgroundScope` collector to keep
+  `WhileSubscribed` upstream active; single-send assertions use
+  `advanceUntilIdle()` + `uiState.value` to avoid Turbine races with
+  intermediate `Thinking` emissions.
+- **`RegexDateParserTest`** — 16 unit tests for `regexParseDate()`: ISO
+  dates, all 12 full and abbreviated month names, ordinal suffixes, explicit
+  year, case-insensitivity, invalid calendar days (`April 31` → `null`), and
+  unhandled relative expressions.
+- **`ChatRouterPatternTest`** (full flavor, `src/testFull/`) — 15 unit tests
+  for `ChatRouterPatterns`: `ITEM_NAME_PATTERN` (including `wear count for`
+  and present-tense `wear` variants), `DAYS_PATTERN` (including `weekdays`
+  word-boundary guard), `WORE_ON_INTERROGATIVE_PATTERN`, and pattern-priority
+  ordering (`matchesNeverWorn` before `matchesNotWornSince`).
+- **`ChatRouterFossTest`** (FOSS flavor, `src/testFoss/`) — smoke test
+  confirming the FOSS stub always returns `Unrouted`.
+- **`ChatRouterPatterns`** internal object — regex constants and pure-logic
+  matchers (`matchItemName`, `parseDays`, `matchesWoreOnInterrogative`,
+  `matchesNeverWorn`, `matchesNotWornSince`) extracted from `ChatRouter` so
+  unit tests call the exact production logic without instantiating the
+  GMS-bound `ChatRouter` constructor.
+
+### Fixed
+- **`ITEM_NAME_PATTERN`** — extended to match `wear count for …` and
+  present-tense `"how many times did I wear …"` queries; `matchItemName()`
+  previously returned `null` for these, causing the wear-count route to fall
+  through to `Unrouted`.
+- **`DAYS_PATTERN`** — trailing `\b` added; `"5 weekdays"` no longer
+  incorrectly triggers the not-worn-since route.
+- **`matchesNeverWorn`** — broad `("never" in lower && "wear" in lower)` guard
+  replaced with `NEVER_WORN_PATTERN` regex requiring a past-tense form
+  (`worn`, `wore`, `tried on`); advice-style queries such as "never wear white
+  after labor day" no longer route to `routeNeverWorn()`.
+
+---
+
 ## [0.7.0] — 2026-04-04
 
 Phase 3 of the chat enhancement roadmap: action intents. The model can now embed
@@ -453,7 +497,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.4.0...v0.5.0
