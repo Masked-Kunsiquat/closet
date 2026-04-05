@@ -26,6 +26,11 @@
     <string name="chat_action_log_it">Log it</string>
     <string name="chat_action_alternatives">Alternatives \u2192</string>
 
+    <!-- Action intent chips -->
+    <string name="chat_action_chip_log_outfit">Log outfit</string>
+    <string name="chat_action_chip_view_item">View item</string>
+    <string name="chat_action_chip_explore_outfits">Explore outfits</string>
+
     <!-- Clear chat dialog -->
     <string name="chat_clear_dialog_title">Start new chat?</string>
     <string name="chat_clear_dialog_message">This will clear the current conversation. This can\'t be undone.</string>

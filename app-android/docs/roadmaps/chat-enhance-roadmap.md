@@ -100,8 +100,8 @@ The model can embed a suggested next action in its response. The UI surfaces it 
 
 ### Screen
 
-- [ ] Add `ActionChipRow` composable below `AssistantBubbleWithItems` and `AssistantBubbleWithOutfit` when an action is present
-- [ ] Tapping the chip calls the appropriate existing navigation lambda — no new navigation wiring needed beyond what's already in `ChatScreen`'s parameter list
+- [x] Add `ActionChipRow` composable below `AssistantBubbleWithItems` and `AssistantBubbleWithOutfit` when an action is present
+- [x] Tapping the chip calls the appropriate existing navigation lambda — no new navigation wiring needed beyond what's already in `ChatScreen`'s parameter list
 
 ### Pitfalls
 
