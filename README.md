@@ -1,6 +1,6 @@
-# Closet (Android)
+# hangr
 
-A native Android port of the **Closet** personal digital wardrobe app. Built with Kotlin and Jetpack Compose, emphasizing a local-first, privacy-focused experience.
+A native Android personal digital wardrobe app. Built with Kotlin and Jetpack Compose, emphasizing a local-first, privacy-focused experience.
 
 ## Features
 
@@ -26,6 +26,8 @@ The project follows **MVVM + Clean Architecture** principles and is modularized 
 
 ### Module Structure
 
+All app code lives in `app-android/`.
+
 - `:app`: Application entry point and navigation graph.
 - `:core:data`: Database, repositories, entities, and data models.
 - `:core:ui`: Shared design system, theme, and reusable UI components.
@@ -34,7 +36,7 @@ The project follows **MVVM + Clean Architecture** principles and is modularized 
 - `:features:stats`: Wardrobe analytics and statistics.
 - `:features:recommendations`: AI-powered outfit suggestions.
 - `:features:settings`: App configuration and AI provider management.
-- `:features:chat`: (In progress) Chat-based interaction.
+- `:features:chat`: RAG-based wardrobe chat with intent routing.
 
 ## Product Flavors
 
@@ -51,21 +53,22 @@ The app supports two distribution flavors:
 
 ### Building
 
-To build the debug APK for the full flavor:
-```bash
-./gradlew assembleFullDebug
-```
+Run all Gradle commands from the `app-android/` directory.
 
-To run unit tests:
 ```bash
-./gradlew test
+./gradlew assembleFullDebug   # full-flavor debug APK
+./gradlew assembleFossDebug   # FOSS-flavor debug APK
+./gradlew test                # unit tests
 ```
 
 ### Database Migrations
-Database migrations are strictly tracked. If you modify the schema, ensure you follow the checklist in `core/data/src/main/kotlin/com/closet/core/data/migrations/AGENTS.md` and run migration tests:
+
+Database migrations are strictly tracked. If you modify the schema, follow the checklist in `app-android/core/data/src/main/kotlin/com/closet/core/data/migrations/AGENTS.md` and run migration tests:
+
 ```bash
 ./gradlew connectedAndroidTest
 ```
 
 ## Contributing
-Refer to `CLAUDE.md` for specific development guidelines, coding standards, and architectural patterns used in this project.
+
+Refer to `app-android/CLAUDE.md` for development guidelines, coding standards, and architectural patterns.
