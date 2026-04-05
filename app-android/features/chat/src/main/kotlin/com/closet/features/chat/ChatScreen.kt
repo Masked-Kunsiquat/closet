@@ -706,7 +706,7 @@ private fun ActionChipRow(
         is ChatAction.LogOutfit -> Triple(
             stringResource(R.string.chat_action_chip_log_outfit),
             Icons.Default.Checkroom,
-            { onNavigateToLog?.invoke(action.itemIds) },
+            { onNavigateToLog?.invoke(action.itemIds) ?: Unit },
         )
         is ChatAction.OpenItem -> Triple(
             stringResource(R.string.chat_action_chip_view_item),

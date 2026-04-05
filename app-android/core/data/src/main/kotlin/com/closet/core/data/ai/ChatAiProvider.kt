@@ -46,7 +46,13 @@ interface ChatAiProvider {
  * malformed or type-mismatched actions silently (falls back to no action).
  */
 sealed interface ChatAction {
-    /** Log [itemIds] as a wear — routes through the existing log confirmation flow. */
+    /**
+     * Log [itemIds] as a wear — routes through the existing log confirmation flow.
+     *
+     * [itemIds] must contain between 2 and 4 entries (inclusive); the parser enforces
+     * this constraint and returns null for any action block that violates it. Callers
+     * constructing [LogOutfit] directly should ensure the same invariant.
+     */
     data class LogOutfit(val itemIds: List<Long>) : ChatAction
 
     /** Navigate to the detail screen for [itemId]. */

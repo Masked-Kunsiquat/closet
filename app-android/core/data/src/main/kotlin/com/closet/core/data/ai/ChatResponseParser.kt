@@ -49,7 +49,7 @@ object ChatResponseParser {
                 if (ids.isEmpty()) throw IllegalArgumentException(
                     "'item_ids' is empty in chat response (type='items')"
                 )
-                ChatResponse.WithItems(text, ids, parseAction(obj, parentType = "items"))
+                ChatResponse.WithItems(text, ids, parseAction(obj, parentType = "items", parentIds = ids))
             }
             "outfit" -> {
                 val idsElement = obj["item_ids"]
@@ -65,7 +65,7 @@ object ChatResponseParser {
                 if (reason.isNullOrBlank()) throw IllegalArgumentException(
                     "'reason' is missing or blank in outfit response"
                 )
-                ChatResponse.WithOutfit(text, ids, reason, parseAction(obj, parentType = "outfit"))
+                ChatResponse.WithOutfit(text, ids, reason, parseAction(obj, parentType = "outfit", parentIds = ids))
             }
             else -> ChatResponse.Text(text)   // "text" + unknown types
         }
@@ -78,21 +78,29 @@ object ChatResponseParser {
      * - `"log_outfit"` is only valid when [parentType] is `"outfit"` and the item count is 2–4.
      * - `"open_item"` and `"open_recommendations"` are accepted for any parent type.
      *
+     * [parentIds] is the list of item IDs from the parent response. Action IDs are validated
+     * against it: every ID in a `log_outfit` or `open_item` action must appear in [parentIds]
+     * and be a positive Long. Any mismatch returns null so the parent response still succeeds.
+     *
      * All exceptions are swallowed so a bad action block never fails the parent response.
      */
-    private fun parseAction(obj: JsonObject, parentType: String): ChatAction? = try {
+    private fun parseAction(obj: JsonObject, parentType: String, parentIds: List<Long>): ChatAction? = try {
         val actionObj = obj["action"]?.jsonObject ?: return null
-        when (val actionType = actionObj["type"]?.jsonPrimitive?.content) {
+        when (actionObj["type"]?.jsonPrimitive?.content) {
             "log_outfit" -> {
                 if (parentType != "outfit") return null
-                val ids = actionObj["item_ids"]?.jsonArray
-                    ?.mapNotNull { it.jsonPrimitive.longOrNull }
-                    ?: return null
+                val idsArray = actionObj["item_ids"]?.jsonArray ?: return null
+                val ids = idsArray.map {
+                    it.jsonPrimitive.longOrNull?.takeIf { id -> id > 0 } ?: return null
+                }
                 if (ids.size !in 2..4) return null
+                if (!parentIds.containsAll(ids)) return null
                 ChatAction.LogOutfit(ids)
             }
             "open_item" -> {
-                val itemId = actionObj["item_id"]?.jsonPrimitive?.longOrNull ?: return null
+                val itemId = actionObj["item_id"]?.jsonPrimitive?.longOrNull
+                    ?.takeIf { it > 0 } ?: return null
+                if (itemId !in parentIds) return null
                 ChatAction.OpenItem(itemId)
             }
             "open_recommendations" -> ChatAction.OpenRecommendations
