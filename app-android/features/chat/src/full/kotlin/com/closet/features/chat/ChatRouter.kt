@@ -339,8 +339,9 @@ class ChatRouter @Inject constructor(
 
         internal val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)""")
 
-        // Matches "what ... i wore on" with at most ~15 chars between "what" and "i" so that
-        // incidental uses like "what goes with what I wore on Tuesday?" don't trigger routing.
-        internal val WORE_ON_INTERROGATIVE_PATTERN = Regex("""\bwhat\b.{0,15}\bi\b\s*\bwore on\b""")
+        // Anchored at ^ so only the leading "what" is checked against the 15-char gap limit.
+        // Without the anchor, containsMatchIn() would find a second "what" mid-sentence
+        // (e.g. "what goes with what i wore on Tuesday") and incorrectly trigger routing.
+        internal val WORE_ON_INTERROGATIVE_PATTERN = Regex("""^\bwhat\b.{0,15}\bi\b\s*\bwore on\b""")
     }
 }

@@ -134,37 +134,37 @@ Fake `StorageRepository` and `EmbeddingIndex` as no-ops.
 
 ### Message flow
 
-- [ ] `sendMessage()` with blank input → no state change, no repository call
-- [ ] `sendMessage()` while `isLoading = true` → no-op (second call ignored)
-- [ ] Successful response → `Thinking` placeholder replaced by assistant message; `isLoading = false`
-- [ ] Failed response → `Thinking` replaced by `ChatMessage.Assistant.Error`; `isLoading = false`
-- [ ] Failed response → `isLoading = false` (loading not stuck)
+- [x] `sendMessage()` with blank input → no state change, no repository call
+- [x] `sendMessage()` while `isLoading = true` → no-op (second call ignored)
+- [ ] Successful response → `Thinking` placeholder replaced by assistant message; `isLoading = false` *(failing — see note)*
+- [ ] Failed response → `Thinking` replaced by `ChatMessage.Assistant.Error`; `isLoading = false` *(failing)*
+- [ ] Failed response → `isLoading = false` (loading not stuck) *(failing)*
 
 ### History — Phase 1
 
-- [ ] Successful `Text` response → `history` gains 2 turns (user + assistant)
-- [ ] Failed response → `history` unchanged
-- [ ] After 3 successful exchanges → history has 6 turns
-- [ ] After 4th successful exchange → history still 6 turns (oldest pair dropped)
+- [x] Successful `Text` response → `history` gains 2 turns (user + assistant)
+- [x] Failed response → `history` unchanged
+- [x] After 3 successful exchanges → history has 6 turns
+- [x] After 4th successful exchange → history still 6 turns (oldest pair dropped)
 - [ ] History snapshot taken before launch (in-flight message not in snapshot)
 
 ### History — Phase 2 stat responses
 
-- [ ] `WithStat` response → `history` **not** updated
+- [x] `WithStat` response → `history` **not** updated
 - [ ] Follow-up after a stat → history still reflects only non-stat turns
 
 ### `clearChat()`
 
-- [ ] `messages` list reset to empty
-- [ ] `history` reset (subsequent send passes empty history to repository)
-- [ ] `inputText` cleared
+- [ ] `messages` list reset to empty *(failing)*
+- [x] `history` reset (subsequent send passes empty history to repository)
+- [ ] `inputText` cleared *(failing — same test as above)*
 
 ### `toAssistantMessage()` mapping
 
-- [ ] `ChatResponse.Text` → `ChatMessage.Assistant.Text`
-- [ ] `ChatResponse.WithItems` with action → `ChatMessage.Assistant.WithItems` with action preserved
-- [ ] `ChatResponse.WithOutfit` with action → `ChatMessage.Assistant.WithOutfit` with action preserved
-- [ ] `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat`
+- [ ] `ChatResponse.Text` → `ChatMessage.Assistant.Text` *(failing)*
+- [ ] `ChatResponse.WithItems` with action → `ChatMessage.Assistant.WithItems` with action preserved *(failing)*
+- [ ] `ChatResponse.WithOutfit` with action → `ChatMessage.Assistant.WithOutfit` with action preserved *(failing)*
+- [ ] `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat` *(failing)*
 
 ---
 
@@ -172,35 +172,37 @@ Fake `StorageRepository` and `EmbeddingIndex` as no-ops.
 
 The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at construction time, which requires GMS. Two layers to test without instrumented setup:
 
-**Layer A — FOSS stub**: trivial but worth having as a smoke test.
+**Layer A — FOSS stub**: trivial but worth having as a smoke test. Lives in `src/testFoss/` (foss-specific unit test source set).
 
-- [ ] FOSS `ChatRouter.route(anyString)` always returns `Unrouted`
+- [x] FOSS `ChatRouter.route(anyString)` always returns `Unrouted`
 
-**Layer B — Regex/pattern helpers** (full flavor): `ITEM_NAME_PATTERN`, `DAYS_PATTERN`, and `WORE_ON_INTERROGATIVE_PATTERN` are `internal val` in `ChatRouter`'s companion object, so they are directly accessible from unit tests in the same module (`features/chat/src/test/`). Test them without constructing `ChatRouter`.
+**Layer B — Regex/pattern helpers** (full flavor): `ITEM_NAME_PATTERN`, `DAYS_PATTERN`, and `WORE_ON_INTERROGATIVE_PATTERN` are `internal val` in `ChatRouter`'s companion object. Live in `src/testFull/` (full-specific unit test source set — `src/test/` compiles for both flavors and the FOSS `ChatRouter` has no companion object).
+
+> **Regex fix applied**: `WORE_ON_INTERROGATIVE_PATTERN` was anchored with `^` to prevent `containsMatchIn` from matching on a mid-sentence "what" (e.g., `"what goes with what i wore on tuesday"`). Without the anchor the false-positive guard was broken.
 
 ### `ITEM_NAME_PATTERN`
 
-- [ ] `"how many times have i worn my grey blazer"` → captures `"grey blazer"`
-- [ ] `"how many times worn my black jeans?"` → captures `"black jeans"`
-- [ ] `"worn the white shirt"` → captures `"white shirt"`
-- [ ] `"wear count for the white shirt"` → no match (no "worn"/"how many times worn" prefix; `extractItemName` returns null, falls through to RAG)
-- [ ] Query with no item name → no match
+- [x] `"how many times have i worn my grey blazer"` → captures `"grey blazer"`
+- [x] `"how many times worn my black jeans?"` → captures `"black jeans"`
+- [x] `"worn the white shirt"` → captures `"white shirt"`
+- [x] `"wear count for the white shirt"` → no match (no "worn"/"how many times worn" prefix; `extractItemName` returns null, falls through to RAG)
+- [x] Query with no item name → no match
 
 ### `DAYS_PATTERN`
 
-- [ ] `"30 days"` → count 30, unit days → 30
-- [ ] `"2 weeks"` → count 2, unit weeks → 14
-- [ ] `"1 week"` → 7
-- [ ] `"lately"` → no match (falls back to `DEFAULT_UNWORN_DAYS`)
+- [x] `"30 days"` → count 30, unit days → 30
+- [x] `"2 weeks"` → count 2, unit weeks → 14
+- [x] `"1 week"` → 7
+- [x] `"lately"` → no match (falls back to `DEFAULT_UNWORN_DAYS`)
 
 ### `WORE_ON_INTERROGATIVE_PATTERN`
 
-- [ ] `"what did i wore on tuesday"` → matches
-- [ ] `"what goes with what i wore on tuesday"` — gap between `what` and `i` is > 15 chars → no match (false-positive guard)
+- [x] `"what did i wore on tuesday"` → matches
+- [x] `"what goes with what i wore on tuesday"` — gap between `what` and `i` is > 15 chars → no match (false-positive guard)
 
 ### Pattern priority (never-worn before not-worn-since)
 
-- [ ] `"what have i never worn"` matches `matchesNeverWorn`, not `matchesNotWornSince`
+- [x] `"what have i never worn"` matches `matchesNeverWorn`, not `matchesNotWornSince`
   - Verify by checking only `matchesNeverWorn` returns true and `matchesNotWornSince` returns false for this input
 
 ---
@@ -210,3 +212,5 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 - **`LanguageIdentification.getClient()` in `ChatRouter` constructor** — do not instantiate full-flavor `ChatRouter` in unit tests. Test patterns via the `internal` companion vals (`ChatRouter.ITEM_NAME_PATTERN`, etc.) and test routing behaviour through `ChatRepository` with a mocked router instead.
 - **`embeddingIndex.size`** — `ChatViewModel` reads this at construction; stub it to return `> 0` to put the UI into the ready state by default.
 - **History is `private`** — assert indirectly: after a known number of sends, check the `history` list passed to the mock repository on the next `sendMessage()` call via `verify { repo.query(any(), capture(slot)) }`.
+- **Flavor-specific unit test source sets** — AGP uses `src/testFull/` and `src/testFoss/` (NOT `src/fullTest/` / `src/fossTest/`) for flavor-scoped unit tests. Tasks: `testFullDebugUnitTest` / `testFossDebugUnitTest`.
+- **ChatViewModelTest scheduler mismatch (open)** — 7 tests fail: single-send tests where `awaitItem()` receives wrong state. Root cause is likely `stateIn(WhileSubscribed)` + MockK suspend stub interaction under `UnconfinedTestDispatcher`. Tests that verify history via `slot` capture (multi-send) pass fine. Needs further investigation: try `StandardTestDispatcher` + `advanceUntilIdle()`, or restructure assertions to not depend on intermediate state emissions.
