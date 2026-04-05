@@ -10,6 +10,52 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.7.0] — 2026-04-04
+
+Phase 3 of the chat enhancement roadmap: action intents. The model can now embed
+a suggested next action in its response, surfaced as a chip below the message bubble.
+Also includes bug fixes to the Phase 2 router and DAO query correctness.
+
+### Added
+- **`ChatAction`** sealed interface (`LogOutfit(itemIds)`, `OpenItem(itemId)`,
+  `OpenRecommendations`) in `core/data/ai/`. Actions are optional — the model only
+  emits one when intent is unambiguous.
+- **Action field on `ChatResponse`** — `WithItems` and `WithOutfit` both gain an
+  optional `action: ChatAction?` field; `WithStat` and `Text` are unaffected.
+- **`ActionChipRow`** composable in `ChatScreen` — a single `AssistChip` rendered
+  below the message bubble when an action is present. `LogOutfit` routes through
+  the existing log confirmation flow (`onNavigateToLog`), never logging directly.
+  `OpenItem` opens the item detail screen; `OpenRecommendations` opens the
+  recommendations screen.
+- **`ChatResponseParser` action parsing** — optional `"action"` object is parsed
+  from provider JSON with silent failure: a missing, malformed, or type-mismatched
+  action block returns `null` and never fails the parent response. `log_outfit` is
+  only accepted on `"outfit"` responses with 2–4 item IDs.
+- **System prompt updated** — `ChatPromptPrefix.SYSTEM_PROMPT` documents the
+  `action` field with one example per action type and rules instructing the model
+  to omit the field rather than guess.
+
+### Fixed
+- **`LogDao` historical snapshot** — `LOGS_BY_DATE_QUERY` and `getMostRecentLog`
+  now join `outfit_log_items` (snapshot) instead of live `outfits`/`outfit_items`;
+  outfit renames and composition changes no longer retroactively rewrite historical
+  log display.
+- **`ChatRouter` language-ID fail-closed** — `isEnglish()` now returns `false` on
+  ML Kit failure instead of `true`; unresolvable language checks fall through to
+  RAG rather than risking a misrouted stat answer on non-English input.
+- **`ChatRouter` FOSS flavor split** — `ChatRouter` moved to flavor source sets;
+  full flavor retains ML Kit language ID and pattern routing; FOSS stub always
+  returns `Unrouted` so `kotlinx-coroutines-play-services` and `mlkit.language.id`
+  (both GMS-transitive) are excluded from the FOSS build.
+- **`matchesWornOn` false positives** — bare `"wore on"` substring replaced with
+  `WORE_ON_INTERROGATIVE_PATTERN` (`\bwhat\b.{0,15}\bi\b\s*\bwore on\b`);
+  incidental uses like "top I wore on Tuesday" no longer trigger the worn-on route.
+- **`getItemsNotWornSince` boundary** — DAO predicate changed from `>=` to `>`
+  so items last worn exactly N days ago correctly appear in "not worn in N days"
+  results.
+
+---
+
 ## [0.6.0] — 2026-04-04
 
 Phase 2 of the chat enhancement roadmap: intent routing for stat queries.
@@ -407,7 +453,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.3.0...v0.4.0
