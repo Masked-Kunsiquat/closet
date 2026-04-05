@@ -12,9 +12,15 @@ core/data/src/test/kotlin/com/closet/core/data/ai/
     ChatResponseParserTest.kt          ✓ done
 
 features/chat/src/test/kotlin/com/closet/features/chat/
-    RegexDateParserTest.kt
-    ChatViewModelTest.kt
-    ChatRouterPatternTest.kt
+    RegexDateParserTest.kt             ✓ done
+    ChatViewModelTest.kt               ✓ done
+
+# Flavor-specific unit test source sets (AGP prefix convention: src/test<Flavor>/)
+features/chat/src/testFoss/kotlin/com/closet/features/chat/
+    ChatRouterFossTest.kt              ✓ done  (FOSS stub smoke test)
+
+features/chat/src/testFull/kotlin/com/closet/features/chat/
+    ChatRouterPatternTest.kt           ✓ done  (tests ChatRouterPatterns internal object)
 ```
 
 ---

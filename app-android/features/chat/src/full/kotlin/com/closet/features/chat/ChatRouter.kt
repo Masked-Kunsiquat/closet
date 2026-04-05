@@ -64,10 +64,10 @@ class ChatRouter @Inject constructor(
 
         return when {
             // Order matters: neverWorn before notWornSince (both contain "worn")
-            matchesNeverWorn(lower)    -> routeNeverWorn()
-            matchesWearCount(lower)    -> routeWearCount(lower)
-            matchesNotWornSince(lower) -> routeNotWornSince(lower)
-            matchesWornOn(lower)       -> routeWornOn(lower)
+            ChatRouterPatterns.matchesNeverWorn(lower)    -> routeNeverWorn()
+            matchesWearCount(lower)                       -> routeWearCount(lower)
+            ChatRouterPatterns.matchesNotWornSince(lower) -> routeNotWornSince(lower)
+            matchesWornOn(lower)                          -> routeWornOn(lower)
             matchesNeedsWash(lower)    -> routeNeedsWash()
             matchesLastOutfit(lower)   -> routeLastOutfit()
             matchesItemCount(lower)    -> routeItemCount()
@@ -95,20 +95,10 @@ class ChatRouter @Inject constructor(
         ("how many times" in lower || "wear count" in lower) &&
         ("worn" in lower || "wear" in lower)
 
-    private fun matchesNotWornSince(lower: String): Boolean =
-        ("haven't worn" in lower || "havent worn" in lower ||
-         "not worn" in lower || "unworn" in lower) &&
-        (DAYS_PATTERN.containsMatchIn(lower) || "lately" in lower || "recently" in lower)
-
     private fun matchesWornOn(lower: String): Boolean =
         "what did i wear on" in lower ||
         "what was i wearing on" in lower ||
-        WORE_ON_INTERROGATIVE_PATTERN.containsMatchIn(lower)
-
-    private fun matchesNeverWorn(lower: String): Boolean =
-        "never worn" in lower ||
-        "never been worn" in lower ||
-        ("never" in lower && "wear" in lower)
+        ChatRouterPatterns.matchesWoreOnInterrogative(lower)
 
     private fun matchesNeedsWash(lower: String): Boolean =
         "laundry" in lower ||
@@ -300,26 +290,9 @@ class ChatRouter @Inject constructor(
 
     // ── Extraction helpers ────────────────────────────────────────────────────
 
-    /**
-     * Extracts an item name from a wear-count query.
-     * Matches patterns like "how many times have i worn my grey blazer?" → "grey blazer".
-     * Returns null if no name can be confidently extracted.
-     */
-    private fun extractItemName(lower: String): String? {
-        val match = ITEM_NAME_PATTERN.find(lower) ?: return null
-        return match.groupValues[1].trim().removeSuffix("?").trim().takeIf { it.isNotBlank() }
-    }
+    private fun extractItemName(lower: String): String? = ChatRouterPatterns.matchItemName(lower)
 
-    /**
-     * Extracts a day count from a not-worn-since query.
-     * Matches "30 days", "2 weeks" (converted to days). Returns null for "lately"/"recently".
-     */
-    private fun extractDays(lower: String): Int? {
-        val match = DAYS_PATTERN.find(lower) ?: return null
-        val count = match.groupValues[1].toIntOrNull() ?: return null
-        val unit = match.groupValues[2]
-        return if ("week" in unit) count * 7 else count
-    }
+    private fun extractDays(lower: String): Int? = ChatRouterPatterns.parseDays(lower)
 
     private fun formatDisplayDate(isoDate: String): String = try {
         LocalDate.parse(isoDate).format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH))
@@ -332,16 +305,5 @@ class ChatRouter @Inject constructor(
     companion object {
         private const val DEFAULT_UNWORN_DAYS = 30
         private const val LANGUAGE_CONFIDENCE_THRESHOLD = 0.7f
-
-        internal val ITEM_NAME_PATTERN = Regex(
-            """(?:how many times (?:have i |did i |i've )?worn|worn) (?:my |the )?(.+?)(?:\?|$)"""
-        )
-
-        internal val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)""")
-
-        // Anchored at ^ so only the leading "what" is checked against the 15-char gap limit.
-        // Without the anchor, containsMatchIn() would find a second "what" mid-sentence
-        // (e.g. "what goes with what i wore on Tuesday") and incorrectly trigger routing.
-        internal val WORE_ON_INTERROGATIVE_PATTERN = Regex("""^\bwhat\b.{0,15}\bi\b\s*\bwore on\b""")
     }
 }
