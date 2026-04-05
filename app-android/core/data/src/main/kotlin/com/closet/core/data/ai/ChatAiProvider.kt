@@ -38,6 +38,24 @@ interface ChatAiProvider {
     ): Result<ChatResponse>
 }
 
+/**
+ * Optional next action embedded in a [ChatResponse].
+ *
+ * Surfaced as a chip row below the message — one tap triggers the action without leaving chat.
+ * The model only suggests an action when the intent is unambiguous; the parser rejects
+ * malformed or type-mismatched actions silently (falls back to no action).
+ */
+sealed interface ChatAction {
+    /** Log [itemIds] as a wear — routes through the existing log confirmation flow. */
+    data class LogOutfit(val itemIds: List<Long>) : ChatAction
+
+    /** Navigate to the detail screen for [itemId]. */
+    data class OpenItem(val itemId: Long) : ChatAction
+
+    /** Navigate to the recommendations screen. */
+    data object OpenRecommendations : ChatAction
+}
+
 /** Structured response returned by every [ChatAiProvider] implementation. */
 sealed interface ChatResponse {
     /** Plain conversational answer — no specific items to surface in the UI. */
@@ -46,15 +64,27 @@ sealed interface ChatResponse {
     /**
      * Answer references a set of specific wardrobe items (e.g. "haven't worn lately").
      * [itemIds] are resolved DB item IDs from the context block — always from the wardrobe.
+     * [action] is an optional next action the model suggests (e.g. [ChatAction.OpenItem]).
      */
-    data class WithItems(val text: String, val itemIds: List<Long>) : ChatResponse
+    data class WithItems(
+        val text: String,
+        val itemIds: List<Long>,
+        val action: ChatAction? = null,
+    ) : ChatResponse
 
     /**
      * Answer is an outfit suggestion.
      * [itemIds] are the 2–4 items forming the outfit.
      * [reason] is the AI's one-sentence rationale.
+     * [action] is an optional next action (e.g. [ChatAction.LogOutfit] — only accepted when
+     * [itemIds] has 2–4 entries, matching the outfit).
      */
-    data class WithOutfit(val text: String, val itemIds: List<Long>, val reason: String) : ChatResponse
+    data class WithOutfit(
+        val text: String,
+        val itemIds: List<Long>,
+        val reason: String,
+        val action: ChatAction? = null,
+    ) : ChatResponse
 
     /**
      * Answer is a direct data stat returned by [com.closet.features.chat.ChatRouter]

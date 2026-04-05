@@ -1,6 +1,7 @@
 package com.closet.core.data.ai
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -12,8 +13,12 @@ import kotlinx.serialization.json.longOrNull
  *
  * Expected shape:
  * ```json
- * { "type": "text"|"items"|"outfit", "text": "...", "item_ids": [...], "reason": "..." }
+ * { "type": "text"|"items"|"outfit", "text": "...", "item_ids": [...], "reason": "...",
+ *   "action": { "type": "log_outfit"|"open_item"|"open_recommendations", ... } }
  * ```
+ *
+ * The `action` field is optional. Malformed or type-mismatched action objects are silently
+ * dropped (fall back to no action) so action parse failures never fail the whole response.
  *
  * Unknown `type` values fall back to [ChatResponse.Text] so new response types added
  * server-side degrade gracefully rather than crashing.
@@ -44,7 +49,7 @@ object ChatResponseParser {
                 if (ids.isEmpty()) throw IllegalArgumentException(
                     "'item_ids' is empty in chat response (type='items')"
                 )
-                ChatResponse.WithItems(text, ids)
+                ChatResponse.WithItems(text, ids, parseAction(obj, parentType = "items"))
             }
             "outfit" -> {
                 val idsElement = obj["item_ids"]
@@ -60,10 +65,41 @@ object ChatResponseParser {
                 if (reason.isNullOrBlank()) throw IllegalArgumentException(
                     "'reason' is missing or blank in outfit response"
                 )
-                ChatResponse.WithOutfit(text, ids, reason)
+                ChatResponse.WithOutfit(text, ids, reason, parseAction(obj, parentType = "outfit"))
             }
             else -> ChatResponse.Text(text)   // "text" + unknown types
         }
+    }
+
+    /**
+     * Parses the optional `"action"` object from [obj], returning null on any problem.
+     *
+     * [parentType] gates which action types are accepted:
+     * - `"log_outfit"` is only valid when [parentType] is `"outfit"` and the item count is 2–4.
+     * - `"open_item"` and `"open_recommendations"` are accepted for any parent type.
+     *
+     * All exceptions are swallowed so a bad action block never fails the parent response.
+     */
+    private fun parseAction(obj: JsonObject, parentType: String): ChatAction? = try {
+        val actionObj = obj["action"]?.jsonObject ?: return null
+        when (val actionType = actionObj["type"]?.jsonPrimitive?.content) {
+            "log_outfit" -> {
+                if (parentType != "outfit") return null
+                val ids = actionObj["item_ids"]?.jsonArray
+                    ?.mapNotNull { it.jsonPrimitive.longOrNull }
+                    ?: return null
+                if (ids.size !in 2..4) return null
+                ChatAction.LogOutfit(ids)
+            }
+            "open_item" -> {
+                val itemId = actionObj["item_id"]?.jsonPrimitive?.longOrNull ?: return null
+                ChatAction.OpenItem(itemId)
+            }
+            "open_recommendations" -> ChatAction.OpenRecommendations
+            else -> null.also { /* unknown action type — ignore */ }
+        }
+    } catch (_: Exception) {
+        null
     }
 
     /**

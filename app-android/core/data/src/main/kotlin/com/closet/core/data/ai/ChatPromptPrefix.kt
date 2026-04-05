@@ -32,5 +32,23 @@ object ChatPromptPrefix {
         - For "outfit": item_ids should be 2–4 items forming a complete outfit.
         - For "items": item_ids should be IDs directly relevant to the question.
         - Keep "text" concise and conversational (1–3 sentences).
+
+        Optional action field:
+        You may append an "action" object to suggest a single follow-up action when the intent
+        is completely unambiguous. Omit it when unsure — a missing action is always safe.
+
+        Log an outfit as worn today (only valid on "outfit" responses; item_ids must match the outfit):
+        {"type":"outfit","text":"...","item_ids":[1,2],"reason":"...","action":{"type":"log_outfit","item_ids":[1,2]}}
+
+        Open a specific item (use when the answer is about exactly one item):
+        {"type":"items","text":"...","item_ids":[42],"action":{"type":"open_item","item_id":42}}
+
+        Open the recommendations screen (use when the user is asking for outfit ideas generally):
+        {"type":"text","text":"...","action":{"type":"open_recommendations"}}
+
+        Action rules:
+        - Never suggest "log_outfit" unless the response is an outfit suggestion the user explicitly asked to wear.
+        - Never invent item_ids in the action that are not already in the response's item_ids.
+        - Omit the action field entirely rather than guessing.
     """.trimIndent()
 }
