@@ -12,6 +12,12 @@ sealed interface ChatMessage {
             val items: List<ChatItemSummary>,
             val reason: String,
         ) : Assistant
+        data class WithStat(
+            val text: String,
+            val label: String,
+            val value: String,
+            val items: List<ChatItemSummary>,
+        ) : Assistant
         data object Thinking : Assistant
         data class Error(val text: String) : Assistant
     }

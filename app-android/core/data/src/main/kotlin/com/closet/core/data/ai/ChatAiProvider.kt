@@ -55,4 +55,19 @@ sealed interface ChatResponse {
      * [reason] is the AI's one-sentence rationale.
      */
     data class WithOutfit(val text: String, val itemIds: List<Long>, val reason: String) : ChatResponse
+
+    /**
+     * Answer is a direct data stat returned by [com.closet.features.chat.ChatRouter]
+     * without going through the RAG + provider pipeline.
+     *
+     * [label] is the stat name (e.g. "Wear count").
+     * [value] is the formatted result (e.g. "14 times").
+     * [itemIds] are the relevant item IDs (empty for aggregate stats).
+     */
+    data class WithStat(
+        val text: String,
+        val label: String,
+        val value: String,
+        val itemIds: List<Long> = emptyList(),
+    ) : ChatResponse
 }

@@ -71,11 +71,14 @@ class ChatViewModel @Inject constructor(
                 onSuccess = { response ->
                     val message = response.toAssistantMessage()
 
-                    // Commit to history only on success — failed attempts must not pollute context.
-                    history.add(ConversationTurn(ConversationTurn.Role.User, text))
-                    history.add(ConversationTurn(ConversationTurn.Role.Assistant, response.conversationText))
-                    // Cap at 6 turns (3 exchanges) — drop oldest first.
-                    while (history.size > 6) history.removeAt(0)
+                    // Routed stat responses are data answers — they don't belong in conversational
+                    // history. Follow-up questions on them fall through to RAG naturally.
+                    if (response !is ChatResponse.WithStat) {
+                        history.add(ConversationTurn(ConversationTurn.Role.User, text))
+                        history.add(ConversationTurn(ConversationTurn.Role.Assistant, response.conversationText))
+                        // Cap at 6 turns (3 exchanges) — drop oldest first.
+                        while (history.size > 6) history.removeAt(0)
+                    }
 
                     _uiState.update { state ->
                         state.copy(
@@ -109,6 +112,7 @@ class ChatViewModel @Inject constructor(
         is ChatResponse.Text -> ChatMessage.Assistant.Text(text)
         is ChatResponse.WithItems -> ChatMessage.Assistant.WithItems(text, lookupItems(itemIds))
         is ChatResponse.WithOutfit -> ChatMessage.Assistant.WithOutfit(text, lookupItems(itemIds), reason)
+        is ChatResponse.WithStat -> ChatMessage.Assistant.WithStat(text, label, value, lookupItems(itemIds))
     }
 
     /** The conversational text of any [ChatResponse], stored as the assistant's history turn. */
@@ -117,6 +121,7 @@ class ChatViewModel @Inject constructor(
             is ChatResponse.Text -> text
             is ChatResponse.WithItems -> text
             is ChatResponse.WithOutfit -> text
+            is ChatResponse.WithStat -> text
         }
 
     private suspend fun lookupItems(ids: List<Long>): List<ChatItemSummary> = try {

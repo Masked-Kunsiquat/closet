@@ -274,4 +274,104 @@ interface ClothingDao {
     /** Returns all non-null image paths; used by [ImageCompressionWorker] to build its work queue. */
     @Query("SELECT image_path FROM clothing_items WHERE image_path IS NOT NULL")
     suspend fun getAllImagePaths(): List<String>
+
+    // ── Chat router queries ───────────────────────────────────────────────────
+
+    /**
+     * Returns the total count of clothing items. Used by [com.closet.features.chat.ChatRouter]
+     * for "how many items do I own?" queries.
+     */
+    @Query("SELECT COUNT(*) FROM clothing_items")
+    suspend fun getItemCount(): Int
+
+    /**
+     * Returns all items that have never been worn (no entry in [outfit_log_items] at all).
+     * Used by [com.closet.features.chat.ChatRouter] for "what have I never worn?" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path
+        FROM clothing_items ci
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM outfit_log_items oli
+            WHERE oli.clothing_item_id = ci.id
+        )
+        ORDER BY ci.name ASC
+    """)
+    suspend fun getItemsNeverWorn(): List<NotWornItem>
+
+    /**
+     * Returns all items currently marked as dirty (wash_status = 'Dirty').
+     * Used by [com.closet.features.chat.ChatRouter] for "what's in my laundry?" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path
+        FROM clothing_items ci
+        WHERE ci.wash_status = 'Dirty'
+        ORDER BY ci.name ASC
+    """)
+    suspend fun getItemsNeedingWash(): List<NotWornItem>
+
+    /**
+     * Returns the single most-worn item across all time, or null if nothing has been worn.
+     * Used by [com.closet.features.chat.ChatRouter] for "what's my most worn item?" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path, $WEAR_COUNT_SUBQUERY
+        FROM clothing_items ci
+        ORDER BY wear_count DESC
+        LIMIT 1
+    """)
+    suspend fun getMostWornItem(): WearCountResult?
+
+    /**
+     * Returns the single closest item whose name matches [query] (case-insensitive LIKE),
+     * along with its wear count. Returns null if no item matches.
+     * Used by [com.closet.features.chat.ChatRouter] for wear-count pattern queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path, $WEAR_COUNT_SUBQUERY
+        FROM clothing_items ci
+        WHERE ci.name LIKE '%' || :query || '%'
+        ORDER BY length(ci.name) ASC
+        LIMIT 1
+    """)
+    suspend fun getWearCountByName(query: String): WearCountResult?
+
+    /**
+     * Returns all items that have not been worn after [cutoffDate] (YYYY-MM-DD, exclusive).
+     * An item counts as worn if it appears in [outfit_log_items] linked to a log strictly
+     * after [cutoffDate]. Items worn exactly on [cutoffDate] are treated as "not worn in N days"
+     * (boundary is exclusive so the label matches — "30 days" includes day-30 items).
+     * Items with no wear history at all are also included.
+     * Used by [com.closet.features.chat.ChatRouter] for "haven't worn in N days" queries.
+     */
+    @Query("""
+        SELECT ci.id, ci.name, ci.image_path
+        FROM clothing_items ci
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM outfit_logs ol
+            JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
+            WHERE oli.clothing_item_id = ci.id
+            AND ol.date > :cutoffDate
+        )
+        ORDER BY ci.name ASC
+    """)
+    suspend fun getItemsNotWornSince(cutoffDate: String): List<NotWornItem>
 }
+
+/** Result of a wear-count lookup by item name — used by the [com.closet.features.chat.ChatRouter]. */
+data class WearCountResult(
+    val id: Long,
+    val name: String,
+    @ColumnInfo(name = "image_path") val imagePath: String?,
+    @ColumnInfo(name = "wear_count") val wearCount: Int,
+)
+
+/** A clothing item with no recent wear — returned by [ClothingDao.getItemsNotWornSince]. */
+data class NotWornItem(
+    val id: Long,
+    val name: String,
+    @ColumnInfo(name = "image_path") val imagePath: String?,
+)

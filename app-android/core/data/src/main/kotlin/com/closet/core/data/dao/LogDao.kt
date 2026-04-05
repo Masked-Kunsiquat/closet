@@ -11,29 +11,66 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LogDao {
 
+    companion object {
+        // Shared by getLogsByDate (Flow) and getLogsForDateOnce (suspend) — maintain SQL in one place.
+        // Reads outfit_name, item_count, and cover_image from the outfit_log_items snapshot table
+        // so that outfit renames and composition edits do not retroactively alter historical logs.
+        const val LOGS_BY_DATE_QUERY = """
+        SELECT
+            ol.*,
+            MAX(oli.outfit_name) AS outfit_name,
+            COUNT(oli.clothing_item_id) AS item_count,
+            (SELECT ci.image_path
+             FROM outfit_log_items oli2
+             JOIN clothing_items ci ON ci.id = oli2.clothing_item_id
+             WHERE oli2.outfit_log_id = ol.id AND ci.image_path IS NOT NULL
+             LIMIT 1) AS cover_image
+        FROM outfit_logs ol
+        LEFT JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
+        WHERE ol.date = :date
+        GROUP BY ol.id
+        ORDER BY ol.is_ootd DESC, ol.created_at ASC
+    """
+    }
+
     /**
      * Retrieves all outfit logs for a specific date, including metadata like outfit name and item count.
      * @param date The date string (YYYY-MM-DD).
      * @return A [Flow] emitting a list of [OutfitLogWithMeta].
      */
+    @Query(LOGS_BY_DATE_QUERY)
+    fun getLogsByDate(date: String): Flow<List<OutfitLogWithMeta>>
+
+    /**
+     * Returns the single most recent outfit log entry, or null if nothing has been logged.
+     * Reads from the [outfit_log_items] snapshot so the outfit name reflects what was logged,
+     * not the current live name.
+     * Used by [com.closet.features.chat.ChatRouter] for "what did I wear last?" queries.
+     */
     @Query("""
         SELECT
             ol.*,
-            o.name AS outfit_name,
-            COUNT(oi.clothing_item_id) AS item_count,
+            MAX(oli.outfit_name) AS outfit_name,
+            COUNT(oli.clothing_item_id) AS item_count,
             (SELECT ci.image_path
-             FROM outfit_items oi2
-             JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
-             WHERE oi2.outfit_id = ol.outfit_id AND ci.image_path IS NOT NULL
+             FROM outfit_log_items oli2
+             JOIN clothing_items ci ON ci.id = oli2.clothing_item_id
+             WHERE oli2.outfit_log_id = ol.id AND ci.image_path IS NOT NULL
              LIMIT 1) AS cover_image
         FROM outfit_logs ol
-        LEFT JOIN outfits o     ON o.id  = ol.outfit_id
-        LEFT JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
-        WHERE ol.date = :date
+        LEFT JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
         GROUP BY ol.id
-        ORDER BY ol.is_ootd DESC, ol.created_at ASC
+        ORDER BY ol.date DESC, ol.created_at DESC
+        LIMIT 1
     """)
-    fun getLogsByDate(date: String): Flow<List<OutfitLogWithMeta>>
+    suspend fun getMostRecentLog(): OutfitLogWithMeta?
+
+    /**
+     * One-shot variant of [getLogsByDate] for use in the chat router where a [Flow] is not needed.
+     * @param date The date string (YYYY-MM-DD).
+     */
+    @Query(LOGS_BY_DATE_QUERY)
+    suspend fun getLogsForDateOnce(date: String): List<OutfitLogWithMeta>
 
     /**
      * Returns the row ID of an existing log for [outfitId] on [date], or null if none exists.

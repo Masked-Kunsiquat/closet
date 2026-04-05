@@ -50,26 +50,28 @@ Start with exactly these three patterns — don't grow this list speculatively:
 
 ### Data layer
 
-- [ ] Add `ChatRouter` class in `features/chat/` — takes the raw user message, returns `RouterResult` (either `Routed(response)` or `Unrouted`)
-- [ ] Add any missing DAO queries needed (wear count by fuzzy name, items not worn since date, logs for date)
-- [ ] `ChatRouter` does **pattern matching only** — no ML, no embeddings. Regex or `contains` on lowercased input. If the pattern doesn't match confidently, return `Unrouted` and fall through to RAG
+- [x] Add `ChatRouter` class in `features/chat/` — takes the raw user message, returns `RouterResult` (either `Routed(response)` or `Unrouted`)
+- [x] Add any missing DAO queries needed (wear count by fuzzy name, items not worn since date, logs for date)
+- [x] `ChatRouter` does **pattern matching** via regex/`contains` on lowercased input. If the pattern doesn't match confidently, return `Unrouted` and fall through to RAG.
+  - **Full flavor**: `ChatRouter` is guarded by ML Kit Language Identification (confidence ≥ 0.7); non-English or low-confidence input bypasses all routing and goes straight to RAG. Date parsing uses ML Kit Entity Extraction as a first pass with regex fallback. Both are Play-Services-backed and scoped to `fullImplementation`.
+  - **FOSS flavor**: `ChatRouter` is a no-op stub that always returns `Unrouted` — no GMS dependencies, all queries fall through to RAG.
 
 ### Repository
 
-- [ ] `ChatRepository.query()` checks `ChatRouter` first; on `Routed` result, package it into a `ChatResponse` and return early without calling the encoder or provider
+- [x] `ChatRepository.query()` checks `ChatRouter` first; on `Routed` result, package it into a `ChatResponse` and return early without calling the encoder or provider
 
 ### New response type — stat card
 
-- [ ] Add `ChatResponse.WithStat(text: String, label: String, value: String, itemIds: List<Long>)` to `ChatAiProvider.kt`
+- [x] Add `ChatResponse.WithStat(text: String, label: String, value: String, itemIds: List<Long>)` to `ChatAiProvider.kt`
   - `label`: e.g. "Wear count", `value`: e.g. "14 times"
   - `itemIds`: empty list if the stat is aggregate, populated if it refers to specific items
-- [ ] Add `ChatMessage.Assistant.WithStat` mirror in `ChatMessage.kt`
-- [ ] Add `StatBubble` composable in `ChatScreen.kt` — compact card with label/value pair and optional item rail
+- [x] Add `ChatMessage.Assistant.WithStat` mirror in `ChatMessage.kt`
+- [x] Add `StatBubble` composable in `ChatScreen.kt` — compact card with label/value pair and optional item rail
 
 ### ViewModel
 
-- [ ] Map `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat` in `ChatViewModel.toAssistantMessage()`
-- [ ] Routed responses do **not** update `history` — they are data answers, not conversational turns; follow-ups on them fall through to RAG naturally
+- [x] Map `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat` in `ChatViewModel.toAssistantMessage()`
+- [x] Routed responses do **not** update `history` — they are data answers, not conversational turns; follow-ups on them fall through to RAG naturally
 
 ### Pitfalls
 
@@ -169,14 +171,26 @@ The regex date parser in `ChatRouter` intentionally handles only unambiguous pat
 - ~1.5 MB model download via Play Services on first use.
 - Drop-in replacement for the date-parsing branch inside `ChatRouter` — no changes needed to the DAO queries or the rest of the router.
 
-### Phase 2 — ML Kit Language Identification as a router guard
+### ~~Phase 2 — ML Kit Language Identification as a router guard~~ (shipped)
 
-The `ChatRouter` pattern-matching is written for English. A non-English query that partially overlaps an English pattern (e.g. a French query containing "worn") could trigger a false-positive match and return wrong data. [ML Kit Language ID](https://developers.google.com/ml-kit/language/identification) can gate the router: if the detected language is not English with sufficient confidence, skip pattern matching entirely and fall through to RAG.
+~~The `ChatRouter` pattern-matching is written for English. A non-English query that partially overlaps an English pattern (e.g. a French query containing "worn") could trigger a false-positive match and return wrong data. [ML Kit Language ID](https://developers.google.com/ml-kit/language/identification) can gate the router: if the detected language is not English with sufficient confidence, skip pattern matching entirely and fall through to RAG.~~
 
-**When to consider it:** if the app ships to non-English locales or if user testing surfaces false-positive router matches on multilingual input.
+**Shipped in full flavor.** `ChatRouter` (full flavor) calls `languageIdentifier.identifyLanguage()` at the top of `route()` with a 0.7 confidence threshold. Non-English or low-confidence input returns `Unrouted` immediately. On ML Kit failure the router also returns `Unrouted` (fail-closed). The FOSS-flavor `ChatRouter` stub skips language ID entirely and always returns `Unrouted`. `mlkit.language.id` and `kotlinx.coroutines.play.services` are both scoped to `fullImplementation`.
 
-**Implementation notes:**
-- Uses `com.google.mlkit:language-id` — on-device, no network call, ~900 KB model bundled at install time.
-- Works on all devices and API levels; no GMS or AICore requirement. Can be added to both `full` and `foss` flavors.
-- One call site: a single `languageIdentifier.identifyLanguage(message)` check at the top of `ChatRouter.route()` before any regex is evaluated.
-- Threshold suggestion: only proceed with routing if the top language tag is `"en"` with confidence ≥ 0.7; everything else is `Unrouted`.
+### Phase 2 — Additional router intents
+
+~~The three shipped patterns are intentionally minimal. These are the strongest candidates for future expansion~~ — all five additional patterns below have been implemented alongside the original three.
+
+**Shipped (8 patterns total):**
+
+| Query pattern | DAO / query | Notes |
+|---|---|---|
+| "What have I never worn?" | `WHERE wear_count = 0` | Zero ambiguity; reuses the `outfit_log_items` join pattern already in `getItemsNotWornSince` |
+| "What's in my laundry?" / "What needs washing?" | `WHERE wash_status = 'dirty'` | Direct, actionable; wash status is an existing field |
+| "What was my last outfit?" / "What did I wear last?" | `SELECT * FROM outfit_logs ORDER BY date DESC LIMIT 1` | Simple and unambiguous |
+| "How many items do I own?" / "How big is my wardrobe?" | `SELECT COUNT(*) FROM clothing_items` | Instant; zero AI value-add |
+| "What's my most worn item?" | `StatsDao` already has the ranked query | One-liner; `StatItem` result type already exists |
+
+**Patterns to avoid routing:**
+- "What [category] do I have?" — category name matching is fuzzy; RAG handles it better and won't silently return incomplete results if the user's term doesn't exactly match a subcategory name.
+- Any pattern where a confident-looking match could return a subset of the correct answer — a wrong routed response is worse than a slower RAG response.

@@ -10,6 +10,55 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ---
 
+## [0.6.0] — 2026-04-04
+
+Phase 2 of the chat enhancement roadmap: intent routing for stat queries.
+Common data questions are answered directly from DAO queries without
+touching the RAG pipeline — faster, zero token cost, fully offline.
+
+### Added
+- **`ChatRouter`** — pre-LLM intent router in `features/chat/`. Intercepts
+  three query patterns before the encoder or AI provider is invoked:
+  1. "How many times have I worn [item]?" → `ClothingDao.getWearCountByName()`
+  2. "What haven't I worn in [N] days?" → `ClothingDao.getItemsNotWornSince()`
+  3. "What did I wear on [date]?" → `LogDao.getLogsForDateOnce()`
+  Unrecognised or ambiguous patterns return `Unrouted` and fall through to RAG.
+- **ML Kit Language ID router guard** — `com.google.mlkit:language-id` (bundled,
+  ~900 KB, no Play Services required) gates the router on English-only input.
+  Non-English queries and low-confidence detections (< 0.7) skip pattern matching
+  and fall through to RAG. Works on both `full` and `foss` flavors.
+- **`ChatResponse.WithStat`** — new response subtype for routed data answers;
+  carries `label` (e.g. "Wear count"), `value` (e.g. "5 times"), and optional
+  `itemIds` for the item rail.
+- **`StatBubble`** — new composable in `ChatScreen`; renders a compact card
+  with a label/value row and an optional `ItemChip` rail for referenced items.
+- **New DAO queries** — `ClothingDao.getWearCountByName()` (fuzzy `LIKE`,
+  shortest-name-first), `ClothingDao.getItemsNotWornSince()` (`NOT EXISTS`
+  subquery via `outfit_log_items`), `LogDao.getLogsForDateOnce()` (one-shot
+  `suspend` variant of the existing `Flow`-based `getLogsByDate`).
+- **Routed responses skip history** — `WithStat` answers are data facts, not
+  conversational turns; they don't pollute the rolling history so follow-up
+  questions continue to reach RAG naturally.
+- **ML Kit Language ID router guard** — `com.google.mlkit:language-id` (bundled,
+  ~900 KB, no Play Services required) gates the router on English-only input.
+  Non-English queries and low-confidence detections (< 0.7) skip pattern matching
+  and fall through to RAG. Works on both `full` and `foss` flavors.
+- **ML Kit Entity Extraction date parser** (`full` flavor) — `ChatDateParser` uses
+  the English entity extraction model (~5.6 MB, downloaded via Play Services on
+  first use) to handle natural date expressions ("yesterday", "last Monday",
+  "3 days ago") that the regex parser cannot handle; FOSS flavor uses regex only.
+  `setReferenceTime` is passed on every call so relative expressions resolve
+  correctly against the current moment.
+- **Extended router — 8 patterns total** — five additional intents beyond the
+  original three:
+  - "What have I never worn?" → `getItemsNeverWorn()`
+  - "What's in my laundry?" / "What needs washing?" → `getItemsNeedingWash()`
+  - "What did I wear last?" → `getMostRecentLog()`
+  - "How many items do I own?" → `getItemCount()`
+  - "What's my most worn item?" → `getMostWornItem()`
+
+---
+
 ## [0.5.0] — 2026-04-04
 
 Phase 1 of the chat enhancement roadmap: multi-turn conversation history,
@@ -358,7 +407,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.2.0...v0.3.0

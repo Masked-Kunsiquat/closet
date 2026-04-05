@@ -77,6 +77,16 @@ dependencies {
     // MLKit GenAI Prompt API — Gemini Nano on-device inference (full flavor only; foss uses stub)
     "fullImplementation"(libs.mlkit.genai.prompt)
 
+    // MLKit Entity Extraction — model downloaded via Play Services on first use (~5.6 MB).
+    // Full flavor only; FOSS uses the regex-only ChatDateParser stub.
+    "fullImplementation"(libs.mlkit.entity.extraction)
+
+    // MLKit Language Identification — used by ChatRouter (full flavor only; FOSS stub skips it).
+    "fullImplementation"(libs.mlkit.language.id)
+    // kotlinx coroutines Task.await() extension — depends on play-services-tasks transiently;
+    // full flavor only so the FOSS build stays GMS-free.
+    "fullImplementation"(libs.kotlinx.coroutines.play.services)
+
     // Logging
     implementation(libs.timber)
 }
