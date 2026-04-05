@@ -165,13 +165,14 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 
 - [ ] FOSS `ChatRouter.route(anyString)` always returns `Unrouted`
 
-**Layer B — Regex/pattern helpers** (full flavor): the companion `val` patterns are accessible directly. Test them without constructing `ChatRouter`.
+**Layer B — Regex/pattern helpers** (full flavor): `ITEM_NAME_PATTERN`, `DAYS_PATTERN`, and `WORE_ON_INTERROGATIVE_PATTERN` are `internal val` in `ChatRouter`'s companion object, so they are directly accessible from unit tests in the same module (`features/chat/src/test/`). Test them without constructing `ChatRouter`.
 
 ### `ITEM_NAME_PATTERN`
 
 - [ ] `"how many times have i worn my grey blazer"` → captures `"grey blazer"`
 - [ ] `"how many times worn my black jeans?"` → captures `"black jeans"`
-- [ ] `"wear count for the white shirt"` → captures `"white shirt"`
+- [ ] `"worn the white shirt"` → captures `"white shirt"`
+- [ ] `"wear count for the white shirt"` → no match (no "worn"/"how many times worn" prefix; `extractItemName` returns null, falls through to RAG)
 - [ ] Query with no item name → no match
 
 ### `DAYS_PATTERN`
@@ -195,6 +196,6 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 
 ## Pitfalls
 
-- **`LanguageIdentification.getClient()` in `ChatRouter` constructor** — do not instantiate full-flavor `ChatRouter` in unit tests. Test patterns via companion vals and test routing behaviour through `ChatRepository` with a mocked router instead.
+- **`LanguageIdentification.getClient()` in `ChatRouter` constructor** — do not instantiate full-flavor `ChatRouter` in unit tests. Test patterns via the `internal` companion vals (`ChatRouter.ITEM_NAME_PATTERN`, etc.) and test routing behaviour through `ChatRepository` with a mocked router instead.
 - **`embeddingIndex.size`** — `ChatViewModel` reads this at construction; stub it to return `> 0` to put the UI into the ready state by default.
 - **History is `private`** — assert indirectly: after a known number of sends, check the `history` list passed to the mock repository on the next `sendMessage()` call via `verify { repo.query(any(), capture(slot)) }`.

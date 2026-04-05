@@ -333,14 +333,14 @@ class ChatRouter @Inject constructor(
         private const val DEFAULT_UNWORN_DAYS = 30
         private const val LANGUAGE_CONFIDENCE_THRESHOLD = 0.7f
 
-        private val ITEM_NAME_PATTERN = Regex(
+        internal val ITEM_NAME_PATTERN = Regex(
             """(?:how many times (?:have i |did i |i've )?worn|worn) (?:my |the )?(.+?)(?:\?|$)"""
         )
 
-        private val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)""")
+        internal val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)""")
 
         // Matches "what ... i wore on" with at most ~15 chars between "what" and "i" so that
         // incidental uses like "what goes with what I wore on Tuesday?" don't trigger routing.
-        private val WORE_ON_INTERROGATIVE_PATTERN = Regex("""\bwhat\b.{0,15}\bi\b\s*\bwore on\b""")
+        internal val WORE_ON_INTERROGATIVE_PATTERN = Regex("""\bwhat\b.{0,15}\bi\b\s*\bwore on\b""")
     }
 }
