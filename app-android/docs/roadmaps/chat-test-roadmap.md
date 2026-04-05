@@ -8,11 +8,19 @@ Target: **0.7.1**. No new Gradle dependencies required — MockK, Turbine, and `
 ## Files to create
 
 ```
+core/data/src/test/kotlin/com/closet/core/data/ai/
+    ChatResponseParserTest.kt          ✓ done
+
 features/chat/src/test/kotlin/com/closet/features/chat/
-    ChatResponseParserTest.kt
-    RegexDateParserTest.kt
-    ChatViewModelTest.kt
-    ChatRouterPatternTest.kt
+    RegexDateParserTest.kt             ✓ done
+    ChatViewModelTest.kt               ✓ done
+
+# Flavor-specific unit test source sets (AGP prefix convention: src/test<Flavor>/)
+features/chat/src/testFoss/kotlin/com/closet/features/chat/
+    ChatRouterFossTest.kt              ✓ done  (FOSS stub smoke test)
+
+features/chat/src/testFull/kotlin/com/closet/features/chat/
+    ChatRouterPatternTest.kt           ✓ done  (tests ChatRouterPatterns internal object)
 ```
 
 ---
@@ -23,63 +31,71 @@ Pure logic, no Android or GMS dependencies. Highest value per line of test code.
 
 ### JSON extraction (`extractJson`)
 
-- [ ] Plain `{…}` — returned as-is
-- [ ] Markdown-fenced ` ```json\n{…}\n``` ` — inner block extracted
-- [ ] Markdown fence without `json` tag — inner block extracted
-- [ ] Prose with embedded `{…}` — outermost braces extracted
-- [ ] No `{…}` found — original string returned (parse failure surfaced by caller)
+- [x] Plain `{…}` — returned as-is
+- [x] Markdown-fenced ` ```json\n{…}\n``` ` — inner block extracted
+- [x] Markdown fence without `json` tag — inner block extracted
+- [x] Prose with embedded `{…}` — outermost braces extracted
+- [x] No `{…}` found — original string returned (parse failure surfaced by caller)
 
 ### `text` type
 
-- [ ] Valid `{"type":"text","text":"hello"}` → `ChatResponse.Text("hello")`
-- [ ] Missing `text` field → `Result.failure`
-- [ ] Missing `type` field → `Result.failure`
+- [x] Valid `{"type":"text","text":"hello"}` → `ChatResponse.Text("hello")`
+- [x] Missing `text` field → `Result.failure`
+- [x] Missing `type` field → `Result.failure`
 
 ### `items` type
 
-- [ ] Valid with `item_ids` → `ChatResponse.WithItems` with correct IDs
-- [ ] Missing `item_ids` → `Result.failure`
-- [ ] Empty `item_ids` → `Result.failure`
-- [ ] Non-long entry in `item_ids` → `Result.failure`
+- [x] Valid with `item_ids` → `ChatResponse.WithItems` with correct IDs
+- [x] Missing `item_ids` → `Result.failure`
+- [x] Empty `item_ids` → `Result.failure`
+- [x] Non-long entry in `item_ids` → `Result.failure`
 
 ### `outfit` type
 
-- [ ] Valid with 2–4 IDs and `reason` → `ChatResponse.WithOutfit`
-- [ ] 1 ID → `Result.failure` (too few)
-- [ ] 5 IDs → `Result.failure` (too many)
-- [ ] Missing `reason` → `Result.failure`
-- [ ] Blank `reason` → `Result.failure`
-- [ ] Missing `item_ids` → `Result.failure`
+- [x] Valid with 2–4 IDs and `reason` → `ChatResponse.WithOutfit`
+- [x] 2 IDs — valid lower bound
+- [x] 4 IDs — valid upper bound
+- [x] 1 ID → `Result.failure` (too few)
+- [x] 5 IDs → `Result.failure` (too many)
+- [x] Missing `reason` → `Result.failure`
+- [x] Blank `reason` → `Result.failure`
+- [x] Missing `item_ids` → `Result.failure`
 
 ### Unknown type
 
-- [ ] `{"type":"unknown","text":"hi"}` → `ChatResponse.Text("hi")` (graceful fallback)
-- [ ] Future type `"widget"` with valid `text` → `ChatResponse.Text`
+- [x] `{"type":"unknown","text":"hi"}` → `ChatResponse.Text("hi")` (graceful fallback)
+- [x] Future type `"widget"` with valid `text` → `ChatResponse.Text`
 
 ### Action parsing — `log_outfit`
 
-- [ ] Accepted on `outfit` parent with 2–4 IDs → `ChatAction.LogOutfit`
-- [ ] Rejected on `items` parent → `action = null`, parent response still succeeds
-- [ ] 1 ID → `action = null`
-- [ ] 5 IDs → `action = null`
-- [ ] Missing `item_ids` in action block → `action = null`
+- [x] Accepted on `outfit` parent with matching IDs → `ChatAction.LogOutfit`
+- [x] Rejected on `items` parent → `action = null`, parent response still succeeds
+- [x] 1 ID → `action = null`
+- [x] 5 IDs (valid parent of 4) → `action = null`
+- [x] IDs not all present in parent response → `action = null` *(added by parseAction hardening)*
+- [x] Non-long element in `item_ids` → `action = null` *(replaces silent mapNotNull drop)*
+- [x] Non-positive ID (0) → `action = null` *(added by parseAction hardening)*
+- [x] Missing `item_ids` in action block → `action = null`
 
 ### Action parsing — `open_item`
 
-- [ ] Valid `item_id` → `ChatAction.OpenItem(id)`
-- [ ] Missing `item_id` → `action = null`
-- [ ] `item_id` is a string, not a number → `action = null`
+- [x] Valid `item_id` present in parent → `ChatAction.OpenItem(id)`
+- [x] Works on `outfit` parent as well as `items`
+- [x] Missing `item_id` → `action = null`
+- [x] `item_id` not in parent → `action = null` *(added by parseAction hardening)*
+- [x] Non-positive `item_id` (0) → `action = null` *(added by parseAction hardening)*
+  - Note: a string `item_id` is also implicitly covered — `longOrNull` on a JSON string returns null
 
 ### Action parsing — `open_recommendations`
 
-- [ ] `{"type":"open_recommendations"}` → `ChatAction.OpenRecommendations`
-- [ ] Accepted on both `items` and `outfit` parent types
+- [x] `{"type":"open_recommendations"}` → `ChatAction.OpenRecommendations`
+- [x] Accepted on both `items` and `outfit` parent types
 
 ### Action parsing — error isolation
 
-- [ ] Unknown action type → `action = null`, parent response still succeeds
-- [ ] Malformed action block (invalid JSON fragment) → `action = null`, parent still succeeds
-- [ ] Missing `action` field entirely → `action = null`
+- [x] Unknown action type → `action = null`, parent response still succeeds
+- [x] Malformed action block (missing `type`) → `action = null`, parent still succeeds
+- [x] Missing `action` field entirely → `action = null`
 
 ---
 
@@ -89,27 +105,28 @@ Pure logic, no Android or GMS dependencies. Highest value per line of test code.
 
 ### ISO dates
 
-- [ ] `"2026-04-04"` → `"2026-04-04"`
-- [ ] ISO date embedded in a sentence → extracted correctly
-- [ ] Malformed ISO-looking string `"2026-13-01"` → `null` (invalid date)
+- [x] `"2026-04-04"` → `"2026-04-04"`
+- [x] ISO date embedded in a sentence → extracted correctly
+- [x] `"2026-13-01"` → `"2026-13-01"` (ISO path is a regex match, not a date validator — invalid calendar dates are not caught here)
 
-### Month Day patterns
+### Month-Day patterns
 
-- [ ] `"April 4"` → `"2026-04-04"` (current year assumed)
-- [ ] `"April 4th"` → `"2026-04-04"` (ordinal suffix stripped)
-- [ ] `"Apr 4"` → `"2026-04-04"` (abbreviated month)
-- [ ] `"april 4, 2025"` → `"2025-04-04"` (explicit year used)
-- [ ] All 12 full month names → correct month number
-- [ ] All abbreviated month names → correct month number
-- [ ] `"April 31"` → `null` (invalid day for month)
+- [x] `"April 4"` → `"<currentYear>-04-04"` (current year assumed; use `LocalDate.now().year` in assertion)
+- [x] `"April 4th"` → `"<currentYear>-04-04"` (ordinal suffix stripped)
+- [x] `"Apr 4"` → `"<currentYear>-04-04"` (abbreviated month)
+- [x] `"april 4, 2025"` → `"2025-04-04"` (explicit year used)
+- [x] Input is case-insensitive (`"APRIL 4"` → correct result)
+- [x] All 12 full month names → correct month number
+- [x] All abbreviated month names → correct month number (note: `may` has no distinct abbreviation)
+- [x] `"April 31"` → `null` (invalid day for month)
 
 ### Unhandled patterns (must return `null`)
 
-- [ ] `"yesterday"`
-- [ ] `"last Monday"`
-- [ ] `"3 days ago"`
-- [ ] Blank string
-- [ ] Garbage input `"wear count"`
+- [x] `"yesterday"`
+- [x] `"last Monday"`
+- [x] `"3 days ago"`
+- [x] Blank string
+- [x] Garbage input `"wear count"`
 
 ---
 
@@ -123,37 +140,37 @@ Fake `StorageRepository` and `EmbeddingIndex` as no-ops.
 
 ### Message flow
 
-- [ ] `sendMessage()` with blank input → no state change, no repository call
-- [ ] `sendMessage()` while `isLoading = true` → no-op (second call ignored)
-- [ ] Successful response → `Thinking` placeholder replaced by assistant message; `isLoading = false`
-- [ ] Failed response → `Thinking` replaced by `ChatMessage.Assistant.Error`; `isLoading = false`
-- [ ] Failed response → `isLoading = false` (loading not stuck)
+- [x] `sendMessage()` with blank input → no state change, no repository call
+- [x] `sendMessage()` while `isLoading = true` → no-op (second call ignored)
+- [x] Successful response → `Thinking` placeholder replaced by assistant message; `isLoading = false`
+- [x] Failed response → `Thinking` replaced by `ChatMessage.Assistant.Error`; `isLoading = false`
+- [x] Failed response → `isLoading = false` (loading not stuck)
 
 ### History — Phase 1
 
-- [ ] Successful `Text` response → `history` gains 2 turns (user + assistant)
-- [ ] Failed response → `history` unchanged
-- [ ] After 3 successful exchanges → history has 6 turns
-- [ ] After 4th successful exchange → history still 6 turns (oldest pair dropped)
-- [ ] History snapshot taken before launch (in-flight message not in snapshot)
+- [x] Successful `Text` response → `history` gains 2 turns (user + assistant)
+- [x] Failed response → `history` unchanged
+- [x] After 3 successful exchanges → history has 6 turns
+- [x] After 4th successful exchange → history still 6 turns (oldest pair dropped)
+- [x] History snapshot taken before launch (in-flight message not in snapshot)
 
 ### History — Phase 2 stat responses
 
-- [ ] `WithStat` response → `history` **not** updated
-- [ ] Follow-up after a stat → history still reflects only non-stat turns
+- [x] `WithStat` response → `history` **not** updated
+- [x] Follow-up after a stat → history still reflects only non-stat turns
 
 ### `clearChat()`
 
-- [ ] `messages` list reset to empty
-- [ ] `history` reset (subsequent send passes empty history to repository)
-- [ ] `inputText` cleared
+- [x] `messages` list reset to empty
+- [x] `history` reset (subsequent send passes empty history to repository)
+- [x] `inputText` cleared
 
 ### `toAssistantMessage()` mapping
 
-- [ ] `ChatResponse.Text` → `ChatMessage.Assistant.Text`
-- [ ] `ChatResponse.WithItems` with action → `ChatMessage.Assistant.WithItems` with action preserved
-- [ ] `ChatResponse.WithOutfit` with action → `ChatMessage.Assistant.WithOutfit` with action preserved
-- [ ] `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat`
+- [x] `ChatResponse.Text` → `ChatMessage.Assistant.Text`
+- [x] `ChatResponse.WithItems` with action → `ChatMessage.Assistant.WithItems` with action preserved
+- [x] `ChatResponse.WithOutfit` with action → `ChatMessage.Assistant.WithOutfit` with action preserved
+- [x] `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat`
 
 ---
 
@@ -161,40 +178,48 @@ Fake `StorageRepository` and `EmbeddingIndex` as no-ops.
 
 The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at construction time, which requires GMS. Two layers to test without instrumented setup:
 
-**Layer A — FOSS stub**: trivial but worth having as a smoke test.
+**Layer A — FOSS stub**: trivial but worth having as a smoke test. Lives in `src/testFoss/` (foss-specific unit test source set).
 
-- [ ] FOSS `ChatRouter.route(anyString)` always returns `Unrouted`
+- [x] FOSS `ChatRouter.route(anyString)` always returns `Unrouted`
 
-**Layer B — Regex/pattern helpers** (full flavor): the companion `val` patterns are accessible directly. Test them without constructing `ChatRouter`.
+**Layer B — Regex/pattern helpers** (full flavor): `ITEM_NAME_PATTERN`, `DAYS_PATTERN`, and `WORE_ON_INTERROGATIVE_PATTERN` are `internal val` in `ChatRouterPatterns`. Tests live in `src/testFull/` (full-specific unit test source set — `src/test/` compiles for both flavors and the FOSS `ChatRouter` has no companion object).
+
+> **Regex fix applied**: `WORE_ON_INTERROGATIVE_PATTERN` was anchored with `^` to prevent `containsMatchIn` from matching on a mid-sentence "what" (e.g., `"what goes with what i wore on tuesday"`). Without the anchor the false-positive guard was broken.
 
 ### `ITEM_NAME_PATTERN`
 
-- [ ] `"how many times have i worn my grey blazer"` → captures `"grey blazer"`
-- [ ] `"how many times worn my black jeans?"` → captures `"black jeans"`
-- [ ] `"wear count for the white shirt"` → captures `"white shirt"`
-- [ ] Query with no item name → no match
+- [x] `"how many times have i worn my grey blazer"` → captures `"grey blazer"`
+- [x] `"how many times worn my black jeans?"` → captures `"black jeans"`
+- [x] `"worn the white shirt"` → captures `"white shirt"`
+- [x] `"wear count for the white shirt"` → captures `"white shirt"` (wear-count construction)
+- [x] `"how many times did i wear my blazer"` → captures `"blazer"` (present-tense wear)
+- [x] Query with no item name → no match
 
 ### `DAYS_PATTERN`
 
-- [ ] `"30 days"` → count 30, unit days → 30
-- [ ] `"2 weeks"` → count 2, unit weeks → 14
-- [ ] `"1 week"` → 7
-- [ ] `"lately"` → no match (falls back to `DEFAULT_UNWORN_DAYS`)
+- [x] `"30 days"` → count 30, unit days → 30
+- [x] `"2 weeks"` → count 2, unit weeks → 14
+- [x] `"1 week"` → 7
+- [x] `"lately"` → no match (falls back to `DEFAULT_UNWORN_DAYS`)
+- [x] `"5 weekdays"` → no match (trailing `\b` prevents compound-word false positive)
 
 ### `WORE_ON_INTERROGATIVE_PATTERN`
 
-- [ ] `"what did i wore on tuesday"` → matches
-- [ ] `"what goes with what i wore on tuesday"` — gap between `what` and `i` is > 15 chars → no match (false-positive guard)
+- [x] `"what did i wore on tuesday"` → matches
+- [x] `"what goes with what i wore on tuesday"` — gap between `what` and `i` is > 15 chars → no match (false-positive guard)
 
 ### Pattern priority (never-worn before not-worn-since)
 
-- [ ] `"what have i never worn"` matches `matchesNeverWorn`, not `matchesNotWornSince`
+- [x] `"what have i never worn"` matches `matchesNeverWorn`, not `matchesNotWornSince`
   - Verify by checking only `matchesNeverWorn` returns true and `matchesNotWornSince` returns false for this input
+- [x] `"never wear white after labor day"` → `matchesNeverWorn` returns false (no past-tense form; broad `never`+`wear` branch tightened to regex requiring worn/wore/tried on)
 
 ---
 
 ## Pitfalls
 
-- **`LanguageIdentification.getClient()` in `ChatRouter` constructor** — do not instantiate full-flavor `ChatRouter` in unit tests. Test patterns via companion vals and test routing behaviour through `ChatRepository` with a mocked router instead.
+- **`LanguageIdentification.getClient()` in `ChatRouter` constructor** — do not instantiate full-flavor `ChatRouter` in unit tests. Test patterns via the `internal` companion vals (`ChatRouter.ITEM_NAME_PATTERN`, etc.) and test routing behaviour through `ChatRepository` with a mocked router instead.
 - **`embeddingIndex.size`** — `ChatViewModel` reads this at construction; stub it to return `> 0` to put the UI into the ready state by default.
 - **History is `private`** — assert indirectly: after a known number of sends, check the `history` list passed to the mock repository on the next `sendMessage()` call via `verify { repo.query(any(), capture(slot)) }`.
+- **Flavor-specific unit test source sets** — AGP uses `src/testFull/` and `src/testFoss/` (NOT `src/fullTest/` / `src/fossTest/`) for flavor-scoped unit tests. Tasks: `testFullDebugUnitTest` / `testFossDebugUnitTest`.
+- **`stateIn(WhileSubscribed)` + Turbine `awaitItem()` race (resolved)** — `WhileSubscribed` doesn't start the upstream until a subscriber appears. Inside `runTest`, this launch is queued in the scheduler; if `sendMessage()` fires before the scheduler processes the queue, `_uiState` emits with nobody collecting, so Turbine sees the stale initial state. Fix: (1) `buildViewModel()` is a `TestScope` extension that immediately starts a `backgroundScope.launch(testDispatcher) { vm.uiState.collect {} }` to keep `WhileSubscribed` active; (2) single-send tests use `advanceUntilIdle()` + `vm.uiState.value` instead of `awaitItem()`, since `awaitItem()` can race intermediate `Thinking` emissions vs the final state. Multi-send tests that check `slot` captures via Turbine work fine because they don't assert on specific intermediate emissions.
