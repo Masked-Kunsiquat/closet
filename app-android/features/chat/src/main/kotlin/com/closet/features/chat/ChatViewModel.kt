@@ -110,8 +110,8 @@ class ChatViewModel @Inject constructor(
 
     private suspend fun ChatResponse.toAssistantMessage(): ChatMessage.Assistant = when (this) {
         is ChatResponse.Text -> ChatMessage.Assistant.Text(text)
-        is ChatResponse.WithItems -> ChatMessage.Assistant.WithItems(text, lookupItems(itemIds))
-        is ChatResponse.WithOutfit -> ChatMessage.Assistant.WithOutfit(text, lookupItems(itemIds), reason)
+        is ChatResponse.WithItems -> ChatMessage.Assistant.WithItems(text, lookupItems(itemIds), action)
+        is ChatResponse.WithOutfit -> ChatMessage.Assistant.WithOutfit(text, lookupItems(itemIds), reason, action)
         is ChatResponse.WithStat -> ChatMessage.Assistant.WithStat(text, label, value, lookupItems(itemIds))
     }
 

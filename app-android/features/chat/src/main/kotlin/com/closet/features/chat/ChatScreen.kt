@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.closet.core.data.ai.ChatAction
 import com.closet.core.ui.theme.ClosetTheme
 import com.closet.features.chat.R
 import com.closet.features.chat.model.ChatItemSummary
@@ -340,6 +341,9 @@ private fun MessageList(
                     text = msg.text,
                     items = msg.items,
                     onItemTapped = onNavigateToItem,
+                    action = msg.action,
+                    onNavigateToLog = onNavigateToLog,
+                    onNavigateToRecommendations = onNavigateToRecommendations,
                 )
                 is ChatMessage.Assistant.WithOutfit -> AssistantBubbleWithOutfit(
                     text = msg.text,
@@ -348,6 +352,8 @@ private fun MessageList(
                     onItemTapped = onNavigateToItem,
                     onLogIt = onNavigateToLog?.let { cb -> { cb(msg.items.map { it.id }) } },
                     onAlternatives = onNavigateToRecommendations,
+                    action = msg.action,
+                    onNavigateToLog = onNavigateToLog,
                 )
                 is ChatMessage.Assistant.WithStat -> StatBubble(
                     text = msg.text,
@@ -428,6 +434,9 @@ private fun AssistantBubbleWithItems(
     text: String,
     items: List<ChatItemSummary>,
     onItemTapped: (Long) -> Unit,
+    action: ChatAction? = null,
+    onNavigateToLog: ((List<Long>) -> Unit)? = null,
+    onNavigateToRecommendations: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -441,6 +450,14 @@ private fun AssistantBubbleWithItems(
             items(items) { item ->
                 ItemChip(item = item, onTap = { onItemTapped(item.id) })
             }
+        }
+        if (action != null) {
+            ActionChipRow(
+                action = action,
+                onNavigateToLog = onNavigateToLog,
+                onNavigateToItem = onItemTapped,
+                onNavigateToRecommendations = onNavigateToRecommendations,
+            )
         }
     }
 }
@@ -497,6 +514,8 @@ private fun AssistantBubbleWithOutfit(
     onItemTapped: (Long) -> Unit,
     onLogIt: (() -> Unit)?,
     onAlternatives: () -> Unit,
+    action: ChatAction? = null,
+    onNavigateToLog: ((List<Long>) -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -510,6 +529,14 @@ private fun AssistantBubbleWithOutfit(
             onLogIt = onLogIt,
             onAlternatives = onAlternatives,
         )
+        if (action != null) {
+            ActionChipRow(
+                action = action,
+                onNavigateToLog = onNavigateToLog,
+                onNavigateToItem = onItemTapped,
+                onNavigateToRecommendations = onAlternatives,
+            )
+        }
     }
 }
 
@@ -658,6 +685,52 @@ private fun OutfitImageCell(
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             )
         }
+    }
+}
+
+// ─── Action chip row ──────────────────────────────────────────────────────────
+
+/**
+ * A single [AssistChip] surfacing the model's suggested next action.
+ * Rendered below the message bubble — one tap triggers the action without leaving chat.
+ * Tapping [ChatAction.LogOutfit] routes through the existing log confirmation flow via [onNavigateToLog].
+ */
+@Composable
+private fun ActionChipRow(
+    action: ChatAction,
+    onNavigateToLog: ((List<Long>) -> Unit)?,
+    onNavigateToItem: (Long) -> Unit,
+    onNavigateToRecommendations: () -> Unit,
+) {
+    val (label, icon, onClick) = when (action) {
+        is ChatAction.LogOutfit -> Triple(
+            stringResource(R.string.chat_action_chip_log_outfit),
+            Icons.Default.Checkroom,
+            { onNavigateToLog?.invoke(action.itemIds) ?: Unit },
+        )
+        is ChatAction.OpenItem -> Triple(
+            stringResource(R.string.chat_action_chip_view_item),
+            Icons.Default.Checkroom,
+            { onNavigateToItem(action.itemId) },
+        )
+        is ChatAction.OpenRecommendations -> Triple(
+            stringResource(R.string.chat_action_chip_explore_outfits),
+            Icons.Default.AutoAwesome,
+            onNavigateToRecommendations,
+        )
+    }
+    Row {
+        AssistChip(
+            onClick = onClick,
+            label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+            leadingIcon = {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            },
+        )
     }
 }
 
