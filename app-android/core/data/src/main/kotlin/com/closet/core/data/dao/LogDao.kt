@@ -13,19 +13,20 @@ interface LogDao {
 
     companion object {
         // Shared by getLogsByDate (Flow) and getLogsForDateOnce (suspend) — maintain SQL in one place.
+        // Reads outfit_name, item_count, and cover_image from the outfit_log_items snapshot table
+        // so that outfit renames and composition edits do not retroactively alter historical logs.
         const val LOGS_BY_DATE_QUERY = """
         SELECT
             ol.*,
-            o.name AS outfit_name,
-            COUNT(oi.clothing_item_id) AS item_count,
+            MAX(oli.outfit_name) AS outfit_name,
+            COUNT(oli.clothing_item_id) AS item_count,
             (SELECT ci.image_path
-             FROM outfit_items oi2
-             JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
-             WHERE oi2.outfit_id = ol.outfit_id AND ci.image_path IS NOT NULL
+             FROM outfit_log_items oli2
+             JOIN clothing_items ci ON ci.id = oli2.clothing_item_id
+             WHERE oli2.outfit_log_id = ol.id AND ci.image_path IS NOT NULL
              LIMIT 1) AS cover_image
         FROM outfit_logs ol
-        LEFT JOIN outfits o     ON o.id  = ol.outfit_id
-        LEFT JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+        LEFT JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
         WHERE ol.date = :date
         GROUP BY ol.id
         ORDER BY ol.is_ootd DESC, ol.created_at ASC
@@ -42,21 +43,22 @@ interface LogDao {
 
     /**
      * Returns the single most recent outfit log entry, or null if nothing has been logged.
+     * Reads from the [outfit_log_items] snapshot so the outfit name reflects what was logged,
+     * not the current live name.
      * Used by [com.closet.features.chat.ChatRouter] for "what did I wear last?" queries.
      */
     @Query("""
         SELECT
             ol.*,
-            o.name AS outfit_name,
-            COUNT(oi.clothing_item_id) AS item_count,
+            MAX(oli.outfit_name) AS outfit_name,
+            COUNT(oli.clothing_item_id) AS item_count,
             (SELECT ci.image_path
-             FROM outfit_items oi2
-             JOIN clothing_items ci ON ci.id = oi2.clothing_item_id
-             WHERE oi2.outfit_id = ol.outfit_id AND ci.image_path IS NOT NULL
+             FROM outfit_log_items oli2
+             JOIN clothing_items ci ON ci.id = oli2.clothing_item_id
+             WHERE oli2.outfit_log_id = ol.id AND ci.image_path IS NOT NULL
              LIMIT 1) AS cover_image
         FROM outfit_logs ol
-        LEFT JOIN outfits o      ON o.id  = ol.outfit_id
-        LEFT JOIN outfit_items oi ON oi.outfit_id = ol.outfit_id
+        LEFT JOIN outfit_log_items oli ON oli.outfit_log_id = ol.id
         GROUP BY ol.id
         ORDER BY ol.date DESC, ol.created_at DESC
         LIMIT 1

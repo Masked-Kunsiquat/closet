@@ -52,7 +52,9 @@ Start with exactly these three patterns — don't grow this list speculatively:
 
 - [x] Add `ChatRouter` class in `features/chat/` — takes the raw user message, returns `RouterResult` (either `Routed(response)` or `Unrouted`)
 - [x] Add any missing DAO queries needed (wear count by fuzzy name, items not worn since date, logs for date)
-- [x] `ChatRouter` does **pattern matching only** — no ML, no embeddings. Regex or `contains` on lowercased input. If the pattern doesn't match confidently, return `Unrouted` and fall through to RAG
+- [x] `ChatRouter` does **pattern matching** via regex/`contains` on lowercased input. If the pattern doesn't match confidently, return `Unrouted` and fall through to RAG.
+  - **Full flavor**: `ChatRouter` is guarded by ML Kit Language Identification (confidence ≥ 0.7); non-English or low-confidence input bypasses all routing and goes straight to RAG. Date parsing uses ML Kit Entity Extraction as a first pass with regex fallback. Both are Play-Services-backed and scoped to `fullImplementation`.
+  - **FOSS flavor**: `ChatRouter` is a no-op stub that always returns `Unrouted` — no GMS dependencies, all queries fall through to RAG.
 
 ### Repository
 
@@ -169,17 +171,11 @@ The regex date parser in `ChatRouter` intentionally handles only unambiguous pat
 - ~1.5 MB model download via Play Services on first use.
 - Drop-in replacement for the date-parsing branch inside `ChatRouter` — no changes needed to the DAO queries or the rest of the router.
 
-### Phase 2 — ML Kit Language Identification as a router guard
+### ~~Phase 2 — ML Kit Language Identification as a router guard~~ (shipped)
 
-The `ChatRouter` pattern-matching is written for English. A non-English query that partially overlaps an English pattern (e.g. a French query containing "worn") could trigger a false-positive match and return wrong data. [ML Kit Language ID](https://developers.google.com/ml-kit/language/identification) can gate the router: if the detected language is not English with sufficient confidence, skip pattern matching entirely and fall through to RAG.
+~~The `ChatRouter` pattern-matching is written for English. A non-English query that partially overlaps an English pattern (e.g. a French query containing "worn") could trigger a false-positive match and return wrong data. [ML Kit Language ID](https://developers.google.com/ml-kit/language/identification) can gate the router: if the detected language is not English with sufficient confidence, skip pattern matching entirely and fall through to RAG.~~
 
-**When to consider it:** if the app ships to non-English locales or if user testing surfaces false-positive router matches on multilingual input.
-
-**Implementation notes:**
-- Uses `com.google.mlkit:language-id` — on-device, no network call, ~900 KB model bundled at install time.
-- Works on all devices and API levels; no GMS or AICore requirement. Can be added to both `full` and `foss` flavors.
-- One call site: a single `languageIdentifier.identifyLanguage(message)` check at the top of `ChatRouter.route()` before any regex is evaluated.
-- Threshold suggestion: only proceed with routing if the top language tag is `"en"` with confidence ≥ 0.7; everything else is `Unrouted`.
+**Shipped in full flavor.** `ChatRouter` (full flavor) calls `languageIdentifier.identifyLanguage()` at the top of `route()` with a 0.7 confidence threshold. Non-English or low-confidence input returns `Unrouted` immediately. On ML Kit failure the router also returns `Unrouted` (fail-closed). The FOSS-flavor `ChatRouter` stub skips language ID entirely and always returns `Unrouted`. `mlkit.language.id` and `kotlinx.coroutines.play.services` are both scoped to `fullImplementation`.
 
 ### Phase 2 — Additional router intents
 

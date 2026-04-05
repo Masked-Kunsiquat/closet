@@ -78,16 +78,15 @@ class ChatRouter @Inject constructor(
 
     /**
      * Returns true if ML Kit identifies [text] as English with confidence ≥ [LANGUAGE_CONFIDENCE_THRESHOLD].
-     * On any identification failure, logs the error and returns true so the router still runs —
-     * a false negative (routing a non-English query) is less harmful than silently dropping
-     * all routing for the session.
+     * On any identification failure, logs the error and returns false (Unrouted) so the query
+     * falls through to RAG rather than risking a misrouted stat answer on non-English input.
      */
     private suspend fun isEnglish(text: String): Boolean = try {
         languageIdentifier.identifyLanguage(text).await() == "en"
     } catch (e: Exception) {
         if (e is kotlinx.coroutines.CancellationException) throw e
-        Timber.w(e, "ChatRouter: language identification failed, proceeding with routing")
-        true
+        Timber.w(e, "ChatRouter: language identification failed, falling through to RAG")
+        false
     }
 
     // ── Pattern matching ──────────────────────────────────────────────────────
