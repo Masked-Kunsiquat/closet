@@ -87,16 +87,16 @@ The model can embed a suggested next action in its response. The UI surfaces it 
 
 ### New response fields
 
-- [ ] Add optional `action: ChatAction?` field to `ChatResponse.WithOutfit` and `ChatResponse.WithItems`
+- [x] Add optional `action: ChatAction?` field to `ChatResponse.WithOutfit` and `ChatResponse.WithItems`
   - `ChatAction` sealed class: `LogOutfit(itemIds)`, `OpenItem(itemId)`, `OpenRecommendations`
   - Keep it as an optional field, not a new response type — actions always accompany content
-- [ ] Update `ChatResponseParser` to parse an optional `"action"` object: `{"type":"log_outfit","item_ids":[…]}`
-- [ ] Update `ChatPromptPrefix.SYSTEM_PROMPT` to describe the optional `action` field with examples; make it clear the model should only suggest it when the intent is unambiguous
+- [x] Update `ChatResponseParser` to parse an optional `"action"` object: `{"type":"log_outfit","item_ids":[…]}`
+- [x] Update `ChatPromptPrefix.SYSTEM_PROMPT` to describe the optional `action` field with examples; make it clear the model should only suggest it when the intent is unambiguous
 
 ### ViewModel
 
-- [ ] Map `ChatAction` through `ChatMessage` to the UI — actions are stored on the message, not triggered automatically
-- [ ] No new ViewModel functions needed — existing `onNavigateToLog`, `onNavigateToItem`, `onNavigateToRecommendations` lambdas cover all three action types
+- [x] Map `ChatAction` through `ChatMessage` to the UI — actions are stored on the message, not triggered automatically
+- [x] No new ViewModel functions needed — existing `onNavigateToLog`, `onNavigateToItem`, `onNavigateToRecommendations` lambdas cover all three action types
 
 ### Screen
 
