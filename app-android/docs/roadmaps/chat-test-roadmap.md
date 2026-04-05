@@ -136,9 +136,9 @@ Fake `StorageRepository` and `EmbeddingIndex` as no-ops.
 
 - [x] `sendMessage()` with blank input → no state change, no repository call
 - [x] `sendMessage()` while `isLoading = true` → no-op (second call ignored)
-- [ ] Successful response → `Thinking` placeholder replaced by assistant message; `isLoading = false` *(failing — see note)*
-- [ ] Failed response → `Thinking` replaced by `ChatMessage.Assistant.Error`; `isLoading = false` *(failing)*
-- [ ] Failed response → `isLoading = false` (loading not stuck) *(failing)*
+- [x] Successful response → `Thinking` placeholder replaced by assistant message; `isLoading = false`
+- [x] Failed response → `Thinking` replaced by `ChatMessage.Assistant.Error`; `isLoading = false`
+- [x] Failed response → `isLoading = false` (loading not stuck)
 
 ### History — Phase 1
 
@@ -146,25 +146,25 @@ Fake `StorageRepository` and `EmbeddingIndex` as no-ops.
 - [x] Failed response → `history` unchanged
 - [x] After 3 successful exchanges → history has 6 turns
 - [x] After 4th successful exchange → history still 6 turns (oldest pair dropped)
-- [ ] History snapshot taken before launch (in-flight message not in snapshot)
+- [x] History snapshot taken before launch (in-flight message not in snapshot)
 
 ### History — Phase 2 stat responses
 
 - [x] `WithStat` response → `history` **not** updated
-- [ ] Follow-up after a stat → history still reflects only non-stat turns
+- [x] Follow-up after a stat → history still reflects only non-stat turns
 
 ### `clearChat()`
 
-- [ ] `messages` list reset to empty *(failing)*
+- [x] `messages` list reset to empty
 - [x] `history` reset (subsequent send passes empty history to repository)
-- [ ] `inputText` cleared *(failing — same test as above)*
+- [x] `inputText` cleared
 
 ### `toAssistantMessage()` mapping
 
-- [ ] `ChatResponse.Text` → `ChatMessage.Assistant.Text` *(failing)*
-- [ ] `ChatResponse.WithItems` with action → `ChatMessage.Assistant.WithItems` with action preserved *(failing)*
-- [ ] `ChatResponse.WithOutfit` with action → `ChatMessage.Assistant.WithOutfit` with action preserved *(failing)*
-- [ ] `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat` *(failing)*
+- [x] `ChatResponse.Text` → `ChatMessage.Assistant.Text`
+- [x] `ChatResponse.WithItems` with action → `ChatMessage.Assistant.WithItems` with action preserved
+- [x] `ChatResponse.WithOutfit` with action → `ChatMessage.Assistant.WithOutfit` with action preserved
+- [x] `ChatResponse.WithStat` → `ChatMessage.Assistant.WithStat`
 
 ---
 
@@ -213,4 +213,4 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 - **`embeddingIndex.size`** — `ChatViewModel` reads this at construction; stub it to return `> 0` to put the UI into the ready state by default.
 - **History is `private`** — assert indirectly: after a known number of sends, check the `history` list passed to the mock repository on the next `sendMessage()` call via `verify { repo.query(any(), capture(slot)) }`.
 - **Flavor-specific unit test source sets** — AGP uses `src/testFull/` and `src/testFoss/` (NOT `src/fullTest/` / `src/fossTest/`) for flavor-scoped unit tests. Tasks: `testFullDebugUnitTest` / `testFossDebugUnitTest`.
-- **ChatViewModelTest scheduler mismatch (open)** — 7 tests fail: single-send tests where `awaitItem()` receives wrong state. Root cause is likely `stateIn(WhileSubscribed)` + MockK suspend stub interaction under `UnconfinedTestDispatcher`. Tests that verify history via `slot` capture (multi-send) pass fine. Needs further investigation: try `StandardTestDispatcher` + `advanceUntilIdle()`, or restructure assertions to not depend on intermediate state emissions.
+- **`stateIn(WhileSubscribed)` + Turbine `awaitItem()` race (resolved)** — `WhileSubscribed` doesn't start the upstream until a subscriber appears. Inside `runTest`, this launch is queued in the scheduler; if `sendMessage()` fires before the scheduler processes the queue, `_uiState` emits with nobody collecting, so Turbine sees the stale initial state. Fix: (1) `buildViewModel()` is a `TestScope` extension that immediately starts a `backgroundScope.launch(testDispatcher) { vm.uiState.collect {} }` to keep `WhileSubscribed` active; (2) single-send tests use `advanceUntilIdle()` + `vm.uiState.value` instead of `awaitItem()`, since `awaitItem()` can race intermediate `Thinking` emissions vs the final state. Multi-send tests that check `slot` captures via Turbine work fine because they don't assert on specific intermediate emissions.
