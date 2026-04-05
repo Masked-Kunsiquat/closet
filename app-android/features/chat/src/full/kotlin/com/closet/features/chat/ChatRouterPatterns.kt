@@ -9,15 +9,21 @@ package com.closet.features.chat
 internal object ChatRouterPatterns {
 
     val ITEM_NAME_PATTERN = Regex(
-        """(?:how many times (?:have i |did i |i've )?worn|worn) (?:my |the )?(.+?)(?:\?|$)"""
+        """(?:how many times (?:have i |did i |i've )?(?:worn|wear)|wear count(?:\s+for)?|worn|wear) (?:my |the )?(.+?)(?:\?|$)"""
     )
 
-    val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)""")
+    val DAYS_PATTERN = Regex("""(\d+)\s*(days?|weeks?)\b""")
 
     // Anchored at ^ so only the leading "what" is checked against the 15-char gap limit.
     // Without the anchor, containsMatchIn() would find a second "what" mid-sentence
     // (e.g. "what goes with what i wore on tuesday") and incorrectly trigger routing.
     val WORE_ON_INTERROGATIVE_PATTERN = Regex("""^\bwhat\b.{0,15}\bi\b\s*\bwore on\b""")
+
+    // Matches explicit never-worn history phrasings. The trailing alternative handles
+    // "never been worn" which doesn't fit the .{0,20} gap structure of the first branch.
+    private val NEVER_WORN_PATTERN = Regex(
+        """\bnever\b.{0,20}\b(?:worn|wore|tried on)\b|\bnever been worn\b"""
+    )
 
     /**
      * Extracts an item name from a wear-count query.
@@ -43,9 +49,7 @@ internal object ChatRouterPatterns {
         WORE_ON_INTERROGATIVE_PATTERN.containsMatchIn(lower)
 
     fun matchesNeverWorn(lower: String): Boolean =
-        "never worn" in lower ||
-        "never been worn" in lower ||
-        ("never" in lower && "wear" in lower)
+        NEVER_WORN_PATTERN.containsMatchIn(lower)
 
     fun matchesNotWornSince(lower: String): Boolean =
         ("haven't worn" in lower || "havent worn" in lower ||

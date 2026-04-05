@@ -42,10 +42,17 @@ class ChatRouterPatternTest {
     }
 
     @Test
-    fun `ITEM_NAME_PATTERN does not match wear-count-for query (no worn prefix)`() {
-        // "wear count for the white shirt" — no "worn" token → matchItemName returns null → Unrouted
+    fun `ITEM_NAME_PATTERN captures item name from wear-count-for query`() {
         val match = ChatRouterPatterns.ITEM_NAME_PATTERN.find("wear count for the white shirt")
-        assertNull(match)
+        assertNotNull(match)
+        assertEquals("white shirt", match!!.groupValues[1].trim())
+    }
+
+    @Test
+    fun `ITEM_NAME_PATTERN captures item name from present-tense wear query`() {
+        val match = ChatRouterPatterns.ITEM_NAME_PATTERN.find("how many times did i wear my blazer")
+        assertNotNull(match)
+        assertEquals("blazer", match!!.groupValues[1].trim())
     }
 
     @Test
@@ -74,6 +81,11 @@ class ChatRouterPatternTest {
     @Test
     fun `DAYS_PATTERN returns null for 'lately' (falls back to DEFAULT_UNWORN_DAYS)`() {
         assertNull(ChatRouterPatterns.parseDays("what haven't i worn lately"))
+    }
+
+    @Test
+    fun `DAYS_PATTERN does not match weekdays compound (word boundary prevents false positive)`() {
+        assertNull(ChatRouterPatterns.parseDays("what haven't i worn in 5 weekdays"))
     }
 
     // ── WORE_ON_INTERROGATIVE_PATTERN ─────────────────────────────────────────
@@ -106,5 +118,11 @@ class ChatRouterPatternTest {
         assertTrue(ChatRouterPatterns.matchesNeverWorn(q))
         // matchesNotWornSince requires a not-worn keyword AND a day count or recency word
         assertFalse(ChatRouterPatterns.matchesNotWornSince(q))
+    }
+
+    @Test
+    fun `matchesNeverWorn does not match generic never-wear advice`() {
+        // "never wear" with no past-tense form — should not route to routeNeverWorn()
+        assertFalse(ChatRouterPatterns.matchesNeverWorn("never wear white after labor day"))
     }
 }

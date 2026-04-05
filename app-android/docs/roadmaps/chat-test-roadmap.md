@@ -109,7 +109,7 @@ Pure logic, no Android or GMS dependencies. Highest value per line of test code.
 - [x] ISO date embedded in a sentence → extracted correctly
 - [x] `"2026-13-01"` → `"2026-13-01"` (ISO path is a regex match, not a date validator — invalid calendar dates are not caught here)
 
-### Month Day patterns
+### Month-Day patterns
 
 - [x] `"April 4"` → `"<currentYear>-04-04"` (current year assumed; use `LocalDate.now().year` in assertion)
 - [x] `"April 4th"` → `"<currentYear>-04-04"` (ordinal suffix stripped)
@@ -182,7 +182,7 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 
 - [x] FOSS `ChatRouter.route(anyString)` always returns `Unrouted`
 
-**Layer B — Regex/pattern helpers** (full flavor): `ITEM_NAME_PATTERN`, `DAYS_PATTERN`, and `WORE_ON_INTERROGATIVE_PATTERN` are `internal val` in `ChatRouter`'s companion object. Live in `src/testFull/` (full-specific unit test source set — `src/test/` compiles for both flavors and the FOSS `ChatRouter` has no companion object).
+**Layer B — Regex/pattern helpers** (full flavor): `ITEM_NAME_PATTERN`, `DAYS_PATTERN`, and `WORE_ON_INTERROGATIVE_PATTERN` are `internal val` in `ChatRouterPatterns`. Tests live in `src/testFull/` (full-specific unit test source set — `src/test/` compiles for both flavors and the FOSS `ChatRouter` has no companion object).
 
 > **Regex fix applied**: `WORE_ON_INTERROGATIVE_PATTERN` was anchored with `^` to prevent `containsMatchIn` from matching on a mid-sentence "what" (e.g., `"what goes with what i wore on tuesday"`). Without the anchor the false-positive guard was broken.
 
@@ -191,7 +191,8 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 - [x] `"how many times have i worn my grey blazer"` → captures `"grey blazer"`
 - [x] `"how many times worn my black jeans?"` → captures `"black jeans"`
 - [x] `"worn the white shirt"` → captures `"white shirt"`
-- [x] `"wear count for the white shirt"` → no match (no "worn"/"how many times worn" prefix; `extractItemName` returns null, falls through to RAG)
+- [x] `"wear count for the white shirt"` → captures `"white shirt"` (wear-count construction)
+- [x] `"how many times did i wear my blazer"` → captures `"blazer"` (present-tense wear)
 - [x] Query with no item name → no match
 
 ### `DAYS_PATTERN`
@@ -200,6 +201,7 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 - [x] `"2 weeks"` → count 2, unit weeks → 14
 - [x] `"1 week"` → 7
 - [x] `"lately"` → no match (falls back to `DEFAULT_UNWORN_DAYS`)
+- [x] `"5 weekdays"` → no match (trailing `\b` prevents compound-word false positive)
 
 ### `WORE_ON_INTERROGATIVE_PATTERN`
 
@@ -210,6 +212,7 @@ The full-flavor `ChatRouter` calls `LanguageIdentification.getClient()` at const
 
 - [x] `"what have i never worn"` matches `matchesNeverWorn`, not `matchesNotWornSince`
   - Verify by checking only `matchesNeverWorn` returns true and `matchesNotWornSince` returns false for this input
+- [x] `"never wear white after labor day"` → `matchesNeverWorn` returns false (no past-tense form; broad `never`+`wear` branch tightened to regex requiring worn/wore/tried on)
 
 ---
 
