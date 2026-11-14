@@ -5,7 +5,6 @@ import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
-import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -20,8 +19,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * [ChatAiProvider] backed by the Google Gemini native generateContent API.
@@ -36,9 +33,8 @@ import javax.inject.Singleton
  *
  * Response: `candidates[0].content.parts[0].text` parsed by [ChatResponseParser].
  */
-@Singleton
-class GeminiChatProvider @Inject constructor(
-    @AiHttpClient private val client: HttpClient,
+class GeminiChatProvider(
+    private val client: HttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : ChatAiProvider {

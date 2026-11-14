@@ -54,8 +54,8 @@ import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 /**
- * Koin equivalent of the Hilt `DataModule` (runs alongside it until the Hilt cutover).
- * Every Hilt `@Singleton` is a `single`; no data-layer class is unscoped.
+ * Koin definitions for the data layer. Every data-layer class is a `single`;
+ * none is unscoped.
  */
 val dataModule = module {
     single<ClothingDatabase> { ClothingDatabase.getDatabase(androidContext()) }
@@ -211,7 +211,7 @@ val dataModule = module {
         }
     }
 
-    // Constructed here only (never singleOf): matches DataModule.provideAiPreferencesRepository.
+    // Constructed here only, explicitly (never singleOf).
     single { AiPreferencesRepository(androidContext(), get<EncryptedKeyStore>()) }
 
     singleOf(::EncryptedKeyStore)

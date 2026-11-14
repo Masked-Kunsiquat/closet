@@ -14,8 +14,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Combined AI context hint for a single clothing item.
@@ -44,8 +42,7 @@ data class ItemAiContextHint(
  * This repository does not call WeatherRepository — callers (ViewModels) are
  * responsible for resolving weather data and passing it in as plain parameters.
  */
-@Singleton
-class RecommendationRepository @Inject constructor(
+class RecommendationRepository(
     private val recommendationDao: RecommendationDao
 ) {
 

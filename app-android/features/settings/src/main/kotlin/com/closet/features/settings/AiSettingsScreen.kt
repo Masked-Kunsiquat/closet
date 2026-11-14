@@ -42,7 +42,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.work.WorkInfo
 import com.closet.core.data.ai.BatchCaptionProgress
@@ -51,6 +50,7 @@ import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.core.ui.theme.ClosetTheme
+import org.koin.compose.viewmodel.koinViewModel
 
 private val AiProvider.labelRes: Int
     get() = when (this) {
@@ -83,7 +83,7 @@ private val StyleVibe.descriptionRes: Int
 @Composable
 fun AiSettingsScreen(
     onNavigateUp: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

@@ -6,14 +6,12 @@ import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * Dialog state shown on the Brand Management screen.
@@ -42,8 +40,7 @@ data class BrandManagementUiState(
  * transient loading/error/dialog state. All write operations dispatch to
  * [BrandRepository] and surface errors via [uiState].
  */
-@HiltViewModel
-class BrandManagementViewModel @Inject constructor(
+class BrandManagementViewModel(
     private val brandRepository: BrandRepository
 ) : ViewModel() {
 

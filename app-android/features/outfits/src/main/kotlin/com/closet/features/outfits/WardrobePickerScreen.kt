@@ -15,12 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.SeasonEntity
 import com.closet.core.ui.components.ClothingItemCard
+import org.koin.compose.viewmodel.koinViewModel
 import java.io.File
 
 /**
@@ -32,7 +32,7 @@ fun WardrobePickerScreen(
     onBack: () -> Unit,
     onConfirm: (List<Long>) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: WardrobePickerViewModel = hiltViewModel()
+    viewModel: WardrobePickerViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Repository for brand CRUD operations.
@@ -20,8 +18,7 @@ import javax.inject.Singleton
  * All suspend operations wrap results in [DataResult] and re-throw [kotlinx.coroutines.CancellationException]
  * so callers never need to handle raw exceptions.
  */
-@Singleton
-class BrandRepository @Inject constructor(
+class BrandRepository(
     private val brandDao: BrandDao
 ) {
 

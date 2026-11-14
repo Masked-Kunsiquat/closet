@@ -68,7 +68,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.data.ai.ChatAction
@@ -76,6 +75,7 @@ import com.closet.core.ui.theme.ClosetTheme
 import com.closet.features.chat.R
 import com.closet.features.chat.model.ChatItemSummary
 import com.closet.features.chat.model.ChatMessage
+import org.koin.compose.viewmodel.koinViewModel
 
 // ─── Entry point ───────────────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ fun ChatScreen(
     onNavigateToItem: (Long) -> Unit,
     onNavigateToRecommendations: () -> Unit,
     onNavigateToLog: ((List<Long>) -> Unit)?,
-    viewModel: ChatViewModel = hiltViewModel(),
+    viewModel: ChatViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     ChatContent(

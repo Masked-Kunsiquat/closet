@@ -21,8 +21,6 @@ import com.closet.core.data.util.DataResult
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import java.time.Instant
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
@@ -44,7 +42,6 @@ import timber.log.Timber
 import java.io.File
 import java.time.LocalDate
 import java.time.YearMonth
-import javax.inject.Inject
 
 /**
  * UI state for the Journal screen.
@@ -77,9 +74,8 @@ data class JournalUiState(
  * Navigation past the current month is blocked — future logs cannot exist.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel
-class JournalViewModel @Inject constructor(
-    @ApplicationContext private val appContext: Context,
+class JournalViewModel(
+    private val appContext: Context,
     private val logRepository: LogRepository,
     private val outfitRepository: OutfitRepository,
     private val storageRepository: StorageRepository,

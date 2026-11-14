@@ -11,12 +11,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private val Context.weatherDataStore: DataStore<Preferences> by preferencesDataStore(name = "weather_prefs")
 
@@ -29,11 +26,10 @@ private val Context.weatherDataStore: DataStore<Preferences> by preferencesDataS
  * All temperature values stored in the DB are canonical °C. [TemperatureUnit]
  * controls display conversion only — never stored values.
  *
- * Provided as a [Singleton] — inject anywhere via Hilt.
+ * Provided as a Koin `single` — inject anywhere via Koin.
  */
-@Singleton
-class WeatherPreferencesRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+class WeatherPreferencesRepository(
+    private val context: Context,
 ) {
     private val weatherEnabledKey = booleanPreferencesKey("weather_enabled")
     private val weatherServiceKey = stringPreferencesKey("weather_service")

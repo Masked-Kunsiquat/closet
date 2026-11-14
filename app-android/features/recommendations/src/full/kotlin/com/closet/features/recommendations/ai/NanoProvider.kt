@@ -20,8 +20,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.int
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // ---------------------------------------------------------------------------
 // Internal inference engine abstraction
@@ -110,8 +108,7 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
  *
  * Bound to [OutfitAiProvider] via [com.closet.features.recommendations.di.RecommendationModule].
  */
-@Singleton
-class NanoProvider @Inject constructor(
+class NanoProvider(
     private val json: Json,
 ) : OutfitAiProvider, NanoInitializer {
 

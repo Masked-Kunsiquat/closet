@@ -4,15 +4,12 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val TAG = "EncryptedKeyStore"
 private const val PREFS_FILE = "ai_keys_encrypted"
@@ -42,9 +39,8 @@ private const val KEY_GEMINI = "gemini_api_key"
  * expose `Flow<String>` observables without polling the file on every emission.
  * Writes update both the encrypted file and the in-memory flow atomically.
  */
-@Singleton
-class EncryptedKeyStore @Inject constructor(
-    @ApplicationContext private val context: Context,
+class EncryptedKeyStore(
+    private val context: Context,
 ) {
 
     private val prefs: SharedPreferences = openOrRecreate()
@@ -122,7 +118,7 @@ class EncryptedKeyStore @Inject constructor(
             try {
                 createEncryptedPrefs()
             } catch (retryException: Exception) {
-                // Second failure is unrecoverable — rethrow so Hilt surfaces it at
+                // Second failure is unrecoverable — rethrow so Koin surfaces it at
                 // injection time rather than silently swallowing credentials.
                 throw IllegalStateException(
                     "Cannot initialise EncryptedSharedPreferences after recovery attempt",

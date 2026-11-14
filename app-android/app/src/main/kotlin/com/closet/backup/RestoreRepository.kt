@@ -3,7 +3,6 @@ package com.closet.backup
 import android.content.Context
 import android.net.Uri
 import com.closet.core.data.ClothingDatabase
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,8 +10,6 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.File
 import java.util.zip.ZipInputStream
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Handles the restore operation from a `.hangr` backup archive.
@@ -27,14 +24,13 @@ import javax.inject.Singleton
  * 7. Overwrite DataStore preference files
  * 8. Delete `filesDir/restore_temp/`
  * 9. Return [kotlin.Result] success — caller must restart the process for the refreshed DB and
- *    DataStore instances to take effect across all Hilt-injected singletons
+ *    DataStore instances to take effect across all Koin singletons
  *
  * API keys are device-locked and are never in the backup; the "re-enter keys" banner is
  * shown by the UI layer after a successful restore.
  */
-@Singleton
-class RestoreRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+class RestoreRepository(
+    private val context: Context,
     private val database: ClothingDatabase,
     private val json: Json,
 ) {
@@ -118,7 +114,7 @@ class RestoreRepository @Inject constructor(
 
                 // 7. Overwrite DataStore preference files.
                 // Note: copying .preferences_pb files on disk does NOT invalidate the in-memory
-                // DataStore caches held by Hilt singletons (closet_prefs, ai_prefs, weather_prefs).
+                // DataStore caches held by Koin singletons (closet_prefs, ai_prefs, weather_prefs).
                 // A full process restart is required for the restored prefs to take effect —
                 // BackupScreen shows a non-dismissable restart dialog after this step completes.
                 val datastoreDir = File(context.filesDir, "datastore").also { it.mkdirs() }

@@ -49,7 +49,7 @@ data class EngineItem(
  * Complete input package passed to [OutfitRecommendationEngine.recommend].
  *
  * All DB queries have already been executed by the time this object is built.
- * The engine is pure: it performs no I/O and has no Android/Hilt dependencies.
+ * The engine is pure: it performs no I/O and has no Android/DI dependencies.
  *
  * @property candidates       Items that passed the DAO hard filters (Active + Clean
  *                            + season/occasion). The engine re-applies an Active+Clean

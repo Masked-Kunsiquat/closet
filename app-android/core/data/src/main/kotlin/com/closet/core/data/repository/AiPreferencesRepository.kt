@@ -10,7 +10,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -28,10 +27,10 @@ private val Context.aiDataStore: DataStore<Preferences> by preferencesDataStore(
  *   style vibe, master AI toggle) — stored in plain DataStore (`ai_prefs`). These values
  *   are non-sensitive configuration, not credentials.
  *
- * Provided as a [Singleton] — inject anywhere via Hilt.
+ * Provided as a Koin `single` — inject anywhere via Koin.
  */
 class AiPreferencesRepository(
-    @ApplicationContext private val context: Context,
+    private val context: Context,
     private val encryptedKeyStore: EncryptedKeyStore,
 ) {
     // Non-sensitive DataStore keys (no API keys here)

@@ -5,16 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import javax.inject.Inject
 
-@HiltViewModel
-class BackupViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+class BackupViewModel(
+    private val context: Context,
 ) : ViewModel() {
 
     val progress: StateFlow<BackupProgress> = BackupForegroundService.progress

@@ -3,15 +3,12 @@ package com.closet.core.data.repository
 import com.closet.core.data.dao.LookupDao
 import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Repository for lookup table data.
  * Parity: This provides the data for PickerSheets and FilterPanels.
  */
-@Singleton
-class LookupRepository @Inject constructor(
+class LookupRepository(
     private val lookupDao: LookupDao
 ) {
     /**

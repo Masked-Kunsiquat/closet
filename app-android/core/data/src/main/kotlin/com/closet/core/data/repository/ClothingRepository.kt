@@ -14,8 +14,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
@@ -24,8 +22,7 @@ import java.time.Instant
  * Parity: This is the native equivalent of hooks/useClothingItems.ts.
  * Built Well: Uses database transactions for atomic junction updates and wraps results in [DataResult].
  */
-@Singleton
-class ClothingRepository @Inject constructor(
+class ClothingRepository(
     private val database: ClothingDatabase,
     private val clothingDao: ClothingDao
 ) {

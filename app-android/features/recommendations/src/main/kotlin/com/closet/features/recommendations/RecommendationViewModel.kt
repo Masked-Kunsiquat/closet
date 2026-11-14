@@ -25,7 +25,6 @@ import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.model.WeatherConditions
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -43,7 +42,6 @@ import com.closet.core.data.model.StyleVibe
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.Month
-import javax.inject.Inject
 
 /**
  * ViewModel for the outfit recommendations flow.
@@ -66,8 +64,7 @@ import javax.inject.Inject
  *   outfit logging. Navigation is never performed inside the ViewModel.
  * - [saveResult]: emits a [SaveResult] when "Save for later" completes or fails.
  */
-@HiltViewModel
-class RecommendationViewModel @Inject constructor(
+class RecommendationViewModel(
     private val recommendationRepository: RecommendationRepository,
     private val engine: OutfitRecommendationEngine,
     private val scorer: OutfitCoherenceScorer,

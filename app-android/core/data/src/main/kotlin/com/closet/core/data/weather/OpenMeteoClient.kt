@@ -10,8 +10,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import timber.log.Timber
 import java.time.LocalDate
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
 
@@ -23,8 +21,7 @@ private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
  *
  * Reference: https://open-meteo.com/en/docs
  */
-@Singleton
-class OpenMeteoClient @Inject constructor(
+class OpenMeteoClient(
     private val client: HttpClient,
 ) : WeatherServiceClient {
 

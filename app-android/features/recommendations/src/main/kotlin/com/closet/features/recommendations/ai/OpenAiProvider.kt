@@ -6,7 +6,6 @@ import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSelection
 import com.closet.core.data.repository.AiPreferencesRepository
-import com.closet.core.data.di.AiHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
@@ -22,8 +21,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.int
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // ---------------------------------------------------------------------------
 // OpenAiProvider
@@ -51,9 +48,8 @@ import javax.inject.Singleton
  * UI provider selector switches between [NanoProvider], [OpenAiProvider], and future providers
  * at runtime.
  */
-@Singleton
-class OpenAiProvider @Inject constructor(
-    @AiHttpClient private val client: HttpClient,
+class OpenAiProvider(
+    private val client: HttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : OutfitAiProvider {

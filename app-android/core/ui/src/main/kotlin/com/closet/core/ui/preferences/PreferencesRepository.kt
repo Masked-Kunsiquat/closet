@@ -7,11 +7,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.closet.core.ui.theme.ClosetAccent
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "closet_prefs")
 
@@ -22,11 +19,10 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
  * coroutine-safe; reads are exposed as a [Flow] so callers react to changes
  * automatically without polling.
  *
- * Provided as a [Singleton] — inject anywhere via Hilt.
+ * Provided as a Koin `single` — inject anywhere via Koin.
  */
-@Singleton
-class PreferencesRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+class PreferencesRepository(
+    private val context: Context,
 ) {
     private val accentKey = stringPreferencesKey("accent")
     private val dynamicColorKey = androidx.datastore.preferences.core.booleanPreferencesKey("dynamic_color")

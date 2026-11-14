@@ -19,15 +19,12 @@ import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
-import javax.inject.Inject
 
 /**
  * Snapshot of all state needed to render the Closet screen.
@@ -99,9 +96,8 @@ private data class FilterSelections(
  *
  * Parity: native equivalent of hooks/useClothingItems.ts + FilterPanel state.
  */
-@HiltViewModel
-class ClosetViewModel @Inject constructor(
-    @ApplicationContext private val appContext: Context,
+class ClosetViewModel(
+    private val appContext: Context,
     savedStateHandle: SavedStateHandle,
     private val clothingRepository: ClothingRepository,
     private val lookupRepository: LookupRepository,

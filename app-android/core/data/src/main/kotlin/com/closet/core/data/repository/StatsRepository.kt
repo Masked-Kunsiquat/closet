@@ -8,16 +8,13 @@ import com.closet.core.data.dao.StatItem
 import com.closet.core.data.dao.StatsDao
 import com.closet.core.data.dao.StatsOverview
 import kotlinx.coroutines.flow.Flow
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Repository for closet analytics and wardrobe statistics.
  * Provides high-level insights into wardrobe composition and usage.
  * Parity: This is the native equivalent of Stats section in hangr/db/queries.ts.
  */
-@Singleton
-class StatsRepository @Inject constructor(
+class StatsRepository(
     private val statsDao: StatsDao
 ) {
     /**

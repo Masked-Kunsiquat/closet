@@ -22,11 +22,11 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.*
 import com.closet.core.ui.components.ClothingItemCard
 import com.closet.core.ui.theme.ClosetTheme
+import org.koin.compose.viewmodel.koinViewModel
 import java.io.File
 
 /**
@@ -44,7 +44,7 @@ fun ClosetScreen(
     modifier: Modifier = Modifier,
     onItemClick: (Long) -> Unit = {},
     onSettingsClick: () -> Unit,
-    viewModel: ClosetViewModel = hiltViewModel()
+    viewModel: ClosetViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

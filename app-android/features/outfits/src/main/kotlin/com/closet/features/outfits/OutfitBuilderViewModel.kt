@@ -10,7 +10,6 @@ import com.closet.core.data.repository.OutfitItem
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.DataResult
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +20,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import java.io.File
-import javax.inject.Inject
 
 /**
  * UI state for the Outfit Builder screen.
@@ -58,8 +56,7 @@ sealed interface OutfitBuilderEvent {
  * When [SavedStateHandle] carries an [outfitId] ≥ 0, the ViewModel operates in edit mode:
  * it loads the existing outfit on init and calls [OutfitRepository.updateOutfit] on save.
  */
-@HiltViewModel
-class OutfitBuilderViewModel @Inject constructor(
+class OutfitBuilderViewModel(
     savedStateHandle: SavedStateHandle,
     private val clothingRepository: ClothingRepository,
     private val outfitRepository: OutfitRepository,

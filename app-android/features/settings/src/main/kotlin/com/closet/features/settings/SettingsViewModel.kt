@@ -13,7 +13,6 @@ import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.ImageCompressionScheduler
 import com.closet.core.data.model.StyleVibe
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.data.repository.AiPreferencesRepository
@@ -23,7 +22,6 @@ import com.closet.core.data.worker.BatchSegmentationScheduler
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import java.io.File
 import kotlinx.coroutines.FlowPreview
@@ -39,7 +37,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.UUID
-import javax.inject.Inject
 
 // ---------------------------------------------------------------------------
 // Intermediate grouping types — private to this file
@@ -104,9 +101,8 @@ private data class StorageState(val usedBytes: Long, val compressionWorkInfo: Wo
  * ViewModel for the Settings screen.
  */
 @OptIn(FlowPreview::class)
-@HiltViewModel
-class SettingsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+class SettingsViewModel(
+    private val context: Context,
     private val preferencesRepository: PreferencesRepository,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val weatherPreferencesRepository: WeatherPreferencesRepository,

@@ -11,8 +11,6 @@ import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
 import kotlinx.serialization.json.Json
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * [ChatAiProvider] backed by the MLKit GenAI Prompt API (Gemini Nano on-device).
@@ -28,8 +26,7 @@ import javax.inject.Singleton
  * and the user message in a single string (Nano's Prompt API does not support
  * separate system/user turns). Response is parsed by [ChatResponseParser].
  */
-@Singleton
-class NanoChatProvider @Inject constructor(
+class NanoChatProvider(
     private val json: Json,
 ) : ChatAiProvider {
 

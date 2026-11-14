@@ -7,7 +7,6 @@ import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.DataResult
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,7 +16,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
-import javax.inject.Inject
 
 /**
  * One-time events emitted by [OutfitsViewModel] after a wear-log or delete operation completes.
@@ -40,8 +38,7 @@ sealed interface OutfitsEvent {
  * the "Wear Today" action via [wearOutfit]. Only one wear operation is allowed
  * in flight at a time; [wearingOutfitId] tracks which card shows a loading state.
  */
-@HiltViewModel
-class OutfitsViewModel @Inject constructor(
+class OutfitsViewModel(
     private val outfitRepository: OutfitRepository,
     private val logRepository: LogRepository,
     private val storageRepository: StorageRepository

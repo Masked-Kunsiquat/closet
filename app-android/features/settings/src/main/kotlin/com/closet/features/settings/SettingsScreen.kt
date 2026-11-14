@@ -67,13 +67,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.ui.theme.ClosetAccent
 import com.closet.core.ui.theme.ClosetTheme
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Settings screen entry point.
@@ -81,7 +81,7 @@ import com.closet.core.ui.theme.ClosetTheme
  * Collects all [SettingsViewModel] state and delegates rendering to [SettingsContent].
  *
  * @param onNavigateUp Called when the user taps the back arrow.
- * @param viewModel Hilt-provided [SettingsViewModel]; override in tests.
+ * @param viewModel Koin-provided [SettingsViewModel]; override in tests.
  */
 @Composable
 fun SettingsScreen(
@@ -89,7 +89,7 @@ fun SettingsScreen(
     onNavigateToBulkWash: () -> Unit = {},
     onNavigateToAiSettings: () -> Unit = {},
     onNavigateToBackup: () -> Unit = {},
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val accent = uiState.accent

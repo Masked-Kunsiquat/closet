@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import java.time.Instant
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Domain model for an Outfit with its constituent items and layout metadata.
@@ -40,8 +38,7 @@ data class OutfitItem(
  * Manages the grouping of clothing items into cohesive outfits.
  * Parity: This is the native equivalent of Outfit queries in hangr/db/queries.ts.
  */
-@Singleton
-class OutfitRepository @Inject constructor(
+class OutfitRepository(
     private val database: ClothingDatabase,
     private val outfitDao: OutfitDao
 ) {

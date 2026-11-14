@@ -8,8 +8,6 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * In-memory cosine-similarity index over all stored item embeddings.
@@ -32,8 +30,7 @@ import javax.inject.Singleton
  * modern ARM CPU). Vectors are already L2-normalised by [EmbeddingEncoder], so cosine
  * similarity reduces to a plain dot product.
  */
-@Singleton
-class EmbeddingIndex @Inject constructor(
+class EmbeddingIndex(
     private val embeddingDao: EmbeddingDao,
 ) {
 

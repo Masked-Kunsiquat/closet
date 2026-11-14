@@ -12,16 +12,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import timber.log.Timber
 import java.time.LocalDate
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Repository for Outfit Log (Journal) operations.
  * Manages the history of what was worn and when, including weather data and notes.
  * Parity: This is the native equivalent of Outfit logs section in hangr/db/queries.ts.
  */
-@Singleton
-class LogRepository @Inject constructor(
+class LogRepository(
     private val logDao: LogDao
 ) {
     /**

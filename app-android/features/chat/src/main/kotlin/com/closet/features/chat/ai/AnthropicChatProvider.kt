@@ -5,7 +5,6 @@ import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
-import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -20,8 +19,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * [ChatAiProvider] backed by the Anthropic Messages API (Claude).
@@ -36,9 +33,8 @@ import javax.inject.Singleton
  * - **API key** — [AiPreferencesRepository.getAnthropicApiKey]
  * - **Model**   — [AiPreferencesRepository.getAnthropicModel]; defaults to [DEFAULT_MODEL]
  */
-@Singleton
-class AnthropicChatProvider @Inject constructor(
-    @AiHttpClient private val client: HttpClient,
+class AnthropicChatProvider(
+    private val client: HttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : ChatAiProvider {

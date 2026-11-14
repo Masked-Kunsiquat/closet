@@ -5,14 +5,11 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
 import androidx.annotation.VisibleForTesting
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.IOException
 import java.nio.LongBuffer
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.math.sqrt
 
 /**
@@ -40,9 +37,8 @@ import kotlin.math.sqrt
  * [Result.failure] — callers must handle gracefully. The worker skips items; the
  * chat ViewModel shows an error state.
  */
-@Singleton
-class EmbeddingEncoder @Inject constructor(
-    @ApplicationContext private val context: Context,
+class EmbeddingEncoder(
+    private val context: Context,
 ) {
 
     companion object {

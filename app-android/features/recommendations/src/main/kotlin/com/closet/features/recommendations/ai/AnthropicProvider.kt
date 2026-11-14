@@ -5,7 +5,6 @@ import com.closet.core.data.ai.OutfitAiProvider
 import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSelection
-import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -21,8 +20,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.int
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // ---------------------------------------------------------------------------
 // AnthropicProvider
@@ -50,9 +47,8 @@ import javax.inject.Singleton
  * directly into [OutfitCoherenceScorer] alongside [NanoProvider] and [OpenAiProvider], and the
  * scorer's provider-selection switch picks the active implementation at runtime.
  */
-@Singleton
-class AnthropicProvider @Inject constructor(
-    @AiHttpClient private val client: HttpClient,
+class AnthropicProvider(
+    private val client: HttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : OutfitAiProvider {

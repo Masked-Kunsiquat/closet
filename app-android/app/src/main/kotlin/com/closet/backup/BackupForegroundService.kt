@@ -10,7 +10,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import com.closet.R
-import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,8 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Foreground service that drives backup export and restore operations.
@@ -33,7 +32,6 @@ import javax.inject.Inject
  * Start with one of the [ACTION_EXPORT], [ACTION_RESTORE], or [ACTION_CANCEL] intent actions.
  * The service stops itself when the operation completes, fails, or is cancelled.
  */
-@AndroidEntryPoint
 class BackupForegroundService : Service() {
 
     companion object {
@@ -77,8 +75,8 @@ class BackupForegroundService : Service() {
         }
     }
 
-    @Inject lateinit var backupRepository: BackupRepository
-    @Inject lateinit var restoreRepository: RestoreRepository
+    private val backupRepository: BackupRepository by inject()
+    private val restoreRepository: RestoreRepository by inject()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var activeJob: Job? = null
