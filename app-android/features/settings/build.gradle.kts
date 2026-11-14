@@ -36,6 +36,9 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:data"))
 
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.material3)
@@ -56,4 +59,9 @@ dependencies {
 
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.timber)
+    testImplementation(libs.junit)
+    testImplementation(platform(libs.koin.bom))
+    testImplementation(libs.koin.test.junit4)
+    testImplementation(libs.ktor.client.okhttp)
+    testImplementation(libs.androidx.work.runtime.ktx)
 }
