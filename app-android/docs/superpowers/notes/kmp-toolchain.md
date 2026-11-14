@@ -1,31 +1,38 @@
 # KMP toolchain spike findings
 
 Spike branch: `spike/kmp-toolchain` (throwaway module `:spike:kmp`, never merged).
-Baseline kept unchanged: Kotlin 2.3.20, AGP 9.1.0, Gradle 9.4.0, KSP 2.3.2, Room 2.8.4.
-Everything below was verified on 2026-11-14 with targets `androidLibrary`, `jvm()`,
-`iosArm64()`, `iosSimulatorArm64()`.
+Targets: `android {}` (KMP Android library), `jvm()`, `iosArm64()` and `iosSimulatorArm64()`.
+Verified 2026-11-14 on AGP 9.1.0 and Gradle 9.4.0.
+
+> **Prerequisite: Kotlin 2.3.20 → 2.4.x is required before any module targets iOS.**
+> CI round 1 (Kotlin 2.3.20) failed at `:spike:kmp:compileKotlinIosArm64`:
+> `KLIB resolver: Skipping '.../navigation-runtime-iosArm64Main-2.10.0.klib' having incompatible ABI version '2.4.0'. The library was produced by '2.4.20' compiler. The current Kotlin compiler can consume libraries having ABI version <= '2.3.0'.`
+> Kotlin/Native, unlike Kotlin/JVM, can't read klibs made by a newer compiler.
+> The bump also requires **Hilt 2.59.2 → 2.60.1** and **one source fix** in the existing app (see "App-side fallout").
 
 ## Versions
 
 | Library / plugin | Coordinates | Version | Notes |
 |---|---|---|---|
-| Koin (BOM) | `io.insert-koin:koin-bom` (+ `koin-core` without a version) | **4.2.2** | Latest stable. Built against Kotlin 2.3.20 exactly. `4.3.0-Beta1` exists; not used. |
-| Compose Multiplatform (libraries) | `org.jetbrains.compose.runtime:runtime`, `org.jetbrains.compose.foundation:foundation` | **1.12.2** | Latest stable (`1.13.0-beta02` exists). |
-| JetBrains Compose Gradle plugin | `org.jetbrains.compose` | **1.12.2** | Same version as the CMP libraries. |
-| CMP Material 3 | `org.jetbrains.compose.material3:material3` | **1.9.0** | Material 3 is versioned separately from CMP. 1.9.0 is the latest stable, and it's what the CMP 1.12.2 plugin's (deprecated) `compose.material3` accessor resolves to. |
-| Room KMP | `androidx.room:room-runtime`, `room-compiler`, plugin `androidx.room` | **2.8.4** | Kept at the app's existing version (2.8.5 is out; no bump needed). |
-| Bundled SQLite | `androidx.sqlite:sqlite-bundled` | **2.6.2** | The exact `androidx.sqlite` version that Room 2.8.4 requires. 2.7.1 exists, but don't move it independently of Room. |
-| Kermit | `co.touchlab:kermit` | **2.1.0** | 2.2.0 is the latest, but it's built against Kotlin 2.3.21 (stdlib gets pulled above the compiler). 2.1.0 is built against 2.2.0. |
-| Coil 3 | `io.coil-kt.coil3:coil-compose` | **3.4.0** (see Surprises) | The last release built against Kotlin 2.3.x (2.3.10). It's built against CMP 1.9.3/Skiko 0.9.22.2, so it raises a Skiko mismatch warning against CMP 1.12.2. |
-| JetBrains navigation-compose | `org.jetbrains.androidx.navigation:navigation-compose` | **2.10.0** | Latest stable. Needs CMP runtime ≥ 1.11.0 and lifecycle 2.11.0. |
+| **Kotlin** (KGP, compose compiler plugin, serialization plugin) | `org.jetbrains.kotlin.*` | **2.4.21** (was 2.3.20) | Latest stable 2.4 patch. Every iOS klib in the graph is ABI ≤ 2.4.0; the newest producer is Kotlin 2.4.20 (navigation 2.10.0). |
+| **KSP** | `com.google.devtools.ksp` | **2.3.14** (was 2.3.2) | Latest. KSP2 versions are decoupled from Kotlin. 2.3.10 added the Kotlin 2.4 module-name fix. Avoid 2.3.13 (concurrent-execution regression). |
+| **Hilt** | `com.google.dagger:hilt-*`, plugin `com.google.dagger.hilt.android` | **2.60.1** (was 2.59.2) | Required for Kotlin 2.4: 2.59.2 fails with `Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0`. 2.60 errors if the build sets a plugin-controlled flag; this build sets none. |
+| Koin (BOM) | `io.insert-koin:koin-bom` (+ `koin-core` without a version) | **4.2.2** | Latest stable, built with Kotlin 2.3.20. (`4.3.0-Beta1` exists.) |
+| Compose Multiplatform (libraries) | `org.jetbrains.compose.runtime:runtime`, `org.jetbrains.compose.foundation:foundation` | **1.12.2** | Latest stable. |
+| JetBrains Compose Gradle plugin | `org.jetbrains.compose` | **1.12.2** | Same as the CMP libraries. |
+| CMP Material 3 | `org.jetbrains.compose.material3:material3` | **1.9.0** | Versioned separately. Latest stable, and what CMP 1.12.2's deprecated `compose.material3` accessor resolves to. |
+| Room KMP | `androidx.room:room-runtime`, `room-compiler`, plugin `androidx.room` | **2.8.4** | The app's existing version. Works with Kotlin 2.4.21 and KSP 2.3.14. (2.8.5 exists.) |
+| Bundled SQLite | `androidx.sqlite:sqlite-bundled` | **2.6.2** | The `androidx.sqlite` version Room 2.8.4 requires. Move it in step with Room. |
+| Kermit | `co.touchlab:kermit` | **2.2.0** | Latest. Built with Kotlin 2.3.21. |
+| Coil 3 | `io.coil-kt.coil3:coil-compose` | **3.6.3** | Latest, built with Kotlin 2.4.10. Aligned with CMP 1.12 / Skiko 0.150.x, so there's no Skiko mismatch warning. (3.4.0 gave a Skiko mismatch.) |
+| JetBrains navigation-compose | `org.jetbrains.androidx.navigation:navigation-compose` | **2.10.0** | Latest stable. Built with Kotlin 2.4.20, which is why 2.4.x is needed. |
 | KMP lifecycle-viewmodel | `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel` | **2.11.0** | Latest stable. |
-| Kotlin Multiplatform plugin | `org.jetbrains.kotlin.multiplatform` | 2.3.20 | Same as `kotlin`. |
+| Kotlin Multiplatform plugin | `org.jetbrains.kotlin.multiplatform` | 2.4.21 | Same as `kotlin`. |
 | Android KMP library plugin | `com.android.kotlin.multiplatform.library` | 9.1.0 | Same as `agp`. |
-| KSP | `com.google.devtools.ksp` | 2.3.2 (unchanged) | 2.3.14 is the latest. 2.3.2 works, so no bump. |
+
+Checking klib ABI versions locally: resolve `iosArm64CompileKlibraries` (an init script with `incoming.artifactView{}.files`) and read `abi_version` / `compiler_version` from each klib's `manifest`. With the versions above, the 72 klibs are ABI 1.8.0, 1.201.0, 2.2.0, 2.3.0 or 2.4.0, and none is newer than 2.4.0. Do this check before any library bump. Windows can't compile iOS, but it can catch this failure.
 
 ## Plugins
-
-The module applies these, in this order:
 
 ```kotlin
 plugins {
@@ -38,16 +45,18 @@ plugins {
 }
 ```
 
-- All four new plugins must also be declared `apply false` in the root `build.gradle.kts`, next to the existing ones.
-- Android target DSL: `kotlin { androidLibrary { namespace = ...; compileSdk = 36; minSdk = 26; withHostTestBuilder {} } }`. AGP 9.1.0 printed no deprecation warning for `androidLibrary`.
-- Host (unit) tests on Android only exist if `withHostTestBuilder {}` is declared. The source set is `androidHostTest`, and `commonTest` runs there too.
-- Set the JVM target per target with `compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }` inside both `androidLibrary {}` and `jvm {}`. No toolchain is needed, and the build ran on the Android Studio JBR.
-- Room: `room { schemaDirectory("$projectDir/schemas") }`, plus top-level `dependencies { add("kspAndroid", room.compiler); add("kspJvm", ...); add("kspIosArm64", ...); add("kspIosSimulatorArm64", ...) }`. Those configuration names resolve as written. `@Database` needs `@ConstructedBy(XConstructor::class)` with an `expect object XConstructor : RoomDatabaseConstructor<X>`, and Room's KSP generates the `actual` for each target.
-- The CMP libraries are declared by Maven coordinates through the catalog, not through the deprecated `compose.*` accessors.
+- Declare all four new plugins `apply false` in the root `build.gradle.kts`.
+- Android target DSL: `kotlin { android { namespace = ...; compileSdk = 36; minSdk = 26; withHostTestBuilder {} } }`. On Kotlin 2.4, `androidLibrary {}` is **deprecated** ("Please use 'android' instead"). On 2.3.20 it wasn't.
+- Android host tests exist only when `withHostTestBuilder {}` is present. The source set is `androidHostTest`, and `commonTest` runs there.
+- Set the JVM target per target: `compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }` in both `android {}` and `jvm {}`. No toolchain is needed.
+- Room: `room { schemaDirectory("$projectDir/schemas") }`, plus `dependencies { add("kspAndroid", room.compiler); add("kspJvm", ...); add("kspIosArm64", ...); add("kspIosSimulatorArm64", ...) }`.
+  - `@Database` needs `@ConstructedBy(XConstructor::class)` with an `expect object XConstructor : RoomDatabaseConstructor<X>`. KSP generates the `actual` for each target.
+  - Add `kotlin { compilerOptions { freeCompilerArgs.add("-Xexpect-actual-classes") } }` to silence the Beta warning that object triggers.
+- Declare the CMP libraries by catalog coordinates, not through the deprecated `compose.*` accessors.
 
 ## `gradle.properties` changes
 
-**None.** `android.builtInKotlin=false` and `android.newDsl=false` stay as they are. The KMP library plugin configures, compiles and runs host tests with both of them set. AGP prints `WARNING: The option setting 'android.builtInKotlin=false' is deprecated` (and the same for `newDsl`), but that warning was there before the spike and it isn't an error.
+**None.** `android.builtInKotlin=false` and `android.newDsl=false` work with the KMP library plugin on Kotlin 2.3.20 and on 2.4.21. AGP prints its existing deprecation warnings for both flags. Those aren't errors.
 
 ## Task names
 
@@ -62,15 +71,24 @@ plugins {
 
 ## CI timing
 
-Pending controller push. Step 6 (`iosCompileCheck` on `macos-latest`) hasn't run yet. Record the job's wall-clock time and the result of `:spike:kmp:compileKotlinIosArm64` / `compileKotlinIosSimulatorArm64` here once it does.
+Pending controller push. Round 1 (run 43643663230, Kotlin 2.3.20) failed at `:spike:kmp:compileKotlinIosArm64` on the klib ABI error quoted at the top. Round 2 (Kotlin 2.4.21) hasn't run yet. Record the result and the job's wall-clock time here.
+
+## App-side fallout of Kotlin 2.3.20 → 2.4.21
+
+Measured with `assembleFullDebug assembleFossDebug` (BUILD SUCCESSFUL, 392 tasks, 4m 57s) and `./gradlew test --continue` after the fixes below.
+
+1. **A warning became an error (KTLC-365).** `core/data/.../OutfitRepository.kt` checked `if (e is AppError)` inside `catch (e: Exception)`. `AppError` extends `Throwable`, not `Exception`, so the check is always false. On 2.3.20 this was a warning ("will become an error in language version 2.4"); on 2.4 it's `e: Check for instance is always 'false'`.
+   - It also hid a latent bug: a thrown `AppError.DatabaseError.NotFound` escaped the `catch` instead of becoming `DataResult.Error`.
+   - Fix: a separate `catch (e: AppError) { DataResult.Error(e) }` clause before `catch (e: Exception)`. This is the only `is AppError`-in-`catch (Exception)` site.
+2. **Hilt.** Hilt 2.59.2 fails `hiltJavaCompile*` on Kotlin 2.4 metadata. Fix: 2.60.1.
+3. **KSP / Room.** KSP 2.3.14 and Room 2.8.4 work unchanged on Kotlin 2.4.21, in the app and in the spike.
+4. **Annotation use-site default (KEEP 402).** The roughly 20 warnings like `This annotation is currently applied to the value parameter only, but in the future it will also be applied to field/property` are gone, because 2.4 makes that default real. Annotations on constructor `val` parameters (Hilt qualifiers such as `@ApplicationContext`, and serialization annotations in the AI providers) now also land on the field or property. No build or test broke, but watch reflection-based code.
+5. **Unit tests.** All 193 runnable unit tests pass (`core:data`, `features:chat` and `features:recommendations`, both flavors). The only failures are the 3 known-broken test compiles from the baseline: `features:stats` `StatsViewModelTest` and `features:wardrobe` `ClothingFormViewModelTest` (both flavors), which are stale against current APIs. None are new.
 
 ## Surprises
 
-1. **Coil 3 vs Kotlin 2.3.20 vs CMP 1.12.** No Coil release is both built with Kotlin 2.3.x and aligned with CMP 1.12:
-   - Coil 3.5.0+ is built with Kotlin 2.4.x. 3.6.x (the series aligned with CMP 1.12 / Skiko 0.150.x) is built with 2.4.10, and it pulls `kotlin-stdlib` up to **2.4.10** on every classpath. With 3.6.3, JVM and Android compiled and tested fine on Kotlin 2.3.20 (the compiler reads metadata one version ahead). iOS is untested: Kotlin/Native 2.3.20 reading 2.4.10 klibs is a risk.
-   - Coil 3.4.0 (pinned in the spike) is built with Kotlin 2.3.10, but Gradle warns `Skiko dependencies' versions are incompatible: coil-core-jvm:3.4.0 -> skiko 0.9.22.2 -> 0.150.2`. This affects the JVM and iOS targets, which render with Skiko. Android doesn't use Skiko.
-   - **Recommendation:** when a later phase moves image loading into common code, bump Kotlin to 2.4.x and use Coil 3.6.x. Until then, keep Coil on the Android side only (the app's existing Coil 2.7.0).
-2. **Compose hot-reload adds a `dev` JVM compilation.** The CMP 1.12 plugin pulls in `org.jetbrains.compose.hot-reload` and adds `jvmDev` tasks (for example `kspDevKotlinJvm` and `processJvmDevResources`). They're harmless, but they show up in task lists.
-3. **`expect object` Beta warning.** Room's generated `actual object ...Constructor` triggers the `'expect'/'actual' classes are in Beta` warning. Real modules can silence it with `freeCompilerArgs.add("-Xexpect-actual-classes")`.
-4. **Windows file lock on `features/stats` `classes.jar`.** A long-lived Gradle daemon kept a handle open on `features/stats/build/.../bundleLibCompileToJarDebug/classes.jar` after a `./gradlew test` run. The next `assembleFullDebug` then failed with `FileSystemException ... being used by another process`. This is environmental, not caused by KMP. `./gradlew --stop` (or a fresh checkout) clears it. Step 5 (`assembleFullDebug assembleFossDebug`) was therefore checked on a clean copy of the tree (with `:spike:kmp` included) using `--no-daemon`: BUILD SUCCESSFUL in 4m 20s, 392 tasks.
-5. **The Material 3 version differs from the CMP version.** There's no `material3:1.12.x` stable. Pin it separately (`composeMultiplatformMaterial3`).
+1. **Kotlin/Native klib compatibility drives the Kotlin version.** A single library built with a newer Kotlin (navigation 2.10.0, built with 2.4.20) blocks iOS compilation outright. On JVM and Android the same graph compiled and tested fine on 2.3.20, so only the macOS CI job caught it. Use the local klib-manifest check above before bumping anything.
+2. **Coil 3 vs Kotlin.** Coil 3.5.0+ is built with Kotlin 2.4.x, and 3.6.x pulls `kotlin-stdlib` 2.4.10. On Kotlin 2.4.21 that's fine. On 2.3.20 the only Kotlin-compatible Coil was 3.4.0, which has a Skiko mismatch against CMP 1.12.
+3. **Compose hot-reload adds a `dev` JVM compilation** (`jvmDev`, `kspDevKotlinJvm` and so on). It's harmless.
+4. **Windows file lock.** A long-lived Gradle daemon kept `features/stats/.../classes.jar` open after a `test` run, so the next assemble failed with `FileSystemException ... being used by another process`. Stopping that daemon clears it.
+5. **Material 3 isn't versioned with CMP.** There's no `material3:1.12.x` stable. Pin it separately (`composeMultiplatformMaterial3`).
