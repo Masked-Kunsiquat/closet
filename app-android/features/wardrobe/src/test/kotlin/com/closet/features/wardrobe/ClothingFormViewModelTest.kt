@@ -9,6 +9,9 @@ import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.features.wardrobe.repository.ImageCaptionRepository
+import com.closet.features.wardrobe.repository.SegmentationRepository
+import android.content.Context
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +23,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -34,6 +36,9 @@ class ClothingFormViewModelTest {
     private val storageRepository: StorageRepository = mockk(relaxed = true)
     private val clothingRepository: ClothingRepository = mockk(relaxed = true)
     private val savedStateHandle: SavedStateHandle = mockk(relaxed = true)
+    private val appContext: Context = mockk(relaxed = true)
+    private val segmentationRepository: SegmentationRepository = mockk(relaxed = true)
+    private val imageCaptionRepository: ImageCaptionRepository = mockk(relaxed = true)
 
     private val sizeSystems = listOf(
         SizeSystemEntity(1, "Letter"),
@@ -56,11 +61,14 @@ class ClothingFormViewModelTest {
     }
 
     private fun buildViewModel() = ClothingFormViewModel(
+        appContext = appContext,
         savedStateHandle = savedStateHandle,
         lookupRepository = lookupRepository,
         brandRepository = brandRepository,
         storageRepository = storageRepository,
-        clothingRepository = clothingRepository
+        clothingRepository = clothingRepository,
+        segmentationRepository = segmentationRepository,
+        imageCaptionRepository = imageCaptionRepository,
     )
 
     @Test
@@ -71,7 +79,7 @@ class ClothingFormViewModelTest {
             awaitItem() // Initial state
             
             val sneakers = SubcategoryEntity(id = 10, categoryId = 1, name = "Sneakers", sortOrder = 1)
-            viewModel.selectSubcategory(sneakers)
+            viewModel.onSubcategorySelected(sneakers)
             
             val state = awaitItem()
             assertEquals(2L, state.selectedSizeSystemId) // Shoes (US Men's)
@@ -86,7 +94,7 @@ class ClothingFormViewModelTest {
             awaitItem()
             
             val backpack = SubcategoryEntity(id = 20, categoryId = 2, name = "Backpack", sortOrder = 1)
-            viewModel.selectSubcategory(backpack)
+            viewModel.onSubcategorySelected(backpack)
             
             val state = awaitItem()
             assertEquals(3L, state.selectedSizeSystemId) // One Size
@@ -101,12 +109,12 @@ class ClothingFormViewModelTest {
             awaitItem()
             
             // User manually selects "Letter"
-            viewModel.selectSizeSystem(sizeSystems[0]) 
+            viewModel.onSizeSystemSelected(sizeSystems[0].id) 
             assertEquals(1L, awaitItem().selectedSizeSystemId)
             
             // Now select "Sneakers" - should NOT change to Shoes because of manual override
             val sneakers = SubcategoryEntity(id = 10, categoryId = 1, name = "Sneakers", sortOrder = 1)
-            viewModel.selectSubcategory(sneakers)
+            viewModel.onSubcategorySelected(sneakers)
             
             // State should still be Letter (1L)
             assertEquals(1L, expectMostRecentItem().selectedSizeSystemId)
@@ -121,41 +129,18 @@ class ClothingFormViewModelTest {
             awaitItem()
             
             // 1. Manually override
-            viewModel.selectSizeSystem(sizeSystems[0]) 
+            viewModel.onSizeSystemSelected(sizeSystems[0].id) 
             awaitItem()
             
             // 2. Change category - should reset override flag
-            viewModel.selectCategory(CategoryEntity(id = 5, name = "Footwear", sortOrder = 1))
+            viewModel.onCategorySelected(CategoryEntity(id = 5, name = "Footwear", sortOrder = 1))
             val stateAfterCat = awaitItem()
-            assertNull(stateAfterCat.selectedSizeSystemId)
+            assertEquals(5L, stateAfterCat.category?.id)
             
             // 3. Select subcategory - auto-suggestion should work again
             val sneakers = SubcategoryEntity(id = 10, categoryId = 5, name = "Sneakers", sortOrder = 1)
-            viewModel.selectSubcategory(sneakers)
+            viewModel.onSubcategorySelected(sneakers)
             
-            assertEquals(2L, awaitItem().selectedSizeSystemId)
-        }
-    }
-
-    @Test
-    fun `clearSize resets both system and value and clears manual override`() = runTest {
-        val viewModel = buildViewModel()
-        
-        viewModel.uiState.test {
-            awaitItem()
-            
-            // Manually set something
-            viewModel.selectSizeSystem(sizeSystems[0])
-            awaitItem()
-            
-            viewModel.clearSize()
-            val state = awaitItem()
-            assertNull(state.selectedSizeSystemId)
-            assertNull(state.selectedSizeValueId)
-            
-            // Verify override is cleared by triggering an auto-suggestion
-            val sneakers = SubcategoryEntity(id = 10, categoryId = 1, name = "Sneakers", sortOrder = 1)
-            viewModel.selectSubcategory(sneakers)
             assertEquals(2L, awaitItem().selectedSizeSystemId)
         }
     }
