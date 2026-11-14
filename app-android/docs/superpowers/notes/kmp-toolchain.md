@@ -71,7 +71,8 @@ plugins {
 
 ## CI timing
 
-Pending controller push. Round 1 (run 43643663230, Kotlin 2.3.20) failed at `:spike:kmp:compileKotlinIosArm64` on the klib ABI error quoted at the top. Round 2 (Kotlin 2.4.21) hasn't run yet. Record the result and the job's wall-clock time here.
+- **Round 1** (run 43643663230, Kotlin 2.3.20): failed at `:spike:kmp:compileKotlinIosArm64` on the klib ABI error quoted at the top.
+- **Round 2** (run 43645675955, Kotlin 2.4.21): **passed**. `iosCompileCheck` compiled `:spike:kmp` for `iosArm64` and `iosSimulatorArm64` on `macos-latest`. The whole job took about 4m 55s on a cold Kotlin/Native cache. Expect each additional KMP module to add compile time.
 
 ## App-side fallout of Kotlin 2.3.20 → 2.4.21
 
