@@ -1,0 +1,41 @@
+name: iOS compile check
+
+# Compiles all Kotlin Multiplatform modules for iOS targets.
+# No-op until a module applies org.jetbrains.kotlin.multiplatform.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  ios-compile:
+    runs-on: macos-latest
+
+    defaults:
+      run:
+        working-directory: app-android
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('app-android/gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Compile KMP modules for iOS
+        run: ./gradlew iosCompileCheck --stacktrace
