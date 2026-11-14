@@ -1,0 +1,59 @@
+package com.closet.core.data.di
+
+import android.content.Context
+import androidx.work.WorkManager
+import com.closet.core.data.ClothingDatabase
+import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.EncryptedKeyStore
+import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.util.EmbeddingEncoder
+import com.closet.core.data.util.EmbeddingIndex
+import io.ktor.client.HttpClient
+import io.mockk.every
+import io.mockk.mockk
+import org.junit.After
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
+import org.junit.Before
+import org.junit.Test
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.dsl.module
+import org.koin.mp.KoinPlatform
+
+class SingletonParityTest {
+    @Before fun setUp() {
+        val overrides = module {
+            single<Context> {
+                mockk<Context>(relaxed = true) {
+                    every { filesDir } returns java.nio.file.Files.createTempDirectory("parity").toFile()
+                }
+            }
+            single<ClothingDatabase> { mockk(relaxed = true) }
+            single<EncryptedKeyStore> { mockk(relaxed = true) }
+            single<WorkManager> { mockk(relaxed = true) }
+        }
+        startKoin { modules(dataModule, overrides) ; allowOverride(true) }
+    }
+
+    @After fun tearDown() = stopKoin()
+
+    private inline fun <reified T : Any> assertSingleton() {
+        val koin = KoinPlatform.getKoin()
+        assertSame(koin.get<T>(), koin.get<T>())
+    }
+
+    @Test fun singletonsAreShared() {
+        assertSingleton<EmbeddingIndex>()
+        assertSingleton<EmbeddingEncoder>()
+        assertSingleton<AiPreferencesRepository>()
+        assertSingleton<ClothingRepository>()
+        assertSingleton<StorageRepository>()
+    }
+
+    @Test fun aiHttpClientIsDistinct() {
+        val koin = KoinPlatform.getKoin()
+        assertNotSame(koin.get<HttpClient>(), koin.get<HttpClient>(AiHttpClientQualifier))
+    }
+}

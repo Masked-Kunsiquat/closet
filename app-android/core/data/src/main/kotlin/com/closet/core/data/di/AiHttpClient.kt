@@ -1,5 +1,6 @@
 package com.closet.core.data.di
 
+import org.koin.core.qualifier.named
 import javax.inject.Qualifier
 
 /**
@@ -17,3 +18,6 @@ import javax.inject.Qualifier
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class AiHttpClient
+
+/** Koin equivalent of [AiHttpClient]: resolve with `get(AiHttpClientQualifier)`. */
+val AiHttpClientQualifier = named("AiHttpClient")
