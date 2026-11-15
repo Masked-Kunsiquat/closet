@@ -159,9 +159,7 @@ val dataModule = module {
         )
     }
 
-    // Constructed here only, explicitly (never singleOf).
-    single { AiPreferencesRepository(androidContext(), get<EncryptedKeyStore>()) }
-
+    singleOf(::AiPreferencesRepository)
     singleOf(::EncryptedKeyStore)
     singleOf(::LocationProvider)
     singleOf(::BrandRepository)
