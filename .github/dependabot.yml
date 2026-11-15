@@ -1,0 +1,11 @@
+# Keeps the SHA-pinned GitHub Actions current, as one grouped PR a month.
+# Gradle dependencies are bumped by hand (app-android/gradle/libs.versions.toml).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
