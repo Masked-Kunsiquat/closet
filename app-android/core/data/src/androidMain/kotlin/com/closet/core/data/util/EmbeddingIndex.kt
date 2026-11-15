@@ -6,8 +6,6 @@ import com.closet.core.data.worker.EmbeddingWork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import co.touchlab.kermit.Logger
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * In-memory cosine-similarity index over all stored item embeddings.
@@ -137,10 +135,6 @@ class EmbeddingIndex(
 
 /**
  * Decodes the little-endian float32 [ItemEmbeddingEntity.embeddingBlob] into a
- * [FloatArray]. Inverse of the encode step in `EmbeddingWorker.floatsToBlob`.
+ * [FloatArray]. Inverse of [toByteArrayLE], used by `EmbeddingWorker`.
  */
-private fun ItemEmbeddingEntity.toFloatArray(): FloatArray =
-    ByteBuffer.wrap(embeddingBlob)
-        .order(ByteOrder.LITTLE_ENDIAN)
-        .asFloatBuffer()
-        .let { buf -> FloatArray(buf.remaining()).also { buf.get(it) } }
+private fun ItemEmbeddingEntity.toFloatArray(): FloatArray = embeddingBlob.toFloatArrayLE()

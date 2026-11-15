@@ -43,13 +43,8 @@ data class ItemEmbeddingEntity(
      * Serialised float32 vector in little-endian byte order.
      * Size: `dimensions × 4` bytes (e.g. 384 × 4 = 1 536 bytes for MiniLM-L6-v2).
      *
-     * Encode with:
-     * ```kotlin
-     * ByteBuffer.allocate(floats.size * 4)
-     *     .order(ByteOrder.LITTLE_ENDIAN)
-     *     .apply { asFloatBuffer().put(floats) }
-     *     .array()
-     * ```
+     * Encode with `FloatArray.toByteArrayLE()`, decode with `ByteArray.toFloatArrayLE()`
+     * (`com.closet.core.data.util`).
      */
     @ColumnInfo(name = "embedding_blob")
     val embeddingBlob: ByteArray,

@@ -49,6 +49,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kermit)
+            // Flow and CancellationException (DataResult, NanoInitializer)
+            implementation(libs.kotlinx.coroutines.core)
+            // Serialization (ChatResponseParser, cache DTOs, service response parsing)
+            implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -72,9 +76,6 @@ kotlin {
 
             // Encrypted storage for API keys
             implementation(libs.androidx.security.crypto)
-
-            // Serialization (for cache DTOs + service response parsing)
-            implementation(libs.kotlinx.serialization.json)
 
             // Ktor HTTP client
             implementation(libs.ktor.client.okhttp)

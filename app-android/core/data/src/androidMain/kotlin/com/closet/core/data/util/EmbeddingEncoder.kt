@@ -60,7 +60,7 @@ class EmbeddingEncoder(
 
     private val tokenizer: WordPieceTokenizer? by lazy {
         try {
-            WordPieceTokenizer(context.assets.open(VOCAB_ASSET))
+            WordPieceTokenizer(context.assets.open(VOCAB_ASSET).bufferedReader().useLines { it.toList() })
         } catch (e: IOException) {
             Logger.withTag(TAG).e(e) { "Vocab asset not found at $VOCAB_ASSET — add vocab.txt to assets/models/" }
             null

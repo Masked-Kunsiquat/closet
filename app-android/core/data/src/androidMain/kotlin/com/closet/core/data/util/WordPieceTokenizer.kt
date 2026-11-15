@@ -1,6 +1,5 @@
 package com.closet.core.data.util
 
-import java.io.InputStream
 import java.text.Normalizer
 
 /**
@@ -20,7 +19,7 @@ data class TokenizerOutput(
 /**
  * Minimal BERT-style WordPiece tokenizer for `all-MiniLM-L6-v2` (uncased).
  *
- * Reads the vocabulary from a `vocab.txt` stream (one token per line; line index = token ID)
+ * Takes the vocabulary as the lines of `vocab.txt` (one token per line; line index = token ID)
  * and produces fixed-length [TokenizerOutput] arrays suitable for the ONNX model.
  *
  * Pipeline:
@@ -30,9 +29,9 @@ data class TokenizerOutput(
  * 3. **Encoding** — prepend `[CLS]`, append `[SEP]`, truncate at `maxLength - 2` content
  *    tokens, zero-pad to `maxLength`.
  *
- * @param vocabStream a stream for `vocab.txt`; consumed and closed during construction.
+ * @param vocabLines the lines of `vocab.txt`, in file order.
  */
-class WordPieceTokenizer(vocabStream: InputStream) {
+class WordPieceTokenizer(vocabLines: List<String>) {
 
     private val vocab: Map<String, Int>
     private val clsId: Int
@@ -53,9 +52,7 @@ class WordPieceTokenizer(vocabStream: InputStream) {
 
     init {
         vocab = HashMap<String, Int>().also { map ->
-            vocabStream.bufferedReader().useLines { lines ->
-                lines.forEachIndexed { index, token -> map[token.trimEnd()] = index }
-            }
+            vocabLines.forEachIndexed { index, token -> map[token.trimEnd()] = index }
         }
         clsId = vocab[CLS_TOKEN] ?: 101
         sepId = vocab[SEP_TOKEN] ?: 102

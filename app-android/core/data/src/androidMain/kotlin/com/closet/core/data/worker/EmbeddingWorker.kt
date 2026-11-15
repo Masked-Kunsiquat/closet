@@ -8,6 +8,7 @@ import com.closet.core.data.dao.EmbeddingDao
 import com.closet.core.data.model.ItemEmbeddingEntity
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
+import com.closet.core.data.util.toByteArrayLE
 import com.closet.core.data.worker.EmbeddingWork.KEY_DONE
 import com.closet.core.data.worker.EmbeddingWork.KEY_FAILED
 import com.closet.core.data.worker.EmbeddingWork.KEY_TOTAL
@@ -16,8 +17,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import co.touchlab.kermit.Logger
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.time.Instant
 
 /**
@@ -83,7 +82,7 @@ class EmbeddingWorker(
                 embeddingDao.upsert(
                     ItemEmbeddingEntity(
                         itemId        = item.id,
-                        embeddingBlob = floatsToBlob(vector),
+                        embeddingBlob = vector.toByteArrayLE(),
                         modelVersion  = MODEL_VERSION,
                         inputSnapshot = text,
                         embeddedAt    = Instant.now(),
@@ -110,19 +109,4 @@ class EmbeddingWorker(
 
         Result.success(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
     }
-
-    /**
-     * Serialises [floats] as a little-endian float32 byte array for BLOB storage.
-     *
-     * Decode with:
-     * ```kotlin
-     * ByteBuffer.wrap(blob).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
-     *     .let { FloatArray(it.remaining()).also { arr -> it.get(arr) } }
-     * ```
-     */
-    private fun floatsToBlob(floats: FloatArray): ByteArray =
-        ByteBuffer.allocate(floats.size * 4)
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .apply { asFloatBuffer().put(floats) }
-            .array()
 }
