@@ -3,6 +3,8 @@ package com.closet.backup
 import android.content.Context
 import android.net.Uri
 import com.closet.core.data.ClothingDatabase
+import com.closet.core.data.closeAndReset
+import com.closet.core.data.getDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -68,7 +70,7 @@ class RestoreRepository(
                     return@withContext Result.failure(Exception("Invalid backup: manifest.json not found"))
                 }
                 val manifest = json.decodeFromString<BackupManifest>(manifestFile.readText())
-                val currentVersion = database.databaseVersion
+                val currentVersion = database.databaseVersion()
                 if (manifest.schemaVersion > currentVersion) {
                     return@withContext Result.failure(
                         Exception(

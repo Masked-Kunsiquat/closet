@@ -59,6 +59,9 @@ dependencies {
     // Logging
     implementation(libs.timber)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.mockk)
     testImplementation(platform(libs.koin.bom))
     testImplementation(libs.koin.test.junit4)
     testImplementation(libs.ktor.client.okhttp)

@@ -17,7 +17,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import co.touchlab.kermit.Logger
-import java.time.Instant
+import kotlin.time.Clock
 
 /**
  * Background worker that embeds every clothing item whose `semantic_description` is populated
@@ -85,7 +85,7 @@ class EmbeddingWorker(
                         embeddingBlob = vector.toByteArrayLE(),
                         modelVersion  = MODEL_VERSION,
                         inputSnapshot = text,
-                        embeddedAt    = Instant.now(),
+                        embeddedAt    = Clock.System.now(),
                     )
                 )
                 done++

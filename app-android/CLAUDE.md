@@ -26,8 +26,8 @@ Run all Gradle commands from the `app-android/` directory.
 ./gradlew test                             # Unit tests (all modules; core/data's `test` runs testAndroidHostTest + jvmTest)
 ./gradlew connectedAndroidTest             # Instrumented tests
 ./gradlew :core:data:testAndroidHostTest   # core/data unit tests (Android host)
-./gradlew :core:data:jvmTest               # core/data Room/JVM tests
-./gradlew :core:data:connectedAndroidDeviceTest   # core/data instrumented tests (schema, DAO, repository)
+./gradlew :core:data:jvmTest               # core/data JVM tests: schema, DAO, repository (no device needed)
+./gradlew :core:data:connectedAndroidDeviceTest   # core/data instrumented tests (database path, existing-install upgrade)
 ./gradlew :core:data:compileCommonMainKotlinMetadata  # local stand-in for the iOS compile (CI only)
 ```
 
@@ -39,7 +39,7 @@ Full verification before a PR:
 ./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
-Unit and instrumented tests exist for the stats feature. The schema test lives in `core/data/src/androidDeviceTest/.../FreshInstallSchemaTest.kt`; run `./gradlew :core:data:connectedAndroidDeviceTest` before any PR that touches the schema.
+Unit and instrumented tests exist for the stats feature. Room tests (`FreshInstallSchemaTest`, `StatsDaoTest`, the repository tests) live in `core/data/src/jvmTest/` and run on the JVM against the bundled SQLite driver with `./gradlew :core:data:jvmTest` (no device needed); run them before any PR that touches the schema. `core/data/src/androidDeviceTest/` keeps only the Android-only checks (`DatabasePathTest`, `ExistingInstallUpgradeTest`); run `./gradlew :core:data:connectedAndroidDeviceTest` when changing the database builder or driver.
 
 ## Architecture
 
@@ -90,14 +90,15 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 
 ### Database (Room)
 
+- **Room KMP.** `ClothingDatabase`, entities, DAOs, `DatabaseSeeder` and the DAO-only repositories live in `commonMain`; `configureClosetDatabase()` (in `ClothingDatabase.kt`) applies the shared settings: the bundled SQLite driver on every platform, `Dispatchers.IO`, and the `onCreate`/`onOpen` callbacks. Per-platform builders: `ClothingDatabase.getDatabase(context)` / `closeAndReset()` in `androidMain/DatabaseBuilder.android.kt` (companion extensions — import them), `getDatabaseBuilder(file)` in `jvmMain`, `getDatabaseBuilder()` in `iosMain`. Raw SQL goes through `useWriterConnection`/`useReaderConnection` on an `androidx.sqlite.SQLiteConnection`; there is no `openHelper`.
 - **File:** `closet.db`, current version **1** — a squashed baseline (the old 1→6 chain was reset on 2026-11-15). Every schema change from here on needs a real migration.
 - **Initialization order:** `PRAGMA foreign_keys = ON` → create tables → `DatabaseSeeder` seeds lookup data on `onCreate`.
-- **Migrations** go in `core/data/.../migrations/` and are registered in `ClothingDatabase.kt` (there are none yet). Never edit an applied migration — add a new one. Room schema JSON is exported to `core/data/schemas/`.
+- **Migrations** go in `core/data/src/commonMain/.../migrations/`, take an `SQLiteConnection` (`migrate(connection)`), and are registered with `.addMigrations(...)` in `configureClosetDatabase()` (there are none yet). Never edit an applied migration — add a new one. Room schema JSON is exported to `core/data/schemas/`.
 - **Junction tables** (`clothing_item_colors`, `_materials`, `_seasons`, `_occasions`, `_patterns`) use delete-then-insert helpers in `ClothingRepository`. Never append.
 - **Computed fields** — `wear_count` (`COUNT(DISTINCT outfit_logs.id)` joined via the `outfit_log_items` snapshot, not the live `outfit_items`; log wears with `LogDao.insertLogAndSnapshot`, including in tests) and `cost_per_wear` (`purchase_price / wear_count`, `null` when wears = 0 or price is null) are never columns; always computed in queries.
-- **OOTD partial index** — `one_ootd_per_day` lives in `ClothingDatabase.onOpen()` via `CREATE … IF NOT EXISTS`, **not** `onCreate` or migrations. Room can't represent partial indexes in `@Entity` and crashes if it finds an unexpected index during migration validation.
+- **OOTD partial index** — `one_ootd_per_day` lives in the `onOpen` callback in `configureClosetDatabase()` via `CREATE … IF NOT EXISTS`, **not** `onCreate` or migrations. Room can't represent partial indexes in `@Entity` and crashes if it finds an unexpected index during migration validation.
 - When the first real migration is written, it and its test must drop `one_ootd_per_day` first; `AGENTS.md` has the pattern.
-- Full migration conventions and checklist: `core/data/src/androidMain/kotlin/com/closet/core/data/migrations/AGENTS.md`.
+- Full migration conventions and checklist: `core/data/src/commonMain/kotlin/com/closet/core/data/migrations/AGENTS.md`.
 
 ### Navigation
 
@@ -143,7 +144,7 @@ Two distinct MLKit namespaces — do not confuse them. Both are used only from `
 |------|---------|
 | `app/src/.../navigation/ClosetNavGraph.kt` | Root `NavHost` — all routes registered here |
 | `app/src/.../shortcuts/ShortcutActions.kt` | App shortcut constants (IDs, actions, extras) — shared hub for `shortcuts.xml`, `MainActivity`, `ClosetNavGraph`, and `ClosetViewModel` |
-| `core/data/src/.../ClothingDatabase.kt` | Room DB, migrations, `DatabaseSeeder` invocation |
+| `core/data/src/commonMain/.../ClothingDatabase.kt` | Room DB, `configureClosetDatabase()` (driver, callbacks, migrations), `DatabaseSeeder` invocation |
 | `core/data/src/.../dao/ClothingDao.kt` | Clothing queries with `wear_count` join |
 | `core/data/src/.../repository/ClothingRepository.kt` | CRUD, junction helpers, `DataResult` wrapping |
 | `core/data/src/.../util/DataResult.kt` | `Loading / Success / Error` sealed interface |

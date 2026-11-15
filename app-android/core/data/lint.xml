@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Room's KSP output for the jvm target uses androidx.room internals (EntityDeleteOrUpdateAdapter,
+         DBUtil, ...). It is generated code, not ours; lintJvm scans it because KMP registers the KSP
+         directory as an ordinary source dir. Hand-written code is still checked. -->
+    <issue id="RestrictedApi">
+        <ignore path="build/generated/ksp/**" />
+    </issue>
+</lint>

@@ -24,7 +24,7 @@ import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.repository.SubjectSegmenter
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
-import java.time.Instant
+import kotlin.time.Clock
 import java.util.UUID
 
 /**
@@ -110,7 +110,7 @@ class BatchSegmentationWorker(
                 var savedPath: String? = null
                 try {
                     savedPath = storageRepository.saveBitmap(masked, UUID.randomUUID().toString())
-                    clothingDao.updateItemImagePath(item.id, savedPath, Instant.now())
+                    clothingDao.updateItemImagePath(item.id, savedPath, Clock.System.now())
                 } catch (e: Exception) {
                     // Best-effort cleanup of the orphaned PNG before re-throwing so
                     // the outer catch can count this item as failed.

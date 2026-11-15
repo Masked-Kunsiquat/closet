@@ -26,7 +26,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
-import java.time.Instant
+import kotlin.time.Clock
 import java.util.concurrent.ExecutionException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -168,7 +168,7 @@ class MlKitImageCaptioner(
                             failed++
                         } else {
                             val caption = describe(bitmap)
-                            val updated = clothingDao.updateImageCaption(item.id, caption, Instant.now())
+                            val updated = clothingDao.updateImageCaption(item.id, caption, Clock.System.now())
                             if (updated == 1) {
                                 done++
                             } else {

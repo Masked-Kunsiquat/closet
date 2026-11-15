@@ -27,6 +27,7 @@ import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.TemperatureUnit
 import java.time.LocalDate
 import java.time.format.TextStyle
+import kotlinx.datetime.toJavaLocalDate
 import java.util.Locale
 
 @Composable
@@ -104,7 +105,7 @@ private fun DailyForecastRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = forecast.date.toForecastLabelComposable(today),
+            text = forecast.date.toJavaLocalDate().toForecastLabelComposable(today),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
         )

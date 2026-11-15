@@ -53,14 +53,17 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             // Serialization (ChatResponseParser, cache DTOs, service response parsing)
             implementation(libs.kotlinx.serialization.json)
+            // LocalDate and date arithmetic; entity and DAO signatures expose its types.
+            api(libs.kotlinx.datetime)
+            // Room KMP: entities, DAOs and the database live in commonMain.
+            implementation(libs.room.runtime)
+            // The bundled SQLite driver every target uses (configureClosetDatabase).
+            implementation(libs.sqlite.bundled)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
         androidMain.dependencies {
-            implementation(libs.room.runtime)
-            implementation(libs.room.ktx)
-
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.android)
             implementation(libs.koin.androidx.workmanager)
@@ -104,15 +107,23 @@ kotlin {
     }
 }
 
-// The Room plugin also copies these schemas into the device-test APK's assets
-// (copyRoomSchemasToAndroidTestAssetsAndroidDeviceTest); FreshInstallSchemaTest reads 1.json there.
 room {
     schemaDirectory("$projectDir/schemas")
 }
 
+// FreshInstallSchemaTest (jvmTest) reads the committed schema export, schemas/…/1.json.
+tasks.named<Test>("jvmTest") {
+    val schemaDir = layout.projectDirectory.dir("schemas")
+    inputs.dir(schemaDir).withPropertyName("roomSchemas").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("closet.schemaDir", schemaDir.asFile.absolutePath)
+}
+
 dependencies {
-    // Other targets get Room KSP when the database moves to commonMain (Phase 3, Task 5).
+    // Room KSP for every target; each generates its own `actual object ClothingDatabaseConstructor`.
     add("kspAndroid", libs.room.compiler)
+    add("kspJvm", libs.room.compiler)
+    add("kspIosArm64", libs.room.compiler)
+    add("kspIosSimulatorArm64", libs.room.compiler)
 }
 
 // KMP creates no `test` task here, so the root `./gradlew test` would skip core/data.
