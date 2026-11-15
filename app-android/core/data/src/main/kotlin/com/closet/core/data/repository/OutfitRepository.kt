@@ -124,14 +124,14 @@ class OutfitRepository(
             outfitDao.insertOutfitItems(outfitItems)
         }
         DataResult.Success(Unit)
+    } catch (e: AppError) {
+        // AppError extends Throwable, not Exception, so it needs its own catch clause.
+        Timber.e(e, "Error updating outfit: $outfitId")
+        DataResult.Error(e)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
         Timber.e(e, "Error updating outfit: $outfitId")
-        if (e is AppError) {
-            DataResult.Error(e)
-        } else {
-            DataResult.Error(AppError.DatabaseError.QueryError(e))
-        }
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
     /**
