@@ -169,7 +169,8 @@ app-android/                          (repo dir name kept; rename is optional, l
     │                       Nano chat/recs providers, ML Kit ChatRouter + language ID + date
     │                       parser, image captioning, subject segmentation. Depended on via
     │                       `fullImplementation` from `app` only.
-    └── (foss stubs)        Live in `app/src/foss/` as a Koin module of no-op bindings.
+    └── (foss stubs)        Live in each feature's `src/main` (later `commonMain`) with a
+                            `<feature>NoOpModule`; `app/src/foss` includes them.
 ```
 
 Whether `platform/gms` is one module or one per feature is the builder's call.
@@ -328,8 +329,8 @@ Android device or emulator passes. From Phase 3 on, the macOS CI job also has to
    kept and merged; the spike code isn't merged as-is.
 1. **Hilt → Koin, Android only.** No KMP yet. The behavior is identical. This isolates the riskiest
    mechanical change so failures aren't tangled with KMP problems.
-2. **Extract flavors.** Introduce capability interfaces. Move `src/full` code to `platform/gms` and
-   `src/foss` stubs to `app/src/foss`. Feature modules become single-variant. This is a pure
+2. **Extract flavors.** Introduce capability interfaces. Move `src/full` code to `platform/gms`, and
+   `src/foss` stubs to each feature's `src/main` (bound by `app/src/foss`'s `flavorModule`). Feature modules become single-variant. This is a pure
    refactor with no behavior change on either flavor (see "Chat routing").
 3. **`core/data` → KMP.** First, the migration consolidation (its own PR). Then Room KMP, DataStore KMP, Ktor engines, Kermit, and platform interfaces
    (`SecretStore`, `ImageProcessor`, `LocationProvider`, `EmbeddingEncoder`, work schedulers).
