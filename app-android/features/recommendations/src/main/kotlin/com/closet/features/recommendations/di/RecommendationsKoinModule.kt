@@ -1,6 +1,5 @@
 package com.closet.features.recommendations.di
 
-import com.closet.core.data.di.AiHttpClientQualifier
 import com.closet.features.recommendations.RecommendationViewModel
 import com.closet.features.recommendations.ai.AnthropicProvider
 import com.closet.features.recommendations.ai.OpenAiProvider
@@ -16,9 +15,8 @@ import org.koin.dsl.module
  */
 val recommendationsModule = module {
     singleOf(::OutfitRecommendationEngine)
-    // Explicit constructors: these take the AI-qualified HttpClient (the long-timeout one).
-    single { AnthropicProvider(get(AiHttpClientQualifier), get(), get()) }
-    single { OpenAiProvider(get(AiHttpClientQualifier), get(), get()) }
+    singleOf(::AnthropicProvider)
+    singleOf(::OpenAiProvider)
     singleOf(::OutfitCoherenceScorer)
     viewModelOf(::RecommendationViewModel)
 }

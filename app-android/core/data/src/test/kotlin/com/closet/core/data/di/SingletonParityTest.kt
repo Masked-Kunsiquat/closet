@@ -54,6 +54,6 @@ class SingletonParityTest {
 
     @Test fun aiHttpClientIsDistinct() {
         val koin = KoinPlatform.getKoin()
-        assertNotSame(koin.get<HttpClient>(), koin.get<HttpClient>(AiHttpClientQualifier))
+        assertNotSame(koin.get<HttpClient>(), koin.get<AiHttpClient>().client)
     }
 }

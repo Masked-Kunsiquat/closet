@@ -6,6 +6,7 @@ import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSelection
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.di.AiHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
@@ -44,18 +45,19 @@ import timber.log.Timber
  * failure, fewer than 3 valid selections in the response. Callers treat every failure as a
  * silent fallback to the programmatic top-3 result — this class never throws.
  *
- * Not bound in [com.closet.features.recommendations.di.RecommendationModule] — the Settings
+ * Not bound to [OutfitAiProvider] in Koin — the Settings
  * UI provider selector switches between [NanoProvider], [OpenAiProvider], and future providers
  * at runtime.
  *
- * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
- *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
+ * @param aiHttpClient the AI inference client (120 s timeouts); see [AiHttpClient].
  */
 class OpenAiProvider(
-    private val client: HttpClient,
+    aiHttpClient: AiHttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : OutfitAiProvider {
+
+    private val client: HttpClient = aiHttpClient.client
 
     companion object {
         private const val TAG = "OpenAiProvider"

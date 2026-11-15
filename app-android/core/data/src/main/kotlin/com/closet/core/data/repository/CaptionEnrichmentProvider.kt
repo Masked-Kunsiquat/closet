@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
  * The full-flavor implementation delegates to [com.closet.features.wardrobe.repository.ImageCaptionRepository].
  * The FOSS-flavor stub sets [isSupported] = `false` and throws on [describe].
  *
- * Provided by [com.closet.features.wardrobe.di.WardrobeModule], following the same
+ * Provided by `wardrobeFlavorModule` in `features/wardrobe` (src/full, src/foss), following the same
  * pattern as [BatchSegmentationScheduler].
  */
 interface CaptionEnrichmentProvider {

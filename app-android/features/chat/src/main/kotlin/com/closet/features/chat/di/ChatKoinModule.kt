@@ -1,6 +1,5 @@
 package com.closet.features.chat.di
 
-import com.closet.core.data.di.AiHttpClientQualifier
 import com.closet.features.chat.ChatRepository
 import com.closet.features.chat.ChatViewModel
 import com.closet.features.chat.ai.AnthropicChatProvider
@@ -16,10 +15,9 @@ import org.koin.dsl.module
  * and ChatRouter live in `chatFlavorModule` (src/full and src/foss).
  */
 val chatModule = module {
-    // Explicit constructors: these take the AI-qualified HttpClient (the long-timeout one).
-    single { AnthropicChatProvider(get(AiHttpClientQualifier), get(), get()) }
-    single { GeminiChatProvider(get(AiHttpClientQualifier), get(), get()) }
-    single { OpenAiChatProvider(get(AiHttpClientQualifier), get(), get()) }
+    singleOf(::AnthropicChatProvider)
+    singleOf(::GeminiChatProvider)
+    singleOf(::OpenAiChatProvider)
     singleOf(::ChatAiProviderSelector)
     singleOf(::ChatRepository)
     viewModelOf(::ChatViewModel)

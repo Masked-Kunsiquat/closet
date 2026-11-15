@@ -5,7 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
 import com.closet.core.data.ClothingDatabase
-import com.closet.core.data.di.AiHttpClientQualifier
+import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.di.dataModule
 import com.closet.core.data.repository.EncryptedKeyStore
 import com.closet.core.ui.di.uiModule
@@ -53,7 +53,7 @@ class ChatKoinTest {
     private fun assertAiClient(provider: Any) {
         val koin = KoinPlatform.getKoin()
         val client = clientOf(provider)
-        assertSame(koin.get<HttpClient>(AiHttpClientQualifier), client)
+        assertSame(koin.get<AiHttpClient>().client, client)
         assertNotSame(koin.get<HttpClient>(), client)
     }
 

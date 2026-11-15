@@ -106,7 +106,8 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
  * Any response that fails JSON parsing, returns fewer than 3 valid entries, or contains
  * combo_ids not in the input is discarded by the caller, which falls back to programmatic top-3.
  *
- * Bound to [OutfitAiProvider] via [com.closet.features.recommendations.di.RecommendationModule].
+ * Bound to [OutfitAiProvider] and [NanoInitializer] via
+ * [com.closet.features.recommendations.di.recommendationsFlavorModule].
  */
 class NanoProvider(
     private val json: Json,

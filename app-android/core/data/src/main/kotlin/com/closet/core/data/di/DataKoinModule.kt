@@ -150,65 +150,13 @@ val dataModule = module {
     }
 
     single<HttpClient> {
-        val json = get<Json>()
-        HttpClient(OkHttp) {
-            install(HttpTimeout) {
-                connectTimeoutMillis = 30_000
-                socketTimeoutMillis = 30_000
-                requestTimeoutMillis = 30_000
-            }
-            install(ContentNegotiation) {
-                json(json)
-            }
-            install(Logging) {
-                logger = object : Logger {
-                    private val sensitiveHeaders = setOf("authorization", "x-api-key")
-                    override fun log(message: String) {
-                        val redacted = message.lines().joinToString("\n") { line ->
-                            val colon = line.indexOf(':')
-                            if (colon > 0 && line.substring(0, colon).trim().lowercase() in sensitiveHeaders) {
-                                "${line.substring(0, colon)}: <REDACTED>"
-                            } else {
-                                line
-                            }
-                        }
-                        Timber.tag("Ktor").d(redacted)
-                    }
-                }
-                level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
-            }
-        }
+        buildHttpClient(get(), socketTimeoutMs = 30_000, requestTimeoutMs = 30_000, logTag = "Ktor")
     }
 
-    single<HttpClient>(AiHttpClientQualifier) {
-        val json = get<Json>()
-        HttpClient(OkHttp) {
-            install(HttpTimeout) {
-                connectTimeoutMillis = 30_000
-                socketTimeoutMillis = 120_000
-                requestTimeoutMillis = 120_000
-            }
-            install(ContentNegotiation) {
-                json(json)
-            }
-            install(Logging) {
-                logger = object : Logger {
-                    private val sensitiveHeaders = setOf("authorization", "x-api-key")
-                    override fun log(message: String) {
-                        val redacted = message.lines().joinToString("\n") { line ->
-                            val colon = line.indexOf(':')
-                            if (colon > 0 && line.substring(0, colon).trim().lowercase() in sensitiveHeaders) {
-                                "${line.substring(0, colon)}: <REDACTED>"
-                            } else {
-                                line
-                            }
-                        }
-                        Timber.tag("KtorAI").d(redacted)
-                    }
-                }
-                level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
-            }
-        }
+    single {
+        AiHttpClient(
+            buildHttpClient(get(), socketTimeoutMs = 120_000, requestTimeoutMs = 120_000, logTag = "KtorAI"),
+        )
     }
 
     // Constructed here only, explicitly (never singleOf).
@@ -235,4 +183,43 @@ val dataModule = module {
 
     workerOf(::EmbeddingWorker)
     workerOf(::ImageCompressionWorker)
+}
+
+/** Headers whose values are replaced with `<REDACTED>` in debug HTTP logs. */
+private val SENSITIVE_HEADERS = setOf("authorization", "x-api-key", "x-goog-api-key")
+
+/**
+ * Builds an OkHttp-backed [HttpClient] with JSON content negotiation and debug-only
+ * logging that redacts [SENSITIVE_HEADERS]. Connect timeout is always 30 s.
+ */
+private fun buildHttpClient(
+    json: Json,
+    socketTimeoutMs: Long,
+    requestTimeoutMs: Long,
+    logTag: String,
+): HttpClient = HttpClient(OkHttp) {
+    install(HttpTimeout) {
+        connectTimeoutMillis = 30_000
+        socketTimeoutMillis = socketTimeoutMs
+        requestTimeoutMillis = requestTimeoutMs
+    }
+    install(ContentNegotiation) {
+        json(json)
+    }
+    install(Logging) {
+        logger = object : Logger {
+            override fun log(message: String) {
+                val redacted = message.lines().joinToString("\n") { line ->
+                    val colon = line.indexOf(':')
+                    if (colon > 0 && line.substring(0, colon).trim().lowercase() in SENSITIVE_HEADERS) {
+                        "${line.substring(0, colon)}: <REDACTED>"
+                    } else {
+                        line
+                    }
+                }
+                Timber.tag(logTag).d(redacted)
+            }
+        }
+        level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
+    }
 }

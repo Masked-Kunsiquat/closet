@@ -6,6 +6,7 @@ import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.di.AiHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
@@ -36,14 +37,15 @@ import timber.log.Timber
  * - **Base URL** — defaults to `https://api.openai.com`. Override for Ollama / Groq / etc.
  * - **Model**    — defaults to [DEFAULT_MODEL]
  *
- * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
- *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
+ * @param aiHttpClient the AI inference client (120 s timeouts); see [AiHttpClient].
  */
 class OpenAiChatProvider(
-    private val client: HttpClient,
+    aiHttpClient: AiHttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : ChatAiProvider {
+
+    private val client: HttpClient = aiHttpClient.client
 
     companion object {
         private const val TAG = "OpenAiChatProvider"

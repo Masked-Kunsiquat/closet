@@ -6,6 +6,7 @@ import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSelection
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.di.AiHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
@@ -43,18 +44,19 @@ import timber.log.Timber
  * or fewer than 3 distinct valid selections in the response. Callers treat every failure as a
  * silent fallback to the programmatic top-3 result — this class never throws.
  *
- * Not bound in [com.closet.features.recommendations.di.RecommendationModule] — it is injected
+ * Not bound to [OutfitAiProvider] in Koin — it is a plain `single` injected
  * directly into [OutfitCoherenceScorer] alongside [NanoProvider] and [OpenAiProvider], and the
  * scorer's provider-selection switch picks the active implementation at runtime.
  *
- * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
- *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
+ * @param aiHttpClient the AI inference client (120 s timeouts); see [AiHttpClient].
  */
 class AnthropicProvider(
-    private val client: HttpClient,
+    aiHttpClient: AiHttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : OutfitAiProvider {
+
+    private val client: HttpClient = aiHttpClient.client
 
     companion object {
         private const val TAG = "AnthropicProvider"

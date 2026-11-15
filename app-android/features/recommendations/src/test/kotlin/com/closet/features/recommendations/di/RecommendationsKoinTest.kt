@@ -7,7 +7,7 @@ import androidx.work.WorkerParameters
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
-import com.closet.core.data.di.AiHttpClientQualifier
+import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.di.dataModule
 import com.closet.features.recommendations.ai.AnthropicProvider
 import com.closet.features.recommendations.ai.OpenAiProvider
@@ -87,7 +87,7 @@ class RecommendationsKoinTest {
         startWithMockedLeaves()
         val koin = KoinPlatform.getKoin()
         val client = clientOf(koin.get<AnthropicProvider>())
-        assertSame(koin.get<HttpClient>(AiHttpClientQualifier), client)
+        assertSame(koin.get<AiHttpClient>().client, client)
         assertNotSame(koin.get<HttpClient>(), client)
     }
 
@@ -95,7 +95,7 @@ class RecommendationsKoinTest {
         startWithMockedLeaves()
         val koin = KoinPlatform.getKoin()
         val client = clientOf(koin.get<OpenAiProvider>())
-        assertSame(koin.get<HttpClient>(AiHttpClientQualifier), client)
+        assertSame(koin.get<AiHttpClient>().client, client)
         assertNotSame(koin.get<HttpClient>(), client)
     }
 }
