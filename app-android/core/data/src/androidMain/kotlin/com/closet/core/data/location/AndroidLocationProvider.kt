@@ -32,7 +32,13 @@ class AndroidLocationProvider(
 
     @SuppressLint("MissingPermission")
     override suspend fun getLocation(timeoutMs: Long): Pair<Double, Double>? {
-        lastKnownLocation()?.let { return it }
+        try {
+            lastKnownLocation()?.let { return it }
+        } catch (e: SecurityException) {
+            // Permission revoked since the toggle was enabled: let the caller fall back to cached coords.
+            Logger.withTag("LocationProvider").w(e) { "LocationProvider: location permission missing" }
+            return null
+        }
         return withTimeoutOrNull(timeoutMs) { requestSingleUpdate() }
     }
 
