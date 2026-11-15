@@ -9,6 +9,7 @@ androidxLifecycle = "2.10.0"
 androidxActivity = "1.13.0"
 androidxNavigation = "2.9.7"
 kotlinxSerializationJson = "1.10.0"
+kotlinxDatetime = "0.8.0"
 kotlinxCoroutines = "1.10.2"
 room = "2.8.4"
 coil = "2.7.0"
@@ -58,6 +59,7 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "androidxNavigation" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }

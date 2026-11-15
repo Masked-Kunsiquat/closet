@@ -17,7 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.time.Instant
+import kotlin.time.Clock
 
 /**
  * Instrumented tests for [StatsDao] using an in-memory Room database.
@@ -66,8 +66,8 @@ class StatsDaoTest {
                 categoryId = categoryId,
                 subcategoryId = subcategoryId,
                 purchasePrice = purchasePrice,
-                createdAt = Instant.now(),
-                updatedAt = Instant.now()
+                createdAt = Clock.System.now(),
+                updatedAt = Clock.System.now()
             )
         )
     }

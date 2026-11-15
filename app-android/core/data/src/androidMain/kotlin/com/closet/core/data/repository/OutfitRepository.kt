@@ -10,7 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import co.touchlab.kermit.Logger
-import java.time.Instant
+import kotlin.time.Clock
 
 /**
  * Domain model for an Outfit with its constituent items and layout metadata.
@@ -103,7 +103,7 @@ class OutfitRepository(
                 id = outfitId,
                 name = name,
                 notes = notes,
-                updatedAt = Instant.now()
+                updatedAt = Clock.System.now()
             )
             
             if (updatedRows == 0) {

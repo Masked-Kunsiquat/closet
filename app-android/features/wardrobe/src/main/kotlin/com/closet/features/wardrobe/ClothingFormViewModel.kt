@@ -43,7 +43,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.time.Instant
+import kotlin.time.Clock
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import timber.log.Timber
@@ -767,8 +767,8 @@ class ClothingFormViewModel(
                     // If the user replaced the image, treat the old caption as stale and set null.
                     imageCaption = state.imageCaption
                         ?: if (state.imagePath == originalEntity?.imagePath) originalEntity?.imageCaption else null,
-                    createdAt = originalEntity?.createdAt ?: Instant.now(),
-                    updatedAt = Instant.now()
+                    createdAt = originalEntity?.createdAt ?: Clock.System.now(),
+                    updatedAt = Clock.System.now()
                 )
 
                 val result = if (isEditMode) {

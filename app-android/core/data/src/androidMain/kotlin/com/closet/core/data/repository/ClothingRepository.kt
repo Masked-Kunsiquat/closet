@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CancellationException
-import java.time.Instant
+import kotlin.time.Clock
 
 /**
  * Repository providing access to clothing items.
@@ -247,7 +247,7 @@ class ClothingRepository(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateWashStatus(id: Long, washStatus: WashStatus): DataResult<Unit> = try {
-        val updatedAt = converters.dateToTimestamp(Instant.now()) ?: ""
+        val updatedAt = converters.dateToTimestamp(Clock.System.now()) ?: ""
         clothingDao.updateWashStatus(id, washStatus.label, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
@@ -263,7 +263,7 @@ class ClothingRepository(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateStatus(id: Long, status: ClothingStatus): DataResult<Unit> = try {
-        val updatedAt = converters.dateToTimestamp(Instant.now()) ?: ""
+        val updatedAt = converters.dateToTimestamp(Clock.System.now()) ?: ""
         clothingDao.updateItemStatus(id, status.label, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
@@ -279,7 +279,7 @@ class ClothingRepository(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateFavoriteStatus(id: Long, isFavorite: Boolean): DataResult<Unit> = try {
-        val updatedAt = converters.dateToTimestamp(Instant.now()) ?: ""
+        val updatedAt = converters.dateToTimestamp(Clock.System.now()) ?: ""
         clothingDao.updateFavoriteStatus(id, if (isFavorite) 1 else 0, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
@@ -356,7 +356,7 @@ class ClothingRepository(
         try {
             val detail = clothingDao.getClothingItemDetailOnce(id) ?: return
             val description = ItemVectorizer.describe(detail)
-            clothingDao.updateSemanticDescription(id, description, Instant.now())
+            clothingDao.updateSemanticDescription(id, description, Clock.System.now())
             Logger.withTag("ClothingRepository").d { "vectorizeItem: wrote description for item $id (${description.length} chars)" }
         } catch (e: Exception) {
             if (e is CancellationException) throw e

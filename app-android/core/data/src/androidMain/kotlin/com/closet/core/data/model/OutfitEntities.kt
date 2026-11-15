@@ -1,7 +1,8 @@
 package com.closet.core.data.model
 
 import androidx.room.*
-import java.time.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Represents a named collection of clothing items that the user has grouped together as an outfit.
@@ -18,8 +19,8 @@ data class OutfitEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String? = null,
     val notes: String? = null,
-    @ColumnInfo(name = "created_at") val createdAt: Instant = Instant.now(),
-    @ColumnInfo(name = "updated_at") val updatedAt: Instant = Instant.now()
+    @ColumnInfo(name = "created_at") val createdAt: Instant = Clock.System.now(),
+    @ColumnInfo(name = "updated_at") val updatedAt: Instant = Clock.System.now()
 )
 
 /**
@@ -108,7 +109,7 @@ data class OutfitLogEntity(
     @ColumnInfo(name = "weather_condition") val weatherCondition: WeatherCondition? = null,
     @ColumnInfo(name = "precipitation_mm") val precipitationMm: Double? = null,
     @ColumnInfo(name = "wind_speed_kmh") val windSpeedKmh: Double? = null,
-    @ColumnInfo(name = "created_at") val createdAt: Instant = Instant.now()
+    @ColumnInfo(name = "created_at") val createdAt: Instant = Clock.System.now()
 )
 
 /**

@@ -239,7 +239,7 @@ interface ClothingDao {
 
     /** Replaces the stored image path for a single item and updates its timestamp. */
     @Query("UPDATE clothing_items SET image_path = :imagePath, updated_at = :updatedAt WHERE id = :id")
-    suspend fun updateItemImagePath(id: Long, imagePath: String, updatedAt: java.time.Instant)
+    suspend fun updateItemImagePath(id: Long, imagePath: String, updatedAt: kotlin.time.Instant)
 
     // ── RAG / semantic pipeline ──────────────────────────────────────────────
 
@@ -258,11 +258,11 @@ interface ClothingDao {
 
     /** Writes the ItemVectorizer output for a single item. */
     @Query("UPDATE clothing_items SET semantic_description = :text, updated_at = :updatedAt WHERE id = :id")
-    suspend fun updateSemanticDescription(id: Long, text: String, updatedAt: java.time.Instant)
+    suspend fun updateSemanticDescription(id: Long, text: String, updatedAt: kotlin.time.Instant)
 
     /** Writes the ML Kit image caption for a single item. Returns the number of rows affected (0 if the item was deleted). */
     @Query("UPDATE clothing_items SET image_caption = :caption, updated_at = :updatedAt WHERE id = :id")
-    suspend fun updateImageCaption(id: Long, caption: String, updatedAt: java.time.Instant): Int
+    suspend fun updateImageCaption(id: Long, caption: String, updatedAt: kotlin.time.Instant): Int
 
     /** Fetches fully-loaded [ClothingItemDetail] for a specific set of IDs (one-shot, for RAG context building). */
     @Transaction

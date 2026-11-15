@@ -53,6 +53,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             // Serialization (ChatResponseParser, cache DTOs, service response parsing)
             implementation(libs.kotlinx.serialization.json)
+            // LocalDate and date arithmetic; entity and DAO signatures expose its types.
+            api(libs.kotlinx.datetime)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

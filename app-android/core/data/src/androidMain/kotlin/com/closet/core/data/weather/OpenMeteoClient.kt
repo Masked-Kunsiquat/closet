@@ -9,7 +9,7 @@ import io.ktor.client.request.parameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import co.touchlab.kermit.Logger
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
 

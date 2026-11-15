@@ -1,13 +1,13 @@
 package com.closet.core.data.model
 
 import kotlinx.serialization.Serializable
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /**
  * Serializable DTO used to persist a [DailyForecast] in the DataStore cache.
  *
  * Uses only primitive/String fields to avoid custom serializers for
- * [java.time.LocalDate] and [WeatherCondition]. Condition is stored by
+ * [LocalDate] and [WeatherCondition]. Condition is stored by
  * [WeatherCondition.name] so it survives label renames.
  */
 @Serializable

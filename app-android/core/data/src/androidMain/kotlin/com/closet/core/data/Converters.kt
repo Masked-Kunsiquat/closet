@@ -4,7 +4,7 @@ import androidx.room.TypeConverter
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.model.WeatherCondition
-import java.time.Instant
+import kotlin.time.Instant
 
 /**
  * Room [TypeConverter]s for domain types that cannot be stored natively in SQLite.

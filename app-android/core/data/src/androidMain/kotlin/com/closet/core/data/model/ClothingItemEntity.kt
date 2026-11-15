@@ -1,7 +1,8 @@
 package com.closet.core.data.model
 
 import androidx.room.*
-import java.time.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Mirror of ClothingItem type from the Expo project.
@@ -96,10 +97,10 @@ data class ClothingItemEntity(
     val imageCaption: String? = null,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Instant = Instant.now(),
+    val createdAt: Instant = Clock.System.now(),
 
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Instant = Instant.now()
+    val updatedAt: Instant = Clock.System.now()
 )
 
 /**

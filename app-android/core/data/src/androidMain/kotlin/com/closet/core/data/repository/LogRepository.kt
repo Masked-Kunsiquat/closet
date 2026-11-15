@@ -11,7 +11,9 @@ import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import co.touchlab.kermit.Logger
-import java.time.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 
 /**
  * Repository for Outfit Log (Journal) operations.
@@ -48,7 +50,7 @@ class LogRepository(
      * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
      */
     suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> =
-        wearOutfitOnDate(outfitId, LocalDate.now().toString())
+        wearOutfitOnDate(outfitId, Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
 
     /**
      * Logs an outfit as worn on [date] (YYYY-MM-DD). Idempotent — returns the existing
@@ -103,7 +105,7 @@ class LogRepository(
      */
     suspend fun wearItemsToday(itemIds: List<Long>): DataResult<Long> = try {
         val logId = logDao.getOrCreateAdHocLogAndSnapshot(
-            date = LocalDate.now().toString(),
+            date = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString(),
             itemIds = itemIds,
         )
         DataResult.Success(logId)

@@ -20,7 +20,7 @@ import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
-import java.time.Instant
+import kotlin.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow

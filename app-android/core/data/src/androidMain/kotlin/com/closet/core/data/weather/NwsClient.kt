@@ -9,8 +9,8 @@ import io.ktor.client.request.header
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import co.touchlab.kermit.Logger
-import java.time.LocalDate
-import java.time.OffsetDateTime
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.format.DateTimeComponents
 
 private const val POINTS_URL = "https://api.weather.gov/points"
 
@@ -67,7 +67,7 @@ class NwsClient(
         // date → (daytime period, nighttime period)
         val byDate = linkedMapOf<LocalDate, Pair<NwsPeriod?, NwsPeriod?>>()
         for (period in periods) {
-            val date = OffsetDateTime.parse(period.startTime).toLocalDate()
+            val date = DateTimeComponents.Formats.ISO_DATE_TIME_OFFSET.parse(period.startTime).toLocalDate()
             val existing = byDate.getOrDefault(date, Pair(null, null))
             byDate[date] = if (period.isDaytime) {
                 Pair(period, existing.second)

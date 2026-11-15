@@ -10,7 +10,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.CancellationException
 import co.touchlab.kermit.Logger
-import java.time.LocalDate
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 
 private const val BASE_URL = "https://weather.googleapis.com/v1/forecast/days:lookup"
 
@@ -55,9 +60,9 @@ class GoogleWeatherClient(
         @SerialName("forecastDays") val forecastDays: List<GoogleForecastDay> = emptyList(),
     ) {
         fun toForecasts(): List<DailyForecast> {
-            val baseDate = LocalDate.now()
+            val baseDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
             return forecastDays.mapIndexed { i, day ->
-                val date = day.displayDate?.toLocalDate() ?: baseDate.plusDays(i.toLong())
+                val date = day.displayDate?.toLocalDate() ?: baseDate.plus(i, DateTimeUnit.DAY)
                 DailyForecast(
                     date = date,
                     tempLow = day.minTemperature?.toCelsius() ?: 0.0,
@@ -87,7 +92,7 @@ class GoogleWeatherClient(
         val day: Int = 0,
     ) {
         fun toLocalDate(): LocalDate? = runCatching {
-            LocalDate.of(year, month, day)
+            LocalDate(year, month, day)
         }.getOrNull()
     }
 

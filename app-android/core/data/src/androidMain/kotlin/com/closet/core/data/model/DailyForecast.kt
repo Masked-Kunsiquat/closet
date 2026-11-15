@@ -1,6 +1,6 @@
 package com.closet.core.data.model
 
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /**
  * Domain model for a single day's weather forecast.

@@ -3,7 +3,7 @@ package com.closet.core.data.dao
 import androidx.room.*
 import com.closet.core.data.model.*
 import kotlinx.coroutines.flow.Flow
-import java.time.Instant
+import kotlin.time.Instant
 
 /**
  * Data Access Object for managing outfits and their constituent items.
