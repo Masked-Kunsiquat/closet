@@ -73,10 +73,14 @@ class ClosetApp : Application() {
                 .onFailure { Timber.tag("ClosetApp").e(it, "EmbeddingIndex load failed — chat retrieval will be unavailable until next launch") }
         }
 
+        // Resolve on the main thread, outside runCatching: if EncryptedKeyStore can't open even
+        // after recreating its file, the app must fail here at launch, not later on a screen.
+        val aiPrefs = aiPreferencesRepository
+
         // Migrate any API keys previously stored as plaintext in DataStore to EncryptedKeyStore.
         // No-op after the first run or if keys were never set.
         applicationScope.launch {
-            runCatching { aiPreferencesRepository.migrateKeysFromPlainDataStore() }
+            runCatching { aiPrefs.migrateKeysFromPlainDataStore() }
                 .onFailure { Timber.tag("ClosetApp").e(it, "Key migration failed — app will continue without migrated keys") }
         }
     }
