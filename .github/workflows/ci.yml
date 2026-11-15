@@ -1,0 +1,49 @@
+name: CI
+
+# Unit tests (all modules, incl. core/data's JVM Room tests), lint, and debug
+# builds of both flavors. The iOS compile lives in ios-compile.yml; device
+# tests stay manual (see app-android/CLAUDE.md).
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    defaults:
+      run:
+        working-directory: app-android
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Test, lint, build
+        run: ./gradlew test :core:data:jvmTest lint assembleFullDebug assembleFossDebug --stacktrace
+
+      - name: Upload test and lint reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            app-android/**/build/reports/tests/
+            app-android/**/build/reports/lint-results-*.html
+          retention-days: 7

@@ -1,12 +1,15 @@
 name: iOS compile check
 
-# Compiles all Kotlin Multiplatform modules for iOS targets.
-# No-op until a module applies org.jetbrains.kotlin.multiplatform.
+# Compiles all Kotlin Multiplatform modules (main + test sources) for iOS targets.
 on:
   pull_request:
   push:
     branches:
       - main
+
+concurrency:
+  group: ios-compile-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ios-compile:
