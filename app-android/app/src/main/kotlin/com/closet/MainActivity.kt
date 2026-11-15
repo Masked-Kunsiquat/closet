@@ -12,24 +12,21 @@ import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import com.closet.core.ui.theme.ClosetTheme
 import com.closet.navigation.ClosetNavGraph
-import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import javax.inject.Inject
+import org.koin.android.ext.android.inject
 
 /**
  * Single-activity entry point for the app.
  *
  * Enables edge-to-edge display and hosts [ClosetNavGraph], which owns the root [Scaffold]
- * and bottom navigation bar. Hilt dependency injection is provided via
- * [@AndroidEntryPoint][dagger.hilt.android.AndroidEntryPoint].
+ * and bottom navigation bar.
  */
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    // Field-injected rather than constructor-injected: Hilt does not support
-    // constructor injection for Activity subclasses.
-    @Inject lateinit var preferencesRepository: PreferencesRepository
+    // Resolved lazily from Koin: the framework creates Activities, so they cannot use
+    // constructor injection.
+    private val preferencesRepository: PreferencesRepository by inject()
 
     // Carries the latest shortcut (or regular launch) intent so ClosetNavGraph
     // can react to it in a LaunchedEffect. Null means "no pending navigation".

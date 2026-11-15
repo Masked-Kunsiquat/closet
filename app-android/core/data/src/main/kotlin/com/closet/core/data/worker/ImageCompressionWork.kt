@@ -34,7 +34,7 @@ object ImageCompressionWork {
  * Abstraction that lets [com.closet.ClosetApp] schedule background image compression and
  * [SettingsViewModel] trigger an immediate run without a direct dependency on
  * [ImageCompressionWorker]. Bound to its concrete implementation by
- * [com.closet.core.data.di.DataModule].
+ * [com.closet.core.data.di.dataModule].
  */
 interface ImageCompressionScheduler {
     /**

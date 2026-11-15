@@ -12,8 +12,6 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.TimeZone
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Full-flavor [ChatDateParser]: uses ML Kit Entity Extraction to handle the full range of
@@ -23,8 +21,7 @@ import javax.inject.Singleton
  * The English model (~5.6 MB) is downloaded via Play Services on first use. The download is
  * triggered lazily in [init] so it's typically ready by the time the user first queries a date.
  */
-@Singleton
-class ChatDateParser @Inject constructor() {
+class ChatDateParser {
 
     private val extractor = EntityExtraction.getClient(
         EntityExtractorOptions.Builder(EntityExtractorOptions.ENGLISH).build()

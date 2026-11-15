@@ -14,19 +14,16 @@ import com.closet.core.data.util.AppError
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
-import javax.inject.Inject
 
 /**
  * ViewModel for the Clothing Detail screen.
  * Handles fetching a specific clothing item by its ID and managing the UI state and actions.
  */
-@HiltViewModel
-class ClothingDetailViewModel @Inject constructor(
+class ClothingDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val clothingRepository: ClothingRepository,
     private val lookupRepository: LookupRepository,

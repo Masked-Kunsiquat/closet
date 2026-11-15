@@ -12,8 +12,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Fetches available model IDs from AI provider APIs so the Settings screen can populate
@@ -26,8 +24,7 @@ import javax.inject.Singleton
  * All failures are caught and returned as [Result.failure] — callers fall back to
  * free-text entry when models cannot be fetched.
  */
-@Singleton
-class ModelDiscoveryRepository @Inject constructor(
+class ModelDiscoveryRepository(
     private val client: HttpClient,
     private val json: Json,
 ) {

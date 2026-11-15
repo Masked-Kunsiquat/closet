@@ -5,8 +5,8 @@ import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
-import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.di.AiHttpClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.header
@@ -20,8 +20,6 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * [ChatAiProvider] backed by the Anthropic Messages API (Claude).
@@ -35,13 +33,16 @@ import javax.inject.Singleton
  * Configuration:
  * - **API key** — [AiPreferencesRepository.getAnthropicApiKey]
  * - **Model**   — [AiPreferencesRepository.getAnthropicModel]; defaults to [DEFAULT_MODEL]
+ *
+ * @param aiHttpClient the AI inference client (120 s timeouts); see [AiHttpClient].
  */
-@Singleton
-class AnthropicChatProvider @Inject constructor(
-    @AiHttpClient private val client: HttpClient,
+class AnthropicChatProvider(
+    aiHttpClient: AiHttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : ChatAiProvider {
+
+    private val client: HttpClient = aiHttpClient.client
 
     companion object {
         private const val TAG = "AnthropicChatProvider"

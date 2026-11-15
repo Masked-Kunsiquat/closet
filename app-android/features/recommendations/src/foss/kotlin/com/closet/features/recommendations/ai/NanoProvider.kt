@@ -7,8 +7,6 @@ import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitSelection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * FOSS-flavor stub for [NanoProvider].
@@ -27,8 +25,7 @@ import javax.inject.Singleton
  *   gate in [OutfitCoherenceScorer] inactive, matching the full-flavor behaviour
  *   on devices where the beta countTokens API is not yet exposed.
  */
-@Singleton
-class NanoProvider @Inject constructor() : OutfitAiProvider, NanoInitializer {
+class NanoProvider : OutfitAiProvider, NanoInitializer {
 
     override fun initNanoFlow(): Flow<NanoInitResult> =
         flowOf(NanoInitResult.NotSupported)

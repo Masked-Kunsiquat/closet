@@ -33,8 +33,6 @@ import com.closet.features.wardrobe.repository.SegmentationRepository
 import java.util.UUID
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,7 +46,6 @@ import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import javax.inject.Inject
 import timber.log.Timber
 
 /**
@@ -135,9 +132,8 @@ private data class FormState(
 /**
  * ViewModel for managing the state of the Clothing form (Add or Edit).
  */
-@HiltViewModel
-class ClothingFormViewModel @Inject constructor(
-    @ApplicationContext private val appContext: Context,
+class ClothingFormViewModel(
+    private val appContext: Context,
     savedStateHandle: SavedStateHandle,
     private val lookupRepository: LookupRepository,
     private val brandRepository: BrandRepository,

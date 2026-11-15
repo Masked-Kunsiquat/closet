@@ -1,11 +1,11 @@
 package com.closet.features.outfits
 
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import kotlinx.serialization.Serializable
+import org.koin.compose.viewmodel.koinViewModel
 
 /** Top-level route for the Outfits gallery screen. */
 @Serializable
@@ -76,7 +76,9 @@ fun NavGraphBuilder.outfitBuilderScreen(navController: NavController) {
 fun NavGraphBuilder.wardrobePickerScreen(navController: NavController) {
     composable<WardrobePickerDestination> {
         val parentEntry = navController.previousBackStackEntry
-        val builderViewModel: OutfitBuilderViewModel? = parentEntry?.let { hiltViewModel(it) }
+        val builderViewModel: OutfitBuilderViewModel? = parentEntry?.let {
+            koinViewModel<OutfitBuilderViewModel>(viewModelStoreOwner = it)
+        }
         WardrobePickerScreen(
             onBack = { navController.popBackStack() },
             onConfirm = { selectedIds ->

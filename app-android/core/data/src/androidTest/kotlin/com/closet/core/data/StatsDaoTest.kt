@@ -55,6 +55,7 @@ class StatsDaoTest {
         status: String = "Active",
         washStatus: String = "Clean",
         categoryId: Long? = null,
+        subcategoryId: Long? = null,
         purchasePrice: Double? = null
     ): Long = runBlocking {
         db.clothingDao().insertClothingItem(
@@ -63,11 +64,22 @@ class StatsDaoTest {
                 status = com.closet.core.data.model.ClothingStatus.fromString(status),
                 washStatus = com.closet.core.data.model.WashStatus.fromString(washStatus),
                 categoryId = categoryId,
+                subcategoryId = subcategoryId,
                 purchasePrice = purchasePrice,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )
         )
+    }
+
+    /** Inserts a subcategory via raw SQL. */
+    private fun insertSubcategory(categoryId: Long, name: String): Long {
+        val cv = ContentValues().apply {
+            put("category_id", categoryId)
+            put("name", name)
+            put("sort_order", 0)
+        }
+        return db.openHelper.writableDatabase.insert("subcategories", 0 /* CONFLICT_NONE */, cv)
     }
 
     /** Inserts a category via raw SQL (no production DAO exposes category inserts). */
@@ -188,16 +200,16 @@ class StatsDaoTest {
         assertEquals(1, dirtyRow?.count)
     }
 
-    // ─── getBreakdownByCategory ───────────────────────────────────────────────
+    // ─── getCategorySubcategoryBreakdown ───────────────────────────────────────────────
 
     @Test
-    fun getBreakdownByCategory_emptyDatabase_returnsEmptyList() = runBlocking {
-        val rows = dao.getBreakdownByCategory().first()
+    fun getCategorySubcategoryBreakdown_emptyDatabase_returnsEmptyList() = runBlocking {
+        val rows = dao.getCategorySubcategoryBreakdown().first()
         assertTrue(rows.isEmpty())
     }
 
     @Test
-    fun getBreakdownByCategory_groupsItemsByCategory() = runBlocking {
+    fun getCategorySubcategoryBreakdown_groupsItemsByCategory() = runBlocking {
         val topsId = insertCategory("Tops")
         val bottomsId = insertCategory("Bottoms")
 
@@ -205,34 +217,40 @@ class StatsDaoTest {
         insertItem("Tank Top", categoryId = topsId)
         insertItem("Jeans", categoryId = bottomsId)
 
-        val rows = dao.getBreakdownByCategory().first()
-        val topsRow = rows.firstOrNull { it.label == "Tops" }
-        val bottomsRow = rows.firstOrNull { it.label == "Bottoms" }
+        val rows = dao.getCategorySubcategoryBreakdown().first()
+        val topsRow = rows.firstOrNull { it.categoryLabel == "Tops" }
+        val bottomsRow = rows.firstOrNull { it.categoryLabel == "Bottoms" }
 
         assertEquals(2, topsRow?.count)
         assertEquals(1, bottomsRow?.count)
     }
 
     @Test
-    fun getBreakdownByCategory_itemsWithoutCategory_labelledUncategorized() = runBlocking {
+    fun getCategorySubcategoryBreakdown_itemsWithoutCategory_labelledUncategorized() = runBlocking {
         insertItem("Mystery item") // no categoryId
-        val rows = dao.getBreakdownByCategory().first()
-        val row = rows.firstOrNull { it.label == "Uncategorized" }
+        val rows = dao.getCategorySubcategoryBreakdown().first()
+        val row = rows.firstOrNull { it.categoryLabel == "Uncategorized" }
         assertEquals(1, row?.count)
     }
 
     @Test
-    fun getBreakdownByCategory_sortedDescendingByCount() = runBlocking {
+    fun getCategorySubcategoryBreakdown_sortedDescendingByCount() = runBlocking {
+        // Rows are ordered category ascending, then count descending within each category.
         val topsId = insertCategory("Tops")
         val bottomsId = insertCategory("Bottoms")
-        insertItem("T-Shirt 1", categoryId = topsId)
-        insertItem("T-Shirt 2", categoryId = topsId)
-        insertItem("T-Shirt 3", categoryId = topsId)
+        val tShirtsId = insertSubcategory(topsId, "T-Shirts")
+        val tanksId = insertSubcategory(topsId, "Tanks")
+        insertItem("Tank", categoryId = topsId, subcategoryId = tanksId)
+        insertItem("T-Shirt 1", categoryId = topsId, subcategoryId = tShirtsId)
+        insertItem("T-Shirt 2", categoryId = topsId, subcategoryId = tShirtsId)
+        insertItem("T-Shirt 3", categoryId = topsId, subcategoryId = tShirtsId)
         insertItem("Jeans", categoryId = bottomsId)
 
-        val rows = dao.getBreakdownByCategory().first()
-        val counts = rows.map { it.count }
-        assertEquals(counts.sortedDescending(), counts)
+        val rows = dao.getCategorySubcategoryBreakdown().first()
+        assertEquals(listOf("Bottoms", "Tops", "Tops"), rows.map { it.categoryLabel })
+        val topsCounts = rows.filter { it.categoryLabel == "Tops" }.map { it.count }
+        assertEquals(topsCounts.sortedDescending(), topsCounts)
+        assertEquals(listOf(3, 1), topsCounts)
     }
 
     // ─── getMostWornItems ─────────────────────────────────────────────────────

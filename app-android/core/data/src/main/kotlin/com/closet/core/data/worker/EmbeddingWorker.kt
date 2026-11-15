@@ -1,7 +1,6 @@
 package com.closet.core.data.worker
 
 import android.content.Context
-import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -13,8 +12,6 @@ import com.closet.core.data.worker.EmbeddingWork.KEY_DONE
 import com.closet.core.data.worker.EmbeddingWork.KEY_FAILED
 import com.closet.core.data.worker.EmbeddingWork.KEY_TOTAL
 import com.closet.core.data.worker.EmbeddingWork.MODEL_VERSION
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -40,10 +37,9 @@ import java.time.Instant
  * encoder is unavailable (model or vocab asset missing), the worker returns [Result.failure]
  * immediately so WorkManager stops retrying until the next periodic interval.
  */
-@HiltWorker
-class EmbeddingWorker @AssistedInject constructor(
-    @Assisted context: Context,
-    @Assisted params: WorkerParameters,
+class EmbeddingWorker(
+    context: Context,
+    params: WorkerParameters,
     private val embeddingDao: EmbeddingDao,
     private val encoder: EmbeddingEncoder,
     private val embeddingIndex: EmbeddingIndex,

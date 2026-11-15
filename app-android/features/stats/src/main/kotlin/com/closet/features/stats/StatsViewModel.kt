@@ -10,7 +10,6 @@ import com.closet.core.data.dao.StatItem
 import com.closet.core.data.dao.StatsOverview
 import com.closet.core.data.repository.StatsRepository
 import com.closet.core.data.repository.StorageRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +18,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
 import java.time.LocalDate
-import javax.inject.Inject
 
 /** Time window used to filter wear-based statistics. */
 enum class StatPeriod {
@@ -78,8 +76,7 @@ private data class PeriodData(
  * Period-independent flows (category, subcategory, color, occasion, wash status, never worn)
  * are folded in by the outer [combine] using nested combines to stay within the 5-flow limit.
  */
-@HiltViewModel
-class StatsViewModel @Inject constructor(
+class StatsViewModel(
     private val statsRepository: StatsRepository,
     private val storageRepository: StorageRepository
 ) : ViewModel() {

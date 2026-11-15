@@ -5,23 +5,19 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.util.UUID
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Repository for managing local image storage.
  * Follows the "Relative paths ONLY" rule from engineering conventions.
  */
-@Singleton
-class StorageRepository @Inject constructor(
-    @param:ApplicationContext private val context: Context
+class StorageRepository(
+    private val context: Context
 ) {
     companion object {
         const val MAX_DIMENSION = 1600

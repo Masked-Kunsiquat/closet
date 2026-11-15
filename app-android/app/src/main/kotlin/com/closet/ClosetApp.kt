@@ -3,37 +3,37 @@ package com.closet
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import androidx.hilt.work.HiltWorkerFactory
-import androidx.work.Configuration
 import com.closet.backup.BackupForegroundService
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.ImageCompressionScheduler
-import dagger.hilt.android.HiltAndroidApp
+import com.closet.di.allModules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.androidx.workmanager.koin.workManagerFactory
+import org.koin.core.context.startKoin
+import org.koin.core.logger.Level
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * The Application class for the Closet app.
- * Required by Hilt for dependency injection.
  *
- * Implements [Configuration.Provider] so WorkManager uses [HiltWorkerFactory] instead of the
- * default factory. The default WorkManager initializer is disabled in AndroidManifest.xml;
- * WorkManager initializes on-demand on the first [androidx.work.WorkManager.getInstance] call.
+ * Starts Koin in [onCreate] with [allModules]. `workManagerFactory()` registers Koin's
+ * worker factory with WorkManager, so the default WorkManager initializer is disabled in
+ * AndroidManifest.xml.
  */
-@HiltAndroidApp
-class ClosetApp : Application(), Configuration.Provider {
+class ClosetApp : Application() {
 
-    @Inject lateinit var aiPreferencesRepository: AiPreferencesRepository
-    @Inject lateinit var workerFactory: HiltWorkerFactory
-    @Inject lateinit var embeddingScheduler: EmbeddingScheduler
-    @Inject lateinit var embeddingIndex: EmbeddingIndex
-    @Inject lateinit var imageCompressionScheduler: ImageCompressionScheduler
+    private val aiPreferencesRepository: AiPreferencesRepository by inject()
+    private val embeddingScheduler: EmbeddingScheduler by inject()
+    private val embeddingIndex: EmbeddingIndex by inject()
+    private val imageCompressionScheduler: ImageCompressionScheduler by inject()
 
     private fun createNotificationChannels() {
         val nm = getSystemService(NotificationManager::class.java)
@@ -48,13 +48,16 @@ class ClosetApp : Application(), Configuration.Provider {
         )
     }
 
-    override fun getWorkManagerConfiguration(): Configuration =
-        Configuration.Builder().setWorkerFactory(workerFactory).build()
-
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
+        startKoin {
+            androidLogger(if (BuildConfig.DEBUG) Level.DEBUG else Level.NONE)
+            androidContext(this@ClosetApp)
+            workManagerFactory()
+            modules(allModules)
+        }
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
@@ -70,10 +73,14 @@ class ClosetApp : Application(), Configuration.Provider {
                 .onFailure { Timber.tag("ClosetApp").e(it, "EmbeddingIndex load failed — chat retrieval will be unavailable until next launch") }
         }
 
+        // Resolve on the main thread, outside runCatching: if EncryptedKeyStore can't open even
+        // after recreating its file, the app must fail here at launch, not later on a screen.
+        val aiPrefs = aiPreferencesRepository
+
         // Migrate any API keys previously stored as plaintext in DataStore to EncryptedKeyStore.
         // No-op after the first run or if keys were never set.
         applicationScope.launch {
-            runCatching { aiPreferencesRepository.migrateKeysFromPlainDataStore() }
+            runCatching { aiPrefs.migrateKeysFromPlainDataStore() }
                 .onFailure { Timber.tag("ClosetApp").e(it, "Key migration failed — app will continue without migrated keys") }
         }
     }

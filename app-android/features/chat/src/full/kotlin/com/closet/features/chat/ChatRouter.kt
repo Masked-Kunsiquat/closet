@@ -10,8 +10,6 @@ import timber.log.Timber
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Full-flavor [ChatRouter]: uses ML Kit Language Identification to gate English-only
@@ -34,8 +32,7 @@ import javax.inject.Singleton
  * If a pattern doesn't match confidently, or the DAO returns an ambiguous result,
  * [RouterResult.Unrouted] is returned and the caller falls through to RAG.
  */
-@Singleton
-class ChatRouter @Inject constructor(
+class ChatRouter(
     private val clothingDao: ClothingDao,
     private val logDao: LogDao,
     private val dateParser: ChatDateParser,

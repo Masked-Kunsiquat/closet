@@ -13,7 +13,6 @@ import com.google.mlkit.genai.common.GenAiException
 import com.google.mlkit.genai.imagedescription.ImageDescription
 import com.google.mlkit.genai.imagedescription.ImageDescriptionRequest
 import com.google.mlkit.genai.imagedescription.ImageDescriberOptions
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,8 +28,6 @@ import timber.log.Timber
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.ExecutionException
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -44,9 +41,8 @@ import kotlin.coroutines.resumeWithException
  *
  * This is the full-flavor implementation. The FOSS stub lives in `src/foss/`.
  */
-@Singleton
-class ImageCaptionRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+class ImageCaptionRepository(
+    private val context: Context,
     private val clothingDao: ClothingDao,
 ) : CaptionEnrichmentProvider {
 

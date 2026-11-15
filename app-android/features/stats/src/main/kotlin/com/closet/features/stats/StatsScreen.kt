@@ -16,8 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import java.io.File
 
 /**
@@ -27,12 +27,12 @@ import java.io.File
  * [StatsContent]. Navigation callbacks are passed in from the app module.
  *
  * @param onItemClick Called with an item ID when the user taps a clothing item.
- * @param viewModel Hilt-provided [StatsViewModel]; override in tests.
+ * @param viewModel Koin-provided [StatsViewModel]; override in tests.
  */
 @Composable
 fun StatsScreen(
     onItemClick: (Long) -> Unit = {},
-    viewModel: StatsViewModel = hiltViewModel()
+    viewModel: StatsViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

@@ -4,8 +4,6 @@ import com.closet.core.data.ai.ChatAiProvider
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ConversationTurn
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * FOSS-flavor stub for [NanoChatProvider].
@@ -20,8 +18,7 @@ import javax.inject.Singleton
  *
  * Mirrors the pattern in `features/recommendations/src/foss/` for [NanoProvider].
  */
-@Singleton
-class NanoChatProvider @Inject constructor(
+class NanoChatProvider(
     private val json: Json,
 ) : ChatAiProvider {
 

@@ -22,8 +22,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.int
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 // ---------------------------------------------------------------------------
 // OpenAiProvider
@@ -47,16 +45,19 @@ import javax.inject.Singleton
  * failure, fewer than 3 valid selections in the response. Callers treat every failure as a
  * silent fallback to the programmatic top-3 result — this class never throws.
  *
- * Not bound in [com.closet.features.recommendations.di.RecommendationModule] — the Settings
+ * Not bound to [OutfitAiProvider] in Koin — the Settings
  * UI provider selector switches between [NanoProvider], [OpenAiProvider], and future providers
  * at runtime.
+ *
+ * @param aiHttpClient the AI inference client (120 s timeouts); see [AiHttpClient].
  */
-@Singleton
-class OpenAiProvider @Inject constructor(
-    @AiHttpClient private val client: HttpClient,
+class OpenAiProvider(
+    aiHttpClient: AiHttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
 ) : OutfitAiProvider {
+
+    private val client: HttpClient = aiHttpClient.client
 
     companion object {
         private const val TAG = "OpenAiProvider"

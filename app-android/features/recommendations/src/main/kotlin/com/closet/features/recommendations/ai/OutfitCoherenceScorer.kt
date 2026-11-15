@@ -13,8 +13,6 @@ import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitCombo
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Delegates to the active [OutfitAiProvider] to curate 3 AI-selected outfit combos
@@ -53,8 +51,7 @@ import javax.inject.Singleton
  * All failures ([Result.failure], JSON errors, insufficient valid selections) return
  * null — the caller then uses the programmatic result unchanged.
  */
-@Singleton
-class OutfitCoherenceScorer @Inject constructor(
+class OutfitCoherenceScorer(
     private val nanoProvider: NanoProvider,
     private val openAiProvider: OpenAiProvider,
     private val anthropicProvider: AnthropicProvider,

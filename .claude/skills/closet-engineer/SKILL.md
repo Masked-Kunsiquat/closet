@@ -13,7 +13,7 @@ description: Core engineering conventions for the Closet app. Use when writing a
 ## Tech Stack
 - Kotlin + Jetpack Compose (Material 3)
 - Room/SQLite for all data (no network DB)
-- Hilt for dependency injection
+- Koin for dependency injection
 - WorkManager for background tasks
 - DataStore for preferences
 - Coil for image loading
@@ -36,7 +36,7 @@ features/chat/         — RAG wardrobe chat: ChatScreen, ChatViewModel, provide
 Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
 
 ## Architecture — MVVM + Clean
-- **ViewModels** are `@HiltViewModel`. Expose `StateFlow<UiState>` via `combine()` on repository `Flow`s. Use `SharingStarted.WhileSubscribed(5_000)`.
+- **ViewModels** are registered with `viewModelOf(::X)` and obtained with `koinViewModel()`. Expose `StateFlow<UiState>` via `combine()` on repository `Flow`s. Use `SharingStarted.WhileSubscribed(5_000)`.
 - **Repositories** wrap all operations in `DataResult<T>` and re-throw `CancellationException`. Never let raw exceptions escape.
 - **Screens** (Composables ending in `Screen`) collect ViewModel state and pass only lambdas down to child composables.
 
@@ -82,9 +82,9 @@ Every destructive user action (delete item, delete outfit, delete log) must be g
 - Use `"fullImplementation"(...)` to scope GMS deps to the full flavor only
 
 ## Dependency Injection
-- Hilt throughout. `@HiltAndroidApp` on `ClosetApp`, `@AndroidEntryPoint` on `MainActivity`
-- All DAOs and Repositories are `@Singleton` from `DataModule` in `core/data/di/`
-- `AiPreferencesRepository` is bound only via `DataModule.provideAiPreferencesRepository()` — no `@Inject` constructor
+- Koin throughout: one `*KoinModule.kt` per Gradle module, flavor bindings in `src/{full,foss}/.../di/*FlavorModule.kt`, all listed in `allModules` (`app/di/AppKoinModule.kt`) and started in `ClosetApp.onCreate()`
+- All DAOs and Repositories are `single` in `dataModule` (`core/data/di/DataKoinModule.kt`); workers use `workerOf(::X)`
+- `AiPreferencesRepository` is constructed only in `dataModule`'s explicit `single { }` — never `singleOf`
 
 ## Logging
 Timber. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only.

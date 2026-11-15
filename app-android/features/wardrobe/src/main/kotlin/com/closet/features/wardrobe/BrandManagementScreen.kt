@@ -15,16 +15,16 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.ui.components.StringErrorSnackbarEffect
 import com.closet.core.ui.theme.ClosetTheme
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun BrandManagementScreen(
     onBack: () -> Unit,
-    viewModel: BrandManagementViewModel = hiltViewModel()
+    viewModel: BrandManagementViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     BrandManagementContent(

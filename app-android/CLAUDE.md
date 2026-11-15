@@ -35,7 +35,7 @@ Unit and instrumented tests exist for the stats feature. Migration tests live in
 
 ```
 app/                   — Application entry point, NavGraph, MainActivity
-core/data/             — Database, DAOs, Repositories, entities, DI module
+core/data/             — Database, DAOs, Repositories, entities, Koin data module
 core/ui/               — Material 3 theme, shared Composable components
 features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash, brand management
 features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet
@@ -49,7 +49,7 @@ Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
 
 ### MVVM + Clean Architecture
 
-- **ViewModels** are `@HiltViewModel`-annotated. They expose `StateFlow<UiState>` built from `combine()` on repository `Flow`s. Use `SharingStarted.WhileSubscribed(5_000)`.
+- **ViewModels** are registered in their module's Koin module with `viewModelOf(::X)` and obtained with `koinViewModel()`. They expose `StateFlow<UiState>` built from `combine()` on repository `Flow`s. Use `SharingStarted.WhileSubscribed(5_000)`.
 - **Repositories** wrap all operations in `DataResult<T>` and re-throw `CancellationException`. Never let raw exceptions escape a repository.
 - **Screens** (Composables ending in `Screen`) collect ViewModel state and pass only lambdas down to child composables.
 
@@ -60,13 +60,22 @@ Two flavors on the `distribution` dimension. Only `app/`, `features/recommendati
 - **`full`** — includes GMS-backed features (MLKit GenAI Prompt API / Gemini Nano). Use for local dev, GitHub releases, sideload APKs. Android Studio defaults to `fullDebug`.
 - **`foss`** — no Google Play Services dependencies. GMS features are stubbed to no-ops. Target: F-Droid distribution.
 
-GMS-only code lives in `src/full/kotlin/`; stubs live in `src/foss/kotlin/`. Hilt resolves bindings from whichever source set is active at compile time — no runtime conditionals needed. `"fullImplementation"(...)` in `build.gradle.kts` scopes GMS deps to the full flavor only.
+GMS-only code lives in `src/full/kotlin/`; stubs live in `src/foss/kotlin/`. Each flavor source set defines its own `*FlavorModule` Koin module, so the active source set decides the bindings at compile time — no runtime conditionals needed. `"fullImplementation"(...)` in `build.gradle.kts` scopes GMS deps to the full flavor only.
 
 ### Dependency injection
 
-Hilt throughout. `@HiltAndroidApp` on `ClosetApp`, `@AndroidEntryPoint` on `MainActivity`. All DAOs and Repositories are `@Singleton` provided from `DataModule` in `core/data/di/`.
+Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no code generation.
 
-`AiPreferencesRepository` is bound **only** via `DataModule.provideAiPreferencesRepository()` — the class has no `@Inject` constructor annotation. Don't add `@Singleton @Inject` to it.
+- **One module per Gradle module.** Each module declares a top-level `val <name>Module` in its `di/*KoinModule.kt` (e.g. `dataModule` in `core/data/di/DataKoinModule.kt`, `wardrobeModule` in `features/wardrobe/di/WardrobeKoinModule.kt`). `appModule` and `allModules` (every module, in dependency order) live in `app/di/AppKoinModule.kt`.
+- **Flavor modules.** Flavor-specific bindings (GMS impls vs. FOSS stubs) go in a `*FlavorModule.kt` defined in **both** `src/full/kotlin/.../di/` and `src/foss/kotlin/.../di/` with the same `val` name (`recommendationsFlavorModule`, `chatFlavorModule`, `wardrobeFlavorModule`). Never bind a flavor class from the `main` module.
+- **Startup.** `ClosetApp.onCreate()` calls `startKoin { androidLogger(...); androidContext(this@ClosetApp); workManagerFactory(); modules(allModules) }` before anything else. Framework classes (`ClosetApp`, `MainActivity`, `BackupForegroundService`) use `by inject()`.
+- **ViewModels** are registered with `viewModelOf(::X)` and obtained in Composables with `koinViewModel()` (`org.koin.compose.viewmodel.koinViewModel`). To share a ViewModel with a previous back-stack entry, pass `viewModelStoreOwner = entry`.
+- **Workers** are registered with `workerOf(::X)`; their constructors are plain `(context: Context, params: WorkerParameters, …)`. `workManagerFactory()` supplies the factory, so the manifest removes `androidx.work.WorkManagerInitializer` — keep that removal.
+- **Scope.** DAOs, repositories and providers are `single`.
+- **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(...)` in `DataKoinModule.kt`; add any new secret-bearing header to its `SENSITIVE_HEADERS`.
+- **Verification.** Every module has a `verify()` unit test, and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a flavored *sibling* feature module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
+
+`AiPreferencesRepository` is constructed **only** in `dataModule`'s explicit `single { AiPreferencesRepository(androidContext(), get<EncryptedKeyStore>()) }`. Don't switch it to `singleOf(::AiPreferencesRepository)` or construct it anywhere else.
 
 ### Database (Room)
 
@@ -129,7 +138,8 @@ Two distinct MLKit namespaces — do not confuse them:
 | `core/data/src/.../repository/ClothingRepository.kt` | CRUD, junction helpers, `DataResult` wrapping |
 | `core/data/src/.../util/DataResult.kt` | `Loading / Success / Error` sealed interface |
 | `core/data/src/.../util/AppError.kt` | Domain error hierarchy |
-| `core/data/src/.../di/DataModule.kt` | Hilt singleton providers |
+| `core/data/src/.../di/DataKoinModule.kt` | `dataModule`: Koin singletons for the DB, DAOs, repositories, HTTP clients, workers |
+| `app/src/.../di/AppKoinModule.kt` | `appModule` and `allModules` (the list passed to `startKoin`) |
 | `core/ui/src/.../theme/Color.kt` | Palette constants and accent enums |
 | `gradle/libs.versions.toml` | Centralized version catalog (all deps here) |
 | `core/data/src/.../migrations/AGENTS.md` | Full migration conventions and checklist |

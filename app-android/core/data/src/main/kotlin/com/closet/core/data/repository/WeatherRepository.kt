@@ -16,8 +16,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Cache is considered fresh for this many milliseconds after it was written. */
 private const val FORECAST_CACHE_TTL_MS = 3L * 60 * 60 * 1000   // 3 hours
@@ -38,8 +36,7 @@ private const val FORECAST_CACHE_TTL_MS = 3L * 60 * 60 * 1000   // 3 hours
  * [com.closet.core.data.weather.WeatherServiceClient] interface) because it
  * requires an API key parameter that the interface contract doesn't carry.
  */
-@Singleton
-class WeatherRepository @Inject constructor(
+class WeatherRepository(
     private val openMeteoClient: OpenMeteoClient,
     private val nwsClient: NwsClient,
     private val googleClient: GoogleWeatherClient,

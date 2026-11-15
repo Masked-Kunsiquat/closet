@@ -6,8 +6,6 @@ import com.closet.core.data.repository.AiPreferencesRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Selects the active [ChatAiProvider] based on the user's configured provider and
@@ -17,8 +15,7 @@ import javax.inject.Singleton
  * [Result] rather than a nullable value, so callers can surface a human-readable
  * error message when the active provider is not configured.
  */
-@Singleton
-class ChatAiProviderSelector @Inject constructor(
+class ChatAiProviderSelector(
     private val nanoProvider: NanoChatProvider,
     private val openAiProvider: OpenAiChatProvider,
     private val anthropicProvider: AnthropicChatProvider,

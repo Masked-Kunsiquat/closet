@@ -8,8 +8,6 @@ import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.features.chat.ai.ChatAiProviderSelector
 import kotlinx.coroutines.CancellationException
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Orchestrates the full RAG query pipeline:
@@ -21,8 +19,7 @@ import javax.inject.Singleton
  *
  * In the FOSS flavor [ChatRouter] is a no-op stub, so all queries go through the full pipeline.
  */
-@Singleton
-class ChatRepository @Inject constructor(
+class ChatRepository(
     private val router: ChatRouter,
     private val encoder: EmbeddingEncoder,
     private val index: EmbeddingIndex,

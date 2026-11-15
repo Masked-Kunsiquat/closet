@@ -11,8 +11,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import java.time.LocalDate
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val BASE_URL = "https://weather.googleapis.com/v1/forecast/days:lookup"
 
@@ -31,8 +29,7 @@ private const val BASE_URL = "https://weather.googleapis.com/v1/forecast/days:lo
  *
  * Reference: https://developers.google.com/maps/documentation/weather/daily-forecast
  */
-@Singleton
-class GoogleWeatherClient @Inject constructor(
+class GoogleWeatherClient(
     private val client: HttpClient,
 ) {
     suspend fun fetchDailyForecast(

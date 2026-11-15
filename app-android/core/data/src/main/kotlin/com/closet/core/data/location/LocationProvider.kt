@@ -6,12 +6,9 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Looper
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
@@ -27,9 +24,8 @@ import kotlin.coroutines.resume
  * Callers must hold [android.Manifest.permission.ACCESS_COARSE_LOCATION] before
  * invoking [getLocation] — this is guaranteed by the Settings toggle flow.
  */
-@Singleton
-class LocationProvider @Inject constructor(
-    @ApplicationContext private val context: Context,
+class LocationProvider(
+    private val context: Context,
 ) {
     private val locationManager =
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager

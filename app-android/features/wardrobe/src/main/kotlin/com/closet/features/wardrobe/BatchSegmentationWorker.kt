@@ -10,7 +10,6 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import androidx.hilt.work.HiltWorker
 import androidx.palette.graphics.Palette
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -23,8 +22,6 @@ import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.repository.SegmentationRepository
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import java.time.Instant
@@ -46,10 +43,9 @@ import java.util.UUID
  *
  * On completion, the output [androidx.work.Data] contains [KEY_DONE] and [KEY_FAILED] counts.
  */
-@HiltWorker
-class BatchSegmentationWorker @AssistedInject constructor(
-    @Assisted private val context: Context,
-    @Assisted params: WorkerParameters,
+class BatchSegmentationWorker(
+    private val context: Context,
+    params: WorkerParameters,
     private val clothingDao: ClothingDao,
     private val lookupDao: LookupDao,
     private val storageRepository: StorageRepository,

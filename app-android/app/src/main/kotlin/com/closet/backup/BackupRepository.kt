@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import com.closet.BuildConfig
 import com.closet.core.data.ClothingDatabase
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,8 +14,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Handles the backup export operation.
@@ -30,9 +27,8 @@ import javax.inject.Singleton
  * API keys are device-locked via Android Keystore and are never exported
  * ([BackupManifest.apiKeysExcluded] is always `true`).
  */
-@Singleton
-class BackupRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+class BackupRepository(
+    private val context: Context,
     private val database: ClothingDatabase,
     private val json: Json,
 ) {

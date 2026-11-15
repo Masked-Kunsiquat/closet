@@ -9,8 +9,6 @@ import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.repository.StorageRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +21,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.io.File
-import javax.inject.Inject
 
 sealed interface BulkWashUiState {
     data object Loading : BulkWashUiState
@@ -42,9 +39,8 @@ sealed interface BulkWashUiState {
  * mark multiple items as Clean or Dirty in one action. Triggered via the
  * "Laundry Day" app shortcut or the Settings screen.
  */
-@HiltViewModel
-class BulkWashViewModel @Inject constructor(
-    @ApplicationContext private val appContext: Context,
+class BulkWashViewModel(
+    private val appContext: Context,
     private val clothingRepository: ClothingRepository,
     private val storageRepository: StorageRepository,
 ) : ViewModel() {

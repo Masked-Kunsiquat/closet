@@ -10,7 +10,6 @@ import com.closet.core.data.util.EmbeddingIndex
 import com.closet.features.chat.ai.ChatAiProviderSelector
 import com.closet.features.chat.model.ChatItemSummary
 import com.closet.features.chat.model.ChatMessage
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,10 +19,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import javax.inject.Inject
 
-@HiltViewModel
-class ChatViewModel @Inject constructor(
+class ChatViewModel(
     private val chatRepository: ChatRepository,
     private val clothingDao: ClothingDao,
     private val storageRepository: StorageRepository,

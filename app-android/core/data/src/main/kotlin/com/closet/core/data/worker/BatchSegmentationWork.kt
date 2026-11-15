@@ -17,7 +17,7 @@ object BatchSegmentationWork {
 /**
  * Abstraction that lets [SettingsViewModel] trigger batch segmentation without
  * a direct dependency on `features/wardrobe`. Bound to its concrete implementation
- * by `WardrobeModule` in `features/wardrobe`.
+ * by `wardrobeModule` in `features/wardrobe`.
  */
 interface BatchSegmentationScheduler {
     /** `false` on FOSS builds where ML Kit segmentation is unavailable. */

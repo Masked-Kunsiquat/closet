@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
-import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -16,8 +15,6 @@ import com.closet.core.data.worker.ImageCompressionWork.KEY_DONE
 import com.closet.core.data.worker.ImageCompressionWork.KEY_FAILED
 import com.closet.core.data.worker.ImageCompressionWork.KEY_SKIPPED
 import com.closet.core.data.worker.ImageCompressionWork.KEY_TOTAL
-import dagger.assisted.Assisted
-import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,10 +41,9 @@ import java.io.IOException
  * (idle + battery-not-low, 30 s initial delay, KEEP policy). Can also be triggered immediately
  * via [ImageCompressionScheduler.runNow] from Settings.
  */
-@HiltWorker
-class ImageCompressionWorker @AssistedInject constructor(
-    @Assisted context: Context,
-    @Assisted params: WorkerParameters,
+class ImageCompressionWorker(
+    context: Context,
+    params: WorkerParameters,
     private val clothingDao: ClothingDao,
 ) : CoroutineWorker(context, params) {
 

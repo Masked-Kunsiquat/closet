@@ -2,6 +2,7 @@ package com.closet.features.stats
 
 import app.cash.turbine.test
 import com.closet.core.data.dao.BreakdownRow
+import com.closet.core.data.dao.CategorySubcategoryRow
 import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.dao.StatsOverview
 import com.closet.core.data.repository.StatsRepository
@@ -46,8 +47,7 @@ class StatsViewModelTest {
         every { repo.getCostPerWear(any()) } returns flowOf(emptyList())
         every { repo.getWearFrequencyByCategory(any()) } returns flowOf(emptyList())
         every { repo.getTotalOutfitsLogged(any()) } returns flowOf(0)
-        every { repo.getCategoryBreakdown() } returns flowOf(emptyList())
-        every { repo.getSubcategoryBreakdown() } returns flowOf(emptyList())
+        every { repo.getCategorySubcategoryBreakdown() } returns flowOf(emptyList())
         every { repo.getColorBreakdown() } returns flowOf(emptyList())
         every { repo.getOccasionBreakdown() } returns flowOf(emptyList())
         every { repo.getWashStatusBreakdown() } returns flowOf(emptyList())
@@ -91,7 +91,7 @@ class StatsViewModelTest {
             val state = awaitItem()
             assertEquals(emptyList<Any>(), state.mostWorn)
             assertEquals(emptyList<Any>(), state.costPerWear)
-            assertEquals(emptyList<Any>(), state.categoryCount)
+            assertEquals(emptyList<Any>(), state.categorySubcategoryBreakdown)
             assertEquals(emptyList<Any>(), state.neverWorn)
             cancelAndIgnoreRemainingEvents()
         }
@@ -158,8 +158,7 @@ class StatsViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
         // These queries have no fromDate parameter — verify they're called exactly once each
-        verify(exactly = 1) { repo.getCategoryBreakdown() }
-        verify(exactly = 1) { repo.getSubcategoryBreakdown() }
+        verify(exactly = 1) { repo.getCategorySubcategoryBreakdown() }
         verify(exactly = 1) { repo.getColorBreakdown() }
         verify(exactly = 1) { repo.getOccasionBreakdown() }
         verify(exactly = 1) { repo.getWashStatusBreakdown() }
@@ -170,12 +169,12 @@ class StatsViewModelTest {
 
     @Test
     fun `composition data flows through to uiState fields`() = runTest {
-        val categoryRows = listOf(BreakdownRow("Tops", 5), BreakdownRow("Bottoms", 3))
+        val categoryRows = listOf(CategorySubcategoryRow("Tops", "T-Shirts", 5), CategorySubcategoryRow("Bottoms", "Jeans", 3))
         val washRows = listOf(BreakdownRow("Clean", 6), BreakdownRow("Dirty", 2))
         val colorRows = listOf(ColorBreakdownRow("Black", "#000000", 4))
 
         val repo = stubStatsRepo().also {
-            every { it.getCategoryBreakdown() } returns flowOf(categoryRows)
+            every { it.getCategorySubcategoryBreakdown() } returns flowOf(categoryRows)
             every { it.getWashStatusBreakdown() } returns flowOf(washRows)
             every { it.getColorBreakdown() } returns flowOf(colorRows)
         }
@@ -183,7 +182,7 @@ class StatsViewModelTest {
         val vm = buildViewModel(statsRepo = repo)
         vm.uiState.test {
             val state = awaitItem()
-            assertEquals(categoryRows, state.categoryCount)
+            assertEquals(categoryRows, state.categorySubcategoryBreakdown)
             assertEquals(washRows, state.washStatus)
             assertEquals(colorRows, state.colorBreakdown)
             cancelAndIgnoreRemainingEvents()

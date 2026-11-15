@@ -56,7 +56,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.core.ui.components.ResErrorSnackbarEffect
@@ -65,6 +64,7 @@ import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
+import org.koin.compose.viewmodel.koinViewModel
 import java.time.LocalDate
 
 /**
@@ -75,7 +75,7 @@ fun ClothingFormScreen(
     onBackClick: () -> Unit,
     onManageBrands: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ClothingFormViewModel = hiltViewModel()
+    viewModel: ClothingFormViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

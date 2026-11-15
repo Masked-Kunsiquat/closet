@@ -17,7 +17,7 @@ The project follows **MVVM + Clean Architecture** principles and is modularized 
 
 - **Language**: [Kotlin](https://kotlinlang.org/)
 - **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose) with Material 3
-- **Dependency Injection**: [Hilt](https://developer.android.com/training/dependency-injection/hilt-android)
+- **Dependency Injection**: [Koin](https://insert-koin.io/)
 - **Database**: [Room](https://developer.android.com/training/data-storage/room)
 - **Navigation**: [Type-safe Compose Navigation](https://developer.android.com/guide/navigation/design/type-safety)
 - **Image Loading**: [Coil](https://coil-kt.github.io/coil/)

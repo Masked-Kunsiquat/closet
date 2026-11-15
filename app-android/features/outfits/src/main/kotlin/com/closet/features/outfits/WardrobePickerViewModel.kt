@@ -8,14 +8,12 @@ import com.closet.core.data.model.SeasonEntity
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
-import javax.inject.Inject
 
 /**
  * UI state for the Wardrobe Picker screen.
@@ -45,8 +43,7 @@ data class WardrobePickerUiState(
  * which items the user has selected. Selections survive filter changes because
  * [selectedMembers] draws from the unfiltered item list.
  */
-@HiltViewModel
-class WardrobePickerViewModel @Inject constructor(
+class WardrobePickerViewModel(
     private val clothingRepository: ClothingRepository,
     private val lookupRepository: LookupRepository,
     private val storageRepository: StorageRepository

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
  * on features/recommendations (which owns the MLKit surface).
  *
  * Implementation: [com.closet.features.recommendations.ai.NanoProvider].
- * Binding: [com.closet.features.recommendations.di.RecommendationModule].
+ * Binding: `recommendationsFlavorModule` in `features/recommendations` (src/full, src/foss).
  *
  * Init sequence:
  *   1. checkStatus() — isAvailable() gate

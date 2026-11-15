@@ -37,7 +37,7 @@ object EmbeddingWork {
  * Abstraction that lets future callers (e.g. `SettingsViewModel`) trigger or cancel
  * background embedding without a direct dependency on `EmbeddingWorker`.
  *
- * Bound to [EmbeddingSchedulerImpl] by [com.closet.core.data.di.DataModule].
+ * Bound to [EmbeddingSchedulerImpl] by [com.closet.core.data.di.dataModule].
  */
 interface EmbeddingScheduler {
     /**

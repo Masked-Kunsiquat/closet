@@ -46,7 +46,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.dao.CalendarDay
 import com.closet.core.data.dao.OutfitLogWithMeta
@@ -54,6 +53,7 @@ import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.OutfitWithItems
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherCondition
+import org.koin.compose.viewmodel.koinViewModel
 import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -73,7 +73,7 @@ import java.util.Locale
 fun JournalScreen(
     initialDate: String? = null,
     modifier: Modifier = Modifier,
-    viewModel: JournalViewModel = hiltViewModel(),
+    viewModel: JournalViewModel = koinViewModel(),
 ) {
     LaunchedEffect(initialDate) {
         if (initialDate != null) viewModel.navigateToDate(initialDate)

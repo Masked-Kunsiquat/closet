@@ -50,15 +50,18 @@ embedding model.
 - Moving data between devices or syncing. Cloud backup remains deferred per CLAUDE.md.
 - Publishing to the App Store or packaging installers. This design covers making the apps buildable
   and runnable, not store submission.
-- Any schema change. The database stays at **version 6** for the whole migration.
+- Any change to the schema's *shape*: tables, columns and indexes stay exactly as in v6. The one
+  exception is squashing the migration history (see "Migration consolidation"), which changes the
+  version number and nothing else.
 - New features or new screens. Features with no equivalent on a platform are hidden, not
   reimplemented (see "Platform gaps").
 
 ## Anti-goals (failure even if it "works")
 
 - Android regressions in either flavor, including a foss build that pulls in a GMS dependency.
-- Migrations behaving differently after the switch to Room KMP. `MigrationTest` must stay green.
-  There is no existing user library to preserve, so no real-device v6 database check is needed.
+- The schema's shape changing during the move to Room KMP. The fresh-install schema test that
+  replaces `MigrationTest` (see "Migration consolidation") must stay green. There is no user
+  library to preserve.
 - A long-lived half-migrated `main` that doesn't build. Every phase lands green.
 - Shared code full of `expect/actual` for things that should be plain interfaces bound by DI.
 - JVM-only APIs (`java.*`, Android types) leaking into `commonMain`. The iOS CI job exists to catch
@@ -230,6 +233,33 @@ After Phase 2:
 - Database file location: `Context.getDatabasePath` on Android, the app's Documents/Application
   Support directory on iOS, and the user's app-data directory on desktop.
 
+### Migration consolidation
+
+hangr has no users, so the migration history is squashed rather than ported. This was decided with
+the owner on 2026-11-14.
+
+- It happens as the **first step of Phase 3**, before Room moves to KMP, so the five migrations are
+  never ported or re-tested under the bundled driver.
+- `@Database(version = 1)`, with the current v6 shape as the baseline schema.
+- Delete `Migration1To2`…`Migration5To6`, `MigrationHelpers.kt` (if nothing else uses it) and the
+  `addMigrations(...)` call. Delete `core/data/schemas/` 1–6 and regenerate a single `1.json`.
+- `MigrationTest` is replaced by a fresh-install schema test (in `jvmTest`). It checks:
+  - every table, column and index matches the regenerated `1.json`;
+  - `PRAGMA foreign_keys` is on;
+  - the seeded lookup rows are present;
+  - the `one_ootd_per_day` partial index exists after `onOpen`.
+- The `onOpen` partial-index rule stays. The "drop `one_ootd_per_day` at the top of every
+  `migrate()`" rule goes away until a real migration exists again. Update
+  `core/data/.../migrations/AGENTS.md` and CLAUDE.md to match.
+- **Version 1 is the first released schema.** Every schema change after this point gets a normal
+  migration again.
+- **Side effects, all accepted because there are no users:**
+  - A device with a v6 dev install must uninstall first, because Room refuses a downgrade from 6 to 1.
+  - `.hangr` backups made before the reset are rejected by `RestoreRepository`'s newer-schema check.
+  - The six instrumented-test failures on `main`, in `MigrationTest` and `StatsDaoTest`, are partly
+    resolved by this: the two `MigrationTest` ones disappear with the migrations. The four
+    `StatsDaoTest` failures are unrelated and still need their own fix.
+
 ### Images and files
 
 - `StorageRepository` keeps the relative-path rule. The common interface exposes "root directory"
@@ -301,7 +331,7 @@ Android device or emulator passes. From Phase 3 on, the macOS CI job also has to
 2. **Extract flavors.** Introduce capability interfaces. Move `src/full` code to `platform/gms` and
    `src/foss` stubs to `app/src/foss`. Feature modules become single-variant. This is a pure
    refactor with no behavior change on either flavor (see "Chat routing").
-3. **`core/data` → KMP.** Room KMP, DataStore KMP, Ktor engines, Kermit, and platform interfaces
+3. **`core/data` → KMP.** First, the migration consolidation (its own PR). Then Room KMP, DataStore KMP, Ktor engines, Kermit, and platform interfaces
    (`SecretStore`, `ImageProcessor`, `LocationProvider`, `EmbeddingEncoder`, work schedulers).
    Room tests move to `jvmTest`. iOS and JVM implementations can be stubs at this stage, but must
    compile.
@@ -345,6 +375,23 @@ still apply when that work starts.
 2. **Chat routing off GMS.** Turn on the shared regex router for foss, iOS and desktop, with a
    replacement for ML Kit's English check.
 3. **Cross-platform backup/restore.** Restore a `.hangr` backup on iOS or desktop.
+4. **Optional local chat model (Gemma 4 via LiteRT-LM).** For users who don't want a cloud
+   provider and whose device has no Gemini Nano. Run Gemma 4 E2B with Google's LiteRT-LM
+   library (`com.google.ai.edge.litertlm:litertlm-android`; check the current version on Maven).
+   - **Model:** `litert-community/gemma-4-E2B-it-litert-lm`, one `.litertlm` file of about
+     2.6 GB, Apache 2.0, not gated. Offer E4B as the larger option for phones with 12 GB of RAM
+     or more.
+   - **Works in foss.** LiteRT-LM has no Play Services or AICore dependency, so this is the
+     local option for both flavors.
+   - **Shape:** a new `ChatAiProvider` (e.g. `LocalLlmProvider`), plus a download flow shared
+     with the EmbeddingGemma 2 download (follow-up 1) on one model-download screen in settings.
+     The routing order is Nano, then the local model, then the cloud provider.
+   - **Stream the reply.** Expect a few tokens per second on older phones.
+   - **To check:** answer quality on the RAG context block against Nano and a cloud model; RAM
+     and latency on a mid-range phone; whether its image input could stand in for Nano image
+     captions on devices without Nano.
+   - **Alternative:** llama.cpp with small Qwen3.5 GGUF models, if one runtime for Android, iOS
+     and desktop matters more than Google's supported Android route.
 
 ## Left to the builder
 

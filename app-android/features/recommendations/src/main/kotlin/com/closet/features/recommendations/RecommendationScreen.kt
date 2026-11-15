@@ -42,7 +42,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.ui.theme.ClosetTheme
 import com.closet.features.recommendations.engine.EngineItem
@@ -50,6 +49,7 @@ import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.ui.OccasionSheet
 import com.closet.features.recommendations.ui.OutfitComboCard
 import com.closet.features.recommendations.ui.WeatherSheet
+import org.koin.compose.viewmodel.koinViewModel
 import java.io.File
 
 /**
@@ -69,14 +69,14 @@ import java.io.File
  * @param onNavigateUp     Back-navigation lambda — passed in, not handled internally.
  * @param onNavigateToLog  Called with item IDs when the user taps "Log it". Pass null to
  *                         disable the "Log it" button until the log flow is wired up.
- * @param viewModel        Injected by Hilt; override only in tests.
+ * @param viewModel        Injected by Koin; override only in tests.
  */
 @Composable
 fun RecommendationScreen(
     onNavigateUp: () -> Unit = {},
     onNavigateToLog: ((List<Long>) -> Unit)? = null,
     onNavigateToSettings: (() -> Unit)? = null,
-    viewModel: RecommendationViewModel = hiltViewModel(),
+    viewModel: RecommendationViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val occasions by viewModel.occasions.collectAsStateWithLifecycle()

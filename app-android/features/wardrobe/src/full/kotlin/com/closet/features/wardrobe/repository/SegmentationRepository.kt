@@ -7,8 +7,6 @@ import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Removes the background from clothing item photos using ML Kit Subject Segmentation.
@@ -21,8 +19,7 @@ import javax.inject.Singleton
  * processing. The stored image will be the downsampled + masked PNG; original dimensions
  * are not restored. (Minimum 512×512 is required for accuracy per ML Kit docs.)
  */
-@Singleton
-class SegmentationRepository @Inject constructor() {
+class SegmentationRepository {
 
     /** `true` in the full flavor; used by the ViewModel to hide the button in FOSS builds. */
     val isSupported: Boolean = true

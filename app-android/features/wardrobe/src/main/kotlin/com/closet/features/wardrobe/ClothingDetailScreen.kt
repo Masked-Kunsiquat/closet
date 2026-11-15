@@ -19,12 +19,12 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import org.koin.compose.viewmodel.koinViewModel
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.closet.features.wardrobe.BuildConfig
@@ -45,7 +45,7 @@ private enum class AttributePicker { SEASONS, OCCASIONS, COLORS, MATERIALS, PATT
  * @param onBack Callback to return to the previous screen.
  * @param onEdit Callback to navigate to the edit form for this item.
  * @param onNavigateToJournal Callback to navigate to a specific date in the Outfit Journal.
- * @param viewModel Hilt-provided [ClothingDetailViewModel].
+ * @param viewModel Koin-provided [ClothingDetailViewModel].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -53,7 +53,7 @@ fun ClothingDetailScreen(
     onBack: () -> Unit,
     onEdit: (Long) -> Unit,
     onNavigateToJournal: (date: String) -> Unit = {},
-    viewModel: ClothingDetailViewModel = hiltViewModel()
+    viewModel: ClothingDetailViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

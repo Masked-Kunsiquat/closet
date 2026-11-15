@@ -11,8 +11,6 @@ import kotlinx.serialization.Serializable
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.OffsetDateTime
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private const val POINTS_URL = "https://api.weather.gov/points"
 
@@ -33,8 +31,7 @@ private const val USER_AGENT = "(hangr wardrobe app, github.com/Masked-Kunsiquat
  *
  * Reference: https://www.weather.gov/documentation/services-web-api
  */
-@Singleton
-class NwsClient @Inject constructor(
+class NwsClient(
     private val client: HttpClient,
 ) : WeatherServiceClient {
 

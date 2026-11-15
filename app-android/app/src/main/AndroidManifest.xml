@@ -36,9 +36,9 @@
         </activity>
 
         <!--
-            Disable WorkManager's default auto-initializer so our custom HiltWorkerFactory
-            (configured in ClosetApp.workManagerConfiguration) is used instead.
-            WorkManager initializes on-demand on the first getInstance() call.
+            Disable WorkManager's default auto-initializer: Koin's workManagerFactory()
+            (called from startKoin in ClosetApp.onCreate) initializes WorkManager with
+            Koin's worker factory instead.
         -->
         <!--
             WorkManager's internal foreground service. Merging foregroundServiceType here

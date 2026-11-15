@@ -56,6 +56,6 @@ Findings from codebase audit. Items ordered by priority.
 - Module dependency graph: `app → features → core/ui → core/data` — no violations, keep it this way
 - `DataResult<T>` + `AppError` sealed class hierarchy — well-designed, use as the template
 - `ClosetScreen.kt` — use as the reference implementation for all screen structure
-- Hilt `@Singleton` scoping in `DataModule` — correct, do not scatter providers
+- Koin `single` scoping in `dataModule` (and `workerOf(::X)` in the owning module) — correct, do not scatter providers
 - Room migrations with backfill logic — correct pattern, just needs cleanup
 - Relative image path storage + reconstruction at display time — matches spec, do not change
