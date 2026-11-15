@@ -266,7 +266,12 @@ class SettingsViewModel(
             nanoInitializer.initNanoFlow().collect { result ->
                 // Persist the real token limit for the recommendations trim gate (0 = unknown).
                 if (result is NanoInitResult.Success && result.tokenLimit > 0) {
-                    aiPreferencesRepository.setTokenLimit(result.tokenLimit)
+                    try {
+                        aiPreferencesRepository.setTokenLimit(result.tokenLimit)
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        Timber.w(e, "SettingsViewModel: failed to persist Nano token limit")
+                    }
                 }
                 _nanoStatus.value = when (result) {
                     is NanoInitResult.Downloading -> NanoStatus.Downloading(result.progressPct)

@@ -3,13 +3,13 @@ package com.closet.platform.gms.recommendations
 import com.closet.core.data.ai.ClothingItemDto
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
+import com.closet.core.data.ai.OnDeviceAiException
 import com.closet.core.data.ai.OutfitAiProvider
 import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
-import com.closet.core.data.ai.OnDeviceAiException
 import com.closet.core.data.ai.OutfitSelection
-import com.closet.platform.gms.toOnDeviceAiException
 import com.closet.features.recommendations.ai.OnDeviceRecommendationProvider
+import com.closet.platform.gms.toOnDeviceAiException
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation

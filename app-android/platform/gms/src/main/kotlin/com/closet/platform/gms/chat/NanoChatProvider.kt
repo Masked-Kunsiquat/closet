@@ -6,8 +6,8 @@ import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.ai.OnDeviceAiException
-import com.closet.platform.gms.toOnDeviceAiException
 import com.closet.features.chat.ai.OnDeviceChatProvider
+import com.closet.platform.gms.toOnDeviceAiException
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.TextPart
@@ -90,7 +90,7 @@ class NanoChatProvider(
 
     /** Debug aid: logs which base model AICore is serving, once per client. Timber only logs in debug builds. */
     private suspend fun logBaseModelOnce() {
-        if (baseModelLogged) return
+        if (baseModelLogged || Timber.treeCount == 0) return
         baseModelLogged = true
         try {
             Timber.tag(TAG).d("Nano base model: %s", model.getBaseModelName())

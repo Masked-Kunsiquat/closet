@@ -1,6 +1,7 @@
 package com.closet.features.chat.ai
 
 import com.closet.core.data.ai.ChatAiProvider
+import com.closet.core.data.ai.ProviderNotConfiguredException
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.repository.AiPreferencesRepository
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +35,7 @@ class ChatAiProviderSelector(
                 AiProvider.Nano -> {
                     val ready = aiPreferencesRepository.getAiReady().first()
                     if (!ready) {
-                        Result.failure(IllegalStateException("Gemini Nano is not ready — open Settings to set it up"))
+                        Result.failure(ProviderNotConfiguredException("Gemini Nano is not ready — open Settings to set it up"))
                     } else {
                         Result.success(nanoProvider)
                     }
@@ -42,7 +43,7 @@ class ChatAiProviderSelector(
                 AiProvider.OpenAi -> {
                     val key = aiPreferencesRepository.getOpenAiApiKey().first()
                     if (key.isBlank()) {
-                        Result.failure(IllegalStateException("OpenAI-compatible API key is not configured"))
+                        Result.failure(ProviderNotConfiguredException("OpenAI-compatible API key is not configured"))
                     } else {
                         Result.success(openAiProvider)
                     }
@@ -50,7 +51,7 @@ class ChatAiProviderSelector(
                 AiProvider.Anthropic -> {
                     val key = aiPreferencesRepository.getAnthropicApiKey().first()
                     if (key.isBlank()) {
-                        Result.failure(IllegalStateException("Anthropic API key is not configured"))
+                        Result.failure(ProviderNotConfiguredException("Anthropic API key is not configured"))
                     } else {
                         Result.success(anthropicProvider)
                     }
@@ -58,7 +59,7 @@ class ChatAiProviderSelector(
                 AiProvider.Gemini -> {
                     val key = aiPreferencesRepository.getGeminiApiKey().first()
                     if (key.isBlank()) {
-                        Result.failure(IllegalStateException("Gemini API key is not configured"))
+                        Result.failure(ProviderNotConfiguredException("Gemini API key is not configured"))
                     } else {
                         Result.success(geminiProvider)
                     }

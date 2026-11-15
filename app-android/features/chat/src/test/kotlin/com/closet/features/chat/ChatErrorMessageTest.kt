@@ -2,6 +2,7 @@ package com.closet.features.chat
 
 import com.closet.core.data.ai.ChatResponseParseException
 import com.closet.core.data.ai.OnDeviceAiException
+import com.closet.core.data.ai.ProviderNotConfiguredException
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -22,10 +23,18 @@ class ChatErrorMessageTest {
     }
 
     @Test
-    fun `IllegalStateException from the selector surfaces its message`() {
+    fun `ProviderNotConfiguredException surfaces its message`() {
         assertEquals(
             "Gemini Nano is not ready — open Settings to set it up",
-            chatErrorMessage(IllegalStateException("Gemini Nano is not ready — open Settings to set it up")),
+            chatErrorMessage(ProviderNotConfiguredException("Gemini Nano is not ready — open Settings to set it up")),
+        )
+    }
+
+    @Test
+    fun `unrelated IllegalStateException gets the generic copy`() {
+        assertEquals(
+            "Something went wrong. Please try again.",
+            chatErrorMessage(IllegalStateException("OpenAiChatProvider inference failed (model=x)")),
         )
     }
 
