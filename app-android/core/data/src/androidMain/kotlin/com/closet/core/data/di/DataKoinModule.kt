@@ -1,75 +1,55 @@
 package com.closet.core.data.di
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.getDatabase
+import com.closet.core.data.location.AndroidLocationProvider
 import com.closet.core.data.location.LocationProvider
-import com.closet.core.data.repository.AiPreferencesRepository
-import com.closet.core.data.repository.BrandRepository
-import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.AI_PREFS_NAME
 import com.closet.core.data.repository.EncryptedKeyStore
-import com.closet.core.data.repository.LogRepository
-import com.closet.core.data.repository.LookupRepository
-import com.closet.core.data.repository.ModelDiscoveryRepository
-import com.closet.core.data.repository.OutfitRepository
-import com.closet.core.data.repository.RecommendationRepository
-import com.closet.core.data.repository.StatsRepository
+import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.StorageRepository
-import com.closet.core.data.repository.WeatherPreferencesRepository
-import com.closet.core.data.repository.WeatherRepository
+import com.closet.core.data.repository.WEATHER_PREFS_NAME
+import com.closet.core.data.repository.androidPreferencesPath
+import com.closet.core.data.repository.createPreferencesDataStore
 import com.closet.core.data.util.EmbeddingEncoder
-import com.closet.core.data.util.EmbeddingIndex
-import com.closet.core.data.weather.GoogleWeatherClient
-import com.closet.core.data.weather.NwsClient
-import com.closet.core.data.weather.OpenMeteoClient
+import com.closet.core.data.util.OnnxEmbeddingEncoder
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.EmbeddingWork
 import com.closet.core.data.worker.EmbeddingWorker
 import com.closet.core.data.worker.ImageCompressionScheduler
 import com.closet.core.data.worker.ImageCompressionWork
 import com.closet.core.data.worker.ImageCompressionWorker
-import io.ktor.client.HttpClient
+import com.closet.core.data.worker.WorkStatus
+import com.closet.core.data.worker.toWorkStatus
+import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.logging.LogLevel
-import io.ktor.client.plugins.logging.Logger
-import io.ktor.client.plugins.logging.Logging
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.workmanager.dsl.workerOf
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import co.touchlab.kermit.Logger as KermitLogger
 import java.util.concurrent.TimeUnit
 
 /**
- * Koin definitions for the data layer. Every data-layer class is a `single`;
- * none is unscoped.
+ * Android-only data-layer definitions: everything that needs a `Context`, WorkManager, the
+ * OkHttp engine, the workers, and the Android-backed `SecretStore`, `LocationProvider` and
+ * DataStores. Every one is a `single`; none is unscoped.
  */
-val dataModule = module {
+val androidDataModule = module {
     single<ClothingDatabase> { ClothingDatabase.getDatabase(androidContext()) }
     single<WorkManager> { WorkManager.getInstance(androidContext()) }
 
-    single { get<ClothingDatabase>().clothingDao() }
-    single { get<ClothingDatabase>().lookupDao() }
-    single { get<ClothingDatabase>().outfitDao() }
-    single { get<ClothingDatabase>().logDao() }
-    single { get<ClothingDatabase>().statsDao() }
-    single { get<ClothingDatabase>().brandDao() }
-    single { get<ClothingDatabase>().recommendationDao() }
-    single { get<ClothingDatabase>().embeddingDao() }
 
     single<EmbeddingScheduler> {
         val workManager = get<WorkManager>()
@@ -104,9 +84,9 @@ val dataModule = module {
                 )
             }
 
-            override val workInfo: Flow<WorkInfo?> =
+            override val workStatus: Flow<WorkStatus?> =
                 workManager.getWorkInfosForUniqueWorkFlow(EmbeddingWork.IMMEDIATE_NAME)
-                    .map { it.firstOrNull() }
+                    .map { it.firstOrNull()?.toWorkStatus() }
         }
     }
 
@@ -137,89 +117,37 @@ val dataModule = module {
                 )
             }
 
-            override val workInfo: Flow<WorkInfo?> =
+            override val workStatus: Flow<WorkStatus?> =
                 workManager.getWorkInfosForUniqueWorkFlow(ImageCompressionWork.IMMEDIATE_NAME)
-                    .map { it.firstOrNull() }
+                    .map { it.firstOrNull()?.toWorkStatus() }
         }
     }
 
-    single<Json> {
-        Json {
-            ignoreUnknownKeys = true
-            coerceInputValues = true
-        }
-    }
+    single<HttpClientEngineFactory<*>> { OkHttp }
 
-    single<HttpClient> {
-        buildHttpClient(get(), isDebug = get<BuildFlags>().isDebug, socketTimeoutMs = 30_000, requestTimeoutMs = 30_000, logTag = "Ktor")
+    // One DataStore instance per file per process: every ai_prefs / weather_prefs access goes
+    // through these two singles. The paths are the ones preferencesDataStore(name) used.
+    single<DataStore<Preferences>>(named(AI_PREFS_NAME)) {
+        createPreferencesDataStore(androidPreferencesPath(androidContext().filesDir, AI_PREFS_NAME))
     }
-
-    single {
-        AiHttpClient(
-            buildHttpClient(get(), isDebug = get<BuildFlags>().isDebug, socketTimeoutMs = 120_000, requestTimeoutMs = 120_000, logTag = "KtorAI"),
-        )
+    single<DataStore<Preferences>>(named(WEATHER_PREFS_NAME)) {
+        createPreferencesDataStore(androidPreferencesPath(androidContext().filesDir, WEATHER_PREFS_NAME))
     }
-
-    singleOf(::AiPreferencesRepository)
-    singleOf(::EncryptedKeyStore)
-    singleOf(::LocationProvider)
-    singleOf(::BrandRepository)
-    singleOf(::ClothingRepository)
-    singleOf(::LogRepository)
-    singleOf(::LookupRepository)
-    singleOf(::ModelDiscoveryRepository)
-    singleOf(::OutfitRepository)
-    singleOf(::RecommendationRepository)
-    singleOf(::StatsRepository)
+    single<SecretStore> { EncryptedKeyStore(androidContext()) }
+    single<LocationProvider> { AndroidLocationProvider(androidContext()) }
     singleOf(::StorageRepository)
-    singleOf(::WeatherPreferencesRepository)
-    singleOf(::WeatherRepository)
-    singleOf(::EmbeddingEncoder)
-    singleOf(::EmbeddingIndex)
-    singleOf(::GoogleWeatherClient)
-    singleOf(::NwsClient)
-    singleOf(::OpenMeteoClient)
+    single<EmbeddingEncoder> { OnnxEmbeddingEncoder(androidContext()) }
 
     workerOf(::EmbeddingWorker)
     workerOf(::ImageCompressionWorker)
 }
 
-/** Headers whose values are replaced with `<REDACTED>` in debug HTTP logs. */
-private val SENSITIVE_HEADERS = setOf("authorization", "x-api-key", "x-goog-api-key")
-
 /**
- * Builds an OkHttp-backed [HttpClient] with JSON content negotiation and debug-only
- * logging (when [isDebug]) that redacts [SENSITIVE_HEADERS]. Connect timeout is always 30 s.
+ * The Android data layer: [commonDataModule] plus [androidDataModule]. This is the module
+ * `allModules` and the feature tests load.
+ *
+ * Declared after [androidDataModule]: top-level vals in one file initialize in order.
  */
-private fun buildHttpClient(
-    json: Json,
-    isDebug: Boolean,
-    socketTimeoutMs: Long,
-    requestTimeoutMs: Long,
-    logTag: String,
-): HttpClient = HttpClient(OkHttp) {
-    install(HttpTimeout) {
-        connectTimeoutMillis = 30_000
-        socketTimeoutMillis = socketTimeoutMs
-        requestTimeoutMillis = requestTimeoutMs
-    }
-    install(ContentNegotiation) {
-        json(json)
-    }
-    install(Logging) {
-        logger = object : Logger {
-            override fun log(message: String) {
-                val redacted = message.lines().joinToString("\n") { line ->
-                    val colon = line.indexOf(':')
-                    if (colon > 0 && line.substring(0, colon).trim().lowercase() in SENSITIVE_HEADERS) {
-                        "${line.substring(0, colon)}: <REDACTED>"
-                    } else {
-                        line
-                    }
-                }
-                KermitLogger.withTag(logTag).d { redacted }
-            }
-        }
-        level = if (isDebug) LogLevel.BODY else LogLevel.NONE
-    }
+val dataModule = module {
+    includes(commonDataModule, androidDataModule)
 }

@@ -54,13 +54,13 @@ class ClosetApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        configureLogging(BuildFlags(BuildConfig.DEBUG))
         startKoin {
             androidLogger(if (BuildConfig.DEBUG) Level.DEBUG else Level.NONE)
             androidContext(this@ClosetApp)
             workManagerFactory()
             modules(allModules)
         }
-        configureLogging(BuildFlags(BuildConfig.DEBUG))
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }

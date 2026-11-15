@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import co.touchlab.kermit.Logger
+import kotlin.time.Clock
 
 /** Cache is considered fresh for this many milliseconds after it was written. */
 private const val FORECAST_CACHE_TTL_MS = 3L * 60 * 60 * 1000   // 3 hours
@@ -53,7 +54,7 @@ class WeatherRepository(
             // Read all cache keys in one atomic snapshot to avoid observing partially-cleared state.
             val cache = weatherPrefsRepo.getCacheSnapshot()
             val currentService = weatherPrefsRepo.getWeatherService().first()
-            val age = System.currentTimeMillis() - cache.timestamp
+            val age = Clock.System.now().toEpochMilliseconds() - cache.timestamp
 
             if (cache.forecastJson.isNotEmpty() && age < FORECAST_CACHE_TTL_MS && cache.service == currentService) {
                 val parsed = parseCached(cache.forecastJson)
@@ -115,7 +116,7 @@ class WeatherRepository(
         result.onSuccess { forecasts ->
             try {
                 val entriesJson = json.encodeToString(forecasts.map { it.toCached() })
-                weatherPrefsRepo.saveCache(entriesJson, System.currentTimeMillis(), lat, lon, service)
+                weatherPrefsRepo.saveCache(entriesJson, Clock.System.now().toEpochMilliseconds(), lat, lon, service)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

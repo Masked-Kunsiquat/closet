@@ -9,7 +9,7 @@ import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
 import com.closet.core.data.di.dataModule
-import com.closet.core.data.repository.EncryptedKeyStore
+import com.closet.core.data.repository.SecretStore
 import com.closet.core.ui.di.uiModule
 import com.closet.features.chat.ai.OnDeviceChatProvider
 import com.closet.features.chat.di.chatModule
@@ -51,7 +51,7 @@ class GmsKoinTest {
                 }
             }
             single<ClothingDatabase> { mockk(relaxed = true) }
-            single<EncryptedKeyStore> { mockk(relaxed = true) }
+            single<SecretStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
             single { BuildFlags(isDebug = false) }
         }

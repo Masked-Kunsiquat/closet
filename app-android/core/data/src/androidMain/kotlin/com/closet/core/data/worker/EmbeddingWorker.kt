@@ -12,7 +12,6 @@ import com.closet.core.data.util.toByteArrayLE
 import com.closet.core.data.worker.EmbeddingWork.KEY_DONE
 import com.closet.core.data.worker.EmbeddingWork.KEY_FAILED
 import com.closet.core.data.worker.EmbeddingWork.KEY_TOTAL
-import com.closet.core.data.worker.EmbeddingWork.MODEL_VERSION
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -51,7 +50,7 @@ class EmbeddingWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         // ── 1. Determine work queue — check before touching the encoder so
         //       periodic no-op runs never trigger lazy ONNX model loading.
-        val itemIds = embeddingDao.getItemIdsNeedingEmbedding(MODEL_VERSION)
+        val itemIds = embeddingDao.getItemIdsNeedingEmbedding(encoder.modelVersion)
         val total   = itemIds.size
         if (total == 0) {
             Logger.withTag("EmbeddingWorker").d { "EmbeddingWorker: nothing to embed" }
@@ -83,7 +82,7 @@ class EmbeddingWorker(
                     ItemEmbeddingEntity(
                         itemId        = item.id,
                         embeddingBlob = vector.toByteArrayLE(),
-                        modelVersion  = MODEL_VERSION,
+                        modelVersion  = encoder.modelVersion,
                         inputSnapshot = text,
                         embeddedAt    = Clock.System.now(),
                     )

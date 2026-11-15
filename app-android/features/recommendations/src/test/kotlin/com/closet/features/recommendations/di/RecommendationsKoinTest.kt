@@ -15,7 +15,7 @@ import com.closet.features.recommendations.ai.OpenAiProvider
 import com.closet.features.recommendations.ai.OnDeviceRecommendationProvider
 import io.ktor.client.HttpClient
 import org.junit.Assert.assertNotSame
-import com.closet.core.data.repository.EncryptedKeyStore
+import com.closet.core.data.repository.SecretStore
 import com.closet.core.ui.di.uiModule
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
@@ -62,7 +62,7 @@ class RecommendationsKoinTest {
                 }
             }
             single<ClothingDatabase> { mockk(relaxed = true) }
-            single<EncryptedKeyStore> { mockk(relaxed = true) }
+            single<SecretStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
             single { BuildFlags(isDebug = false) }
         }

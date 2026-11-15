@@ -68,7 +68,7 @@ class NwsClient(
         val byDate = linkedMapOf<LocalDate, Pair<NwsPeriod?, NwsPeriod?>>()
         for (period in periods) {
             val date = DateTimeComponents.Formats.ISO_DATE_TIME_OFFSET.parse(period.startTime).toLocalDate()
-            val existing = byDate.getOrDefault(date, Pair(null, null))
+            val existing = byDate[date] ?: Pair(null, null)
             byDate[date] = if (period.isDaytime) {
                 Pair(period, existing.second)
             } else {

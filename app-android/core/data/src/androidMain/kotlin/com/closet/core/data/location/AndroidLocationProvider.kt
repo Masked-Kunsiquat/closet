@@ -12,7 +12,7 @@ import co.touchlab.kermit.Logger
 import kotlin.coroutines.resume
 
 /**
- * Provides a single passive location reading via [LocationManager]. No Play
+ * [LocationProvider] for Android: a single passive location reading via [LocationManager]. No Play
  * Services dependency — the app has none.
  *
  * Strategy:
@@ -24,15 +24,21 @@ import kotlin.coroutines.resume
  * Callers must hold [android.Manifest.permission.ACCESS_COARSE_LOCATION] before
  * invoking [getLocation] — this is guaranteed by the Settings toggle flow.
  */
-class LocationProvider(
+class AndroidLocationProvider(
     private val context: Context,
-) {
+) : LocationProvider {
     private val locationManager =
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
     @SuppressLint("MissingPermission")
-    suspend fun getLocation(timeoutMs: Long = 10_000L): Pair<Double, Double>? {
-        lastKnownLocation()?.let { return it }
+    override suspend fun getLocation(timeoutMs: Long): Pair<Double, Double>? {
+        try {
+            lastKnownLocation()?.let { return it }
+        } catch (e: SecurityException) {
+            // Permission revoked since the toggle was enabled: let the caller fall back to cached coords.
+            Logger.withTag("LocationProvider").w(e) { "LocationProvider: location permission missing" }
+            return null
+        }
         return withTimeoutOrNull(timeoutMs) { requestSingleUpdate() }
     }
 

@@ -6,7 +6,7 @@ import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.ClothingRepository
-import com.closet.core.data.repository.EncryptedKeyStore
+import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
@@ -32,7 +32,7 @@ class SingletonParityTest {
                 }
             }
             single<ClothingDatabase> { mockk(relaxed = true) }
-            single<EncryptedKeyStore> { mockk(relaxed = true) }
+            single<SecretStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
             single { BuildFlags(isDebug = false) }
         }

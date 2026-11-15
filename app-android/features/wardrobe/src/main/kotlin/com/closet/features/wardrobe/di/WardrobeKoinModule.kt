@@ -6,6 +6,8 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.closet.core.data.worker.BatchSegmentationScheduler
 import com.closet.core.data.worker.BatchSegmentationWork
+import com.closet.core.data.worker.WorkStatus
+import com.closet.core.data.worker.toWorkStatus
 import com.closet.features.wardrobe.BatchSegmentationWorker
 import com.closet.features.wardrobe.BrandManagementViewModel
 import com.closet.features.wardrobe.BulkWashViewModel
@@ -44,10 +46,10 @@ val wardrobeModule = module {
                     OneTimeWorkRequestBuilder<BatchSegmentationWorker>().build(),
                 )
             }
-            override val workInfo: Flow<WorkInfo?> =
+            override val workStatus: Flow<WorkStatus?> =
                 workManager.getWorkInfosForUniqueWorkFlow(BatchSegmentationWork.NAME)
                     .map { list ->
-                        list.firstOrNull { it.state in activeStates } ?: list.firstOrNull()
+                        (list.firstOrNull { it.state in activeStates } ?: list.firstOrNull())?.toWorkStatus()
                     }
         }
     }

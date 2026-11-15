@@ -33,6 +33,11 @@ Run all Gradle commands from the `app-android/` directory.
 
 `core/data` is a Kotlin Multiplatform module (targets `android`, `jvm`, `iosArm64`, `iosSimulatorArm64`). Its source sets are `commonMain`, `androidMain`, `jvmMain`, `iosMain`, `commonTest`, `jvmTest`, `androidHostTest` and `androidDeviceTest`; it has no `BuildConfig` (the debug flag is `BuildFlags`, bound in `appModule`).
 
+- **`commonMain`:** Room (database, entities, DAOs), the repositories, `ai/*`, the Ktor clients and weather, preferences, `EmbeddingIndex`, the work constants, and the platform interfaces. Nothing platform-specific: no `android.*`, `java.*` or WorkManager imports (`compileCommonMainKotlinMetadata` catches leaks).
+- **`androidMain`:** the platform implementations (`EncryptedKeyStore`, `AndroidLocationProvider`, `OnnxEmbeddingEncoder`, the WorkManager schedulers in `androidDataModule`, `WorkInfo.toWorkStatus()`), the workers, the Android database/DataStore builders, and code still built on `Uri`/`Bitmap`/`Context` (`StorageRepository`, `CaptionEnrichmentProvider`, `BitmapUtils`, `PaletteUtil`, `ColorMatcher`, `WordPieceTokenizer`, `BatchCaptionResult`).
+- **Platform interfaces** (common; Android binds the real one, `jvmDataModule`/`iosDataModule` bind honest stubs): `SecretStore` (`InMemorySecretStore`), `LocationProvider` (`NoLocationProvider`), `EmbeddingEncoder` (`UnavailableEmbeddingEncoder`; `modelVersion` is the stored `model_version`), and `EmbeddingScheduler` / `ImageCompressionScheduler` / `BatchSegmentationScheduler` (`NoOp*Scheduler`). Schedulers expose `workStatus: Flow<WorkStatus?>` — never `WorkInfo` — so feature code reads `WorkStatus`/`WorkState`. Android's `BatchSegmentationScheduler` is bound by `wardrobeModule`.
+- **Logging:** `core/data` logs with Kermit (`Logger.withTag(...)`), not Timber.
+
 Full verification before a PR:
 
 ```bash
@@ -79,13 +84,13 @@ GMS code lives in `platform/gms` and is bound by its `gmsModule`. Pure-Kotlin no
 
 Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no code generation.
 
-- **One module per Gradle module.** Each module declares a top-level `val <name>Module` in its `di/*KoinModule.kt` (e.g. `dataModule` in `core/data/di/DataKoinModule.kt`, `wardrobeModule` in `features/wardrobe/di/WardrobeKoinModule.kt`). `appModule` and `allModules` (every module, in dependency order) live in `app/di/AppKoinModule.kt`.
+- **One module per Gradle module.** Each module declares a top-level `val <name>Module` in its `di/*KoinModule.kt` (e.g. `dataModule` in `core/data/di/DataKoinModule.kt`, which includes `commonDataModule` (commonMain) and `androidDataModule` (androidMain); `wardrobeModule` in `features/wardrobe/di/WardrobeKoinModule.kt`). `appModule` and `allModules` (every module, in dependency order) live in `app/di/AppKoinModule.kt`.
 - **Flavor modules.** A feature exposes each GMS-backed capability as an interface with a no-op stub in its `src/main`, bound in a `<feature>NoOpModule`. The GMS implementations are bound in `gmsModule` (`platform/gms/di/GmsKoinModule.kt`). `app` picks one set via `flavorModule` (`app/src/full` → `includes(gmsModule)`, `app/src/foss` → `includes(<feature>NoOpModule…)`), listed in `allModules`. Never bind a GMS class outside `platform/gms`, and never include a `*NoOpModule` or `gmsModule` from a feature's main module.
 - **Startup.** `ClosetApp.onCreate()` calls `startKoin { androidLogger(...); androidContext(this@ClosetApp); workManagerFactory(); modules(allModules) }` before anything else. Framework classes (`ClosetApp`, `MainActivity`, `BackupForegroundService`) use `by inject()`.
 - **ViewModels** are registered with `viewModelOf(::X)` and obtained in Composables with `koinViewModel()` (`org.koin.compose.viewmodel.koinViewModel`). To share a ViewModel with a previous back-stack entry, pass `viewModelStoreOwner = entry`.
 - **Workers** are registered with `workerOf(::X)`; their constructors are plain `(context: Context, params: WorkerParameters, …)`. `workManagerFactory()` supplies the factory, so the manifest removes `androidx.work.WorkManagerInitializer` — keep that removal.
 - **Scope.** DAOs, repositories and providers are `single`.
-- **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(...)` in `DataKoinModule.kt`; add any new secret-bearing header to its `SENSITIVE_HEADERS`.
+- **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(engine, ...)` in `commonMain/.../di/HttpClients.kt` (the engine is bound per platform: OkHttp on Android and JVM, Darwin on iOS); add any new secret-bearing header to its `SENSITIVE_HEADERS`.
 - **Verification.** Every module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
 
 ### Database (Room)
@@ -122,7 +127,7 @@ Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/`. Import fr
 
 ### Logging
 
-Timber. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only.
+Timber in `app` and the features. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only. `core/data` uses Kermit (multiplatform).
 
 ### Destructive actions
 
@@ -130,7 +135,7 @@ Every destructive user action (delete item, delete outfit, delete log entry) mus
 
 ### RAG pipeline (chat)
 
-`ChatRepository` runs: encode query via `EmbeddingEncoder` (ONNX, same model as `EmbeddingWorker`) → cosine search via `EmbeddingIndex` (top-5) → fetch `ClothingItemDetail` for matched IDs → build context block (name, category, colours, materials, `semanticDescription`, `imageCaption`) → call active provider via `ChatAiProviderSelector`. `CancellationException` must be rethrown at every `getOrElse` / `Result` unwrap point — never swallow it.
+`ChatRepository` runs: encode query via `EmbeddingEncoder` (`OnnxEmbeddingEncoder` on Android, same model as `EmbeddingWorker`) → cosine search via `EmbeddingIndex` (top-5) → fetch `ClothingItemDetail` for matched IDs → build context block (name, category, colours, materials, `semanticDescription`, `imageCaption`) → call active provider via `ChatAiProviderSelector`. `CancellationException` must be rethrown at every `getOrElse` / `Result` unwrap point — never swallow it.
 
 ### MLKit namespaces
 
@@ -149,7 +154,7 @@ Two distinct MLKit namespaces — do not confuse them. Both are used only from `
 | `core/data/src/.../repository/ClothingRepository.kt` | CRUD, junction helpers, `DataResult` wrapping |
 | `core/data/src/.../util/DataResult.kt` | `Loading / Success / Error` sealed interface |
 | `core/data/src/.../util/AppError.kt` | Domain error hierarchy |
-| `core/data/src/.../di/DataKoinModule.kt` | `dataModule`: Koin singletons for the DB, DAOs, repositories, HTTP clients, workers |
+| `core/data/src/.../di/DataKoinModule.kt` | `dataModule` = `commonDataModule` (DAOs, repositories, HTTP clients, weather) + `androidDataModule` (DB, WorkManager, schedulers, workers, OkHttp engine, `OnnxEmbeddingEncoder`, `AndroidLocationProvider`, DataStores, `EncryptedKeyStore`) |
 | `app/src/.../di/AppKoinModule.kt` | `appModule` and `allModules` (the list passed to `startKoin`) |
 | `core/ui/src/.../theme/Color.kt` | Palette constants and accent enums |
 | `gradle/libs.versions.toml` | Centralized version catalog (all deps here) |
@@ -157,9 +162,9 @@ Two distinct MLKit namespaces — do not confuse them. Both are used only from `
 | `core/data/src/.../dao/StatsDao.kt` | Stats queries (wear counts, breakdowns by category/color/occasion) |
 | `features/stats/src/.../StatsViewModel.kt` | Stats state with `StatPeriod` filter |
 | `features/chat/src/.../ChatRepository.kt` | RAG query pipeline (encode → search → context → provider) |
-| `core/data/src/.../util/EmbeddingIndex.kt` | In-memory FAISS-style flat index; `search(vec, topK)` returns item IDs by cosine similarity |
-| `core/data/src/.../util/EmbeddingEncoder.kt` | Query-time ONNX encoder (reuses `EmbeddingWorker`'s model) |
-| `core/data/src/.../worker/EmbeddingWork.kt` | `EmbeddingScheduler` interface + work name constants |
+| `core/data/src/commonMain/.../util/EmbeddingIndex.kt` | In-memory FAISS-style flat index; `search(vec, topK)` returns item IDs by cosine similarity |
+| `core/data/src/commonMain/.../util/EmbeddingEncoder.kt` | Encoder interface (`HIDDEN_SIZE`, `modelVersion`); Android impl is `androidMain/.../OnnxEmbeddingEncoder.kt` |
+| `core/data/src/commonMain/.../worker/EmbeddingWork.kt` | `EmbeddingScheduler` interface + work name constants (`WorkStatus.kt` beside it) |
 | `core/data/src/.../repository/AiPreferencesRepository.kt` | Encrypted storage for AI provider keys and model selections |
 
 ## What is deferred — do not build

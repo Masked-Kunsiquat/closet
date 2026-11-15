@@ -8,7 +8,7 @@ import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.di.dataModule
 import com.closet.core.data.repository.CaptionEnrichmentProvider
-import com.closet.core.data.repository.EncryptedKeyStore
+import com.closet.core.data.repository.SecretStore
 import com.closet.core.ui.di.uiModule
 import com.closet.features.wardrobe.repository.SubjectSegmenter
 import com.closet.features.wardrobe.repository.UnsupportedImageCaptioner
@@ -50,7 +50,7 @@ class WardrobeKoinTest {
                 }
             }
             single<ClothingDatabase> { mockk(relaxed = true) }
-            single<EncryptedKeyStore> { mockk(relaxed = true) }
+            single<SecretStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
             single { BuildFlags(isDebug = false) }
         }
