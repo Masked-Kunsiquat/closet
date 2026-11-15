@@ -57,7 +57,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.closet.core.ui.components.ResErrorSnackbarEffect
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
