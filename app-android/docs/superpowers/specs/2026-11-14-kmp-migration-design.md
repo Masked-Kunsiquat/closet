@@ -375,6 +375,23 @@ still apply when that work starts.
 2. **Chat routing off GMS.** Turn on the shared regex router for foss, iOS and desktop, with a
    replacement for ML Kit's English check.
 3. **Cross-platform backup/restore.** Restore a `.hangr` backup on iOS or desktop.
+4. **Optional local chat model (Gemma 4 via LiteRT-LM).** For users who don't want a cloud
+   provider and whose device has no Gemini Nano. Run Gemma 4 E2B with Google's LiteRT-LM
+   library (`com.google.ai.edge.litertlm:litertlm-android`; check the current version on Maven).
+   - **Model:** `litert-community/gemma-4-E2B-it-litert-lm`, one `.litertlm` file of about
+     2.6 GB, Apache 2.0, not gated. Offer E4B as the larger option for phones with 12 GB of RAM
+     or more.
+   - **Works in foss.** LiteRT-LM has no Play Services or AICore dependency, so this is the
+     local option for both flavors.
+   - **Shape:** a new `ChatAiProvider` (e.g. `LocalLlmProvider`), plus a download flow shared
+     with the EmbeddingGemma 2 download (follow-up 1) on one model-download screen in settings.
+     The routing order is Nano, then the local model, then the cloud provider.
+   - **Stream the reply.** Expect a few tokens per second on older phones.
+   - **To check:** answer quality on the RAG context block against Nano and a cloud model; RAM
+     and latency on a mid-range phone; whether its image input could stand in for Nano image
+     captions on devices without Nano.
+   - **Alternative:** llama.cpp with small Qwen3.5 GGUF models, if one runtime for Android, iOS
+     and desktop matters more than Google's supported Android route.
 
 ## Left to the builder
 
