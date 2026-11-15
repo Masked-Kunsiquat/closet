@@ -37,7 +37,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.closet.core.data.dao.BreakdownRow
 import com.closet.core.data.dao.CostPerWearItem
 import com.closet.core.data.dao.StatItem

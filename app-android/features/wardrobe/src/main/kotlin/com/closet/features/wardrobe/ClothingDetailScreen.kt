@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -26,7 +27,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.closet.features.wardrobe.BuildConfig
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
@@ -411,7 +412,8 @@ internal fun DetailStatRow(
     onToggleWash: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault())
+    val locale = LocalConfiguration.current.locales[0]
+    val currencyFormat = NumberFormat.getCurrencyInstance(locale)
     val naText = stringResource(R.string.wardrobe_stat_cpw_na)
     val priceText = if (purchasePrice != null) currencyFormat.format(purchasePrice) else naText
     val cpwText = if (purchasePrice != null && wearCount > 0)
@@ -552,7 +554,8 @@ private fun PurchaseMetaRow(
     purchaseLocation: String?,
     modifier: Modifier = Modifier,
 ) {
-    val monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+    val locale = LocalConfiguration.current.locales[0]
+    val monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", locale)
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         purchaseDate?.let { raw ->
             val formatted = runCatching { LocalDate.parse(raw).format(monthYearFormatter) }

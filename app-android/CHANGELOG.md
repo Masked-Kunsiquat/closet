@@ -8,6 +8,84 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ## [Unreleased]
 
+Kotlin Multiplatform migration, Phases 2–3: GMS code is extracted into its own
+module, and `core/data` is now multiplatform (Android, JVM, iOS). Behavior is
+unchanged on both flavors, apart from the fixes below.
+
+> ⚠️ **Uninstall any v0.7.x build before installing this one.** The database
+> schema was reset to a version-1 baseline, and Room refuses to downgrade from
+> version 6. `.hangr` backups made with v0.7.x or older can't be restored.
+
+### Changed
+- **Flavors extracted to `:platform:gms`** — every ML Kit / Play Services
+  implementation now lives in one module behind capability interfaces
+  (`ChatRouter`, `OnDeviceChatProvider`, `OnDeviceRecommendationProvider`,
+  `SubjectSegmenter`, …), with no-op stubs in each feature. Only `app` declares
+  flavors. The regex chat routing is shared (`PatternChatRouter`); only the
+  English check and date extraction use ML Kit.
+- **Room migrations squashed into a version-1 baseline** — the 1→6 chain and
+  `MigrationTest` are gone. `FreshInstallSchemaTest` pins the schema, the seed
+  data, the `one_ootd_per_day` index and the category triggers.
+- **`core/data` is Kotlin Multiplatform**:
+  - **Database:** Room KMP on the bundled SQLite driver, with
+    kotlinx-datetime replacing `java.time`.
+  - **Preferences:** DataStore KMP (1.3.0) for the AI and weather
+    preferences, with API keys behind a `SecretStore` interface.
+  - **Networking:** Ktor clients and the weather and model-discovery code are
+    now in shared code.
+  - **Logging:** Kermit replaces Timber in `core/data`.
+  - **Platform interfaces:** `LocationProvider`, `EmbeddingEncoder`, and
+    `workStatus` on the work schedulers. JVM and iOS bind honest stubs for
+    now.
+  - **Tests:** the Room tests run on the JVM (`:core:data:jvmTest`).
+
+### Added
+- **CI** — a `CI` workflow runs unit tests, lint and both debug builds on every
+  PR. `ios-compile` also compiles the iOS test sources. Both are required to
+  merge into `main`.
+- **Dependabot** for GitHub Actions — one grouped PR a month.
+
+### Fixed
+- **API keys in debug logs** — the HTTP log redaction never matched Ktor's
+  `-> Authorization:` lines and didn't cover `key=` in URLs, so keys reached
+  logcat in debug builds. Google Weather errors (whose messages include the
+  `?key=` URL) are now sanitized before logging.
+- **Weather with location permission revoked** — falls back to the last known
+  coordinates instead of failing with an unexpected error.
+- **Snackbar strings after a configuration change** — read through
+  `LocalResources`, so they follow the current locale and configuration.
+- **Logging during Koin start** — the release build no longer has a log writer
+  while Koin starts.
+
+### Security
+- GitHub Actions are pinned by commit SHA and bumped to current major versions
+  (Node 24). Every workflow's token is read-only by default.
+
+---
+
+## [0.7.2] — 2026-11-14
+
+Hilt replaced with Koin, Kotlin 2.4, and an iOS compile check in CI: the
+groundwork for the Kotlin Multiplatform migration.
+
+### Changed
+- **Hilt → Koin** — one Koin module per Gradle module, flavor bindings through
+  `flavorModule`, and a whole-graph `verify()` test (`AppKoinGraphTest`) in both
+  flavors. AI calls use a dedicated `AiHttpClient` type (120 s timeouts).
+- **Kotlin 2.3.20 → 2.4.21, KSP 2.3.2 → 2.3.14.**
+
+### Added
+- **`ios-compile` CI workflow** — compiles every Kotlin Multiplatform module for
+  iOS on a macOS runner.
+
+### Fixed
+- **`OutfitRepository.updateOutfit`** — a thrown `AppError` now becomes
+  `DataResult.Error` instead of escaping the repository.
+- **App start with a broken key store** — `AiPreferencesRepository` is resolved
+  eagerly, so a key store failure stops launch instead of surfacing later.
+- **Stale tests** — `StatsViewModelTest`, `ClothingFormViewModelTest` and
+  `StatsDaoTest` were updated to the current APIs.
+
 ---
 
 ## [0.7.1] — 2026-04-05
@@ -497,7 +575,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.5.0...v0.6.0

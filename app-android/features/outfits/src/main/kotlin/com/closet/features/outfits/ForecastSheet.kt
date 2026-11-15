@@ -19,6 +19,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -28,13 +29,15 @@ import com.closet.core.data.model.TemperatureUnit
 import java.time.LocalDate
 import java.time.format.TextStyle
 import kotlinx.datetime.toJavaLocalDate
-import java.util.Locale
 
 @Composable
 private fun LocalDate.toForecastLabelComposable(today: LocalDate): String = when (this) {
     today -> stringResource(R.string.journal_forecast_today)
     today.plusDays(1) -> stringResource(R.string.journal_forecast_tomorrow)
-    else -> "${dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())} $dayOfMonth"
+    else -> {
+        val locale = LocalConfiguration.current.locales[0]
+        "${dayOfWeek.getDisplayName(TextStyle.SHORT, locale)} $dayOfMonth"
+    }
 }
 
 /**

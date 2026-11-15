@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     // Carries the latest shortcut (or regular launch) intent so ClosetNavGraph
     // can react to it in a LaunchedEffect. Null means "no pending navigation".
     private val _shortcutIntent = MutableStateFlow<Intent?>(null)
+    private val shortcutIntentFlow = _shortcutIntent.asStateFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,7 +55,7 @@ class MainActivity : ComponentActivity() {
             ClosetTheme(accent = accent.value, dynamicColor = dynamicColor.value) {
                 ClosetNavGraph(
                     modifier = Modifier.fillMaxSize(),
-                    shortcutIntent = _shortcutIntent.asStateFlow(),
+                    shortcutIntent = shortcutIntentFlow,
                     onShortcutConsumed = { _shortcutIntent.value = null },
                 )
             }
