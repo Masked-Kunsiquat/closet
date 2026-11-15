@@ -1,5 +1,7 @@
 package com.closet.core.data.di
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -12,6 +14,7 @@ import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.getDatabase
 import com.closet.core.data.location.LocationProvider
+import com.closet.core.data.repository.AI_PREFS_NAME
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
@@ -21,10 +24,14 @@ import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.ModelDiscoveryRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.RecommendationRepository
+import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.StatsRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.repository.WEATHER_PREFS_NAME
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.repository.WeatherRepository
+import com.closet.core.data.repository.androidPreferencesPath
+import com.closet.core.data.repository.createPreferencesDataStore
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.weather.GoogleWeatherClient
@@ -50,6 +57,7 @@ import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.workmanager.dsl.workerOf
 import org.koin.core.module.dsl.singleOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import co.touchlab.kermit.Logger as KermitLogger
 import java.util.concurrent.TimeUnit
@@ -160,8 +168,16 @@ val dataModule = module {
         )
     }
 
-    singleOf(::AiPreferencesRepository)
-    singleOf(::EncryptedKeyStore)
+    // One DataStore instance per file per process: every ai_prefs / weather_prefs access goes
+    // through these two singles. The paths are the ones preferencesDataStore(name) used.
+    single<DataStore<Preferences>>(named(AI_PREFS_NAME)) {
+        createPreferencesDataStore(androidPreferencesPath(androidContext().filesDir, AI_PREFS_NAME))
+    }
+    single<DataStore<Preferences>>(named(WEATHER_PREFS_NAME)) {
+        createPreferencesDataStore(androidPreferencesPath(androidContext().filesDir, WEATHER_PREFS_NAME))
+    }
+    single { AiPreferencesRepository(get(named(AI_PREFS_NAME)), get()) }
+    single<SecretStore> { EncryptedKeyStore(androidContext()) }
     singleOf(::LocationProvider)
     singleOf(::BrandRepository)
     singleOf(::ClothingRepository)
@@ -172,7 +188,7 @@ val dataModule = module {
     singleOf(::RecommendationRepository)
     singleOf(::StatsRepository)
     singleOf(::StorageRepository)
-    singleOf(::WeatherPreferencesRepository)
+    single { WeatherPreferencesRepository(get(named(WEATHER_PREFS_NAME))) }
     singleOf(::WeatherRepository)
     singleOf(::EmbeddingEncoder)
     singleOf(::EmbeddingIndex)

@@ -41,7 +41,7 @@ private const val KEY_GEMINI = "gemini_api_key"
  */
 class EncryptedKeyStore(
     private val context: Context,
-) {
+) : SecretStore {
 
     private val prefs: SharedPreferences = openOrRecreate()
 
@@ -50,13 +50,13 @@ class EncryptedKeyStore(
     private val _geminiKey = MutableStateFlow(prefs.getString(KEY_GEMINI, "") ?: "")
 
     /** A [Flow] of the stored OpenAI-compatible API key. Emits immediately on collection. */
-    fun openAiKeyFlow(): Flow<String> = _openAiKey.asStateFlow()
+    override fun openAiKeyFlow(): Flow<String> = _openAiKey.asStateFlow()
 
     /** A [Flow] of the stored Anthropic API key. Emits immediately on collection. */
-    fun anthropicKeyFlow(): Flow<String> = _anthropicKey.asStateFlow()
+    override fun anthropicKeyFlow(): Flow<String> = _anthropicKey.asStateFlow()
 
     /** A [Flow] of the stored Gemini API key. Emits immediately on collection. */
-    fun geminiKeyFlow(): Flow<String> = _geminiKey.asStateFlow()
+    override fun geminiKeyFlow(): Flow<String> = _geminiKey.asStateFlow()
 
     /**
      * Persists [key] for the OpenAI-compatible provider and updates the in-memory flow.
@@ -65,7 +65,7 @@ class EncryptedKeyStore(
      * consistent). Callers that need to act on failure (e.g., migration) should check
      * the return value.
      */
-    suspend fun setOpenAiKey(key: String): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun setOpenAiKey(key: String): Boolean = withContext(Dispatchers.IO) {
         val committed = prefs.edit().putString(KEY_OPENAI, key).commit()
         if (committed) {
             _openAiKey.value = key
@@ -79,7 +79,7 @@ class EncryptedKeyStore(
      * Persists [key] for the Anthropic provider and updates the in-memory flow.
      * Returns `true` when committed; `false` on write failure.
      */
-    suspend fun setAnthropicKey(key: String): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun setAnthropicKey(key: String): Boolean = withContext(Dispatchers.IO) {
         val committed = prefs.edit().putString(KEY_ANTHROPIC, key).commit()
         if (committed) {
             _anthropicKey.value = key
@@ -93,7 +93,7 @@ class EncryptedKeyStore(
      * Persists [key] for the Gemini provider and updates the in-memory flow.
      * Returns `true` when committed; `false` on write failure.
      */
-    suspend fun setGeminiKey(key: String): Boolean = withContext(Dispatchers.IO) {
+    override suspend fun setGeminiKey(key: String): Boolean = withContext(Dispatchers.IO) {
         val committed = prefs.edit().putString(KEY_GEMINI, key).commit()
         if (committed) {
             _geminiKey.value = key

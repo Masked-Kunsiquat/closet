@@ -1,13 +1,11 @@
 package com.closet.core.data.repository
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import kotlinx.coroutines.flow.Flow
@@ -15,23 +13,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import co.touchlab.kermit.Logger
 
-private val Context.aiDataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_prefs")
-
 /**
  * Repository for persisting AI provider preferences.
  *
  * **Storage split:**
- * - **API keys** (OpenAI, Anthropic) — stored encrypted via [EncryptedKeyStore], backed by
- *   AES-256-GCM/Android Keystore. Never written to DataStore.
+ * - **API keys** (OpenAI, Anthropic, Gemini) — stored via [SecretStore] (on Android,
+ *   `EncryptedKeyStore`: AES-256-GCM/Android Keystore). Never written to DataStore.
  * - **Everything else** (provider selection, model names, Nano ready flag, token limit,
  *   style vibe, master AI toggle) — stored in plain DataStore (`ai_prefs`). These values
  *   are non-sensitive configuration, not credentials.
  *
- * Provided as a Koin `single` — inject anywhere via Koin.
+ * Provided as a Koin `single`. [aiDataStore] is the one `ai_prefs` DataStore instance, the
+ * Koin single qualified `named(AI_PREFS_NAME)`.
  */
 class AiPreferencesRepository(
-    private val context: Context,
-    private val encryptedKeyStore: EncryptedKeyStore,
+    private val aiDataStore: DataStore<Preferences>,
+    private val secretStore: SecretStore,
 ) {
     // Non-sensitive DataStore keys (no API keys here)
     private val aiEnabledKey = booleanPreferencesKey("ai_enabled")
@@ -51,12 +48,12 @@ class AiPreferencesRepository(
      * a user can have AI enabled with an OpenAI key without Nano ever being downloaded.
      * Defaults to false (off by default).
      */
-    fun getAiEnabled(): Flow<Boolean> = context.aiDataStore.data.map { prefs ->
+    fun getAiEnabled(): Flow<Boolean> = aiDataStore.data.map { prefs ->
         prefs[aiEnabledKey] ?: false
     }
 
     suspend fun setAiEnabled(enabled: Boolean) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[aiEnabledKey] = enabled
         }
     }
@@ -66,12 +63,12 @@ class AiPreferencesRepository(
     /**
      * The currently selected [AiProvider]. Defaults to [AiProvider.Nano] (on-device).
      */
-    fun getSelectedProvider(): Flow<AiProvider> = context.aiDataStore.data.map { prefs ->
+    fun getSelectedProvider(): Flow<AiProvider> = aiDataStore.data.map { prefs ->
         AiProvider.fromString(prefs[selectedProviderKey] ?: AiProvider.Nano.name)
     }
 
     suspend fun setSelectedProvider(provider: AiProvider) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[selectedProviderKey] = provider.name
         }
     }
@@ -80,27 +77,27 @@ class AiPreferencesRepository(
 
     /**
      * API key for OpenAI-compatible providers (OpenAI, Gemini cloud, Ollama, Groq, etc.).
-     * Stored encrypted via [EncryptedKeyStore]. Returns an empty string when not set.
+     * Stored encrypted via [SecretStore]. Returns an empty string when not set.
      */
-    fun getOpenAiApiKey(): Flow<String> = encryptedKeyStore.openAiKeyFlow()
+    fun getOpenAiApiKey(): Flow<String> = secretStore.openAiKeyFlow()
 
-    suspend fun setOpenAiApiKey(key: String) = encryptedKeyStore.setOpenAiKey(key)
+    suspend fun setOpenAiApiKey(key: String) = secretStore.setOpenAiKey(key)
 
     /**
      * API key for the Anthropic provider (Claude).
-     * Stored encrypted via [EncryptedKeyStore]. Returns an empty string when not set.
+     * Stored encrypted via [SecretStore]. Returns an empty string when not set.
      */
-    fun getAnthropicApiKey(): Flow<String> = encryptedKeyStore.anthropicKeyFlow()
+    fun getAnthropicApiKey(): Flow<String> = secretStore.anthropicKeyFlow()
 
-    suspend fun setAnthropicApiKey(key: String) = encryptedKeyStore.setAnthropicKey(key)
+    suspend fun setAnthropicApiKey(key: String) = secretStore.setAnthropicKey(key)
 
     /**
      * API key for the Gemini provider (Google Gemini native API).
-     * Stored encrypted via [EncryptedKeyStore]. Returns an empty string when not set.
+     * Stored encrypted via [SecretStore]. Returns an empty string when not set.
      */
-    fun getGeminiApiKey(): Flow<String> = encryptedKeyStore.geminiKeyFlow()
+    fun getGeminiApiKey(): Flow<String> = secretStore.geminiKeyFlow()
 
-    suspend fun setGeminiApiKey(key: String) = encryptedKeyStore.setGeminiKey(key)
+    suspend fun setGeminiApiKey(key: String) = secretStore.setGeminiKey(key)
 
     // ── OpenAI-compatible non-sensitive config ────────────────────────────────
 
@@ -110,12 +107,12 @@ class AiPreferencesRepository(
      * Override to point at a self-hosted Ollama instance, Groq, Gemini cloud, or any other
      * OpenAI-compatible endpoint. The provider normalizes trailing slashes before use.
      */
-    fun getOpenAiBaseUrl(): Flow<String> = context.aiDataStore.data.map { prefs ->
+    fun getOpenAiBaseUrl(): Flow<String> = aiDataStore.data.map { prefs ->
         prefs[openAiBaseUrlKey] ?: ""
     }
 
     suspend fun setOpenAiBaseUrl(url: String) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[openAiBaseUrlKey] = url
         }
     }
@@ -123,12 +120,12 @@ class AiPreferencesRepository(
     /**
      * Model identifier for the OpenAI-compatible provider. Defaults to `gpt-4o-mini` when not set.
      */
-    fun getOpenAiModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
+    fun getOpenAiModel(): Flow<String> = aiDataStore.data.map { prefs ->
         prefs[openAiModelKey] ?: ""
     }
 
     suspend fun setOpenAiModel(model: String) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[openAiModelKey] = model
         }
     }
@@ -138,12 +135,12 @@ class AiPreferencesRepository(
     /**
      * Model identifier for the Anthropic provider. Defaults to Haiku when not set.
      */
-    fun getAnthropicModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
+    fun getAnthropicModel(): Flow<String> = aiDataStore.data.map { prefs ->
         prefs[anthropicModelKey] ?: ""
     }
 
     suspend fun setAnthropicModel(model: String) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[anthropicModelKey] = model
         }
     }
@@ -153,12 +150,12 @@ class AiPreferencesRepository(
     /**
      * Model identifier for the Gemini provider. Defaults to `gemini-2.0-flash-lite` when not set.
      */
-    fun getGeminiModel(): Flow<String> = context.aiDataStore.data.map { prefs ->
+    fun getGeminiModel(): Flow<String> = aiDataStore.data.map { prefs ->
         prefs[geminiModelKey] ?: "gemini-2.0-flash-lite"
     }
 
     suspend fun setGeminiModel(model: String) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[geminiModelKey] = model
         }
     }
@@ -168,12 +165,12 @@ class AiPreferencesRepository(
     /**
      * Whether Gemini Nano is downloaded and ready for inference on this device.
      */
-    fun getAiReady(): Flow<Boolean> = context.aiDataStore.data.map { prefs ->
+    fun getAiReady(): Flow<Boolean> = aiDataStore.data.map { prefs ->
         prefs[nanoAiReadyKey] ?: false
     }
 
     suspend fun setAiReady(ready: Boolean) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[nanoAiReadyKey] = ready
         }
     }
@@ -185,12 +182,12 @@ class AiPreferencesRepository(
      * Returns 0 when not yet populated (i.e. [getAiReady] is false).
      * Never hardcode a token limit — always read from DataStore.
      */
-    fun getTokenLimit(): Flow<Int> = context.aiDataStore.data.map { prefs ->
+    fun getTokenLimit(): Flow<Int> = aiDataStore.data.map { prefs ->
         prefs[nanoTokenLimitKey] ?: 0
     }
 
     suspend fun setTokenLimit(limit: Int) {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[nanoTokenLimitKey] = limit
         }
     }
@@ -200,19 +197,19 @@ class AiPreferencesRepository(
     /**
      * The user's preferred style aesthetic. Defaults to [StyleVibe.SmartCasual] when not set.
      */
-    fun getStyleVibe(): Flow<StyleVibe> = context.aiDataStore.data.map { prefs ->
+    fun getStyleVibe(): Flow<StyleVibe> = aiDataStore.data.map { prefs ->
         StyleVibe.fromString(prefs[styleVibeKey] ?: StyleVibe.SmartCasual.name)
     }
 
     suspend fun setStyleVibe(vibe: StyleVibe) {
-        context.aiDataStore.edit { prefs -> prefs[styleVibeKey] = vibe.name }
+        aiDataStore.edit { prefs -> prefs[styleVibeKey] = vibe.name }
     }
 
     // ── Composite helpers ────────────────────────────────────────────────────
 
     /**
      * One-time migration: moves API keys previously stored as plain strings in DataStore
-     * (before encryption was introduced) into [EncryptedKeyStore], then removes them from
+     * (before encryption was introduced) into [SecretStore], then removes them from
      * DataStore. Safe to call on every app start — if the legacy DataStore keys are absent
      * (migration already ran, or keys were never set), this is a no-op.
      */
@@ -220,7 +217,7 @@ class AiPreferencesRepository(
         val legacyOpenAiKey = stringPreferencesKey("ai_openai_api_key")
         val legacyAnthropicKey = stringPreferencesKey("ai_anthropic_api_key")
 
-        val snapshot = context.aiDataStore.data.first()
+        val snapshot = aiDataStore.data.first()
         val oldOpenAiKey = snapshot[legacyOpenAiKey] ?: ""
         val oldAnthropicKey = snapshot[legacyAnthropicKey] ?: ""
 
@@ -228,13 +225,13 @@ class AiPreferencesRepository(
 
         // Only backfill when the encrypted slot is currently empty — avoids overwriting a
         // key the user may have set in the new encrypted store after a partial migration.
-        val currentOpenAiKey = encryptedKeyStore.openAiKeyFlow().first()
-        val currentAnthropicKey = encryptedKeyStore.anthropicKeyFlow().first()
+        val currentOpenAiKey = secretStore.openAiKeyFlow().first()
+        val currentAnthropicKey = secretStore.anthropicKeyFlow().first()
 
         val openAiMigrated = oldOpenAiKey.isNotBlank() && currentOpenAiKey.isBlank() &&
-            encryptedKeyStore.setOpenAiKey(oldOpenAiKey)
+            secretStore.setOpenAiKey(oldOpenAiKey)
         val anthropicMigrated = oldAnthropicKey.isNotBlank() && currentAnthropicKey.isBlank() &&
-            encryptedKeyStore.setAnthropicKey(oldAnthropicKey)
+            secretStore.setAnthropicKey(oldAnthropicKey)
 
         // Remove the plaintext entry when the encrypted slot is populated — either because
         // we just wrote it this run OR it was already populated by an earlier migration run.
@@ -242,7 +239,7 @@ class AiPreferencesRepository(
         // (encrypted was non-blank) but forgot to delete the legacy key.
         val shouldRemoveOpenAi = oldOpenAiKey.isNotBlank() && (currentOpenAiKey.isNotBlank() || openAiMigrated)
         val shouldRemoveAnthropic = oldAnthropicKey.isNotBlank() && (currentAnthropicKey.isNotBlank() || anthropicMigrated)
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             if (shouldRemoveOpenAi) prefs.remove(legacyOpenAiKey)
             if (shouldRemoveAnthropic) prefs.remove(legacyAnthropicKey)
         }
@@ -250,7 +247,7 @@ class AiPreferencesRepository(
         val migratedCount = listOf(openAiMigrated, anthropicMigrated).count { it }
         if (migratedCount > 0) {
             Logger.withTag("AiPrefsRepo").i {
-                "Migrated $migratedCount key(s) from plain DataStore to EncryptedKeyStore"
+                "Migrated $migratedCount key(s) from plain DataStore to SecretStore"
             }
         }
     }
@@ -260,7 +257,7 @@ class AiPreferencesRepository(
      * Called when the AI toggle is turned off or model init fails.
      */
     suspend fun clearNanoState() {
-        context.aiDataStore.edit { prefs ->
+        aiDataStore.edit { prefs ->
             prefs[nanoAiReadyKey] = false
             prefs.remove(nanoTokenLimitKey)
         }

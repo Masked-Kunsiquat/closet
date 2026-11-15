@@ -59,6 +59,11 @@ kotlin {
             implementation(libs.room.runtime)
             // The bundled SQLite driver every target uses (configureClosetDatabase).
             implementation(libs.sqlite.bundled)
+            // DataStore KMP: the ai_prefs / weather_prefs stores (createPreferencesDataStore).
+            // api: the preference repositories' constructors take DataStore<Preferences>.
+            api(libs.androidx.datastore.preferences.core)
+            // okio Path for PreferenceDataStoreFactory.createWithPath.
+            implementation(libs.okio)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -73,9 +78,6 @@ kotlin {
 
             // Palette
             implementation(libs.androidx.palette.ktx)
-
-            // DataStore
-            implementation(libs.androidx.datastore.preferences)
 
             // Encrypted storage for API keys
             implementation(libs.androidx.security.crypto)
