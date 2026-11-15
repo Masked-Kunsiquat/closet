@@ -6,7 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/** Clothing brand (e.g. Nike, Zara). Name must be unique. Seeded by [com.closet.core.data.DatabaseSeeder.seedBrands]. */
+/** Clothing brand (e.g. Nike, Zara). Name must be unique. User-created; not seeded. */
 @Entity(
     tableName = "brands",
     indices = [Index(value = ["normalized_name"], unique = true)]

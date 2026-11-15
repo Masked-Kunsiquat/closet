@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "4661a204038c3ead7bff90e1993136d4",
+    "identityHash": "dd9d5ffc89fb082e41bc696348f1c0c3",
     "entities": [
       {
         "tableName": "clothing_items",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `brand_id` INTEGER, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL DEFAULT 'Active', `wash_status` TEXT NOT NULL DEFAULT 'Clean', `is_favorite` INTEGER NOT NULL, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`brand_id`) REFERENCES `brands`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT, `brand_id` INTEGER, `category_id` INTEGER, `subcategory_id` INTEGER, `size_value_id` INTEGER, `waist` REAL, `inseam` REAL, `purchase_price` REAL, `purchase_date` TEXT, `purchase_location` TEXT, `image_path` TEXT, `notes` TEXT, `status` TEXT NOT NULL DEFAULT 'Active', `wash_status` TEXT NOT NULL DEFAULT 'Clean', `is_favorite` INTEGER NOT NULL, `semantic_description` TEXT, `image_caption` TEXT, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`subcategory_id`) REFERENCES `subcategories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`size_value_id`) REFERENCES `size_values`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL , FOREIGN KEY(`brand_id`) REFERENCES `brands`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -99,6 +99,16 @@
             "columnName": "is_favorite",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "semanticDescription",
+            "columnName": "semantic_description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imageCaption",
+            "columnName": "image_caption",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "createdAt",
@@ -247,7 +257,7 @@
       },
       {
         "tableName": "categories",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT, `sort_order` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT, `sort_order` INTEGER NOT NULL, `warmth_layer` TEXT NOT NULL DEFAULT 'None', `outfit_role` TEXT NOT NULL DEFAULT 'Other')",
         "fields": [
           {
             "fieldPath": "id",
@@ -271,6 +281,20 @@
             "columnName": "sort_order",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "warmthLayer",
+            "columnName": "warmth_layer",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'None'"
+          },
+          {
+            "fieldPath": "outfitRole",
+            "columnName": "outfit_role",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Other'"
           }
         ],
         "primaryKey": {
@@ -342,7 +366,7 @@
       },
       {
         "tableName": "seasons",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT, `temp_low_c` REAL, `temp_high_c` REAL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -360,6 +384,16 @@
             "fieldPath": "icon",
             "columnName": "icon",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tempLowC",
+            "columnName": "temp_low_c",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "tempHighC",
+            "columnName": "temp_high_c",
+            "affinity": "REAL"
           }
         ],
         "primaryKey": {
@@ -400,7 +434,7 @@
       },
       {
         "tableName": "colors",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `hex` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `hex` TEXT, `color_family` TEXT NOT NULL DEFAULT 'Neutral')",
         "fields": [
           {
             "fieldPath": "id",
@@ -418,6 +452,13 @@
             "fieldPath": "hex",
             "columnName": "hex",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "colorFamily",
+            "columnName": "color_family",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Neutral'"
           }
         ],
         "primaryKey": {
@@ -686,7 +727,7 @@
       },
       {
         "tableName": "outfit_logs",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `outfit_id` INTEGER, `date` TEXT NOT NULL, `is_ootd` INTEGER NOT NULL, `notes` TEXT, `temperature_low` REAL, `temperature_high` REAL, `weather_condition` TEXT, `created_at` TEXT NOT NULL, FOREIGN KEY(`outfit_id`) REFERENCES `outfits`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `outfit_id` INTEGER, `date` TEXT NOT NULL, `is_ootd` INTEGER NOT NULL, `notes` TEXT, `temperature_low` REAL, `temperature_high` REAL, `weather_condition` TEXT, `precipitation_mm` REAL, `wind_speed_kmh` REAL, `created_at` TEXT NOT NULL, FOREIGN KEY(`outfit_id`) REFERENCES `outfits`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -730,6 +771,16 @@
             "fieldPath": "weatherCondition",
             "columnName": "weather_condition",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "precipitationMm",
+            "columnName": "precipitation_mm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "windSpeedKmh",
+            "columnName": "wind_speed_kmh",
+            "affinity": "REAL"
           },
           {
             "fieldPath": "createdAt",
@@ -1188,11 +1239,76 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "item_embeddings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`item_id` INTEGER NOT NULL, `embedding_blob` BLOB NOT NULL, `model_version` TEXT NOT NULL, `input_snapshot` TEXT, `embedded_at` TEXT NOT NULL, PRIMARY KEY(`item_id`), FOREIGN KEY(`item_id`) REFERENCES `clothing_items`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "itemId",
+            "columnName": "item_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "embeddingBlob",
+            "columnName": "embedding_blob",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "model_version",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "inputSnapshot",
+            "columnName": "input_snapshot",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "embeddedAt",
+            "columnName": "embedded_at",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "item_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_item_embeddings_item_id",
+            "unique": true,
+            "columnNames": [
+              "item_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_item_embeddings_item_id` ON `${TABLE_NAME}` (`item_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "clothing_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "item_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4661a204038c3ead7bff90e1993136d4')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dd9d5ffc89fb082e41bc696348f1c0c3')"
     ]
   }
 }
