@@ -69,7 +69,7 @@ class BackupRepository(
 
                 // 1. Flush WAL so closet.db is a consistent snapshot
                 onProgress(BackupProgress.Running("Flushing database", 0, 0))
-                val schemaVersion = database.databaseVersion
+                val schemaVersion = database.databaseVersion()
                 database.checkpointWal()
 
                 // 2. Copy database file

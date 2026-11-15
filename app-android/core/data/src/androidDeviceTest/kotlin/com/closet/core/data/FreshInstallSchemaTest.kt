@@ -1,9 +1,11 @@
 package com.closet.core.data
 
 import android.content.Context
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.useWriterConnection
+import androidx.sqlite.SQLiteStatement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -28,14 +30,14 @@ import org.junit.runner.RunWith
 class FreshInstallSchemaTest {
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
-    private lateinit var db: SupportSQLiteDatabase
+    private lateinit var db: ClothingDatabase
     private lateinit var schema: JSONObject
 
     @Before
     fun setUp() {
         ClothingDatabase.closeAndReset()
         context.deleteDatabase(DATABASE_NAME)
-        db = ClothingDatabase.getDatabase(context).openHelper.writableDatabase
+        db = ClothingDatabase.getDatabase(context)
         val json = InstrumentationRegistry.getInstrumentation().context.assets
             .open("com.closet.core.data.ClothingDatabase/1.json")
             .bufferedReader().use { it.readText() }
@@ -51,10 +53,10 @@ class FreshInstallSchemaTest {
     @Test
     fun freshInstall_isVersionOne_andMatchesCommittedSchemaHash() {
         assertEquals(1, schema.getInt("version"))
-        assertEquals(1, db.version)
-        val storedHash = db.query("SELECT identity_hash FROM room_master_table").use {
-            it.moveToFirst()
-            it.getString(0)
+        assertEquals(1, runBlocking { db.databaseVersion() })
+        val storedHash = query("SELECT identity_hash FROM room_master_table") {
+            it.step()
+            it.getText(0)
         }
         // A mismatch means 1.json is stale: rerun `./gradlew kspDebugKotlin` and commit it.
         assertEquals(schema.getString("identityHash"), storedHash)
@@ -70,8 +72,9 @@ class FreshInstallSchemaTest {
             val expectedColumns = entity.getJSONArray("fields").let { fields ->
                 (0 until fields.length()).map { fields.getJSONObject(it).getString("columnName") }.toSet()
             }
-            val actualColumns = db.query("PRAGMA table_info(`$table`)").use { c ->
-                buildSet { while (c.moveToNext()) add(c.getString(c.getColumnIndexOrThrow("name"))) }
+            val actualColumns = query("PRAGMA table_info(`$table`)") { c ->
+                val name = c.getColumnNames().indexOf("name")
+                buildSet { while (c.step()) add(c.getText(name)) }
             }
             assertEquals("columns of $table", expectedColumns, actualColumns)
 
@@ -85,7 +88,7 @@ class FreshInstallSchemaTest {
 
     @Test
     fun freshInstall_enforcesForeignKeys() {
-        val enabled = db.query("PRAGMA foreign_keys").use { it.moveToFirst(); it.getInt(0) }
+        val enabled = query("PRAGMA foreign_keys") { it.step(); it.getInt(0) }
         assertEquals(1, enabled)
     }
 
@@ -114,11 +117,19 @@ class FreshInstallSchemaTest {
     }
 
     private fun count(table: String): Int =
-        db.query("SELECT COUNT(*) FROM `$table`").use { it.moveToFirst(); it.getInt(0) }
+        query("SELECT COUNT(*) FROM `$table`") { it.step(); it.getInt(0) }
 
     private fun sqliteObjectExists(type: String, name: String): Boolean =
-        db.query("SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?", arrayOf(type, name))
-            .use { it.moveToFirst() }
+        query("SELECT 1 FROM sqlite_master WHERE type = ? AND name = ?") {
+            it.bindText(1, type)
+            it.bindText(2, name)
+            it.step()
+        }
+
+    /** Runs [sql] on Room's writer connection, the one the app's writes (and foreign keys) use. */
+    private fun <T> query(sql: String, block: (SQLiteStatement) -> T): T = runBlocking {
+        db.useWriterConnection { connection -> connection.usePrepared(sql, block) }
+    }
 
     private companion object {
         const val DATABASE_NAME = "closet.db"

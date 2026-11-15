@@ -1,6 +1,7 @@
 package com.closet.core.data
 
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.SQLiteStatement
 
 /**
  * Seeds all static lookup tables (categories, subcategories, seasons, occasions, colors,
@@ -13,28 +14,46 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 object DatabaseSeeder {
 
     /**
-     * Runs all seed functions inside a single transaction.
-     * Called by [com.closet.core.data.ClothingDatabase] from [androidx.room.RoomDatabase.Callback.onCreate].
+     * Runs all seed functions. Called by [com.closet.core.data.configureClosetDatabase] from
+     * [androidx.room.RoomDatabase.Callback.onCreate], which Room runs inside its own
+     * `BEGIN EXCLUSIVE TRANSACTION`, so the seeds commit or roll back together with the schema.
+     * (A connection can't nest `BEGIN`, so this no longer opens a transaction itself.)
      */
-    fun seedAll(db: SupportSQLiteDatabase) {
-        db.beginTransaction()
-        try {
-            seedCategories(db)
-            seedSubcategories(db)
-            seedSeasons(db)
-            seedOccasions(db)
-            seedColors(db)
-            seedMaterials(db)
-            seedPatterns(db)
-            seedSizeSystems(db)
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
+    fun seedAll(db: SQLiteConnection) {
+        seedCategories(db)
+        seedSubcategories(db)
+        seedSeasons(db)
+        seedOccasions(db)
+        seedColors(db)
+        seedMaterials(db)
+        seedPatterns(db)
+        seedSizeSystems(db)
+    }
+
+    /**
+     * Runs one statement with bound [args], binding each the way `SupportSQLiteDatabase.execSQL`
+     * did: integers as INTEGER, doubles as REAL, strings as TEXT and null as NULL.
+     */
+    private fun SQLiteConnection.execSQL(sql: String, args: Array<out Any?>) {
+        prepare(sql).use { statement ->
+            args.forEachIndexed { i, arg -> statement.bindArg(i + 1, arg) }
+            statement.step()
+        }
+    }
+
+    private fun SQLiteStatement.bindArg(index: Int, arg: Any?) {
+        when (arg) {
+            null -> bindNull(index)
+            is Int -> bindLong(index, arg.toLong())
+            is Long -> bindLong(index, arg)
+            is Double -> bindDouble(index, arg)
+            is String -> bindText(index, arg)
+            else -> error("Unsupported seed argument type: ${arg::class}")
         }
     }
 
     /** Seeds the 10 top-level clothing categories with stable IDs (1–10). */
-    private fun seedCategories(db: SupportSQLiteDatabase) {
+    private fun seedCategories(db: SQLiteConnection) {
         // name, icon, sort_order, warmth_layer, outfit_role
         val categories = listOf(
             listOf("Tops",                  "t-shirt",               1, "None",  "Top"),
@@ -57,7 +76,7 @@ object DatabaseSeeder {
     }
 
     /** Seeds subcategories mapped to their parent category IDs (1–10). */
-    private fun seedSubcategories(db: SupportSQLiteDatabase) {
+    private fun seedSubcategories(db: SQLiteConnection) {
         val mapping = mapOf(
             1L to listOf("T-Shirt", "Tank Top", "Blouse", "Shirt", "Polo", "Sweater", "Hoodie", "Sweatshirt", "Cardigan", "Bodysuit"),
             2L to listOf("Jeans", "Trousers/Slacks", "Chinos", "Shorts", "Skirt", "Leggings", "Joggers/Sweatpants"),
@@ -81,7 +100,7 @@ object DatabaseSeeder {
     }
 
     /** Seeds the 5 seasons with Phosphor icons and temperature bands (°C). All Season has null bounds. */
-    private fun seedSeasons(db: SupportSQLiteDatabase) {
+    private fun seedSeasons(db: SQLiteConnection) {
         // name, icon, temp_low_c, temp_high_c — All Season intentionally null (always applicable)
         val seasons = listOf(
             listOf<Any?>("Spring",     "flower",      10.0,  20.0),
@@ -99,7 +118,7 @@ object DatabaseSeeder {
     }
 
     /** Seeds the 9 occasion types (Casual, Work/Business, Formal, etc.) with Phosphor icons. */
-    private fun seedOccasions(db: SupportSQLiteDatabase) {
+    private fun seedOccasions(db: SQLiteConnection) {
         val occasions = listOf(
             "Casual" to "coffee",
             "Work/Business" to "briefcase",
@@ -127,7 +146,7 @@ object DatabaseSeeder {
      * Added in Migration 2→3; the column has DEFAULT 'Neutral' so this insert always
      * supplies the correct family explicitly.
      */
-    fun seedColors(db: SupportSQLiteDatabase) {
+    fun seedColors(db: SQLiteConnection) {
         // name, hex, color_family
         val colors = listOf(
             Triple("Black",        "#000000", "Neutral"),
@@ -158,7 +177,7 @@ object DatabaseSeeder {
     }
 
     /** Seeds 23 fabric/material types including natural fibers, synthetics, and "Other". */
-    private fun seedMaterials(db: SupportSQLiteDatabase) {
+    private fun seedMaterials(db: SQLiteConnection) {
         val materials = listOf(
             "Cotton", "Polyester", "Wool", "Linen", "Silk", "Denim", "Leather",
             "Faux Leather", "Suede", "Velvet", "Cashmere", "Nylon", "Spandex/Elastane",
@@ -171,7 +190,7 @@ object DatabaseSeeder {
     }
 
     /** Seeds 17 visual patterns (Solid, Striped, Floral, etc.) including "Other". */
-    private fun seedPatterns(db: SupportSQLiteDatabase) {
+    private fun seedPatterns(db: SQLiteConnection) {
         val patterns = listOf(
             "Solid" to "solid",
             "Striped" to "striped",
@@ -200,7 +219,7 @@ object DatabaseSeeder {
      * Seeds 4 size systems (Letter, Women's Numeric, Shoes (US Men's), One Size) with
      * their associated size values. System IDs are hardcoded starting at 1.
      */
-    private fun seedSizeSystems(db: SupportSQLiteDatabase) {
+    private fun seedSizeSystems(db: SQLiteConnection) {
         val systems = mapOf(
             "Letter" to listOf("XS", "S", "M", "L", "XL", "XXL", "XXXL"),
             "Women's Numeric" to listOf("00", "0", "2", "4", "6", "8", "10", "12", "14", "16"),

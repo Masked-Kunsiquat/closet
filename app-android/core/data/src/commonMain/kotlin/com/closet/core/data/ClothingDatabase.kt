@@ -1,11 +1,18 @@
 package com.closet.core.data
 
-import android.content.Context
+import androidx.room.ConstructedBy
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room.execSQL
+import androidx.room.useReaderConnection
+import androidx.room.useWriterConnection
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import androidx.sqlite.execSQL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import com.closet.core.data.dao.*
 import com.closet.core.data.model.*
 
@@ -44,6 +51,7 @@ import com.closet.core.data.model.*
     exportSchema = true
 )
 @TypeConverters(Converters::class)
+@ConstructedBy(ClothingDatabaseConstructor::class)
 abstract class ClothingDatabase : RoomDatabase() {
     /** @return [ClothingDao] for clothing item operations. */
     abstract fun clothingDao(): ClothingDao
@@ -64,80 +72,67 @@ abstract class ClothingDatabase : RoomDatabase() {
 
     /**
      * Executes `PRAGMA wal_checkpoint(FULL)` to flush the WAL file into the main database
-     * file before a backup copy. Exposed here so callers in the `app` module don't need a
-     * direct dependency on Room's internal [openHelper] API.
+     * file before a backup copy. Exposed here so callers in the `app` module don't need to
+     * reach for Room's connection APIs.
      */
-    fun checkpointWal() {
-        openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
+    suspend fun checkpointWal() {
+        useWriterConnection { it.execSQL("PRAGMA wal_checkpoint(FULL)") }
     }
 
     /**
-     * Returns the current SQLite schema version. Exposed here so callers in the `app` module
-     * don't need a direct dependency on Room's internal [openHelper] API.
+     * Returns the current SQLite schema version (`PRAGMA user_version`). Exposed here so callers
+     * in the `app` module don't need to reach for Room's connection APIs.
      */
-    val databaseVersion: Int get() = openHelper.readableDatabase.version
-
-    companion object {
-        private const val DATABASE_NAME = "closet.db"
-
-        @Volatile
-        private var INSTANCE: ClothingDatabase? = null
-
-        /**
-         * Closes the current database connection and clears the singleton so the next call to
-         * [getDatabase] builds a fresh instance. Called by `RestoreRepository` before overwriting
-         * the database file; the process is restarted afterward so stale DAO references are never
-         * used in production code.
-         */
-        fun closeAndReset() {
-            synchronized(this) {
-                INSTANCE?.close()
-                INSTANCE = null
+    suspend fun databaseVersion(): Int =
+        useReaderConnection { connection ->
+            connection.usePrepared("PRAGMA user_version") { statement ->
+                statement.step()
+                statement.getLong(0).toInt()
             }
         }
 
-        /**
-         * Returns the singleton [ClothingDatabase] instance, creating it if needed.
-         * Registers seeding, unique indices, and category-consistency triggers on first creation.
-         */
-        fun getDatabase(context: Context): ClothingDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    ClothingDatabase::class.java,
-                    DATABASE_NAME
-                )
-                .addCallback(object : Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        db.execSQL("PRAGMA foreign_keys = ON")
-                        DatabaseSeeder.seedAll(db)
-                        createCategoryConsistencyTriggers(db)
-                    }
+    /** Anchor for the platform entry points, e.g. `ClothingDatabase.getDatabase(context)` on Android. */
+    companion object
+}
 
-                    override fun onOpen(db: SupportSQLiteDatabase) {
-                        super.onOpen(db)
-                        db.execSQL("PRAGMA foreign_keys = ON")
-                        // Partial index — Room cannot represent this in entity annotations, so it is
-                        // created here (runs on every open) rather than in onCreate. Room's
-                        // post-migration validator would reject it as an unexpected index.
-                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
-                    }
-                })
-                .build()
-                INSTANCE = instance
-                instance
+/** Room's generated constructor for [ClothingDatabase]; KSP writes the `actual` for each target. */
+@Suppress("KotlinNoActualForExpect")
+expect object ClothingDatabaseConstructor : RoomDatabaseConstructor<ClothingDatabase> {
+    override fun initialize(): ClothingDatabase
+}
+
+/**
+ * Applies the settings every platform's builder shares: the bundled SQLite driver, [Dispatchers.IO]
+ * for queries, and the callbacks that seed lookup data, install the category triggers and create
+ * the `one_ootd_per_day` partial index.
+ */
+fun RoomDatabase.Builder<ClothingDatabase>.configureClosetDatabase(): RoomDatabase.Builder<ClothingDatabase> =
+    setDriver(BundledSQLiteDriver())
+        .setQueryCoroutineContext(Dispatchers.IO)
+        .addCallback(object : RoomDatabase.Callback() {
+            override fun onCreate(connection: SQLiteConnection) {
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                DatabaseSeeder.seedAll(connection)
+                createCategoryConsistencyTriggers(connection)
             }
-        }
 
-        /**
-         * Creates SQLite triggers to enforce consistency between categories and subcategories.
-         * 1. Ensures both category_id and subcategory_id are either both NULL or both NOT NULL.
-         * 2. Verifies that a selected subcategory actually belongs to the selected parent category.
-         */
-        private fun createCategoryConsistencyTriggers(db: SupportSQLiteDatabase) {
-            // Enforce category_id and subcategory_id consistency (Both NULL or both NOT NULL)
-            val consistencyCheck = """
+            override fun onOpen(connection: SQLiteConnection) {
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                // Partial index — Room cannot represent this in entity annotations, so it is
+                // created here (runs on every open) rather than in onCreate. Room's
+                // post-migration validator would reject it as an unexpected index.
+                connection.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
+            }
+        })
+
+/**
+ * Creates SQLite triggers to enforce consistency between categories and subcategories.
+ * 1. Ensures both category_id and subcategory_id are either both NULL or both NOT NULL.
+ * 2. Verifies that a selected subcategory actually belongs to the selected parent category.
+ */
+private fun createCategoryConsistencyTriggers(db: SQLiteConnection) {
+    // Enforce category_id and subcategory_id consistency (Both NULL or both NOT NULL)
+    val consistencyCheck = """
                 SELECT CASE
                     WHEN (NEW.subcategory_id IS NOT NULL AND NEW.category_id IS NULL)
                     OR (NEW.subcategory_id IS NULL AND NEW.category_id IS NOT NULL)
@@ -145,16 +140,16 @@ abstract class ClothingDatabase : RoomDatabase() {
                 END;
             """
 
-            // Enforce that subcategory belongs to the selected category
-            val relationshipCheck = """
+    // Enforce that subcategory belongs to the selected category
+    val relationshipCheck = """
                 SELECT CASE
                     WHEN (SELECT category_id FROM subcategories WHERE id = NEW.subcategory_id) != NEW.category_id
                     THEN RAISE(ABORT, 'Subcategory does not belong to the selected Category')
                 END;
             """
 
-            // INSERT Triggers
-            db.execSQL("""
+    // INSERT Triggers
+    db.execSQL("""
                 CREATE TRIGGER IF NOT EXISTS check_clothing_item_category_consistency_insert
                 BEFORE INSERT ON clothing_items
                 FOR EACH ROW
@@ -163,7 +158,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                 END;
             """)
 
-            db.execSQL("""
+    db.execSQL("""
                 CREATE TRIGGER IF NOT EXISTS verify_subcategory_parent_category_insert
                 BEFORE INSERT ON clothing_items
                 FOR EACH ROW
@@ -173,8 +168,8 @@ abstract class ClothingDatabase : RoomDatabase() {
                 END;
             """)
 
-            // UPDATE Triggers
-            db.execSQL("""
+    // UPDATE Triggers
+    db.execSQL("""
                 CREATE TRIGGER IF NOT EXISTS check_clothing_item_category_consistency_update
                 BEFORE UPDATE OF category_id, subcategory_id ON clothing_items
                 FOR EACH ROW
@@ -183,7 +178,7 @@ abstract class ClothingDatabase : RoomDatabase() {
                 END;
             """)
 
-            db.execSQL("""
+    db.execSQL("""
                 CREATE TRIGGER IF NOT EXISTS verify_subcategory_parent_category_update
                 BEFORE UPDATE OF category_id, subcategory_id ON clothing_items
                 FOR EACH ROW
@@ -192,6 +187,4 @@ abstract class ClothingDatabase : RoomDatabase() {
                     $relationshipCheck
                 END;
             """)
-        }
-    }
 }

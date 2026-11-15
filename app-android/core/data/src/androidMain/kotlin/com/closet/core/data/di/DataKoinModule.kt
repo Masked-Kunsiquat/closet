@@ -10,6 +10,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
+import com.closet.core.data.getDatabase
 import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.BrandRepository

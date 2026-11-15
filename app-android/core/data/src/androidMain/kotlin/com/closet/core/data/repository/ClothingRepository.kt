@@ -1,12 +1,15 @@
 package com.closet.core.data.repository
 
-import androidx.room.withTransaction
+import androidx.room.immediateTransaction
+import androidx.room.useWriterConnection
+import androidx.sqlite.SQLiteException
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.Converters
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.*
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
+import com.closet.core.data.util.isConstraintViolation
 import com.closet.core.data.util.ItemVectorizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -289,7 +292,7 @@ class ClothingRepository(
     }
 
     // --- Junction Table Management ---
-    // Atomic updates using withTransaction to ensure data integrity.
+    // Atomic updates in an immediate write transaction to ensure data integrity.
 
     /**
      * Atomically replaces color associations for an item.
@@ -368,10 +371,15 @@ class ClothingRepository(
      * Helper to wrap a database transaction block in [DataResult] with error handling.
      */
     private suspend fun <T> wrapInTransaction(block: suspend () -> T): DataResult<T> = try {
-        DataResult.Success(database.withTransaction { block() })
-    } catch (e: android.database.sqlite.SQLiteConstraintException) {
-        Logger.withTag("ClothingRepository").e(e) { "Database transaction constraint violation" }
-        DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
+        DataResult.Success(database.useWriterConnection { connection -> connection.immediateTransaction { block() } })
+    } catch (e: SQLiteException) {
+        if (e.isConstraintViolation()) {
+            Logger.withTag("ClothingRepository").e(e) { "Database transaction constraint violation" }
+            DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
+        } else {
+            Logger.withTag("ClothingRepository").e(e) { "Unexpected error in database transaction" }
+            DataResult.Error(AppError.DatabaseError.QueryError(e))
+        }
     } catch (e: Exception) {
         if (e is CancellationException) throw e
         Logger.withTag("ClothingRepository").e(e) { "Unexpected error in database transaction" }

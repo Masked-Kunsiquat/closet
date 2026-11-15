@@ -24,7 +24,7 @@ interface BrandDao {
     /**
      * Inserts a new brand with the given [name] and its lowercase [normalizedName].
      * @return The row ID of the newly inserted brand.
-     * @throws android.database.sqlite.SQLiteConstraintException if a brand with [normalizedName] already exists.
+     * @throws androidx.sqlite.SQLiteException (a UNIQUE constraint failure) if a brand with [normalizedName] already exists.
      */
     @Query("INSERT INTO brands (name, normalized_name) VALUES (:name, :normalizedName)")
     suspend fun insertBrand(name: String, normalizedName: String): Long

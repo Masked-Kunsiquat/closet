@@ -1,6 +1,7 @@
 package com.closet.core.data.repository
 
-import androidx.room.withTransaction
+import androidx.room.immediateTransaction
+import androidx.room.useWriterConnection
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.OutfitDao
 import com.closet.core.data.model.*
@@ -62,21 +63,21 @@ class OutfitRepository(
 
     /**
      * Creates a new outfit and associates it with a list of clothing items.
-     * Built Well: Uses [withTransaction] to ensure the outfit and its items are created atomically.
+     * Built Well: Uses an immediate write transaction ([useWriterConnection] + [immediateTransaction]) to ensure the outfit and its items are created atomically.
      * @param name The display name of the outfit.
      * @param notes Optional notes for the outfit.
      * @param itemIds The list of clothing item IDs to include in the outfit.
      * @return The unique ID of the newly created outfit wrapped in [DataResult].
      */
     suspend fun createOutfit(name: String?, notes: String?, itemIds: List<Long>): DataResult<Long> = try {
-        val outfitId = database.withTransaction {
+        val outfitId = database.useWriterConnection { connection -> connection.immediateTransaction {
             val id = outfitDao.insertOutfit(OutfitEntity(name = name, notes = notes))
             val outfitItems = itemIds.mapIndexed { index, itemId ->
                 OutfitItemEntity(outfitId = id, clothingItemId = itemId, zIndex = index)
             }
             outfitDao.insertOutfitItems(outfitItems)
             id
-        }
+        } }
         DataResult.Success(outfitId)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
@@ -86,7 +87,7 @@ class OutfitRepository(
 
     /**
      * Updates an existing outfit's details and replaces its item associations.
-     * Built Well: Uses [withTransaction] to ensure the replacement of associations is atomic.
+     * Built Well: Uses an immediate write transaction ([useWriterConnection] + [immediateTransaction]) to ensure the replacement of associations is atomic.
      * @param outfitId The ID of the outfit to update.
      * @param name The updated name.
      * @param notes The updated notes.
@@ -98,7 +99,7 @@ class OutfitRepository(
         notes: String?,
         items: List<OutfitItem>
     ): DataResult<Unit> = try {
-        database.withTransaction {
+        database.useWriterConnection { connection -> connection.immediateTransaction {
             val updatedRows = outfitDao.updateOutfitFields(
                 id = outfitId,
                 name = name,
@@ -122,7 +123,7 @@ class OutfitRepository(
                 )
             }
             outfitDao.insertOutfitItems(outfitItems)
-        }
+        } }
         DataResult.Success(Unit)
     } catch (e: AppError) {
         // AppError extends Throwable, not Exception, so it needs its own catch clause.

@@ -4,7 +4,8 @@ import com.closet.core.data.dao.BrandDao
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
-import android.database.sqlite.SQLiteConstraintException
+import com.closet.core.data.util.isConstraintViolation
+import androidx.sqlite.SQLiteException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -43,9 +44,14 @@ class BrandRepository(
         DataResult.Success(id)
     } catch (e: CancellationException) {
         throw e
-    } catch (e: SQLiteConstraintException) {
-        Logger.withTag("BrandRepository").e(e) { "Constraint violation inserting brand: $name" }
-        DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "A brand with that name already exists."))
+    } catch (e: SQLiteException) {
+        if (e.isConstraintViolation()) {
+            Logger.withTag("BrandRepository").e(e) { "Constraint violation inserting brand: $name" }
+            DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "A brand with that name already exists."))
+        } else {
+            Logger.withTag("BrandRepository").e(e) { "Error inserting brand: $name" }
+            DataResult.Error(AppError.DatabaseError.QueryError(e))
+        }
     } catch (e: Exception) {
         Logger.withTag("BrandRepository").e(e) { "Error inserting brand: $name" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
@@ -61,9 +67,14 @@ class BrandRepository(
         else DataResult.Error(AppError.DatabaseError.NotFound())
     } catch (e: CancellationException) {
         throw e
-    } catch (e: SQLiteConstraintException) {
-        Logger.withTag("BrandRepository").e(e) { "Constraint violation updating brand id=$id" }
-        DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "A brand with that name already exists."))
+    } catch (e: SQLiteException) {
+        if (e.isConstraintViolation()) {
+            Logger.withTag("BrandRepository").e(e) { "Constraint violation updating brand id=$id" }
+            DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "A brand with that name already exists."))
+        } else {
+            Logger.withTag("BrandRepository").e(e) { "Error updating brand id=$id" }
+            DataResult.Error(AppError.DatabaseError.QueryError(e))
+        }
     } catch (e: Exception) {
         Logger.withTag("BrandRepository").e(e) { "Error updating brand id=$id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
