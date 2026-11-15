@@ -134,7 +134,7 @@ New images will be compressed after 4.1/4.2, but existing users have a full libr
 - [ ] If compression is needed: compress to a temp file alongside the original → atomically rename to replace (same filename, so no DB update required)
 - [ ] Track progress via `setProgress` so a future UI can show it; log a summary at the end
 - [ ] Schedule once via `OneTimeWorkRequest` with `ExistingWorkPolicy.KEEP` on app start after a 30-second initial delay (idle + battery-not-low constraints)
-- [ ] Register the worker in `DataModule` / Hilt the same way `EmbeddingWorker` is registered
+- [ ] Register the worker in `dataModule` with `workerOf(::X)`, the same way `EmbeddingWorker` is registered
 
 ### 4.4 Storage usage display (optional, deferred)
 

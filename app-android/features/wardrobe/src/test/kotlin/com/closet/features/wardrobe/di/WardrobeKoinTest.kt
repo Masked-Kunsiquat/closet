@@ -15,7 +15,7 @@ import io.ktor.client.engine.HttpClientEngine
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.After
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertSame
 import org.junit.Test
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -51,9 +51,10 @@ class WardrobeKoinTest {
             single<WorkManager> { mockk(relaxed = true) }
         }
         startKoin {
-            modules(dataModule, uiModule, wardrobeModule, wardrobeFlavorModule, overrides)
             allowOverride(true)
+            modules(dataModule, uiModule, wardrobeModule, wardrobeFlavorModule, overrides)
         }
-        assertTrue(KoinPlatform.getKoin().get<CaptionEnrichmentProvider>() is ImageCaptionRepository)
+        val koin = KoinPlatform.getKoin()
+        assertSame(koin.get<ImageCaptionRepository>(), koin.get<CaptionEnrichmentProvider>())
     }
 }

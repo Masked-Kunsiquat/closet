@@ -35,6 +35,9 @@ import timber.log.Timber
  * - **API key**  — `Authorization: Bearer <key>`
  * - **Base URL** — defaults to `https://api.openai.com`. Override for Ollama / Groq / etc.
  * - **Model**    — defaults to [DEFAULT_MODEL]
+ *
+ * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
+ *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
  */
 class OpenAiChatProvider(
     private val client: HttpClient,

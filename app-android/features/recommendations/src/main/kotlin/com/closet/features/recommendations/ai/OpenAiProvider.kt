@@ -47,6 +47,9 @@ import timber.log.Timber
  * Not bound in [com.closet.features.recommendations.di.RecommendationModule] — the Settings
  * UI provider selector switches between [NanoProvider], [OpenAiProvider], and future providers
  * at runtime.
+ *
+ * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
+ *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
  */
 class OpenAiProvider(
     private val client: HttpClient,

@@ -32,6 +32,9 @@ import timber.log.Timber
  * - **Model**   — [AiPreferencesRepository.getGeminiModel]; defaults to [DEFAULT_MODEL]
  *
  * Response: `candidates[0].content.parts[0].text` parsed by [ChatResponseParser].
+ *
+ * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
+ *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
  */
 class GeminiChatProvider(
     private val client: HttpClient,

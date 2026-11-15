@@ -46,6 +46,9 @@ import timber.log.Timber
  * Not bound in [com.closet.features.recommendations.di.RecommendationModule] — it is injected
  * directly into [OutfitCoherenceScorer] alongside [NanoProvider] and [OpenAiProvider], and the
  * scorer's provider-selection switch picks the active implementation at runtime.
+ *
+ * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
+ *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
  */
 class AnthropicProvider(
     private val client: HttpClient,

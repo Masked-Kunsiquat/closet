@@ -32,6 +32,9 @@ import timber.log.Timber
  * Configuration:
  * - **API key** — [AiPreferencesRepository.getAnthropicApiKey]
  * - **Model**   — [AiPreferencesRepository.getAnthropicModel]; defaults to [DEFAULT_MODEL]
+ *
+ * @param client must be the `AiHttpClientQualifier` HttpClient (120 s timeouts). Register this class
+ *   with an explicit `single { ... }` passing `get(AiHttpClientQualifier)`, never `singleOf`.
  */
 class AnthropicChatProvider(
     private val client: HttpClient,

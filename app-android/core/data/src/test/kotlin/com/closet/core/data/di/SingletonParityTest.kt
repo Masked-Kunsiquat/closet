@@ -34,7 +34,7 @@ class SingletonParityTest {
             single<EncryptedKeyStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
         }
-        startKoin { modules(dataModule, overrides) ; allowOverride(true) }
+        startKoin { allowOverride(true); modules(dataModule, overrides) }
     }
 
     @After fun tearDown() = stopKoin()
