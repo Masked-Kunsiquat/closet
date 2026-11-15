@@ -1,8 +1,8 @@
 [versions]
 koin-bom = "4.2.2"
 agp = "9.1.0"
-kotlin = "2.3.20"
-ksp = "2.3.2"
+kotlin = "2.4.21"
+ksp = "2.3.14"
 composeBom = "2026.03.00"
 androidxCore = "1.18.0"
 androidxLifecycle = "2.10.0"
