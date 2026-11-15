@@ -9,14 +9,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * FOSS-flavor stub for [ImageCaptionRepository].
+ * No-op [CaptionEnrichmentProvider] for builds without Play Services.
  *
  * `com.google.mlkit:genai-image-description` is an AICore-backed GMS dependency not
  * included in the FOSS build. This stub satisfies the Koin binding so the rest of the
  * codebase compiles unchanged. [describe] throws [UnsupportedOperationException];
  * callers must check [isSupported] before invoking it.
  */
-class ImageCaptionRepository : CaptionEnrichmentProvider {
+class UnsupportedImageCaptioner : CaptionEnrichmentProvider {
 
     /** `false` in the FOSS flavor — callers should skip the caption path entirely. */
     override val isSupported: Boolean = false

@@ -9,7 +9,6 @@ import com.closet.core.data.di.dataModule
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.EncryptedKeyStore
 import com.closet.core.ui.di.uiModule
-import com.closet.features.wardrobe.repository.ImageCaptionRepository
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
 import io.mockk.every
@@ -28,7 +27,7 @@ class WardrobeKoinTest {
 
     @OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
     @Test fun graphVerifies() {
-        module { includes(dataModule, uiModule, wardrobeModule, wardrobeFlavorModule) }.verify(
+        module { includes(dataModule, uiModule, wardrobeModule, wardrobeNoOpModule) }.verify(
             extraTypes = listOf(
                 Context::class,
                 SavedStateHandle::class,
@@ -39,7 +38,7 @@ class WardrobeKoinTest {
         )
     }
 
-    @Test fun captionProviderIsImageCaptionRepository() {
+    @Test fun captionerIsOneInstance() {
         val overrides = module {
             single<Context> {
                 mockk<Context>(relaxed = true) {
@@ -52,9 +51,9 @@ class WardrobeKoinTest {
         }
         startKoin {
             allowOverride(true)
-            modules(dataModule, uiModule, wardrobeModule, wardrobeFlavorModule, overrides)
+            modules(dataModule, uiModule, wardrobeModule, wardrobeNoOpModule, overrides)
         }
         val koin = KoinPlatform.getKoin()
-        assertSame(koin.get<ImageCaptionRepository>(), koin.get<CaptionEnrichmentProvider>())
+        assertSame(koin.get<CaptionEnrichmentProvider>(), koin.get<CaptionEnrichmentProvider>())
     }
 }

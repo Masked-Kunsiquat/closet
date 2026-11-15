@@ -19,10 +19,10 @@ import kotlinx.coroutines.withContext
  * processing. The stored image will be the downsampled + masked PNG; original dimensions
  * are not restored. (Minimum 512×512 is required for accuracy per ML Kit docs.)
  */
-class SegmentationRepository {
+class MlKitSubjectSegmenter : SubjectSegmenter {
 
     /** `true` in the full flavor; used by the ViewModel to hide the button in FOSS builds. */
-    val isSupported: Boolean = true
+    override val isSupported: Boolean = true
 
     /**
      * Returns `true` if the ML Kit Subject Segmentation model is ready for use.
@@ -33,7 +33,7 @@ class SegmentationRepository {
      * here; [ensureModelDownloaded] serves as the actual gate and will throw if GMS cannot
      * deliver the model (e.g. first cold-start with no network).
      */
-    suspend fun isModelDownloaded(): Boolean = true
+    override suspend fun isModelDownloaded(): Boolean = true
 
     /**
      * Ensures the Subject Segmentation model is available before inference begins.
@@ -44,7 +44,7 @@ class SegmentationRepository {
      * this function throws so the caller can surface an appropriate error to the user
      * rather than letting the first [removeBackground] call fail silently.
      */
-    suspend fun ensureModelDownloaded(): Unit = withContext(Dispatchers.IO) {
+    override suspend fun ensureModelDownloaded(): Unit = withContext(Dispatchers.IO) {
         val options = SubjectSegmenterOptions.Builder()
             .enableForegroundConfidenceMask()
             .build()
@@ -59,7 +59,7 @@ class SegmentationRepository {
      *
      * @throws IllegalStateException if the segmenter returns a null confidence mask.
      */
-    suspend fun removeBackground(bitmap: Bitmap): Bitmap = withContext(Dispatchers.IO) {
+    override suspend fun removeBackground(bitmap: Bitmap): Bitmap = withContext(Dispatchers.IO) {
         val input = downsample(bitmap)
         val options = SubjectSegmenterOptions.Builder()
             .enableForegroundConfidenceMask()

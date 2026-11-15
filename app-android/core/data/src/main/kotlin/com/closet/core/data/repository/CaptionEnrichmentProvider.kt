@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
  * Abstraction over the ML Kit GenAI Image Description API exposed to modules that
  * cannot directly depend on `features/wardrobe` (e.g. `features/settings`).
  *
- * The full-flavor implementation delegates to [com.closet.features.wardrobe.repository.ImageCaptionRepository].
+ * The full-flavor implementation delegates to [com.closet.features.wardrobe.repository.MlKitImageCaptioner].
  * The FOSS-flavor stub sets [isSupported] = `false` and throws on [describe].
  *
  * Provided by `wardrobeFlavorModule` in `features/wardrobe` (src/full, src/foss), following the same

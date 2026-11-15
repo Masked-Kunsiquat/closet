@@ -16,7 +16,7 @@ data class ItemTextForEmbedding(
     @ColumnInfo(name = "id") val id: Long,
     /** Structured prose paragraph from `ItemVectorizer` — guaranteed non-null by the query. */
     @ColumnInfo(name = "semantic_description") val semanticDescription: String,
-    /** AI photo caption from `ImageCaptionRepository`; null if not yet enriched. */
+    /** AI photo caption from `MlKitImageCaptioner`; null if not yet enriched. */
     @ColumnInfo(name = "image_caption") val imageCaption: String?,
 )
 

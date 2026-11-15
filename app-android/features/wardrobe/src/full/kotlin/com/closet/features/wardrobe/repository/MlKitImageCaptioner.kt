@@ -41,7 +41,7 @@ import kotlin.coroutines.resumeWithException
  *
  * This is the full-flavor implementation. The FOSS stub lives in `src/foss/`.
  */
-class ImageCaptionRepository(
+class MlKitImageCaptioner(
     private val context: Context,
     private val clothingDao: ClothingDao,
 ) : CaptionEnrichmentProvider {
