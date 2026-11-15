@@ -21,6 +21,7 @@ import com.closet.core.data.util.DataResult
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import kotlin.time.Instant
+import kotlinx.datetime.toJavaLocalDate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
@@ -144,7 +145,7 @@ class JournalViewModel(
     }.combine(forecastDays) { state, forecasts ->
         val today = LocalDate.now()
         state.copy(
-            todayForecast = forecasts.find { it.date == today },
+            todayForecast = forecasts.find { it.date.toJavaLocalDate() == today },
             forecastDays = forecasts,
         )
     }.combine(_showForecastSheet) { state, show ->
@@ -302,7 +303,7 @@ class JournalViewModel(
             val date = _selectedDate.value ?: return@launch
             val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull() ?: return@launch
             if (parsedDate.isAfter(LocalDate.now())) return@launch
-            val forecast = uiState.value.forecastDays.find { it.date == parsedDate }
+            val forecast = uiState.value.forecastDays.find { it.date.toJavaLocalDate() == parsedDate }
             when (val result = logRepository.wearOutfitOnDate(
                 outfitId = outfitId,
                 date = date,
