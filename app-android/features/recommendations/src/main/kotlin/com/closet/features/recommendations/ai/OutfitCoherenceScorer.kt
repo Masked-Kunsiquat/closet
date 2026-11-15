@@ -39,8 +39,9 @@ import timber.log.Timber
  * are trimmed from the tail (lowest average suitability score first) until the
  * prompt fits. If no combos remain after trimming, the scorer returns null.
  *
- * [StubNanoInferenceEngine.countTokens] returns [Int.MAX_VALUE], so trimming never
- * fires until the real MLKit implementation is wired.
+ * The full-flavor engine counts with ML Kit's countTokens and persists the real
+ * getTokenLimit() on init. If counting fails it returns [Int.MAX_VALUE], which disables
+ * trimming; a stored limit of 0 (Nano never initialised) also disables it.
  *
  * ### Validation
  * Returned [OutfitSelection.comboId] values are validated against the input combo

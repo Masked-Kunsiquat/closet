@@ -264,6 +264,10 @@ class SettingsViewModel(
         viewModelScope.launch {
             _nanoStatus.value = NanoStatus.Checking
             nanoInitializer.initNanoFlow().collect { result ->
+                // Persist the real token limit for the recommendations trim gate (0 = unknown).
+                if (result is NanoInitResult.Success && result.tokenLimit > 0) {
+                    aiPreferencesRepository.setTokenLimit(result.tokenLimit)
+                }
                 _nanoStatus.value = when (result) {
                     is NanoInitResult.Downloading -> NanoStatus.Downloading(result.progressPct)
                     is NanoInitResult.Success -> NanoStatus.Ready

@@ -6,7 +6,9 @@ import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
 import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
+import com.closet.core.data.ai.OnDeviceAiException
 import com.closet.core.data.ai.OutfitSelection
+import com.closet.platform.gms.toOnDeviceAiException
 import com.closet.features.recommendations.ai.OnDeviceRecommendationProvider
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
@@ -42,10 +44,14 @@ internal interface NanoInferenceEngine {
     fun downloadFlow(): Flow<DownloadStatus>
 
     /**
-     * Counts tokens in [prompt]. Returns [Int.MAX_VALUE] until the beta API exposes
-     * countTokens(), so the gate in [com.closet.features.recommendations.ai.OutfitCoherenceScorer] never trims the payload.
+     * Counts tokens in [prompt] with the same generation config as [generate]. Returns
+     * [Int.MAX_VALUE] if counting fails, so the gate in
+     * [com.closet.features.recommendations.ai.OutfitCoherenceScorer] doesn't trim the payload.
      */
     suspend fun countTokens(prompt: String): Int
+
+    /** The model's input token limit (ML Kit `getTokenLimit()`). */
+    suspend fun tokenLimit(): Int
 
     /**
      * Runs inference and returns the raw model output text.
@@ -65,19 +71,31 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
 
     override fun downloadFlow(): Flow<DownloadStatus> = model.download()
 
-    /** countTokens not exposed in beta — returns MAX_VALUE so trim gate is inactive. */
-    override suspend fun countTokens(prompt: String): Int = Int.MAX_VALUE
+    private fun request(prompt: String) = generateContentRequest(TextPart(prompt)) {
+        temperature = 0.2f
+        topK = 40
+        maxOutputTokens = 512
+    }
+
+    override suspend fun countTokens(prompt: String): Int = try {
+        model.countTokens(request(prompt)).totalTokens
+    } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        Timber.tag("NanoInferenceEngine").w(e, "countTokens failed — trim gate disabled")
+        Int.MAX_VALUE
+    }
+
+    override suspend fun tokenLimit(): Int = model.getTokenLimit()
 
     override suspend fun generate(prompt: String): String {
-        val response = model.generateContent(
-            generateContentRequest(TextPart(prompt)) {
-                temperature = 0.2f
-                topK = 40
-                maxOutputTokens = 512
-            }
-        )
+        val response = try {
+            model.generateContent(request(prompt))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            throw e.toOnDeviceAiException()
+        }
         return response.candidates.firstOrNull()?.text
-            ?: error("Empty response from Gemini Nano")
+            ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
     }
 }
 
@@ -95,8 +113,10 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
  * is not [FeatureStatus.AVAILABLE].
  *
  * Token management (countTokens / trim payload) is performed by the coherence scorer
- * layer, not here. Token limit is persisted as 0 until the beta API exposes getTokenLimit();
- * a limit of 0 disables trimming in [com.closet.features.recommendations.ai.OutfitCoherenceScorer].
+ * layer, not here. Init reports the real ML Kit getTokenLimit() in
+ * [NanoInitResult.Success]; the settings screen persists it. A stored limit of 0 (Nano never
+ * initialised, or getTokenLimit() failed) disables trimming in
+ * [com.closet.features.recommendations.ai.OutfitCoherenceScorer].
  *
  * Prompt design — constrained selection only:
  * The model selects combo_ids from the provided combo list; it cannot hallucinate clothing
@@ -152,7 +172,7 @@ class NanoProvider(
 
             FeatureStatus.AVAILABLE -> {
                 Timber.tag(TAG).d("initNanoFlow: Nano already available")
-                emit(NanoInitResult.Success(tokenLimit = 0))
+                emit(NanoInitResult.Success(tokenLimit = readTokenLimit()))
             }
 
             FeatureStatus.DOWNLOADABLE,
@@ -179,7 +199,7 @@ class NanoProvider(
                             }
                             is DownloadStatus.DownloadCompleted -> {
                                 Timber.tag(TAG).d("initNanoFlow: download complete")
-                                emit(NanoInitResult.Success(tokenLimit = 0))
+                                emit(NanoInitResult.Success(tokenLimit = readTokenLimit()))
                             }
                             is DownloadStatus.DownloadFailed -> {
                                 val reason = "Nano model download failed"
@@ -201,10 +221,19 @@ class NanoProvider(
 
     /**
      * Counts the number of tokens in [prompt] using the on-device Nano engine.
-     * Returns [Int.MAX_VALUE] while the beta API does not expose countTokens(),
-     * keeping the trim gate in [com.closet.features.recommendations.ai.OutfitCoherenceScorer] inactive.
+     * Returns [Int.MAX_VALUE] if counting fails, keeping the trim gate in
+     * [com.closet.features.recommendations.ai.OutfitCoherenceScorer] inactive.
      */
     override suspend fun countTokens(prompt: String): Int = engine.countTokens(prompt)
+
+    /** Real token limit, or 0 ("unknown", trim disabled) if ML Kit can't report it. */
+    private suspend fun readTokenLimit(): Int = try {
+        engine.tokenLimit()
+    } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        Timber.tag(TAG).w(e, "getTokenLimit failed — token trimming disabled")
+        0
+    }
 
     // ── OutfitAiProvider ──────────────────────────────────────────────────────
 
@@ -221,12 +250,10 @@ class NanoProvider(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Timber.tag(TAG).w(e, "selectOutfits: checkStatus threw — Nano unavailable")
-            return Result.failure(e)
+            return Result.failure(e.toOnDeviceAiException())
         }
         if (status != FeatureStatus.AVAILABLE) {
-            return Result.failure(
-                UnsupportedOperationException("Gemini Nano is not available on this device")
-            )
+            return Result.failure(OnDeviceAiException(OnDeviceAiException.Reason.NOT_AVAILABLE))
         }
 
         return try {

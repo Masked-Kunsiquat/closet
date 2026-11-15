@@ -5,6 +5,8 @@ import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
+import com.closet.core.data.ai.OnDeviceAiException
+import com.closet.platform.gms.toOnDeviceAiException
 import com.closet.features.chat.ai.OnDeviceChatProvider
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation
@@ -32,6 +34,7 @@ class NanoChatProvider(
 ) : OnDeviceChatProvider {
 
     private val model by lazy { Generation.getClient() }
+    private var baseModelLogged = false
 
     companion object {
         private const val TAG = "NanoChatProvider"
@@ -47,14 +50,14 @@ class NanoChatProvider(
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Timber.tag(TAG).w(e, "NanoChatProvider: checkStatus threw — AICore unavailable")
-            return Result.failure(e)
+            return Result.failure(e.toOnDeviceAiException())
         }
 
         if (status != FeatureStatus.AVAILABLE) {
-            return Result.failure(
-                UnsupportedOperationException("Gemini Nano is not available on this device (status=$status)")
-            )
+            Timber.tag(TAG).w("NanoChatProvider: Nano not available (status=%d)", status)
+            return Result.failure(OnDeviceAiException(OnDeviceAiException.Reason.NOT_AVAILABLE))
         }
+        logBaseModelOnce()
 
         return try {
             // Nano's Prompt API is single-string only — prepend the last 1 exchange (2 turns)
@@ -75,12 +78,25 @@ class NanoChatProvider(
                 }
             )
             val responseText = response.candidates.firstOrNull()?.text
-                ?: error("Empty response from Gemini Nano")
+                ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
+            // A parse failure stays a ChatResponseParseException (not an on-device failure).
             ChatResponseParser.parse(responseText)
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Timber.tag(TAG).w(e, "NanoChatProvider inference failed")
-            Result.failure(e)
+            Result.failure(e.toOnDeviceAiException())
+        }
+    }
+
+    /** Debug aid: logs which base model AICore is serving, once per client. Timber only logs in debug builds. */
+    private suspend fun logBaseModelOnce() {
+        if (baseModelLogged) return
+        baseModelLogged = true
+        try {
+            Timber.tag(TAG).d("Nano base model: %s", model.getBaseModelName())
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Timber.tag(TAG).d(e, "getBaseModelName failed")
         }
     }
 }

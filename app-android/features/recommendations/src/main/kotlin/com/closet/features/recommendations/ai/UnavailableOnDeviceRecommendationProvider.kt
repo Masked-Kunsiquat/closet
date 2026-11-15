@@ -22,8 +22,8 @@ import kotlinx.coroutines.flow.flowOf
  * - [selectOutfits] returns failure, causing [OutfitCoherenceScorer] to fall
  *   back to the programmatic top-3 result unchanged.
  * - [countTokens] returns [Int.MAX_VALUE] — the sentinel that keeps the token-trim
- *   gate in [OutfitCoherenceScorer] inactive, matching the full-flavor behaviour
- *   on devices where the beta countTokens API is not yet exposed.
+ *   gate in [OutfitCoherenceScorer] inactive, the same sentinel the full flavor returns
+ *   when its token count fails.
  */
 class UnavailableOnDeviceRecommendationProvider : OnDeviceRecommendationProvider {
 
