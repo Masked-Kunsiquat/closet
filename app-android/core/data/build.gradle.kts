@@ -107,10 +107,15 @@ kotlin {
     }
 }
 
-// The Room plugin also copies these schemas into the device-test APK's assets
-// (copyRoomSchemasToAndroidTestAssetsAndroidDeviceTest); FreshInstallSchemaTest reads 1.json there.
 room {
     schemaDirectory("$projectDir/schemas")
+}
+
+// FreshInstallSchemaTest (jvmTest) reads the committed schema export, schemas/…/1.json.
+tasks.named<Test>("jvmTest") {
+    val schemaDir = layout.projectDirectory.dir("schemas")
+    inputs.dir(schemaDir).withPropertyName("roomSchemas").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("closet.schemaDir", schemaDir.asFile.absolutePath)
 }
 
 dependencies {

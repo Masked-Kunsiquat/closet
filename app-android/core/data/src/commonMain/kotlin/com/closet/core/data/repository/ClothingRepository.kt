@@ -13,6 +13,7 @@ import com.closet.core.data.util.isConstraintViolation
 import com.closet.core.data.util.ItemVectorizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch

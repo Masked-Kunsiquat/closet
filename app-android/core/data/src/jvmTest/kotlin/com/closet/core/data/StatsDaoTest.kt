@@ -1,9 +1,8 @@
 package com.closet.core.data
 
-import android.content.ContentValues
-import androidx.room.Room
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
+import androidx.room.useWriterConnection
+import androidx.sqlite.SQLiteStatement
+import androidx.room.execSQL
 import com.closet.core.data.dao.StatsDao
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.OutfitEntity
@@ -16,36 +15,47 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import kotlin.time.Clock
 
 /**
- * Instrumented tests for [StatsDao] using an in-memory Room database.
+ * [StatsDao] tests on the JVM, against a database built with the production builder
+ * ([TestDatabase]: bundled driver, `configureClosetDatabase` callbacks).
  *
- * Each test starts with a clean database. Test data is inserted via the production DAOs
+ * Each test starts with a fresh database file. Test data is inserted via the production DAOs
  * (clothing items, outfits, logs) and raw SQL (lookup tables such as categories).
  *
- * The database is built WITHOUT the production callback, so [DatabaseSeeder] does not run
- * and triggers are not installed — giving each test a fully isolated, empty schema.
+ * The seeded lookup rows stay (the stats queries are driven by `clothing_items`, and the test
+ * categories get their own ids), but [setUp] drops the four category-consistency triggers: these
+ * tests exercise the stats queries with items that have a category and no subcategory, which the
+ * triggers reject. [FreshInstallSchemaTest] covers the triggers.
  */
-@RunWith(AndroidJUnit4::class)
 class StatsDaoTest {
 
-    private lateinit var db: ClothingDatabase
+    private lateinit var testDb: TestDatabase
+    private val db: ClothingDatabase get() = testDb.db
     private lateinit var dao: StatsDao
 
     @Before
     fun setUp() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        db = Room.inMemoryDatabaseBuilder(context, ClothingDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
+        testDb = TestDatabase()
         dao = db.statsDao()
+        runBlocking {
+            db.useWriterConnection { connection ->
+                for (trigger in listOf(
+                    "check_clothing_item_category_consistency_insert",
+                    "verify_subcategory_parent_category_insert",
+                    "check_clothing_item_category_consistency_update",
+                    "verify_subcategory_parent_category_update",
+                )) {
+                    connection.execSQL("DROP TRIGGER `$trigger`")
+                }
+            }
+        }
     }
 
     @After
     fun tearDown() {
-        db.close()
+        testDb.close()
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -73,23 +83,31 @@ class StatsDaoTest {
     }
 
     /** Inserts a subcategory via raw SQL. */
-    private fun insertSubcategory(categoryId: Long, name: String): Long {
-        val cv = ContentValues().apply {
-            put("category_id", categoryId)
-            put("name", name)
-            put("sort_order", 0)
+    private fun insertSubcategory(categoryId: Long, name: String): Long =
+        insertReturningId("INSERT INTO subcategories (category_id, name, sort_order) VALUES (?, ?, 0)") {
+            it.bindLong(1, categoryId)
+            it.bindText(2, name)
         }
-        return db.openHelper.writableDatabase.insert("subcategories", 0 /* CONFLICT_NONE */, cv)
-    }
 
     /** Inserts a category via raw SQL (no production DAO exposes category inserts). */
-    private fun insertCategory(name: String): Long {
-        val cv = ContentValues().apply {
-            put("name", name)
-            put("sort_order", 0)
+    private fun insertCategory(name: String): Long =
+        insertReturningId("INSERT INTO categories (name, sort_order) VALUES (?, 0)") {
+            it.bindText(1, name)
         }
-        return db.openHelper.writableDatabase.insert("categories", 0 /* CONFLICT_NONE */, cv)
-    }
+
+    private fun insertReturningId(sql: String, bind: (SQLiteStatement) -> Unit): Long =
+        runBlocking {
+            db.useWriterConnection { connection ->
+                connection.usePrepared(sql) { statement ->
+                    bind(statement)
+                    statement.step()
+                }
+                connection.usePrepared("SELECT last_insert_rowid()") { statement ->
+                    statement.step()
+                    statement.getLong(0)
+                }
+            }
+        }
 
     private fun insertOutfit(): Long = runBlocking {
         db.outfitDao().insertOutfit(OutfitEntity())

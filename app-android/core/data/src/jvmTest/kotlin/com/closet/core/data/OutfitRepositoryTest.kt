@@ -1,39 +1,32 @@
 package com.closet.core.data
 
-import androidx.room.Room
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.runBlocking
-import org.junit.After
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertTrue
 
 /**
- * Instrumented tests for [OutfitRepository] error handling against a real in-memory database.
+ * [OutfitRepository] error handling against a real database built with the production builder
+ * ([TestDatabase]), so `useWriterConnection { immediateTransaction { } }` runs on the bundled driver.
  */
-@RunWith(AndroidJUnit4::class)
 class OutfitRepositoryTest {
 
-    private lateinit var db: ClothingDatabase
+    private lateinit var testDb: TestDatabase
     private lateinit var repository: OutfitRepository
 
-    @Before
+    @BeforeTest
     fun setUp() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        db = Room.inMemoryDatabaseBuilder(context, ClothingDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
-        repository = OutfitRepository(db, db.outfitDao())
+        testDb = TestDatabase()
+        repository = OutfitRepository(testDb.db, testDb.db.outfitDao())
     }
 
-    @After
+    @AfterTest
     fun tearDown() {
-        db.close()
+        testDb.close()
     }
 
     /**
@@ -50,11 +43,11 @@ class OutfitRepositoryTest {
             items = emptyList(),
         )
 
-        assertTrue("expected DataResult.Error, got $result", result is DataResult.Error)
-        val throwable = (result as DataResult.Error).throwable
+        assertTrue(result is DataResult.Error, "expected DataResult.Error, got $result")
+        val throwable = result.throwable
         assertTrue(
-            "expected NotFound, got $throwable",
             throwable is AppError.DatabaseError.NotFound,
+            "expected NotFound, got $throwable",
         )
     }
 }
