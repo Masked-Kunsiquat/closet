@@ -64,6 +64,15 @@ kotlin {
             api(libs.androidx.datastore.preferences.core)
             // okio Path for PreferenceDataStoreFactory.createWithPath.
             implementation(libs.okio)
+            // Koin: commonDataModule and the jvm/ios data modules.
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.core)
+            // Ktor HTTP client (buildHttpClient, weather clients, model discovery). Each target
+            // adds its engine: OkHttp on Android and JVM, Darwin on iOS.
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.client.logging)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -82,17 +91,22 @@ kotlin {
             // Encrypted storage for API keys
             implementation(libs.androidx.security.crypto)
 
-            // Ktor HTTP client
+            // Ktor engine
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.serialization.kotlinx.json)
-            implementation(libs.ktor.client.logging)
 
             // WorkManager (for EmbeddingWorker; Koin worker factory via koin-androidx-workmanager)
             implementation(libs.androidx.work.runtime.ktx)
 
             // ONNX Runtime (sentence embedding inference)
             implementation(libs.onnx.runtime.android)
+        }
+        jvmMain.dependencies {
+            // Ktor engine
+            implementation(libs.ktor.client.okhttp)
+        }
+        iosMain.dependencies {
+            // Ktor engine
+            implementation(libs.ktor.client.darwin)
         }
         getByName("androidHostTest").dependencies {
             implementation(libs.junit)

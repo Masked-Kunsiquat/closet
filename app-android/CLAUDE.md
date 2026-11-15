@@ -79,13 +79,13 @@ GMS code lives in `platform/gms` and is bound by its `gmsModule`. Pure-Kotlin no
 
 Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no code generation.
 
-- **One module per Gradle module.** Each module declares a top-level `val <name>Module` in its `di/*KoinModule.kt` (e.g. `dataModule` in `core/data/di/DataKoinModule.kt`, `wardrobeModule` in `features/wardrobe/di/WardrobeKoinModule.kt`). `appModule` and `allModules` (every module, in dependency order) live in `app/di/AppKoinModule.kt`.
+- **One module per Gradle module.** Each module declares a top-level `val <name>Module` in its `di/*KoinModule.kt` (e.g. `dataModule` in `core/data/di/DataKoinModule.kt`, which includes `commonDataModule` (commonMain) and `androidDataModule` (androidMain); `wardrobeModule` in `features/wardrobe/di/WardrobeKoinModule.kt`). `appModule` and `allModules` (every module, in dependency order) live in `app/di/AppKoinModule.kt`.
 - **Flavor modules.** A feature exposes each GMS-backed capability as an interface with a no-op stub in its `src/main`, bound in a `<feature>NoOpModule`. The GMS implementations are bound in `gmsModule` (`platform/gms/di/GmsKoinModule.kt`). `app` picks one set via `flavorModule` (`app/src/full` → `includes(gmsModule)`, `app/src/foss` → `includes(<feature>NoOpModule…)`), listed in `allModules`. Never bind a GMS class outside `platform/gms`, and never include a `*NoOpModule` or `gmsModule` from a feature's main module.
 - **Startup.** `ClosetApp.onCreate()` calls `startKoin { androidLogger(...); androidContext(this@ClosetApp); workManagerFactory(); modules(allModules) }` before anything else. Framework classes (`ClosetApp`, `MainActivity`, `BackupForegroundService`) use `by inject()`.
 - **ViewModels** are registered with `viewModelOf(::X)` and obtained in Composables with `koinViewModel()` (`org.koin.compose.viewmodel.koinViewModel`). To share a ViewModel with a previous back-stack entry, pass `viewModelStoreOwner = entry`.
 - **Workers** are registered with `workerOf(::X)`; their constructors are plain `(context: Context, params: WorkerParameters, …)`. `workManagerFactory()` supplies the factory, so the manifest removes `androidx.work.WorkManagerInitializer` — keep that removal.
 - **Scope.** DAOs, repositories and providers are `single`.
-- **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(...)` in `DataKoinModule.kt`; add any new secret-bearing header to its `SENSITIVE_HEADERS`.
+- **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(engine, ...)` in `commonMain/.../di/HttpClients.kt` (the engine is bound per platform: OkHttp on Android and JVM, Darwin on iOS); add any new secret-bearing header to its `SENSITIVE_HEADERS`.
 - **Verification.** Every module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
 
 ### Database (Room)
@@ -149,7 +149,7 @@ Two distinct MLKit namespaces — do not confuse them. Both are used only from `
 | `core/data/src/.../repository/ClothingRepository.kt` | CRUD, junction helpers, `DataResult` wrapping |
 | `core/data/src/.../util/DataResult.kt` | `Loading / Success / Error` sealed interface |
 | `core/data/src/.../util/AppError.kt` | Domain error hierarchy |
-| `core/data/src/.../di/DataKoinModule.kt` | `dataModule`: Koin singletons for the DB, DAOs, repositories, HTTP clients, workers |
+| `core/data/src/.../di/DataKoinModule.kt` | `dataModule` = `commonDataModule` (DAOs, repositories, HTTP clients, weather) + `androidDataModule` (DB, WorkManager, OkHttp engine, workers, `AndroidLocationProvider`, DataStores, `EncryptedKeyStore`) |
 | `app/src/.../di/AppKoinModule.kt` | `appModule` and `allModules` (the list passed to `startKoin`) |
 | `core/ui/src/.../theme/Color.kt` | Palette constants and accent enums |
 | `gradle/libs.versions.toml` | Centralized version catalog (all deps here) |
