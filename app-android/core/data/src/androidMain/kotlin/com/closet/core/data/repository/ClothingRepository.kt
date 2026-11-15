@@ -13,7 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
@@ -58,7 +58,7 @@ class ClothingRepository(
         }
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error fetching item by ID: $id")
+        Logger.withTag("ClothingRepository").e(e) { "Error fetching item by ID: $id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -83,7 +83,7 @@ class ClothingRepository(
         }
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error fetching entity by ID: $id")
+        Logger.withTag("ClothingRepository").e(e) { "Error fetching entity by ID: $id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -95,7 +95,7 @@ class ClothingRepository(
         DataResult.Success(clothingDao.getClothingItemDetailOnce(id))
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error fetching item detail once for ID: $id")
+        Logger.withTag("ClothingRepository").e(e) { "Error fetching item detail once for ID: $id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -236,7 +236,7 @@ class ClothingRepository(
         DataResult.Success(Unit)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error deleting item: $id")
+        Logger.withTag("ClothingRepository").e(e) { "Error deleting item: $id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -252,7 +252,7 @@ class ClothingRepository(
         DataResult.Success(Unit)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error updating wash status for item: $id")
+        Logger.withTag("ClothingRepository").e(e) { "Error updating wash status for item: $id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -268,7 +268,7 @@ class ClothingRepository(
         DataResult.Success(Unit)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error updating status for item: $id")
+        Logger.withTag("ClothingRepository").e(e) { "Error updating status for item: $id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -284,7 +284,7 @@ class ClothingRepository(
         DataResult.Success(Unit)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error updating favorite status for item: $id")
+        Logger.withTag("ClothingRepository").e(e) { "Error updating favorite status for item: $id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -357,10 +357,10 @@ class ClothingRepository(
             val detail = clothingDao.getClothingItemDetailOnce(id) ?: return
             val description = ItemVectorizer.describe(detail)
             clothingDao.updateSemanticDescription(id, description, Instant.now())
-            Timber.d("vectorizeItem: wrote description for item $id (${description.length} chars)")
+            Logger.withTag("ClothingRepository").d { "vectorizeItem: wrote description for item $id (${description.length} chars)" }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Timber.d(e, "vectorizeItem: failed for item $id — ignored")
+            Logger.withTag("ClothingRepository").d(e) { "vectorizeItem: failed for item $id — ignored" }
         }
     }
 
@@ -370,11 +370,11 @@ class ClothingRepository(
     private suspend fun <T> wrapInTransaction(block: suspend () -> T): DataResult<T> = try {
         DataResult.Success(database.withTransaction { block() })
     } catch (e: android.database.sqlite.SQLiteConstraintException) {
-        Timber.e(e, "Database transaction constraint violation")
+        Logger.withTag("ClothingRepository").e(e) { "Database transaction constraint violation" }
         DataResult.Error(AppError.DatabaseError.ConstraintViolation("Database constraint violated"))
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Unexpected error in database transaction")
+        Logger.withTag("ClothingRepository").e(e) { "Unexpected error in database transaction" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 }

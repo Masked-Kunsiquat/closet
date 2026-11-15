@@ -9,7 +9,7 @@ import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.time.Instant
 
 /**
@@ -80,7 +80,7 @@ class OutfitRepository(
         DataResult.Success(outfitId)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error creating outfit")
+        Logger.withTag("OutfitRepository").e(e) { "Error creating outfit" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -126,11 +126,11 @@ class OutfitRepository(
         DataResult.Success(Unit)
     } catch (e: AppError) {
         // AppError extends Throwable, not Exception, so it needs its own catch clause.
-        Timber.e(e, "Error updating outfit: $outfitId")
+        Logger.withTag("OutfitRepository").e(e) { "Error updating outfit: $outfitId" }
         DataResult.Error(e)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error updating outfit: $outfitId")
+        Logger.withTag("OutfitRepository").e(e) { "Error updating outfit: $outfitId" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -143,7 +143,7 @@ class OutfitRepository(
         DataResult.Success(Unit)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error deleting outfit: $outfitId")
+        Logger.withTag("OutfitRepository").e(e) { "Error deleting outfit: $outfitId" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 

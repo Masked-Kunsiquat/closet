@@ -8,7 +8,7 @@ import android.location.LocationManager
 import android.os.Looper
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import kotlin.coroutines.resume
 
 /**
@@ -41,7 +41,7 @@ class LocationProvider(
         for (provider in listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)) {
             if (!locationManager.isProviderEnabled(provider)) continue
             val loc = locationManager.getLastKnownLocation(provider) ?: continue
-            Timber.d("LocationProvider: cached fix from $provider")
+            Logger.withTag("LocationProvider").d { "LocationProvider: cached fix from $provider" }
             return Pair(loc.latitude, loc.longitude)
         }
         return null
@@ -53,7 +53,7 @@ class LocationProvider(
             val listener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
                     locationManager.removeUpdates(this)
-                    Timber.d("LocationProvider: active fix received")
+                    Logger.withTag("LocationProvider").d { "LocationProvider: active fix received" }
                     if (cont.isActive) cont.resume(Pair(location.latitude, location.longitude))
                 }
 
@@ -71,7 +71,7 @@ class LocationProvider(
                 )
                 cont.invokeOnCancellation { locationManager.removeUpdates(listener) }
             } catch (e: Exception) {
-                Timber.e(e, "LocationProvider: requestLocationUpdates failed")
+                Logger.withTag("LocationProvider").e(e) { "LocationProvider: requestLocationUpdates failed" }
                 if (cont.isActive) cont.resume(null)
             }
         }

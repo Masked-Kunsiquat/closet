@@ -47,6 +47,12 @@ kotlin {
     iosSimulatorArm64()
 
     sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kermit)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
         androidMain.dependencies {
             implementation(libs.room.runtime)
             implementation(libs.room.ktx)
@@ -81,9 +87,6 @@ kotlin {
 
             // ONNX Runtime (sentence embedding inference)
             implementation(libs.onnx.runtime.android)
-
-            // Logging
-            implementation(libs.timber)
         }
         getByName("androidHostTest").dependencies {
             implementation(libs.junit)

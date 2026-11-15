@@ -5,7 +5,7 @@ import com.closet.core.data.model.ItemEmbeddingEntity
 import com.closet.core.data.worker.EmbeddingWork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -76,10 +76,9 @@ class EmbeddingIndex(
             // Guard against truncated or corrupted BLOBs that would cause
             // ArrayIndexOutOfBoundsException inside dot().
             if (vec.size != EmbeddingEncoder.HIDDEN_SIZE) {
-                Timber.w(
-                    "EmbeddingIndex: skipping item %d — vector size %d != %d",
-                    entity.itemId, vec.size, EmbeddingEncoder.HIDDEN_SIZE,
-                )
+                Logger.withTag("EmbeddingIndex").w {
+                    "EmbeddingIndex: skipping item ${entity.itemId} — vector size ${vec.size} != ${EmbeddingEncoder.HIDDEN_SIZE}"
+                }
                 skipped++
                 continue
             }
@@ -87,7 +86,7 @@ class EmbeddingIndex(
         }
         index = newIndex
         loaded = true
-        Timber.d("EmbeddingIndex: loaded %d vectors, skipped %d stale/malformed", newIndex.size, skipped)
+        Logger.withTag("EmbeddingIndex").d { "EmbeddingIndex: loaded ${newIndex.size} vectors, skipped $skipped stale/malformed" }
     }
 
     /**

@@ -11,7 +11,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * Fetches available model IDs from AI provider APIs so the Settings screen can populate
@@ -51,14 +51,14 @@ class ModelDiscoveryRepository(
             }
             if (!response.status.isSuccess()) {
                 val body = response.body<String>()
-                Timber.tag(TAG).w("fetchOpenAiModels: HTTP %s — %s", response.status, body.take(200))
+                Logger.withTag(TAG).w { "fetchOpenAiModels: HTTP ${response.status} — ${body.take(200)}" }
                 return Result.failure(Exception("HTTP ${response.status.value}"))
             }
             Result.success(parseModelIds(response.body()))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Timber.tag(TAG).w(e, "fetchOpenAiModels failed (url=%s)", modelsUrl)
+            Logger.withTag(TAG).w(e) { "fetchOpenAiModels failed (url=$modelsUrl)" }
             Result.failure(e)
         }
     }
@@ -74,14 +74,14 @@ class ModelDiscoveryRepository(
             }
             if (!response.status.isSuccess()) {
                 val body = response.body<String>()
-                Timber.tag(TAG).w("fetchAnthropicModels: HTTP %s — %s", response.status, body.take(200))
+                Logger.withTag(TAG).w { "fetchAnthropicModels: HTTP ${response.status} — ${body.take(200)}" }
                 return Result.failure(Exception("HTTP ${response.status.value}"))
             }
             Result.success(parseModelIds(response.body()))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Timber.tag(TAG).w(e, "fetchAnthropicModels failed")
+            Logger.withTag(TAG).w(e) { "fetchAnthropicModels failed" }
             Result.failure(e)
         }
     }
@@ -101,14 +101,14 @@ class ModelDiscoveryRepository(
             }
             if (!response.status.isSuccess()) {
                 val body = response.body<String>()
-                Timber.tag(TAG).w("fetchGeminiModels: HTTP %s — %s", response.status, body.take(200))
+                Logger.withTag(TAG).w { "fetchGeminiModels: HTTP ${response.status} — ${body.take(200)}" }
                 return Result.failure(Exception("HTTP ${response.status.value}"))
             }
             Result.success(parseGeminiModelIds(response.body()))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Timber.tag(TAG).w(e, "fetchGeminiModels failed")
+            Logger.withTag(TAG).w(e) { "fetchGeminiModels failed" }
             Result.failure(e)
         }
     }

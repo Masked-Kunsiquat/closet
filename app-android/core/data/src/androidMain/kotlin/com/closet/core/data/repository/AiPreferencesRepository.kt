@@ -13,7 +13,7 @@ import com.closet.core.data.model.StyleVibe
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 private val Context.aiDataStore: DataStore<Preferences> by preferencesDataStore(name = "ai_prefs")
 
@@ -249,10 +249,9 @@ class AiPreferencesRepository(
 
         val migratedCount = listOf(openAiMigrated, anthropicMigrated).count { it }
         if (migratedCount > 0) {
-            Timber.tag("AiPrefsRepo").i(
-                "Migrated %d key(s) from plain DataStore to EncryptedKeyStore",
-                migratedCount,
-            )
+            Logger.withTag("AiPrefsRepo").i {
+                "Migrated $migratedCount key(s) from plain DataStore to EncryptedKeyStore"
+            }
         }
     }
 

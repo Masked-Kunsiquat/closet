@@ -13,7 +13,7 @@ import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * Combined AI context hint for a single clothing item.
@@ -232,7 +232,7 @@ class RecommendationRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Timber.e(e, "RecommendationRepository.getAiContextHints failed")
+            Logger.withTag("RecommendationRepository").e(e) { "RecommendationRepository.getAiContextHints failed" }
             DataResult.Error(AppError.DatabaseError.QueryError(e))
         }
     }
@@ -250,7 +250,7 @@ class RecommendationRepository(
             onSuccess = { DataResult.Success(it) },
             onFailure = { e ->
                 if (e is CancellationException) throw e
-                Timber.e(e, "RecommendationRepository.$operationName failed")
+                Logger.withTag("RecommendationRepository").e(e) { "RecommendationRepository.$operationName failed" }
                 DataResult.Error(AppError.DatabaseError.QueryError(e))
             }
         )

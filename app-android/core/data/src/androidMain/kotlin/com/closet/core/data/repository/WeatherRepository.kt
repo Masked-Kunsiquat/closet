@@ -15,7 +15,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /** Cache is considered fresh for this many milliseconds after it was written. */
 private const val FORECAST_CACHE_TTL_MS = 3L * 60 * 60 * 1000   // 3 hours
@@ -58,14 +58,14 @@ class WeatherRepository(
             if (cache.forecastJson.isNotEmpty() && age < FORECAST_CACHE_TTL_MS && cache.service == currentService) {
                 val parsed = parseCached(cache.forecastJson)
                 if (parsed != null) return DataResult.Success(parsed)
-                Timber.w("WeatherRepository: stale cache unreadable, fetching fresh")
+                Logger.withTag("WeatherRepository").w { "WeatherRepository: stale cache unreadable, fetching fresh" }
             }
 
             fetchFresh(cache.forecastJson)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Timber.e(e, "WeatherRepository: unexpected error")
+            Logger.withTag("WeatherRepository").e(e) { "WeatherRepository: unexpected error" }
             DataResult.Error(AppError.Unexpected(e))
         }
     }
@@ -119,7 +119,7 @@ class WeatherRepository(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.w(e, "WeatherRepository: failed to write forecast cache")
+                Logger.withTag("WeatherRepository").w(e) { "WeatherRepository: failed to write forecast cache" }
             }
         }
 
@@ -131,7 +131,7 @@ class WeatherRepository(
                 if (cachedJson.isNotEmpty()) {
                     val parsed = parseCached(cachedJson)
                     if (parsed != null) {
-                        Timber.w(error, "WeatherRepository: fetch failed, returning stale cache")
+                        Logger.withTag("WeatherRepository").w(error) { "WeatherRepository: fetch failed, returning stale cache" }
                         return DataResult.Success(parsed)
                     }
                 }

@@ -18,7 +18,7 @@ import com.closet.core.data.worker.ImageCompressionWork.KEY_TOTAL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.io.File
 import java.io.IOException
 
@@ -59,7 +59,7 @@ class ImageCompressionWorker(
         val total = paths.size
 
         if (total == 0) {
-            Timber.tag(TAG).d("Nothing to compress")
+            Logger.withTag(TAG).d { "Nothing to compress" }
             return@withContext Result.success(
                 workDataOf(KEY_DONE to 0, KEY_TOTAL to 0, KEY_SKIPPED to 0, KEY_FAILED to 0),
             )
@@ -76,7 +76,7 @@ class ImageCompressionWorker(
                 val file = File(imagesDir, relativePath)
                 // Reject any path that escapes closet_images/ via absolute paths or ../ traversal.
                 if (!file.canonicalPath.startsWith(imagesDirCanonical)) {
-                    Timber.tag(TAG).w("Path escapes images dir, skipping: %s", relativePath)
+                    Logger.withTag(TAG).w { "Path escapes images dir, skipping: $relativePath" }
                     skipped++
                     continue
                 }
@@ -93,12 +93,12 @@ class ImageCompressionWorker(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.tag(TAG).w(e, "Failed to compress %s", relativePath)
+                Logger.withTag(TAG).w(e) { "Failed to compress $relativePath" }
                 failed++
             }
         }
 
-        Timber.tag(TAG).d("done=%d skipped=%d failed=%d total=%d", done, skipped, failed, total)
+        Logger.withTag(TAG).d { "done=$done skipped=$skipped failed=$failed total=$total" }
         Result.success(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_SKIPPED to skipped, KEY_FAILED to failed))
     }
 

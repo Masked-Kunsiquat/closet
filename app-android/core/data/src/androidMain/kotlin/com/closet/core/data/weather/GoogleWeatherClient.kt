@@ -9,7 +9,7 @@ import io.ktor.client.request.parameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.CancellationException
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.time.LocalDate
 
 private const val BASE_URL = "https://weather.googleapis.com/v1/forecast/days:lookup"
@@ -46,7 +46,7 @@ class GoogleWeatherClient(
                 parameter("pageSize", 7)
             }.body()
             response.toForecasts()
-        }.onFailure { if (it is CancellationException) throw it else Timber.e(it, "GoogleWeatherClient: fetch failed") }
+        }.onFailure { if (it is CancellationException) throw it else Logger.withTag("GoogleWeatherClient").e(it) { "GoogleWeatherClient: fetch failed" } }
 
     // ── Response DTOs ─────────────────────────────────────────────────────────
 

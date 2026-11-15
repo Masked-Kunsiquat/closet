@@ -8,7 +8,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
@@ -53,7 +53,7 @@ class NwsClient(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Timber.e(e, "NwsClient: fetch failed")
+            Logger.withTag("NwsClient").e(e) { "NwsClient: fetch failed" }
             Result.failure(e)
         }
 

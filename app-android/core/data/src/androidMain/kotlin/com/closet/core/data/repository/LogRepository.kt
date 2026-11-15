@@ -10,7 +10,7 @@ import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.time.LocalDate
 
 /**
@@ -87,7 +87,7 @@ class LogRepository(
         DataResult.Success(logId)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error logging wear for outfit $outfitId on $date")
+        Logger.withTag("LogRepository").e(e) { "Error logging wear for outfit $outfitId on $date" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -109,7 +109,7 @@ class LogRepository(
         DataResult.Success(logId)
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error logging ad-hoc wear for items $itemIds")
+        Logger.withTag("LogRepository").e(e) { "Error logging ad-hoc wear for items $itemIds" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 

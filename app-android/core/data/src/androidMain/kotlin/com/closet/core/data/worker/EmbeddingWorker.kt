@@ -15,7 +15,7 @@ import com.closet.core.data.worker.EmbeddingWork.MODEL_VERSION
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.time.Instant
@@ -55,13 +55,13 @@ class EmbeddingWorker(
         val itemIds = embeddingDao.getItemIdsNeedingEmbedding(MODEL_VERSION)
         val total   = itemIds.size
         if (total == 0) {
-            Timber.d("EmbeddingWorker: nothing to embed")
+            Logger.withTag("EmbeddingWorker").d { "EmbeddingWorker: nothing to embed" }
             return@withContext Result.success(workDataOf(KEY_DONE to 0, KEY_TOTAL to 0, KEY_FAILED to 0))
         }
 
         // ── 2. Guard: encoder must be available (model + vocab assets present) ─
         if (!encoder.isAvailable) {
-            Timber.e("EmbeddingWorker: encoder not available — model or vocab asset missing")
+            Logger.withTag("EmbeddingWorker").e { "EmbeddingWorker: encoder not available — model or vocab asset missing" }
             return@withContext Result.failure(workDataOf("error" to "encoder_not_available"))
         }
 
@@ -93,19 +93,19 @@ class EmbeddingWorker(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.e(e, "EmbeddingWorker: failed to embed item %d", item.id)
+                Logger.withTag("EmbeddingWorker").e(e) { "EmbeddingWorker: failed to embed item ${item.id}" }
                 failed++
             }
 
             setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))
         }
 
-        Timber.d("EmbeddingWorker: done=%d failed=%d total=%d", done, failed, total)
+        Logger.withTag("EmbeddingWorker").d { "EmbeddingWorker: done=$done failed=$failed total=$total" }
 
         // ── 4. Refresh in-memory index so new vectors are immediately searchable ─
         if (done > 0) {
             runCatching { embeddingIndex.reload() }
-                .onFailure { Timber.e(it, "EmbeddingWorker: index reload failed after embedding run") }
+                .onFailure { Logger.withTag("EmbeddingWorker").e(it) { "EmbeddingWorker: index reload failed after embedding run" } }
         }
 
         Result.success(workDataOf(KEY_DONE to done, KEY_TOTAL to total, KEY_FAILED to failed))

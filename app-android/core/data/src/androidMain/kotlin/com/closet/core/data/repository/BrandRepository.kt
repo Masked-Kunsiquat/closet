@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /**
  * Repository for brand CRUD operations.
@@ -28,7 +28,7 @@ class BrandRepository(
         .onStart { emit(DataResult.Loading) }
         .catch { throwable ->
             if (throwable is CancellationException) throw throwable
-            Timber.e(throwable, "Error loading brands")
+            Logger.withTag("BrandRepository").e(throwable) { "Error loading brands" }
             emit(DataResult.Error(AppError.DatabaseError.QueryError(throwable)))
         }
 
@@ -44,10 +44,10 @@ class BrandRepository(
     } catch (e: CancellationException) {
         throw e
     } catch (e: SQLiteConstraintException) {
-        Timber.e(e, "Constraint violation inserting brand: $name")
+        Logger.withTag("BrandRepository").e(e) { "Constraint violation inserting brand: $name" }
         DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "A brand with that name already exists."))
     } catch (e: Exception) {
-        Timber.e(e, "Error inserting brand: $name")
+        Logger.withTag("BrandRepository").e(e) { "Error inserting brand: $name" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -62,10 +62,10 @@ class BrandRepository(
     } catch (e: CancellationException) {
         throw e
     } catch (e: SQLiteConstraintException) {
-        Timber.e(e, "Constraint violation updating brand id=$id")
+        Logger.withTag("BrandRepository").e(e) { "Constraint violation updating brand id=$id" }
         DataResult.Error(AppError.DatabaseError.ConstraintViolation(e.message ?: "A brand with that name already exists."))
     } catch (e: Exception) {
-        Timber.e(e, "Error updating brand id=$id")
+        Logger.withTag("BrandRepository").e(e) { "Error updating brand id=$id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -85,7 +85,7 @@ class BrandRepository(
         }
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error deleting brand id=$id")
+        Logger.withTag("BrandRepository").e(e) { "Error deleting brand id=$id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 
@@ -94,7 +94,7 @@ class BrandRepository(
         DataResult.Success(brandDao.getItemCountForBrand(id))
     } catch (e: Exception) {
         if (e is CancellationException) throw e
-        Timber.e(e, "Error fetching item count for brand id=$id")
+        Logger.withTag("BrandRepository").e(e) { "Error fetching item count for brand id=$id" }
         DataResult.Error(AppError.DatabaseError.QueryError(e))
     }
 }

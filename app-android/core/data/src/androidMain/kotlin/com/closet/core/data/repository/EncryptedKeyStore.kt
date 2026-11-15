@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 private const val TAG = "EncryptedKeyStore"
 private const val PREFS_FILE = "ai_keys_encrypted"
@@ -70,7 +70,7 @@ class EncryptedKeyStore(
         if (committed) {
             _openAiKey.value = key
         } else {
-            Timber.tag(TAG).e("setOpenAiKey: commit() returned false — key not persisted")
+            Logger.withTag(TAG).e { "setOpenAiKey: commit() returned false — key not persisted" }
         }
         committed
     }
@@ -84,7 +84,7 @@ class EncryptedKeyStore(
         if (committed) {
             _anthropicKey.value = key
         } else {
-            Timber.tag(TAG).e("setAnthropicKey: commit() returned false — key not persisted")
+            Logger.withTag(TAG).e { "setAnthropicKey: commit() returned false — key not persisted" }
         }
         committed
     }
@@ -98,7 +98,7 @@ class EncryptedKeyStore(
         if (committed) {
             _geminiKey.value = key
         } else {
-            Timber.tag(TAG).e("setGeminiKey: commit() returned false — key not persisted")
+            Logger.withTag(TAG).e { "setGeminiKey: commit() returned false — key not persisted" }
         }
         committed
     }
@@ -109,11 +109,10 @@ class EncryptedKeyStore(
         return try {
             createEncryptedPrefs()
         } catch (e: Exception) {
-            Timber.tag(TAG).e(
-                e,
+            Logger.withTag(TAG).e(e) {
                 "EncryptedSharedPreferences failed to open — Keystore may be corrupted. " +
-                    "Deleting and recreating (stored keys will be lost).",
-            )
+                    "Deleting and recreating (stored keys will be lost)."
+            }
             context.deleteSharedPreferences(PREFS_FILE)
             try {
                 createEncryptedPrefs()

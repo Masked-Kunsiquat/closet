@@ -7,7 +7,7 @@ import android.content.Context
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.io.IOException
 import java.nio.LongBuffer
 import kotlin.math.sqrt
@@ -62,7 +62,7 @@ class EmbeddingEncoder(
         try {
             WordPieceTokenizer(context.assets.open(VOCAB_ASSET))
         } catch (e: IOException) {
-            Timber.tag(TAG).e(e, "Vocab asset not found at %s — add vocab.txt to assets/models/", VOCAB_ASSET)
+            Logger.withTag(TAG).e(e) { "Vocab asset not found at $VOCAB_ASSET — add vocab.txt to assets/models/" }
             null
         }
     }
@@ -74,10 +74,10 @@ class EmbeddingEncoder(
                 env.createSession(modelBytes, options)
             }
         } catch (e: IOException) {
-            Timber.tag(TAG).e(e, "Model asset not found at %s — add the ONNX file to assets/models/", MODEL_ASSET)
+            Logger.withTag(TAG).e(e) { "Model asset not found at $MODEL_ASSET — add the ONNX file to assets/models/" }
             null
         } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Failed to load ONNX session from %s", MODEL_ASSET)
+            Logger.withTag(TAG).e(e) { "Failed to load ONNX session from $MODEL_ASSET" }
             null
         }
     }

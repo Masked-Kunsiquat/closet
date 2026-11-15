@@ -8,7 +8,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.time.LocalDate
 
 private const val BASE_URL = "https://api.open-meteo.com/v1/forecast"
@@ -39,7 +39,7 @@ class OpenMeteoClient(
                 parameter("timezone", "auto")
             }.body()
             response.toForecasts()
-        }.onFailure { Timber.e(it, "OpenMeteoClient: fetch failed") }
+        }.onFailure { Logger.withTag("OpenMeteoClient").e(it) { "OpenMeteoClient: fetch failed" } }
 
     // ── Response DTOs ─────────────────────────────────────────────────────────
 

@@ -4,6 +4,8 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.closet.backup.BackupForegroundService
+import com.closet.core.data.BuildFlags
+import com.closet.core.data.logging.configureLogging
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
@@ -58,6 +60,7 @@ class ClosetApp : Application() {
             workManagerFactory()
             modules(allModules)
         }
+        configureLogging(BuildFlags(BuildConfig.DEBUG))
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }

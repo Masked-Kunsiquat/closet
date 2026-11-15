@@ -7,7 +7,7 @@ import android.net.Uri
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -195,7 +195,7 @@ class StorageRepository(
                 BitmapFactory.decodeStream(input)
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to load bitmap from Uri: $uri")
+            Logger.withTag("StorageRepository").e(e) { "Failed to load bitmap from Uri: $uri" }
             null
         }
     }

@@ -50,7 +50,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.workmanager.dsl.workerOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
-import timber.log.Timber
+import co.touchlab.kermit.Logger as KermitLogger
 import java.util.concurrent.TimeUnit
 
 /**
@@ -216,7 +216,7 @@ private fun buildHttpClient(
                         line
                     }
                 }
-                Timber.tag(logTag).d(redacted)
+                KermitLogger.withTag(logTag).d { redacted }
             }
         }
         level = if (isDebug) LogLevel.BODY else LogLevel.NONE
