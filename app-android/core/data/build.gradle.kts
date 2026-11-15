@@ -76,6 +76,8 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            // runTest for suspend functions (UnavailableEmbeddingEncoderTest)
+            implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
             implementation(project.dependencies.platform(libs.koin.bom))

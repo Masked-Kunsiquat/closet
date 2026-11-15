@@ -2,7 +2,6 @@ package com.closet.features.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.WorkInfo
 import android.content.Context
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
@@ -20,6 +19,8 @@ import com.closet.core.data.repository.ModelDiscoveryRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.worker.BatchSegmentationScheduler
 import com.closet.core.data.worker.BatchSegmentationWork
+import com.closet.core.data.worker.WorkState
+import com.closet.core.data.worker.WorkStatus
 import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import kotlinx.coroutines.CancellationException
@@ -31,7 +32,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -80,7 +80,7 @@ private data class GeminiPrefs(
     val modelsLoading: Boolean,
 )
 
-private data class EmbeddingState(val workInfo: WorkInfo?, val indexSize: Int)
+private data class EmbeddingState(val workStatus: WorkStatus?, val indexSize: Int)
 
 private data class CaptionState(
     val eligibleCount: Int,
@@ -91,11 +91,11 @@ private data class CaptionState(
 
 private data class SegmentationState(
     val eligibleCount: Int,
-    val workInfo: WorkInfo?,
-    val lastHandledBatchId: UUID?,
+    val workStatus: WorkStatus?,
+    val lastHandledBatchId: String?,
 )
 
-private data class StorageState(val usedBytes: Long, val compressionWorkInfo: WorkInfo?)
+private data class StorageState(val usedBytes: Long, val compressionWorkStatus: WorkStatus?)
 
 /**
  * ViewModel for the Settings screen.
@@ -176,9 +176,9 @@ class SettingsViewModel(
     ) { key, model, models, loading -> GeminiPrefs(key, model, models, loading) }
 
     private val embeddingStateFlow = combine(
-        embeddingScheduler.workInfo,
+        embeddingScheduler.workStatus,
         _embeddingIndexSize,
-    ) { workInfo, size -> EmbeddingState(workInfo, size) }
+    ) { workStatus, size -> EmbeddingState(workStatus, size) }
 
     private val captionStateFlow = combine(
         clothingDao.getCaptionEligibleCount(),
@@ -189,16 +189,14 @@ class SettingsViewModel(
 
     private val segmentationStateFlow = combine(
         clothingDao.getSegmentationEligibleCount(),
-        batchSegmentationScheduler.workInfo,
-        preferencesRepository.lastHandledBatchId.map { raw ->
-            runCatching { raw?.let { UUID.fromString(it) } }.getOrNull()
-        },
-    ) { eligible, workInfo, batchId -> SegmentationState(eligible, workInfo, batchId) }
+        batchSegmentationScheduler.workStatus,
+        preferencesRepository.lastHandledBatchId,
+    ) { eligible, workStatus, batchId -> SegmentationState(eligible, workStatus, batchId) }
 
     private val storageStateFlow = combine(
         _storageUsedBytes,
-        imageCompressionScheduler.workInfo,
-    ) { bytes, workInfo -> StorageState(bytes, workInfo) }
+        imageCompressionScheduler.workStatus,
+    ) { bytes, workStatus -> StorageState(bytes, workStatus) }
 
     // ── Public single state flow ──────────────────────────────────────────────
 
@@ -236,7 +234,7 @@ class SettingsViewModel(
             geminiModel = gem.model,
             geminiModels = gem.models,
             geminiModelsLoading = gem.modelsLoading,
-            embeddingWorkInfo = emb.workInfo,
+            embeddingWorkStatus = emb.workStatus,
             embeddingIndexSize = emb.indexSize,
             captionSupported = captionEnrichmentProvider.isSupported,
             captionEligibleCount = cap.eligibleCount,
@@ -245,10 +243,10 @@ class SettingsViewModel(
             lastHandledCaptionId = cap.lastHandledCaptionId,
             segmentationSupported = batchSegmentationScheduler.isSupported,
             segmentationEligibleCount = seg.eligibleCount,
-            batchSegWorkInfo = seg.workInfo,
+            batchSegWorkStatus = seg.workStatus,
             lastHandledBatchId = seg.lastHandledBatchId,
             storageUsedBytes = storage.usedBytes,
-            compressionWorkInfo = storage.compressionWorkInfo,
+            compressionWorkStatus = storage.compressionWorkStatus,
         )
     }.stateIn(
         viewModelScope,
@@ -347,8 +345,8 @@ class SettingsViewModel(
 
         // Refresh in-memory index size when a rebuild completes.
         viewModelScope.launch {
-            embeddingScheduler.workInfo.collect { info ->
-                if (info?.state == WorkInfo.State.SUCCEEDED || info?.state == WorkInfo.State.FAILED) {
+            embeddingScheduler.workStatus.collect { info ->
+                if (info?.state == WorkState.SUCCEEDED || info?.state == WorkState.FAILED) {
                     try {
                         embeddingIndex.load()
                         _embeddingIndexSize.value = embeddingIndex.size
@@ -363,8 +361,8 @@ class SettingsViewModel(
         // Compute closet_images/ storage size once on start, and refresh after each compression run.
         viewModelScope.launch {
             _storageUsedBytes.value = computeStorageBytes()
-            imageCompressionScheduler.workInfo.collect { info ->
-                if (info?.state == WorkInfo.State.SUCCEEDED || info?.state == WorkInfo.State.FAILED) {
+            imageCompressionScheduler.workStatus.collect { info ->
+                if (info?.state == WorkState.SUCCEEDED || info?.state == WorkState.FAILED) {
                     _storageUsedBytes.value = computeStorageBytes()
                 }
             }
@@ -485,9 +483,9 @@ class SettingsViewModel(
         batchSegmentationScheduler.schedule()
     }
 
-    fun onBatchResultHandled(id: UUID) {
+    fun onBatchResultHandled(id: String) {
         viewModelScope.launch {
-            preferencesRepository.setLastHandledBatchId(id.toString())
+            preferencesRepository.setLastHandledBatchId(id)
                 .onFailure { Timber.e(it, "Failed to persist last handled batch ID") }
         }
     }

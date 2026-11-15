@@ -4,8 +4,10 @@ import com.closet.core.data.dao.EmbeddingDao
 import com.closet.core.data.model.ItemEmbeddingEntity
 import com.closet.core.data.worker.EmbeddingWork
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import co.touchlab.kermit.Logger
+import kotlin.concurrent.Volatile
 
 /**
  * In-memory cosine-similarity index over all stored item embeddings.
@@ -122,7 +124,7 @@ class EmbeddingIndex(
      * Dot product of two float arrays.
      *
      * Both [a] and [b] are expected to be L2-normalised unit vectors (guaranteed by
-     * [EmbeddingEncoder.l2Normalize]), so their dot product equals their cosine similarity.
+     * the [EmbeddingEncoder] contract), so their dot product equals their cosine similarity.
      */
     private fun dot(a: FloatArray, b: FloatArray): Float {
         var sum = 0f

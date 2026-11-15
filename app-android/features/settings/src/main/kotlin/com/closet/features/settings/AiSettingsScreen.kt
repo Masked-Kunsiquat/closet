@@ -43,12 +43,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.work.WorkInfo
 import com.closet.core.data.ai.BatchCaptionProgress
 import com.closet.core.data.ai.BatchCaptionResult
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
-import com.closet.core.data.worker.BatchSegmentationWork
+import com.closet.core.data.worker.WorkState
+import com.closet.core.data.worker.WorkStatus
 import com.closet.core.ui.theme.ClosetTheme
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -91,14 +91,14 @@ fun AiSettingsScreen(
     val view = LocalView.current
     val snackbarHostState = remember { SnackbarHostState() }
     var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
-    var lastHandledCompressionId by remember { mutableStateOf<java.util.UUID?>(null) }
+    var lastHandledCompressionId by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(uiState.batchSegWorkInfo?.id, uiState.batchSegWorkInfo?.state) {
-        val info = uiState.batchSegWorkInfo ?: return@LaunchedEffect
-        if (info.state == WorkInfo.State.SUCCEEDED && info.id != uiState.lastHandledBatchId) {
+    LaunchedEffect(uiState.batchSegWorkStatus?.id, uiState.batchSegWorkStatus?.state) {
+        val info = uiState.batchSegWorkStatus ?: return@LaunchedEffect
+        if (info.state == WorkState.SUCCEEDED && info.id != uiState.lastHandledBatchId) {
             viewModel.onBatchResultHandled(info.id)
-            val done = info.outputData.getInt(BatchSegmentationWork.KEY_DONE, 0)
-            val failed = info.outputData.getInt(BatchSegmentationWork.KEY_FAILED, 0)
+            val done = info.done
+            val failed = info.failed
             val msg = if (failed > 0) {
                 context.resources.getQuantityString(
                     R.plurals.settings_wardrobe_batch_result_with_failures, done, done, failed,
@@ -136,13 +136,13 @@ fun AiSettingsScreen(
         snackbarHostState.showSnackbar(msg)
     }
 
-    LaunchedEffect(uiState.compressionWorkInfo?.id, uiState.compressionWorkInfo?.state) {
-        val info = uiState.compressionWorkInfo ?: return@LaunchedEffect
-        if (info.state == WorkInfo.State.SUCCEEDED && info.id != lastHandledCompressionId) {
+    LaunchedEffect(uiState.compressionWorkStatus?.id, uiState.compressionWorkStatus?.state) {
+        val info = uiState.compressionWorkStatus ?: return@LaunchedEffect
+        if (info.state == WorkState.SUCCEEDED && info.id != lastHandledCompressionId) {
             lastHandledCompressionId = info.id
-            val done = info.outputData.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_DONE, 0)
-            val skipped = info.outputData.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_SKIPPED, 0)
-            val failed = info.outputData.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_FAILED, 0)
+            val done = info.done
+            val skipped = info.skipped
+            val failed = info.failed
             val msg = if (failed > 0) {
                 context.resources.getQuantityString(
                     R.plurals.settings_image_compress_result_with_failures, done, done, skipped, failed,
@@ -216,14 +216,14 @@ fun AiSettingsScreen(
         geminiModels = uiState.geminiModels,
         geminiModelsLoading = uiState.geminiModelsLoading,
         storageUsedBytes = uiState.storageUsedBytes,
-        compressionWorkInfo = uiState.compressionWorkInfo,
+        compressionWorkStatus = uiState.compressionWorkStatus,
         onCompressImages = viewModel::onCompressImages,
         embeddingIndexSize = uiState.embeddingIndexSize,
-        embeddingWorkInfo = uiState.embeddingWorkInfo,
+        embeddingWorkStatus = uiState.embeddingWorkStatus,
         onRebuildEmbeddingIndex = viewModel::onRebuildEmbeddingIndex,
         segmentationSupported = uiState.segmentationSupported,
         segmentationEligibleCount = uiState.segmentationEligibleCount,
-        batchSegWorkInfo = uiState.batchSegWorkInfo,
+        batchSegWorkStatus = uiState.batchSegWorkStatus,
         onStartBatchSegmentation = viewModel::onStartBatchSegmentation,
         captionSupported = uiState.captionSupported,
         captionEligibleCount = uiState.captionEligibleCount,
@@ -265,14 +265,14 @@ private fun AiSettingsContent(
     geminiModels: List<String>,
     geminiModelsLoading: Boolean,
     storageUsedBytes: Long,
-    compressionWorkInfo: WorkInfo?,
+    compressionWorkStatus: WorkStatus?,
     onCompressImages: () -> Unit,
     embeddingIndexSize: Int,
-    embeddingWorkInfo: WorkInfo?,
+    embeddingWorkStatus: WorkStatus?,
     onRebuildEmbeddingIndex: () -> Unit,
     segmentationSupported: Boolean,
     segmentationEligibleCount: Int,
-    batchSegWorkInfo: WorkInfo?,
+    batchSegWorkStatus: WorkStatus?,
     onStartBatchSegmentation: () -> Unit,
     captionSupported: Boolean,
     captionEligibleCount: Int,
@@ -355,14 +355,14 @@ private fun AiSettingsContent(
 
                 EmbeddingIndexItem(
                     indexSize = embeddingIndexSize,
-                    workInfo = embeddingWorkInfo,
+                    workStatus = embeddingWorkStatus,
                     onRebuild = onRebuildEmbeddingIndex,
                 )
 
                 if (segmentationSupported) {
                     BatchSegmentationItem(
                         eligibleCount = segmentationEligibleCount,
-                        workInfo = batchSegWorkInfo,
+                        workStatus = batchSegWorkStatus,
                         onStart = onStartBatchSegmentation,
                     )
                 }
@@ -388,7 +388,7 @@ private fun AiSettingsContent(
             StorageUsedItem(storageUsedBytes = storageUsedBytes)
 
             CompressImagesItem(
-                workInfo = compressionWorkInfo,
+                workStatus = compressionWorkStatus,
                 onStart = onCompressImages,
             )
         }
@@ -645,11 +645,11 @@ private fun ModelSelector(
 @Composable
 private fun EmbeddingIndexItem(
     indexSize: Int,
-    workInfo: WorkInfo?,
+    workStatus: WorkStatus?,
     onRebuild: () -> Unit,
 ) {
-    val isRunning = workInfo?.state == WorkInfo.State.RUNNING ||
-        workInfo?.state == WorkInfo.State.ENQUEUED
+    val isRunning = workStatus?.state == WorkState.RUNNING ||
+        workStatus?.state == WorkState.ENQUEUED
 
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_wardrobe_search_index)) },
@@ -686,11 +686,11 @@ private fun EmbeddingIndexItem(
 @Composable
 private fun BatchSegmentationItem(
     eligibleCount: Int,
-    workInfo: WorkInfo?,
+    workStatus: WorkStatus?,
     onStart: () -> Unit,
 ) {
-    val isRunning = workInfo?.state == WorkInfo.State.RUNNING ||
-        workInfo?.state == WorkInfo.State.ENQUEUED
+    val isRunning = workStatus?.state == WorkState.RUNNING ||
+        workStatus?.state == WorkState.ENQUEUED
     var showConfirmDialog by remember { mutableStateOf(false) }
 
     if (showConfirmDialog) {
@@ -715,8 +715,8 @@ private fun BatchSegmentationItem(
     }
 
     if (isRunning) {
-        val done = workInfo!!.progress.getInt(BatchSegmentationWork.KEY_DONE, 0)
-        val total = workInfo.progress.getInt(BatchSegmentationWork.KEY_TOTAL, 0)
+        val done = workStatus!!.done
+        val total = workStatus.total
         ListItem(
             headlineContent = {
                 Text(stringResource(R.string.settings_wardrobe_removing_backgrounds))
@@ -862,15 +862,15 @@ private fun StorageUsedItem(storageUsedBytes: Long) {
 
 @Composable
 private fun CompressImagesItem(
-    workInfo: WorkInfo?,
+    workStatus: WorkStatus?,
     onStart: () -> Unit,
 ) {
-    val isRunning = workInfo?.state == WorkInfo.State.RUNNING ||
-        workInfo?.state == WorkInfo.State.ENQUEUED
+    val isRunning = workStatus?.state == WorkState.RUNNING ||
+        workStatus?.state == WorkState.ENQUEUED
 
     if (isRunning) {
-        val done = workInfo!!.progress.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_DONE, 0)
-        val total = workInfo.progress.getInt(com.closet.core.data.worker.ImageCompressionWork.KEY_TOTAL, 0)
+        val done = workStatus!!.done
+        val total = workStatus.total
         ListItem(
             headlineContent = { Text(stringResource(R.string.settings_image_compress_running)) },
             supportingContent = {
@@ -992,13 +992,13 @@ private fun AiSettingsOffPreview() {
             openAiModels = emptyList(), openAiModelsLoading = false,
             anthropicModels = emptyList(), anthropicModelsLoading = false,
             geminiModels = emptyList(), geminiModelsLoading = false,
-            storageUsedBytes = 24_800_000L, compressionWorkInfo = null,
+            storageUsedBytes = 24_800_000L, compressionWorkStatus = null,
             onCompressImages = {},
-            embeddingIndexSize = 0, embeddingWorkInfo = null,
+            embeddingIndexSize = 0, embeddingWorkStatus = null,
             onRebuildEmbeddingIndex = {},
             segmentationSupported = true,
             segmentationEligibleCount = 0,
-            batchSegWorkInfo = null,
+            batchSegWorkStatus = null,
             onStartBatchSegmentation = {},
             captionSupported = true,
             captionEligibleCount = 0,

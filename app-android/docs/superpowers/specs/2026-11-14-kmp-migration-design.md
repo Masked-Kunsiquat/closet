@@ -335,7 +335,13 @@ Android device or emulator passes. From Phase 3 on, the macOS CI job also has to
 3. **`core/data` → KMP.** First, the migration consolidation (its own PR). Then Room KMP, DataStore KMP, Ktor engines, Kermit, and platform interfaces
    (`SecretStore`, `ImageProcessor`, `LocationProvider`, `EmbeddingEncoder`, work schedulers).
    Room tests move to `jvmTest`. iOS and JVM implementations can be stubs at this stage, but must
-   compile.
+   compile. *As built:* `StorageRepository` stays in `androidMain` and the `ImageProcessor`
+   interface is deferred: both move in Phase 5 with their first common consumer (`BitmapUtils`,
+   `PaletteUtil`, `ColorMatcher`, `CaptionEnrichmentProvider` and the workers stay Android-only
+   until then). The JVM ONNX encoder
+   (and the iOS one) is a follow-up; JVM and iOS bind `UnavailableEmbeddingEncoder` until then.
+   `WordPieceTokenizer` (uses `java.text.Normalizer`) and `BatchCaptionResult` (uses
+   `java.util.UUID`) stay in `androidMain` for now.
 4. **`core/ui` → CMP.** Theme, components, resources, Coil 3.
 5. **Features → KMP/CMP, one per PR,** in this order: stats → settings → outfits → recommendations
    → chat → wardrobe. Stats goes first because it's the most-tested and least platform-bound.

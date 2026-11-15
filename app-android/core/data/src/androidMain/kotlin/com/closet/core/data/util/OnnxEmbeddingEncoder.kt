@@ -5,6 +5,7 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
 import androidx.annotation.VisibleForTesting
+import com.closet.core.data.worker.EmbeddingWork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import co.touchlab.kermit.Logger
@@ -13,7 +14,7 @@ import java.nio.LongBuffer
 import kotlin.math.sqrt
 
 /**
- * Shared ONNX encoder that converts any text string into a 384-dimensional
+ * Android's [EmbeddingEncoder]: converts any text string into a 384-dimensional
  * L2-normalised float vector using the bundled `snowflake-arctic-embed-xs` INT8 model.
  *
  * This class is used by two callers with different lifecycles:
@@ -37,9 +38,9 @@ import kotlin.math.sqrt
  * [Result.failure] — callers must handle gracefully. The worker skips items; the
  * chat ViewModel shows an error state.
  */
-class EmbeddingEncoder(
+class OnnxEmbeddingEncoder(
     private val context: Context,
-) {
+) : EmbeddingEncoder {
 
     companion object {
         private const val TAG = "EmbeddingEncoder"
@@ -47,12 +48,12 @@ class EmbeddingEncoder(
         @VisibleForTesting internal const val MODEL_ASSET = "models/arctic-embed-xs-q8.onnx"
         @VisibleForTesting internal const val VOCAB_ASSET  = "models/vocab.txt"
 
-        /** Output dimension of `snowflake-arctic-embed-xs`. */
-        const val HIDDEN_SIZE = 384
-
         /** Max sequence length fed to the model — texts are truncated beyond this. */
         const val MAX_SEQ_LEN = 128
     }
+
+    /** The bundled model's version; written to `item_embeddings.model_version`. */
+    override val modelVersion: String = EmbeddingWork.MODEL_VERSION
 
     // Lazy so that injection doesn't block the main thread on app start.
     // `OrtEnvironment.getEnvironment()` is a process-wide singleton managed by ORT.
@@ -88,7 +89,7 @@ class EmbeddingEncoder(
      * Accessing this property triggers lazy initialisation of both assets on the calling thread.
      * Call only from a background dispatcher.
      */
-    val isAvailable: Boolean get() = tokenizer != null && session != null
+    override val isAvailable: Boolean get() = tokenizer != null && session != null
 
     /**
      * Encodes [text] into a 384-dimensional L2-normalised float vector.
@@ -101,7 +102,7 @@ class EmbeddingEncoder(
      *             is truncated. Typical input is a [com.closet.core.data.util.ItemVectorizer]
      *             prose description, optionally concatenated with an image caption.
      */
-    suspend fun encode(text: String): Result<FloatArray> = withContext(Dispatchers.IO) {
+    override suspend fun encode(text: String): Result<FloatArray> = withContext(Dispatchers.IO) {
         val tok  = tokenizer ?: return@withContext Result.failure(
             IllegalStateException("Vocabulary not available — check that $VOCAB_ASSET exists in assets/models/")
         )
@@ -148,12 +149,12 @@ class EmbeddingEncoder(
      * Mean-pools token embeddings over non-padding positions (attention mask == 1).
      */
     private fun meanPool(hidden: Array<FloatArray>, attentionMask: LongArray): FloatArray {
-        val sum   = FloatArray(HIDDEN_SIZE)
+        val sum   = FloatArray(EmbeddingEncoder.HIDDEN_SIZE)
         var count = 0
         for (i in hidden.indices) {
             if (attentionMask[i] == 1L) {
                 val tok = hidden[i]
-                for (j in 0 until HIDDEN_SIZE) sum[j] += tok[j]
+                for (j in 0 until EmbeddingEncoder.HIDDEN_SIZE) sum[j] += tok[j]
                 count++
             }
         }

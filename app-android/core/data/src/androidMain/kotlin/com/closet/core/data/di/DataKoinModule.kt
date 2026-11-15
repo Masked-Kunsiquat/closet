@@ -8,7 +8,6 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.getDatabase
@@ -22,13 +21,15 @@ import com.closet.core.data.repository.WEATHER_PREFS_NAME
 import com.closet.core.data.repository.androidPreferencesPath
 import com.closet.core.data.repository.createPreferencesDataStore
 import com.closet.core.data.util.EmbeddingEncoder
-import com.closet.core.data.util.EmbeddingIndex
+import com.closet.core.data.util.OnnxEmbeddingEncoder
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.EmbeddingWork
 import com.closet.core.data.worker.EmbeddingWorker
 import com.closet.core.data.worker.ImageCompressionScheduler
 import com.closet.core.data.worker.ImageCompressionWork
 import com.closet.core.data.worker.ImageCompressionWorker
+import com.closet.core.data.worker.WorkStatus
+import com.closet.core.data.worker.toWorkStatus
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.okhttp.OkHttp
 import kotlinx.coroutines.flow.Flow
@@ -83,9 +84,9 @@ val androidDataModule = module {
                 )
             }
 
-            override val workInfo: Flow<WorkInfo?> =
+            override val workStatus: Flow<WorkStatus?> =
                 workManager.getWorkInfosForUniqueWorkFlow(EmbeddingWork.IMMEDIATE_NAME)
-                    .map { it.firstOrNull() }
+                    .map { it.firstOrNull()?.toWorkStatus() }
         }
     }
 
@@ -116,9 +117,9 @@ val androidDataModule = module {
                 )
             }
 
-            override val workInfo: Flow<WorkInfo?> =
+            override val workStatus: Flow<WorkStatus?> =
                 workManager.getWorkInfosForUniqueWorkFlow(ImageCompressionWork.IMMEDIATE_NAME)
-                    .map { it.firstOrNull() }
+                    .map { it.firstOrNull()?.toWorkStatus() }
         }
     }
 
@@ -135,8 +136,7 @@ val androidDataModule = module {
     single<SecretStore> { EncryptedKeyStore(androidContext()) }
     single<LocationProvider> { AndroidLocationProvider(androidContext()) }
     singleOf(::StorageRepository)
-    singleOf(::EmbeddingEncoder)
-    singleOf(::EmbeddingIndex)
+    single<EmbeddingEncoder> { OnnxEmbeddingEncoder(androidContext()) }
 
     workerOf(::EmbeddingWorker)
     workerOf(::ImageCompressionWorker)

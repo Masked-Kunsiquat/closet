@@ -15,6 +15,7 @@ import com.closet.core.data.repository.StatsRepository
 import com.closet.core.data.repository.WEATHER_PREFS_NAME
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.repository.WeatherRepository
+import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.weather.GoogleWeatherClient
 import com.closet.core.data.weather.NwsClient
 import com.closet.core.data.weather.OpenMeteoClient
@@ -33,6 +34,10 @@ import org.koin.dsl.module
  * Preferences DataStores, a `SecretStore` and a `LocationProvider`. On Android that is
  * `androidDataModule` (both are included by `dataModule`); on JVM and iOS it is
  * `jvmDataModule` / `iosDataModule`. [BuildFlags] is bound by the app.
+ *
+ * The platform module also binds the `EmbeddingEncoder` and the `EmbeddingScheduler` /
+ * `ImageCompressionScheduler` that features use. `BatchSegmentationScheduler` is bound by
+ * `wardrobeModule` on Android and by the platform module on JVM and iOS.
  */
 val commonDataModule = module {
     single { get<ClothingDatabase>().clothingDao() }
@@ -89,4 +94,5 @@ val commonDataModule = module {
     singleOf(::GoogleWeatherClient)
     singleOf(::NwsClient)
     singleOf(::OpenMeteoClient)
+    singleOf(::EmbeddingIndex)
 }

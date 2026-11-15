@@ -1,12 +1,12 @@
 package com.closet.features.settings
 
-import androidx.work.WorkInfo
 import com.closet.core.data.ai.BatchCaptionProgress
 import com.closet.core.data.ai.BatchCaptionResult
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
+import com.closet.core.data.worker.WorkStatus
 import com.closet.core.ui.theme.ClosetAccent
 import java.util.UUID
 
@@ -49,11 +49,11 @@ data class SettingsUiState(
     // ── Image storage ─────────────────────────────────────────────────────────
     /** Total bytes used by `closet_images/`. `-1` while the value is being computed. */
     val storageUsedBytes: Long = -1L,
-    /** Live [WorkInfo] for the user-triggered immediate compression run. */
-    val compressionWorkInfo: WorkInfo? = null,
+    /** Live [WorkStatus] of the user-triggered immediate compression run. */
+    val compressionWorkStatus: WorkStatus? = null,
 
     // ── Embedding index ───────────────────────────────────────────────────────
-    val embeddingWorkInfo: WorkInfo? = null,
+    val embeddingWorkStatus: WorkStatus? = null,
     val embeddingIndexSize: Int = 0,
 
     // ── Batch captioning ──────────────────────────────────────────────────────
@@ -67,6 +67,6 @@ data class SettingsUiState(
     // ── Batch segmentation ────────────────────────────────────────────────────
     val segmentationSupported: Boolean = false,
     val segmentationEligibleCount: Int = 0,
-    val batchSegWorkInfo: WorkInfo? = null,
-    val lastHandledBatchId: UUID? = null,
+    val batchSegWorkStatus: WorkStatus? = null,
+    val lastHandledBatchId: String? = null,
 )
