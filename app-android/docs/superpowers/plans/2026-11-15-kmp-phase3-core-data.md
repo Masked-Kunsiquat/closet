@@ -128,19 +128,19 @@
 - Modify (core/data): `Converters.kt`; `model/ClothingItemEntity.kt`, `ItemEmbeddingEntity.kt`, `OutfitEntities.kt`, `DailyForecast.kt`, `CachedForecastEntry.kt`; `dao/OutfitDao.kt`; `repository/ClothingRepository.kt`, `LogRepository.kt`, `OutfitRepository.kt`; `weather/*Client.kt`; `worker/EmbeddingWorker.kt`; tests that use `java.time`
 - Modify (consumers): every file outside `core/data` that passes or reads these types (survey: `app` 1, `features/chat` 3, `features/outfits` 5, `features/recommendations` 1, `features/stats` 2, `features/wardrobe` 5, `platform/gms` 2). Only the ones that touch `core/data` types need changing. A feature's own internal `java.time` use can stay until Phase 5.
 - Modify: `gradle/libs.versions.toml` (`kotlinx-datetime`, the latest release passing the ABI rule), `core/data/build.gradle.kts` (`commonMain` dependency, exposed as `api`)
-- Test: create `core/data/src/jvmTest/kotlin/com/closet/core/data/ConvertersCompatTest.kt`
+- Test: create `core/data/src/androidHostTest/kotlin/com/closet/core/data/ConvertersCompatTest.kt`. `Converters` is still in `androidMain` during this task, and `jvmTest` can't see `androidMain`. Task 5 moves the test to `jvmTest` along with `Converters`.
 
 **Interfaces:**
 - `java.time.Instant` → `kotlin.time.Instant`; `Instant.now()` → `Clock.System.now()` (`kotlin.time.Clock`). `java.time.LocalDate` → `kotlinx.datetime.LocalDate`. `OffsetDateTime` parsing in a weather client → `kotlin.time.Instant.parse` or kotlinx-datetime's offset parsing, whichever keeps the same result. If the compiler requires `@OptIn(ExperimentalTime::class)`, add it module-wide via `compilerOptions.optIn` in each affected module, not per file.
 - `Converters` keeps the same storage: `String?` ↔ `Instant?` through `toString()` / `Instant.parse()`.
 - The model files still live in `androidMain` (Room moves in Task 5). This task only changes types. Moving the model files is Task 5's job.
 
-- [ ] **Step 1: Write `ConvertersCompatTest` (jvmTest)**
+- [ ] **Step 1: Write `ConvertersCompatTest` (androidHostTest)**
   - `kotlinToStringMatchesJavaToString`: for instants at epoch seconds `0`, `1_763_000_000`, plus the nanos variants `0`, `282_000_000`, `282_100_000`, `123_456_789`, `Converters().dateToTimestamp(kotlinInstant)` equals `java.time.Instant.ofEpochSecond(s, n).toString()`.
   - `parsesStringsWrittenByJavaTime`: `fromTimestamp("2026-11-15T03:50:25.282Z")`, `"2026-11-15T03:50:25Z"` and `"2026-11-15T03:50:25.123456789Z"` round-trip to the same epoch seconds and nanos as `java.time.Instant.parse` of the same string.
   - `localDateIsoTextUnchanged`: `kotlinx.datetime.LocalDate(2026, 4, 4).toString() == "2026-04-04"`.
   If `kotlin.time.Instant.toString()` differs from Java for any case, don't change the test. Make `dateToTimestamp` format explicitly to Java's layout, and say so in the report.
-- [ ] **Step 2: Run it to verify it fails** — `./gradlew :core:data:jvmTest --tests "*ConvertersCompatTest"` → compile FAIL (Converters still on `java.time`).
+- [ ] **Step 2: Run it to verify it fails** — `./gradlew :core:data:testAndroidHostTest --tests "*ConvertersCompatTest"` → compile FAIL (Converters still on `java.time`).
 - [ ] **Step 3: Switch the types in `core/data` and update the consumers.**
 - [ ] **Step 4: Verify** — the full verification command → BUILD SUCCESSFUL; `grep -rn "import java.time" core/data/src/androidMain core/data/src/commonMain` lists only files that stay in `androidMain` for Phase 3 (list them in the report); the device tests pass, including `StatsDaoTest`'s date filters.
 - [ ] **Step 5: Commit** — `refactor(data): kotlin.time/kotlinx-datetime instead of java.time`
@@ -153,7 +153,7 @@
 - Move (git mv) to `commonMain`: `ClothingDatabase.kt`, `Converters.kt`, `DatabaseSeeder.kt`, `dao/*.kt`, `model/*.kt`
 - Create: `core/data/src/androidMain/kotlin/com/closet/core/data/DatabaseBuilder.android.kt`, `.../jvmMain/.../DatabaseBuilder.jvm.kt`, `.../iosMain/.../DatabaseBuilder.ios.kt`
 - Modify: `core/data/build.gradle.kts` (Room runtime + `sqlite-bundled` in `commonMain`; `kspJvm`, `kspIosArm64`, `kspIosSimulatorArm64`); `repository/ClothingRepository.kt`, `OutfitRepository.kt`, `BrandRepository.kt` (transactions and constraint errors); `app/.../backup/BackupRepository.kt` and `RestoreRepository.kt` (call sites, if signatures change); `di/DataKoinModule.kt`
-- Test: `androidDeviceTest/.../DatabasePathTest.kt` (new)
+- Test: `androidDeviceTest/.../DatabasePathTest.kt` (new); move Task 4's `ConvertersCompatTest` from `androidHostTest` to `jvmTest` (git mv) now that `Converters` is in `commonMain`
 
 **Interfaces:**
 - `ClothingDatabase` gets `@ConstructedBy(ClothingDatabaseConstructor::class)` with `expect object ClothingDatabaseConstructor : RoomDatabaseConstructor<ClothingDatabase>`. KSP generates the actuals.
