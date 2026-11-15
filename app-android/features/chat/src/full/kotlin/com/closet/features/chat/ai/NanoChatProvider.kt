@@ -28,7 +28,7 @@ import timber.log.Timber
  */
 class NanoChatProvider(
     private val json: Json,
-) : ChatAiProvider {
+) : OnDeviceChatProvider {
 
     private val model by lazy { Generation.getClient() }
 

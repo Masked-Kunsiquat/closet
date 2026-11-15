@@ -11,7 +11,11 @@ import com.closet.core.data.repository.EncryptedKeyStore
 import com.closet.core.ui.di.uiModule
 import com.closet.features.chat.ai.AnthropicChatProvider
 import com.closet.features.chat.ai.GeminiChatProvider
+import com.closet.features.chat.ChatRouter
+import com.closet.features.chat.UnroutedChatRouter
+import com.closet.features.chat.ai.OnDeviceChatProvider
 import com.closet.features.chat.ai.OpenAiChatProvider
+import com.closet.features.chat.ai.UnavailableOnDeviceChatProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
@@ -20,6 +24,7 @@ import io.mockk.mockk
 import org.junit.After
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -43,7 +48,7 @@ class ChatKoinTest {
         }
         startKoin {
             allowOverride(true)
-            modules(dataModule, uiModule, chatModule, chatFlavorModule, overrides)
+            modules(dataModule, uiModule, chatModule, chatNoOpModule, overrides)
         }
     }
 
@@ -72,9 +77,16 @@ class ChatKoinTest {
         assertAiClient(KoinPlatform.getKoin().get<OpenAiChatProvider>())
     }
 
+    @Test fun onDeviceChatProviderIsUnavailableStub() {
+        startWithMockedLeaves()
+        val koin = KoinPlatform.getKoin()
+        assertTrue(koin.get<OnDeviceChatProvider>() is UnavailableOnDeviceChatProvider)
+        assertTrue(koin.get<ChatRouter>() is UnroutedChatRouter)
+    }
+
     @OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
     @Test fun graphVerifies() {
-        module { includes(dataModule, uiModule, chatModule, chatFlavorModule) }.verify(
+        module { includes(dataModule, uiModule, chatModule, chatNoOpModule) }.verify(
             extraTypes = listOf(
                 Context::class,
                 SavedStateHandle::class,

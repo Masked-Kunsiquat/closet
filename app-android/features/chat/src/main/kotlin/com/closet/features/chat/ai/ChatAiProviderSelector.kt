@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.map
  * error message when the active provider is not configured.
  */
 class ChatAiProviderSelector(
-    private val nanoProvider: NanoChatProvider,
+    private val nanoProvider: OnDeviceChatProvider,
     private val openAiProvider: OpenAiChatProvider,
     private val anthropicProvider: AnthropicChatProvider,
     private val geminiProvider: GeminiChatProvider,

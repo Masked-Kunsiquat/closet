@@ -5,14 +5,14 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Smoke test for the FOSS-flavor [ChatRouter] stub.
- * The FOSS stub has no GMS dependencies and always returns [ChatRouter.RouterResult.Unrouted].
+ * Smoke test for [UnroutedChatRouter].
+ * It has no GMS dependencies and always returns [ChatRouter.RouterResult.Unrouted].
  */
-class ChatRouterFossTest {
+class UnroutedChatRouterTest {
 
     @Test
-    fun `FOSS router always returns Unrouted regardless of input`() = runTest {
-        val router = ChatRouter()
+    fun `Unrouted router always returns Unrouted regardless of input`() = runTest {
+        val router = UnroutedChatRouter()
         assertEquals(ChatRouter.RouterResult.Unrouted, router.route("anything"))
         assertEquals(ChatRouter.RouterResult.Unrouted, router.route(""))
         assertEquals(ChatRouter.RouterResult.Unrouted, router.route("how many items do I have?"))

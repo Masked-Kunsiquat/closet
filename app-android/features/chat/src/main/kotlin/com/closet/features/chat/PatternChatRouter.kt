@@ -3,16 +3,13 @@ package com.closet.features.chat
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.dao.LogDao
-import com.google.mlkit.nl.languageid.LanguageIdentification
-import com.google.mlkit.nl.languageid.LanguageIdentificationOptions
-import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Full-flavor [ChatRouter]: uses ML Kit Language Identification to gate English-only
+ * Shared [ChatRouter]: uses a [LanguageDetector] to gate English-only
  * pattern matching, then routes stat queries directly from DAO results.
  *
  * Intercepts user messages that have unambiguous, data-only answers and returns
@@ -30,32 +27,20 @@ import java.util.Locale
  * 8. "What's my most worn item?"         → [ClothingDao.getMostWornItem]
  *
  * If a pattern doesn't match confidently, or the DAO returns an ambiguous result,
- * [RouterResult.Unrouted] is returned and the caller falls through to RAG.
+ * [ChatRouter.RouterResult.Unrouted] is returned and the caller falls through to RAG.
  */
-class ChatRouter(
+class PatternChatRouter(
     private val clothingDao: ClothingDao,
     private val logDao: LogDao,
     private val dateParser: ChatDateParser,
-) {
+    private val languageDetector: LanguageDetector,
+) : ChatRouter {
 
-    sealed interface RouterResult {
-        data class Routed(val response: ChatResponse) : RouterResult
-        data object Unrouted : RouterResult
-    }
-
-    // Language identifier configured with a 0.7 confidence threshold.
-    // Returns "und" (undetermined) when confidence < threshold — treated as non-English.
-    private val languageIdentifier = LanguageIdentification.getClient(
-        LanguageIdentificationOptions.Builder()
-            .setConfidenceThreshold(LANGUAGE_CONFIDENCE_THRESHOLD)
-            .build()
-    )
-
-    suspend fun route(message: String): RouterResult {
+    override suspend fun route(message: String): ChatRouter.RouterResult {
         // Language guard: only route if the message is confidently English.
         // Non-English or low-confidence input falls through to RAG, which handles
         // multilingual prompts naturally via the provider.
-        if (!isEnglish(message)) return RouterResult.Unrouted
+        if (!languageDetector.isEnglish(message)) return ChatRouter.RouterResult.Unrouted
 
         val lower = message.lowercase(Locale.ENGLISH).trim()
 
@@ -69,21 +54,8 @@ class ChatRouter(
             matchesLastOutfit(lower)   -> routeLastOutfit()
             matchesItemCount(lower)    -> routeItemCount()
             matchesMostWorn(lower)     -> routeMostWorn()
-            else                       -> RouterResult.Unrouted
+            else                       -> ChatRouter.RouterResult.Unrouted
         }
-    }
-
-    /**
-     * Returns true if ML Kit identifies [text] as English with confidence ≥ [LANGUAGE_CONFIDENCE_THRESHOLD].
-     * On any identification failure, logs the error and returns false (Unrouted) so the query
-     * falls through to RAG rather than risking a misrouted stat answer on non-English input.
-     */
-    private suspend fun isEnglish(text: String): Boolean = try {
-        languageIdentifier.identifyLanguage(text).await() == "en"
-    } catch (e: Exception) {
-        if (e is kotlinx.coroutines.CancellationException) throw e
-        Timber.w(e, "ChatRouter: language identification failed, falling through to RAG")
-        false
     }
 
     // ── Pattern matching ──────────────────────────────────────────────────────
@@ -124,17 +96,17 @@ class ChatRouter(
 
     // ── Routing handlers ─────────────────────────────────────────────────────
 
-    private suspend fun routeWearCount(lower: String): RouterResult {
+    private suspend fun routeWearCount(lower: String): ChatRouter.RouterResult {
         val itemName = extractItemName(lower) ?: run {
             Timber.d("ChatRouter: wear-count pattern matched but item name not extractable")
-            return RouterResult.Unrouted
+            return ChatRouter.RouterResult.Unrouted
         }
         val result = clothingDao.getWearCountByName(itemName) ?: run {
             Timber.d("ChatRouter: no item matched name query '%s'", itemName)
-            return RouterResult.Unrouted
+            return ChatRouter.RouterResult.Unrouted
         }
         val timesLabel = if (result.wearCount == 1) "time" else "times"
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = "You've worn your ${result.name} ${result.wearCount} $timesLabel.",
                 label = "Wear count",
@@ -144,7 +116,7 @@ class ChatRouter(
         )
     }
 
-    private suspend fun routeNotWornSince(lower: String): RouterResult {
+    private suspend fun routeNotWornSince(lower: String): ChatRouter.RouterResult {
         val days = extractDays(lower) ?: DEFAULT_UNWORN_DAYS
         // Use strict "> cutoffDate" semantics: an item last worn exactly `days` days ago
         // should appear in the results ("haven't worn in 30 days" includes day-30 boundary).
@@ -158,7 +130,7 @@ class ChatRouter(
         } else {
             "You have ${items.size} $itemsLabel you haven't worn in the last $days days."
         }
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = text,
                 label = "Unworn for $days+ days",
@@ -168,10 +140,10 @@ class ChatRouter(
         )
     }
 
-    private suspend fun routeWornOn(lower: String): RouterResult {
+    private suspend fun routeWornOn(lower: String): ChatRouter.RouterResult {
         val date = dateParser.parseDate(lower) ?: run {
             Timber.d("ChatRouter: worn-on pattern matched but date not parseable")
-            return RouterResult.Unrouted
+            return ChatRouter.RouterResult.Unrouted
         }
         val logs = logDao.getLogsForDateOnce(date)
         val displayDate = formatDisplayDate(date)
@@ -185,7 +157,7 @@ class ChatRouter(
             }
         }
         val outfitsLabel = if (logs.size == 1) "outfit" else "outfits"
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = text,
                 label = "Worn on $displayDate",
@@ -195,7 +167,7 @@ class ChatRouter(
         )
     }
 
-    private suspend fun routeNeverWorn(): RouterResult {
+    private suspend fun routeNeverWorn(): ChatRouter.RouterResult {
         val items = clothingDao.getItemsNeverWorn()
         val itemsLabel = if (items.size == 1) "item" else "items"
         val text = if (items.isEmpty()) {
@@ -203,7 +175,7 @@ class ChatRouter(
         } else {
             "You have ${items.size} $itemsLabel you've never worn."
         }
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = text,
                 label = "Never worn",
@@ -213,7 +185,7 @@ class ChatRouter(
         )
     }
 
-    private suspend fun routeNeedsWash(): RouterResult {
+    private suspend fun routeNeedsWash(): ChatRouter.RouterResult {
         val items = clothingDao.getItemsNeedingWash()
         val itemsLabel = if (items.size == 1) "item" else "items"
         val text = if (items.isEmpty()) {
@@ -221,7 +193,7 @@ class ChatRouter(
         } else {
             "You have ${items.size} $itemsLabel in your laundry."
         }
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = text,
                 label = "Needs washing",
@@ -231,8 +203,8 @@ class ChatRouter(
         )
     }
 
-    private suspend fun routeLastOutfit(): RouterResult {
-        val log = logDao.getMostRecentLog() ?: return RouterResult.Routed(
+    private suspend fun routeLastOutfit(): ChatRouter.RouterResult {
+        val log = logDao.getMostRecentLog() ?: return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = "You haven't logged any outfits yet.",
                 label = "Last worn",
@@ -245,7 +217,7 @@ class ChatRouter(
         } else {
             "Your last logged wear was on $displayDate."
         }
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = text,
                 label = "Last worn",
@@ -254,10 +226,10 @@ class ChatRouter(
         )
     }
 
-    private suspend fun routeItemCount(): RouterResult {
+    private suspend fun routeItemCount(): ChatRouter.RouterResult {
         val count = clothingDao.getItemCount()
         val itemsLabel = if (count == 1) "item" else "items"
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = "You have $count $itemsLabel in your wardrobe.",
                 label = "Wardrobe size",
@@ -266,8 +238,8 @@ class ChatRouter(
         )
     }
 
-    private suspend fun routeMostWorn(): RouterResult {
-        val result = clothingDao.getMostWornItem() ?: return RouterResult.Routed(
+    private suspend fun routeMostWorn(): ChatRouter.RouterResult {
+        val result = clothingDao.getMostWornItem() ?: return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = "You haven't logged any wears yet.",
                 label = "Most worn",
@@ -275,7 +247,7 @@ class ChatRouter(
             )
         )
         val timesLabel = if (result.wearCount == 1) "time" else "times"
-        return RouterResult.Routed(
+        return ChatRouter.RouterResult.Routed(
             ChatResponse.WithStat(
                 text = "Your most worn item is the ${result.name}, worn ${result.wearCount} $timesLabel.",
                 label = "Most worn",
@@ -301,6 +273,5 @@ class ChatRouter(
 
     companion object {
         private const val DEFAULT_UNWORN_DAYS = 30
-        private const val LANGUAGE_CONFIDENCE_THRESHOLD = 0.7f
     }
 }

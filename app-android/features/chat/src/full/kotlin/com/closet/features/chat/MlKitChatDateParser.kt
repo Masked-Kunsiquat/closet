@@ -21,7 +21,7 @@ import java.util.TimeZone
  * The English model (~5.6 MB) is downloaded via Play Services on first use. The download is
  * triggered lazily in [init] so it's typically ready by the time the user first queries a date.
  */
-class ChatDateParser {
+class MlKitChatDateParser : ChatDateParser {
 
     private val extractor = EntityExtraction.getClient(
         EntityExtractorOptions.Builder(EntityExtractorOptions.ENGLISH).build()
@@ -42,7 +42,7 @@ class ChatDateParser {
      * expressions resolve correctly. Falls back to [regexParseDate] if ML Kit returns no
      * date entity or the model is not yet available.
      */
-    suspend fun parseDate(text: String): String? = try {
+    override suspend fun parseDate(text: String): String? = try {
         val params = EntityExtractionParams.Builder(text)
             .setEntityTypesFilter(setOf(Entity.TYPE_DATE_TIME))
             .setPreferredLocale(Locale.US)
