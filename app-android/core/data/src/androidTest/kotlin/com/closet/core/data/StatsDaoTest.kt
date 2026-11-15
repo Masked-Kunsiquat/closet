@@ -99,8 +99,13 @@ class StatsDaoTest {
         db.outfitDao().insertOutfitItems(listOf(OutfitItemEntity(outfitId = outfitId, clothingItemId = itemId)))
     }
 
+    /**
+     * Logs a wear the way the app does ([LogDao.insertLogAndSnapshot]): the log row plus a snapshot
+     * of the outfit's current items in `outfit_log_items`, which the stats queries count. Link
+     * items to the outfit before logging it.
+     */
     private fun logOutfit(outfitId: Long, date: String) = runBlocking {
-        db.logDao().insertLog(OutfitLogEntity(outfitId = outfitId, date = date))
+        db.logDao().insertLogAndSnapshot(OutfitLogEntity(outfitId = outfitId, date = date))
     }
 
     // ─── getStatsOverview ─────────────────────────────────────────────────────
@@ -317,11 +322,13 @@ class StatsDaoTest {
     @Test
     fun getTotalOutfitsLogged_countsDistinctLogs() = runBlocking {
         val outfitId = insertOutfit()
+        val otherOutfitId = insertOutfit()
         logOutfit(outfitId, "2026-01-01")
         logOutfit(outfitId, "2026-01-02")
-        logOutfit(outfitId, "2026-01-02") // second log on the same date — each has a distinct id
+        // Two logs on the same date (different outfits; one outfit can't be logged twice a day).
+        logOutfit(otherOutfitId, "2026-01-02")
         logOutfit(outfitId, "2026-01-03")
-        // COUNT(DISTINCT id) counts every log entry, so 4 rows → 4
+        // COUNT(DISTINCT id) counts every log entry, not every date, so 4 rows → 4
         assertEquals(4, dao.getTotalOutfitsLogged(null).first())
     }
 
