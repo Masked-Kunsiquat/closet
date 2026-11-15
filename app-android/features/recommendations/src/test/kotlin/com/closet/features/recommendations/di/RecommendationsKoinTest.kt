@@ -45,20 +45,7 @@ class RecommendationsKoinTest {
     }
 
     @Test fun nanoProviderIsOneInstance() {
-        val overrides = module {
-            single<Context> {
-                mockk<Context>(relaxed = true) {
-                    every { filesDir } returns java.nio.file.Files.createTempDirectory("recs").toFile()
-                }
-            }
-            single<ClothingDatabase> { mockk(relaxed = true) }
-            single<EncryptedKeyStore> { mockk(relaxed = true) }
-            single<WorkManager> { mockk(relaxed = true) }
-        }
-        startKoin {
-            allowOverride(true)
-            modules(dataModule, uiModule, recommendationsModule, recommendationsFlavorModule, overrides)
-        }
+        startWithMockedLeaves()
         val koin = KoinPlatform.getKoin()
         assertSame(koin.get<OutfitAiProvider>(), koin.get<NanoInitializer>())
     }

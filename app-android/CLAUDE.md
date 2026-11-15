@@ -75,8 +75,6 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 - **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(...)` in `DataKoinModule.kt`; add any new secret-bearing header to its `SENSITIVE_HEADERS`.
 - **Verification.** Every module has a `verify()` unit test, and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a flavored *sibling* feature module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
 
-`AiPreferencesRepository` is constructed **only** in `dataModule`'s explicit `single { AiPreferencesRepository(androidContext(), get<EncryptedKeyStore>()) }`. Don't switch it to `singleOf(::AiPreferencesRepository)` or construct it anywhere else.
-
 ### Database (Room)
 
 - **File:** `closet.db`, current version **6**.
