@@ -4,11 +4,11 @@ import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ConversationTurn
 
 /**
- * No-op [OnDeviceChatProvider] for builds without Google Play Services / MLKit GenAI.
+ * No-op [OnDeviceChatProvider] used where on-device chat is unavailable (foss today; iOS/desktop later).
  *
  * [chat] immediately returns [Result.failure] with [UnsupportedOperationException],
  * which [ChatAiProviderSelector] surfaces as a provider-not-ready error — the same
- * path a real unsupported device takes in the full flavor.
+ * path a real unsupported device takes with the GMS implementation.
  */
 class UnavailableOnDeviceChatProvider : OnDeviceChatProvider {
 

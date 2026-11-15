@@ -9,12 +9,15 @@ import com.closet.core.data.di.dataModule
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.EncryptedKeyStore
 import com.closet.core.ui.di.uiModule
+import com.closet.features.wardrobe.repository.SubjectSegmenter
+import com.closet.features.wardrobe.repository.UnsupportedImageCaptioner
+import com.closet.features.wardrobe.repository.UnsupportedSubjectSegmenter
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.After
-import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -38,7 +41,7 @@ class WardrobeKoinTest {
         )
     }
 
-    @Test fun captionerIsOneInstance() {
+    @Test fun captionerAndSegmenterAreUnsupportedStubs() {
         val overrides = module {
             single<Context> {
                 mockk<Context>(relaxed = true) {
@@ -54,6 +57,7 @@ class WardrobeKoinTest {
             modules(dataModule, uiModule, wardrobeModule, wardrobeNoOpModule, overrides)
         }
         val koin = KoinPlatform.getKoin()
-        assertSame(koin.get<CaptionEnrichmentProvider>(), koin.get<CaptionEnrichmentProvider>())
+        assertTrue(koin.get<CaptionEnrichmentProvider>() is UnsupportedImageCaptioner)
+        assertTrue(koin.get<SubjectSegmenter>() is UnsupportedSubjectSegmenter)
     }
 }

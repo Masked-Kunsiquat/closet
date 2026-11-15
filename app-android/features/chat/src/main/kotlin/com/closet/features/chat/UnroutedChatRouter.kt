@@ -3,7 +3,7 @@ package com.closet.features.chat
 /**
  * No-op [ChatRouter] — always returns [ChatRouter.RouterResult.Unrouted].
  *
- * Used where language identification is unavailable (the FOSS build), so all queries
+ * Used where routing is unavailable (foss today; iOS/desktop later), so all queries
  * fall through to the RAG + provider pipeline as usual.
  */
 class UnroutedChatRouter : ChatRouter {

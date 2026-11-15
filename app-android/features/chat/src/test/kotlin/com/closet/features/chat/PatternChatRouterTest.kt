@@ -30,6 +30,14 @@ class PatternChatRouterTest {
         confirmVerified(clothingDao, logDao)
     }
 
+    @Test fun nonEnglishDetector_blocksAMessageThatWouldOtherwiseRoute() = runTest {
+        val detector = FakeLanguageDetector(english = false)
+        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(), detector)
+        assertEquals(ChatRouter.RouterResult.Unrouted, router.route("How many items do I own?"))
+        assertEquals(listOf("How many items do I own?"), detector.seen)
+        confirmVerified(clothingDao, logDao)
+    }
+
     @Test fun englishItemCount_isRoutedFromDao() = runTest {
         coEvery { clothingDao.getItemCount() } returns 3
         val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(), FakeLanguageDetector(english = true))

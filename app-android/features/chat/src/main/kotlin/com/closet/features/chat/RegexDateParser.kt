@@ -5,7 +5,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Regex-based date extraction shared between the full and FOSS [ChatDateParser] implementations.
+ * Regex-based date extraction that backs `RegexChatDateParser` and the regex fallback in `:platform:gms`'s `MlKitChatDateParser`.
  *
  * Only handles unambiguous, explicit date formats:
  * - ISO:          `2026-04-04`
