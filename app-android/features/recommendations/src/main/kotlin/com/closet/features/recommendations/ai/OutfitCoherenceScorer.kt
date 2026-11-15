@@ -33,8 +33,8 @@ import timber.log.Timber
  * - [AiProvider.Anthropic] — [AiPreferencesRepository.getAnthropicApiKey] must be non-blank.
  *
  * ### Token gate (Nano only)
- * Before calling [NanoProvider.selectOutfits], the full prompt (system prefix +
- * combo JSON) is counted via [NanoProvider.countTokens]. If the count exceeds
+ * Before calling [OnDeviceRecommendationProvider.selectOutfits], the full prompt (system prefix +
+ * combo JSON) is counted via [OnDeviceRecommendationProvider.countTokens]. If the count exceeds
  * the stored token limit from [AiPreferencesRepository.getTokenLimit], combos
  * are trimmed from the tail (lowest average suitability score first) until the
  * prompt fits. If no combos remain after trimming, the scorer returns null.
@@ -52,7 +52,7 @@ import timber.log.Timber
  * null — the caller then uses the programmatic result unchanged.
  */
 class OutfitCoherenceScorer(
-    private val nanoProvider: NanoProvider,
+    private val nanoProvider: OnDeviceRecommendationProvider,
     private val openAiProvider: OpenAiProvider,
     private val anthropicProvider: AnthropicProvider,
     private val aiPreferencesRepository: AiPreferencesRepository,
@@ -241,7 +241,7 @@ class OutfitCoherenceScorer(
     }
 
     // -------------------------------------------------------------------------
-    // Serialization helpers (mirrors NanoProvider / OpenAiProvider)
+    // Serialization helpers (mirrors OnDeviceRecommendationProvider / OpenAiProvider)
     // -------------------------------------------------------------------------
 
     /**

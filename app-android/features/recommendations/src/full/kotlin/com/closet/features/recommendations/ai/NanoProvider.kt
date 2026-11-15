@@ -111,7 +111,7 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
  */
 class NanoProvider(
     private val json: Json,
-) : OutfitAiProvider, NanoInitializer {
+) : OnDeviceRecommendationProvider {
 
     private val engine: NanoInferenceEngine = MlKitNanoInferenceEngine()
 
@@ -203,7 +203,7 @@ class NanoProvider(
      * Returns [Int.MAX_VALUE] while the beta API does not expose countTokens(),
      * keeping the trim gate in [OutfitCoherenceScorer] inactive.
      */
-    suspend fun countTokens(prompt: String): Int = engine.countTokens(prompt)
+    override suspend fun countTokens(prompt: String): Int = engine.countTokens(prompt)
 
     // ── OutfitAiProvider ──────────────────────────────────────────────────────
 

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
 /**
- * FOSS-flavor stub for [NanoProvider].
+ * No-op [OnDeviceRecommendationProvider] for builds without Play Services.
  *
  * Google Play Services and the MLKit GenAI Prompt API are not included in the
  * FOSS build. This stub satisfies the [OutfitAiProvider] and [NanoInitializer]
@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.flowOf
  *   gate in [OutfitCoherenceScorer] inactive, matching the full-flavor behaviour
  *   on devices where the beta countTokens API is not yet exposed.
  */
-class NanoProvider : OutfitAiProvider, NanoInitializer {
+class UnavailableOnDeviceRecommendationProvider : OnDeviceRecommendationProvider {
 
     override fun initNanoFlow(): Flow<NanoInitResult> =
         flowOf(NanoInitResult.NotSupported)
@@ -38,5 +38,5 @@ class NanoProvider : OutfitAiProvider, NanoInitializer {
     )
 
     /** Returns [Int.MAX_VALUE] so the token-trim gate in [OutfitCoherenceScorer] never fires. */
-    suspend fun countTokens(prompt: String): Int = Int.MAX_VALUE
+    override suspend fun countTokens(prompt: String): Int = Int.MAX_VALUE
 }
