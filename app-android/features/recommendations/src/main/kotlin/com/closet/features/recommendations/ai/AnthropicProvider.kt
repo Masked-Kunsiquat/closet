@@ -45,7 +45,7 @@ import timber.log.Timber
  * silent fallback to the programmatic top-3 result — this class never throws.
  *
  * Not bound to [OutfitAiProvider] in Koin — it is a plain `single` injected
- * directly into [OutfitCoherenceScorer] alongside [NanoProvider] and [OpenAiProvider], and the
+ * directly into [OutfitCoherenceScorer] alongside [OnDeviceRecommendationProvider] and [OpenAiProvider], and the
  * scorer's provider-selection switch picks the active implementation at runtime.
  *
  * @param aiHttpClient the AI inference client (120 s timeouts); see [AiHttpClient].

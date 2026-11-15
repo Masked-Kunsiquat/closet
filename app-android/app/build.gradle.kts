@@ -131,6 +131,8 @@ dependencies {
     implementation(project(":features:settings"))
     implementation(project(":features:recommendations"))
     implementation(project(":features:chat"))
+    // GMS / ML Kit implementations — full flavor only; the only GMS scoping in the build.
+    "fullImplementation"(project(":platform:gms"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

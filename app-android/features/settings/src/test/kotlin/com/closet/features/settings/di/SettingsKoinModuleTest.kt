@@ -24,9 +24,9 @@ class SettingsKoinModuleTest {
                 WorkerParameters::class,
                 HttpClientEngine::class,
                 HttpClientConfig::class,
-                // Bound by the recommendations and wardrobe Koin modules. Settings can't depend on
-                // those flavored sibling Gradle modules, so AppKoinGraphTest (both flavors, no whitelist)
-                // is what proves these bindings exist.
+                // Bound by the feature no-op modules (foss) or gmsModule (full), and by wardrobeModule.
+                // Settings can't depend on those sibling Gradle modules, so AppKoinGraphTest (both
+                // flavors, no whitelist) is what proves these bindings exist.
                 NanoInitializer::class,
                 CaptionEnrichmentProvider::class,
                 BatchSegmentationScheduler::class,

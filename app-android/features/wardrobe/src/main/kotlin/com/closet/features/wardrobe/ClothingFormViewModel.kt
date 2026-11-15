@@ -25,11 +25,11 @@ import android.graphics.Bitmap
 import com.closet.core.data.util.BitmapUtils
 import com.closet.features.wardrobe.R
 import com.closet.core.data.repository.BrandRepository
+import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
-import com.closet.features.wardrobe.repository.ImageCaptionRepository
-import com.closet.features.wardrobe.repository.SegmentationRepository
+import com.closet.features.wardrobe.repository.SubjectSegmenter
 import java.util.UUID
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.util.DataResult
@@ -139,8 +139,8 @@ class ClothingFormViewModel(
     private val brandRepository: BrandRepository,
     private val storageRepository: StorageRepository,
     private val clothingRepository: ClothingRepository,
-    private val segmentationRepository: SegmentationRepository,
-    private val imageCaptionRepository: ImageCaptionRepository,
+    private val segmentationRepository: SubjectSegmenter,
+    private val imageCaptionRepository: CaptionEnrichmentProvider,
 ) : ViewModel() {
 
     private val editDestination = try {

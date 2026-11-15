@@ -21,7 +21,7 @@ import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.worker.BatchSegmentationWork
-import com.closet.features.wardrobe.repository.SegmentationRepository
+import com.closet.features.wardrobe.repository.SubjectSegmenter
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import java.time.Instant
@@ -49,7 +49,7 @@ class BatchSegmentationWorker(
     private val clothingDao: ClothingDao,
     private val lookupDao: LookupDao,
     private val storageRepository: StorageRepository,
-    private val segmentationRepository: SegmentationRepository,
+    private val segmentationRepository: SubjectSegmenter,
     private val clothingRepository: ClothingRepository,
 ) : CoroutineWorker(context, params) {
 

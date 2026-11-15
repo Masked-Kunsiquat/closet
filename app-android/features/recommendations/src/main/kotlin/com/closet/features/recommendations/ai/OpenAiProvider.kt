@@ -46,7 +46,7 @@ import timber.log.Timber
  * silent fallback to the programmatic top-3 result — this class never throws.
  *
  * Not bound to [OutfitAiProvider] in Koin — the Settings
- * UI provider selector switches between [NanoProvider], [OpenAiProvider], and future providers
+ * UI provider selector switches between [OnDeviceRecommendationProvider], [OpenAiProvider], and future providers
  * at runtime.
  *
  * @param aiHttpClient the AI inference client (120 s timeouts); see [AiHttpClient].

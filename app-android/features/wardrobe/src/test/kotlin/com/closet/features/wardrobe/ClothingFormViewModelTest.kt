@@ -9,8 +9,8 @@ import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.StorageRepository
-import com.closet.features.wardrobe.repository.ImageCaptionRepository
-import com.closet.features.wardrobe.repository.SegmentationRepository
+import com.closet.core.data.repository.CaptionEnrichmentProvider
+import com.closet.features.wardrobe.repository.SubjectSegmenter
 import android.content.Context
 import io.mockk.every
 import io.mockk.mockk
@@ -37,8 +37,8 @@ class ClothingFormViewModelTest {
     private val clothingRepository: ClothingRepository = mockk(relaxed = true)
     private val savedStateHandle: SavedStateHandle = mockk(relaxed = true)
     private val appContext: Context = mockk(relaxed = true)
-    private val segmentationRepository: SegmentationRepository = mockk(relaxed = true)
-    private val imageCaptionRepository: ImageCaptionRepository = mockk(relaxed = true)
+    private val segmentationRepository: SubjectSegmenter = mockk(relaxed = true)
+    private val imageCaptionRepository: CaptionEnrichmentProvider = mockk(relaxed = true)
 
     private val sizeSystems = listOf(
         SizeSystemEntity(1, "Letter"),

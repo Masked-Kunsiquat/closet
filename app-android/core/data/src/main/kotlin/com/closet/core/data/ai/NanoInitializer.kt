@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.Flow
  * Defined in core/data so that features/settings can inject it without depending
  * on features/recommendations (which owns the MLKit surface).
  *
- * Implementation: [com.closet.features.recommendations.ai.NanoProvider].
- * Binding: `recommendationsFlavorModule` in `features/recommendations` (src/full, src/foss).
+ * Implementation: `com.closet.platform.gms.recommendations.NanoProvider`, bound in `gmsModule`
+ * (`platform/gms`, full flavor). FOSS binds the no-op stub via `recommendationsNoOpModule`.
  *
  * Init sequence:
  *   1. checkStatus() — isAvailable() gate

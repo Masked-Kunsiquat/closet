@@ -11,6 +11,7 @@ import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.di.dataModule
 import com.closet.features.recommendations.ai.AnthropicProvider
 import com.closet.features.recommendations.ai.OpenAiProvider
+import com.closet.features.recommendations.ai.OnDeviceRecommendationProvider
 import io.ktor.client.HttpClient
 import org.junit.Assert.assertNotSame
 import com.closet.core.data.repository.EncryptedKeyStore
@@ -33,7 +34,7 @@ class RecommendationsKoinTest {
 
     @OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
     @Test fun graphVerifies() {
-        module { includes(dataModule, uiModule, recommendationsModule, recommendationsFlavorModule) }.verify(
+        module { includes(dataModule, uiModule, recommendationsModule, recommendationsNoOpModule) }.verify(
             extraTypes = listOf(
                 Context::class,
                 SavedStateHandle::class,
@@ -47,7 +48,9 @@ class RecommendationsKoinTest {
     @Test fun nanoProviderIsOneInstance() {
         startWithMockedLeaves()
         val koin = KoinPlatform.getKoin()
-        assertSame(koin.get<OutfitAiProvider>(), koin.get<NanoInitializer>())
+        val provider = koin.get<OnDeviceRecommendationProvider>()
+        assertSame(provider, koin.get<OutfitAiProvider>())
+        assertSame(provider, koin.get<NanoInitializer>())
     }
 
     private fun startWithMockedLeaves() {
@@ -63,7 +66,7 @@ class RecommendationsKoinTest {
         }
         startKoin {
             allowOverride(true)
-            modules(dataModule, uiModule, recommendationsModule, recommendationsFlavorModule, overrides)
+            modules(dataModule, uiModule, recommendationsModule, recommendationsNoOpModule, overrides)
         }
     }
 

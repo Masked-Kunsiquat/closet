@@ -12,7 +12,7 @@ import com.closet.features.wardrobe.BulkWashViewModel
 import com.closet.features.wardrobe.ClosetViewModel
 import com.closet.features.wardrobe.ClothingDetailViewModel
 import com.closet.features.wardrobe.ClothingFormViewModel
-import com.closet.features.wardrobe.repository.SegmentationRepository
+import com.closet.features.wardrobe.repository.SubjectSegmenter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.koin.androidx.workmanager.dsl.workerOf
@@ -26,14 +26,15 @@ private val activeStates = setOf(
 )
 
 /**
- * Koin module for the wardrobe feature. ImageCaptionRepository, SegmentationRepository and the
- * CaptionEnrichmentProvider binding live in `wardrobeFlavorModule` (src/full, src/foss).
+ * Koin module for the wardrobe feature. SubjectSegmenter and the
+ * CaptionEnrichmentProvider bindings are per flavor: `wardrobeNoOpModule` (foss) or
+ * `gmsModule` in `platform/gms` (full).
  * WorkManager is provided by `dataModule`.
  */
 val wardrobeModule = module {
     single<BatchSegmentationScheduler> {
         val workManager: WorkManager = get()
-        val segmentationRepository: SegmentationRepository = get()
+        val segmentationRepository: SubjectSegmenter = get()
         object : BatchSegmentationScheduler {
             override val isSupported: Boolean get() = segmentationRepository.isSupported
             override fun schedule() {

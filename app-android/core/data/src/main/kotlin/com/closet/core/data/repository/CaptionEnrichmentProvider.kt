@@ -9,10 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
  * Abstraction over the ML Kit GenAI Image Description API exposed to modules that
  * cannot directly depend on `features/wardrobe` (e.g. `features/settings`).
  *
- * The full-flavor implementation delegates to [com.closet.features.wardrobe.repository.ImageCaptionRepository].
- * The FOSS-flavor stub sets [isSupported] = `false` and throws on [describe].
+ * The full-flavor implementation is `com.closet.platform.gms.wardrobe.MlKitImageCaptioner`.
+ * The FOSS-flavor stub (`UnsupportedImageCaptioner` in `features/wardrobe`) sets [isSupported] = `false` and throws on [describe].
  *
- * Provided by `wardrobeFlavorModule` in `features/wardrobe` (src/full, src/foss), following the same
+ * Provided by `wardrobeNoOpModule` (foss) or `gmsModule` in `platform/gms` (full), following the same
  * pattern as [BatchSegmentationScheduler].
  */
 interface CaptionEnrichmentProvider {
