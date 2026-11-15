@@ -38,7 +38,7 @@ If a constant is later renamed or a seeder method changes, old migration SQL sil
 
 **Run the KSP task after every version bump to regenerate the schema JSON.**
 ```bash
-./gradlew kspDebugKotlin
+./gradlew :core:data:kspAndroidMain
 ```
 Commit the generated `core/data/schemas/com.closet.core.data.ClothingDatabase/<version>.json`
 alongside the migration file. Room uses these files to validate migrations in tests, and
@@ -85,8 +85,8 @@ unexpected index. Handle it the way the old chain did:
 3. Use literal SQL strings — no Kotlin string interpolation of variable values.
 4. Register it with `.addMigrations(MIGRATION_N_N1)` in `ClothingDatabase.getDatabase()`.
 5. Bump `@Database(version = N+1)`.
-6. Run `./gradlew kspDebugKotlin` and commit the generated schema JSON.
-7. Add a `MigrationTest` (instrumented, `core/data/src/androidTest`) using `MigrationTestHelper`:
+6. Run `./gradlew :core:data:kspAndroidMain` and commit the generated schema JSON.
+7. Add a `MigrationTest` (instrumented, `core/data/src/androidDeviceTest`) using `MigrationTestHelper`:
    - `val dbN = helper.createDatabase(TEST_DB, N)` and drop the partial index (see above)
    - seed realistic data, then `dbN.close()`
    - `helper.runMigrationsAndValidate(TEST_DB, N+1, true, MIGRATION_N_N1)`
@@ -117,10 +117,10 @@ and skip writing a migration file. Still run KSP and commit the schema JSON.
 Schema tests are instrumented (they run on a device or emulator), not part of `./gradlew test`.
 
 ```bash
-./gradlew :core:data:connectedDebugAndroidTest
+./gradlew :core:data:connectedAndroidDeviceTest
 ```
 
-`core/data/src/androidTest/kotlin/com/closet/core/data/FreshInstallSchemaTest.kt` opens a fresh
+`core/data/src/androidDeviceTest/kotlin/com/closet/core/data/FreshInstallSchemaTest.kt` opens a fresh
 database through `ClothingDatabase.getDatabase()` and checks it against the newest schema JSON
 (identity hash, every table/column/index), plus `PRAGMA foreign_keys`, the seeded lookup rows,
 the `one_ootd_per_day` partial index and the category triggers. Run it before any PR that touches

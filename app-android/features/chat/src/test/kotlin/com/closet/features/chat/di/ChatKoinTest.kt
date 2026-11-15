@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
+import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.di.AiHttpClient
 import com.closet.core.data.di.dataModule
@@ -45,6 +46,7 @@ class ChatKoinTest {
             single<ClothingDatabase> { mockk(relaxed = true) }
             single<EncryptedKeyStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
+            single { BuildFlags(isDebug = false) }
         }
         startKoin {
             allowOverride(true)

@@ -20,6 +20,8 @@ class AppKoinGraphTest {
                 WorkerParameters::class,
                 HttpClientEngine::class,
                 HttpClientConfig::class,
+                // BuildFlags(isDebug) is built from BuildConfig.DEBUG, not resolved from the graph.
+                Boolean::class,
             )
         )
     }

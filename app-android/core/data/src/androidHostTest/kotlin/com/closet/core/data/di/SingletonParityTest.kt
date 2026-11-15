@@ -2,6 +2,7 @@ package com.closet.core.data.di
 
 import android.content.Context
 import androidx.work.WorkManager
+import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.ClothingRepository
@@ -33,6 +34,7 @@ class SingletonParityTest {
             single<ClothingDatabase> { mockk(relaxed = true) }
             single<EncryptedKeyStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
+            single { BuildFlags(isDebug = false) }
         }
         startKoin { allowOverride(true); modules(dataModule, overrides) }
     }

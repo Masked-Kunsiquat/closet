@@ -8,7 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.closet.core.data.BuildConfig
+import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.repository.AiPreferencesRepository
@@ -150,12 +150,12 @@ val dataModule = module {
     }
 
     single<HttpClient> {
-        buildHttpClient(get(), socketTimeoutMs = 30_000, requestTimeoutMs = 30_000, logTag = "Ktor")
+        buildHttpClient(get(), isDebug = get<BuildFlags>().isDebug, socketTimeoutMs = 30_000, requestTimeoutMs = 30_000, logTag = "Ktor")
     }
 
     single {
         AiHttpClient(
-            buildHttpClient(get(), socketTimeoutMs = 120_000, requestTimeoutMs = 120_000, logTag = "KtorAI"),
+            buildHttpClient(get(), isDebug = get<BuildFlags>().isDebug, socketTimeoutMs = 120_000, requestTimeoutMs = 120_000, logTag = "KtorAI"),
         )
     }
 
@@ -188,10 +188,11 @@ private val SENSITIVE_HEADERS = setOf("authorization", "x-api-key", "x-goog-api-
 
 /**
  * Builds an OkHttp-backed [HttpClient] with JSON content negotiation and debug-only
- * logging that redacts [SENSITIVE_HEADERS]. Connect timeout is always 30 s.
+ * logging (when [isDebug]) that redacts [SENSITIVE_HEADERS]. Connect timeout is always 30 s.
  */
 private fun buildHttpClient(
     json: Json,
+    isDebug: Boolean,
     socketTimeoutMs: Long,
     requestTimeoutMs: Long,
     logTag: String,
@@ -218,6 +219,6 @@ private fun buildHttpClient(
                 Timber.tag(logTag).d(redacted)
             }
         }
-        level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
+        level = if (isDebug) LogLevel.BODY else LogLevel.NONE
     }
 }
