@@ -241,7 +241,7 @@ class OutfitCoherenceScorer(
     }
 
     // -------------------------------------------------------------------------
-    // Serialization helpers (mirrors OnDeviceRecommendationProvider / OpenAiProvider)
+    // Serialization helpers (mirrors the providers: NanoProvider in :platform:gms, OpenAiProvider)
     // -------------------------------------------------------------------------
 
     /**

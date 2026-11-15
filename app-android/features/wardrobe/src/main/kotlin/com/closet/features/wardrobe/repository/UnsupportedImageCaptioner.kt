@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * No-op [CaptionEnrichmentProvider] for builds without Play Services.
  *
- * `com.google.mlkit:genai-image-description` is an AICore-backed GMS dependency not
- * included in the FOSS build. This stub satisfies the Koin binding so the rest of the
+ * ML Kit GenAI Image Description is an AICore-backed GMS dependency that lives only in
+ * `platform/gms` (full flavor) and is not included in the FOSS build. This stub satisfies the Koin binding so the rest of the
  * codebase compiles unchanged. [describe] throws [UnsupportedOperationException];
  * callers must check [isSupported] before invoking it.
  */

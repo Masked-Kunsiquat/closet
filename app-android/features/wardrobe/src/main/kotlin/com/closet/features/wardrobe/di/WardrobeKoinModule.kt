@@ -27,7 +27,8 @@ private val activeStates = setOf(
 
 /**
  * Koin module for the wardrobe feature. SubjectSegmenter and the
- * CaptionEnrichmentProvider binding live in `wardrobeFlavorModule` (src/full, src/foss).
+ * CaptionEnrichmentProvider bindings are per flavor: `wardrobeNoOpModule` (foss) or
+ * `gmsModule` in `platform/gms` (full).
  * WorkManager is provided by `dataModule`.
  */
 val wardrobeModule = module {

@@ -11,8 +11,9 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 /**
- * Koin module for the chat feature. The flavor-specific NanoChatProvider, ChatDateParser
- * and ChatRouter live in `chatFlavorModule` (src/full and src/foss).
+ * Koin module for the chat feature. OnDeviceChatProvider, ChatDateParser, LanguageDetector
+ * and ChatRouter are bound per flavor: `chatNoOpModule` (foss) or `gmsModule` in
+ * `platform/gms` (full).
  */
 val chatModule = module {
     singleOf(::AnthropicChatProvider)

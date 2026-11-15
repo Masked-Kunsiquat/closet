@@ -14,12 +14,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("full") { dimension = "distribution" }
-        create("foss") { dimension = "distribution" }
-    }
-
     buildFeatures {
         compose = true
     }
@@ -72,9 +66,6 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.client.logging)
-
-    // MLKit GenAI Prompt API — Gemini Nano on-device inference (full flavor only; foss uses stub)
-    "fullImplementation"(libs.mlkit.genai.prompt)
 
     // Unit tests
     testImplementation(libs.junit)

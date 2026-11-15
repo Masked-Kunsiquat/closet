@@ -40,12 +40,13 @@ core/ui/               — Material 3 theme, shared Composable components
 features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash, brand management
 features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet
 features/stats/        — Stats screen, StatsViewModel, breakdown sections
-features/recommendations/ — Outfit recommendations, AI providers (NanoProvider, AnthropicProvider, OpenAiProvider)
+features/recommendations/ — Outfit recommendations, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms)
 features/settings/     — Settings screen, AI settings sub-screen, model picker, key management
 features/chat/         — RAG wardrobe chat: ChatScreen, ChatViewModel, ChatRepository, provider impls
+platform/gms/          — GMS/ML Kit implementations of feature capability interfaces (full flavor only)
 ```
 
-Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
+Module dependencies: `app` → `features/*` → `core/ui` → `core/data`; `app (full)` → `platform/gms` → `features/*`.
 
 ### MVVM + Clean Architecture
 
@@ -55,25 +56,25 @@ Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
 
 ### Product flavors
 
-Two flavors on the `distribution` dimension. Only `app/`, `features/recommendations/`, `features/wardrobe/`, and `features/chat/` declare flavor dimensions; all other modules are single-variant.
+Two flavors on the `distribution` dimension. Only `app/` declares flavors; every other module is single-variant.
 
 - **`full`** — includes GMS-backed features (MLKit GenAI Prompt API / Gemini Nano). Use for local dev, GitHub releases, sideload APKs. Android Studio defaults to `fullDebug`.
 - **`foss`** — no Google Play Services dependencies. GMS features are stubbed to no-ops. Target: F-Droid distribution.
 
-GMS-only code lives in `src/full/kotlin/`; stubs live in `src/foss/kotlin/`. Each flavor source set defines its own `*FlavorModule` Koin module, so the active source set decides the bindings at compile time — no runtime conditionals needed. `"fullImplementation"(...)` in `build.gradle.kts` scopes GMS deps to the full flavor only.
+GMS code lives in `platform/gms` and is bound by its `gmsModule`. Pure-Kotlin no-op stubs live in each feature's `src/main`, bound by a `<feature>NoOpModule` (`chatNoOpModule`, `recommendationsNoOpModule`, `wardrobeNoOpModule`). `app/src/full` and `app/src/foss` each define `flavorModule` (full includes `gmsModule`; foss includes the three `*NoOpModule`s), so the active source set decides the bindings at compile time — no runtime conditionals needed. `"fullImplementation"(project(":platform:gms"))` in `app/build.gradle.kts` is the only GMS scoping; ML Kit / Play Services deps are declared only in `platform/gms/build.gradle.kts`.
 
 ### Dependency injection
 
 Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no code generation.
 
 - **One module per Gradle module.** Each module declares a top-level `val <name>Module` in its `di/*KoinModule.kt` (e.g. `dataModule` in `core/data/di/DataKoinModule.kt`, `wardrobeModule` in `features/wardrobe/di/WardrobeKoinModule.kt`). `appModule` and `allModules` (every module, in dependency order) live in `app/di/AppKoinModule.kt`.
-- **Flavor modules.** Flavor-specific bindings (GMS impls vs. FOSS stubs) go in a `*FlavorModule.kt` defined in **both** `src/full/kotlin/.../di/` and `src/foss/kotlin/.../di/` with the same `val` name (`recommendationsFlavorModule`, `chatFlavorModule`, `wardrobeFlavorModule`). Never bind a flavor class from the `main` module.
+- **Flavor modules.** A feature exposes each GMS-backed capability as an interface with a no-op stub in its `src/main`, bound in a `<feature>NoOpModule`. The GMS implementations are bound in `gmsModule` (`platform/gms/di/GmsKoinModule.kt`). `app` picks one set via `flavorModule` (`app/src/full` → `includes(gmsModule)`, `app/src/foss` → `includes(<feature>NoOpModule…)`), listed in `allModules`. Never bind a GMS class outside `platform/gms`, and never include a `*NoOpModule` or `gmsModule` from a feature's main module.
 - **Startup.** `ClosetApp.onCreate()` calls `startKoin { androidLogger(...); androidContext(this@ClosetApp); workManagerFactory(); modules(allModules) }` before anything else. Framework classes (`ClosetApp`, `MainActivity`, `BackupForegroundService`) use `by inject()`.
 - **ViewModels** are registered with `viewModelOf(::X)` and obtained in Composables with `koinViewModel()` (`org.koin.compose.viewmodel.koinViewModel`). To share a ViewModel with a previous back-stack entry, pass `viewModelStoreOwner = entry`.
 - **Workers** are registered with `workerOf(::X)`; their constructors are plain `(context: Context, params: WorkerParameters, …)`. `workManagerFactory()` supplies the factory, so the manifest removes `androidx.work.WorkManagerInitializer` — keep that removal.
 - **Scope.** DAOs, repositories and providers are `single`.
 - **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(...)` in `DataKoinModule.kt`; add any new secret-bearing header to its `SENSITIVE_HEADERS`.
-- **Verification.** Every module has a `verify()` unit test, and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a flavored *sibling* feature module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
+- **Verification.** Every module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
 
 ### Database (Room)
 
@@ -121,7 +122,7 @@ Every destructive user action (delete item, delete outfit, delete log entry) mus
 
 ### MLKit namespaces
 
-Two distinct MLKit namespaces — do not confuse them:
+Two distinct MLKit namespaces — do not confuse them. Both are used only from `platform/gms` (full flavor); no feature module may import either:
 - `com.google.mlkit:genai-*` — AICore-backed GenAI APIs (Gemini Nano Prompt API, Image Description, etc.). Not available on all devices. Full flavor only.
 - `com.google.android.gms:play-services-mlkit-*` — traditional Vision ML APIs (Subject Segmentation, Barcode Scanning, etc.). Work on all devices via Play Services. No AICore required.
 
