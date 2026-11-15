@@ -22,12 +22,24 @@ Run all Gradle commands from the `app-android/` directory.
 ./gradlew lint                   # Lint all modules
 ./gradlew :app:lint              # Lint specific module
 ./gradlew :features:wardrobe:lint
-./gradlew kspDebugKotlin         # Run KSP (generates Room schema in core/data/schemas/)
-./gradlew test                   # Unit tests
-./gradlew connectedAndroidTest   # Instrumented tests
+./gradlew :core:data:kspAndroidMain        # Run Room KSP (generates the schema in core/data/schemas/)
+./gradlew test                             # Unit tests (all modules; core/data's `test` runs testAndroidHostTest + jvmTest)
+./gradlew connectedAndroidTest             # Instrumented tests
+./gradlew :core:data:testAndroidHostTest   # core/data unit tests (Android host)
+./gradlew :core:data:jvmTest               # core/data Room/JVM tests
+./gradlew :core:data:connectedAndroidDeviceTest   # core/data instrumented tests (schema, DAO, repository)
+./gradlew :core:data:compileCommonMainKotlinMetadata  # local stand-in for the iOS compile (CI only)
 ```
 
-Unit and instrumented tests exist for the stats feature. The schema test lives in `core/data/src/androidTest/.../FreshInstallSchemaTest.kt`; run `./gradlew :core:data:connectedDebugAndroidTest` before any PR that touches the schema.
+`core/data` is a Kotlin Multiplatform module (targets `android`, `jvm`, `iosArm64`, `iosSimulatorArm64`). Its source sets are `commonMain`, `androidMain`, `jvmMain`, `iosMain`, `commonTest`, `jvmTest`, `androidHostTest` and `androidDeviceTest`; it has no `BuildConfig` (the debug flag is `BuildFlags`, bound in `appModule`).
+
+Full verification before a PR:
+
+```bash
+./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
+```
+
+Unit and instrumented tests exist for the stats feature. The schema test lives in `core/data/src/androidDeviceTest/.../FreshInstallSchemaTest.kt`; run `./gradlew :core:data:connectedAndroidDeviceTest` before any PR that touches the schema.
 
 ## Architecture
 
@@ -85,7 +97,7 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 - **Computed fields** — `wear_count` (`COUNT(DISTINCT outfit_logs.id)` joined via the `outfit_log_items` snapshot, not the live `outfit_items`; log wears with `LogDao.insertLogAndSnapshot`, including in tests) and `cost_per_wear` (`purchase_price / wear_count`, `null` when wears = 0 or price is null) are never columns; always computed in queries.
 - **OOTD partial index** — `one_ootd_per_day` lives in `ClothingDatabase.onOpen()` via `CREATE … IF NOT EXISTS`, **not** `onCreate` or migrations. Room can't represent partial indexes in `@Entity` and crashes if it finds an unexpected index during migration validation.
 - When the first real migration is written, it and its test must drop `one_ootd_per_day` first; `AGENTS.md` has the pattern.
-- Full migration conventions and checklist: `core/data/src/main/kotlin/com/closet/core/data/migrations/AGENTS.md`.
+- Full migration conventions and checklist: `core/data/src/androidMain/kotlin/com/closet/core/data/migrations/AGENTS.md`.
 
 ### Navigation
 

@@ -2,12 +2,15 @@ package com.closet.di
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import com.closet.core.data.BuildFlags
 import androidx.work.WorkerParameters
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
 import org.junit.Test
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
+import org.koin.test.verify.definition
+import org.koin.test.verify.injectedParameters
 import org.koin.test.verify.verify
 
 class AppKoinGraphTest {
@@ -20,7 +23,10 @@ class AppKoinGraphTest {
                 WorkerParameters::class,
                 HttpClientEngine::class,
                 HttpClientConfig::class,
-            )
+            ),
+            // BuildFlags(isDebug) is built from BuildConfig.DEBUG, not resolved from the graph.
+            // Scoped to that one definition so a stray Boolean dependency elsewhere still fails.
+            injections = injectedParameters(definition<BuildFlags>(Boolean::class)),
         )
     }
 

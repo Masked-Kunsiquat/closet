@@ -1,8 +1,10 @@
 package com.closet.di
 
+import com.closet.BuildConfig
 import com.closet.backup.BackupRepository
 import com.closet.backup.BackupViewModel
 import com.closet.backup.RestoreRepository
+import com.closet.core.data.BuildFlags
 import com.closet.core.data.di.dataModule
 import com.closet.core.ui.di.uiModule
 import com.closet.features.chat.di.chatModule
@@ -16,6 +18,7 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 val appModule = module {
+    single { BuildFlags(isDebug = BuildConfig.DEBUG) }
     singleOf(::BackupRepository)
     singleOf(::RestoreRepository)
     viewModelOf(::BackupViewModel)

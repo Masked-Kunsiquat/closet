@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
@@ -63,6 +64,7 @@ class RecommendationsKoinTest {
             single<ClothingDatabase> { mockk(relaxed = true) }
             single<EncryptedKeyStore> { mockk(relaxed = true) }
             single<WorkManager> { mockk(relaxed = true) }
+            single { BuildFlags(isDebug = false) }
         }
         startKoin {
             allowOverride(true)
