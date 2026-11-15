@@ -44,6 +44,8 @@ Full verification before a PR:
 ./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
+CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources) on macOS. Instrumented tests don't run in CI; run them on a device.
+
 Unit and instrumented tests exist for the stats feature. Room tests (`FreshInstallSchemaTest`, `StatsDaoTest`, the repository tests) live in `core/data/src/jvmTest/` and run on the JVM against the bundled SQLite driver with `./gradlew :core:data:jvmTest` (no device needed); run them before any PR that touches the schema. `core/data/src/androidDeviceTest/` keeps only the Android-only checks (`DatabasePathTest`, `ExistingInstallUpgradeTest`); run `./gradlew :core:data:connectedAndroidDeviceTest` when changing the database builder or driver.
 
 ## Architecture

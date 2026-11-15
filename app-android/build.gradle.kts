@@ -12,9 +12,9 @@ plugins {
     alias(libs.plugins.android.lint) apply false
 }
 
-// Aggregate iOS compile check for KMP modules. No-op until a subproject applies
-// org.jetbrains.kotlin.multiplatform. Wiring uses task paths (strings), so it is
-// lazy and independent of project evaluation order.
+// Aggregate iOS compile check for KMP modules (main sources for both iOS targets,
+// test sources for the simulator). Wiring uses task paths (strings), so it is lazy
+// and independent of project evaluation order.
 val iosCompileCheck by tasks.registering {
     group = "verification"
     description = "Compiles every Kotlin Multiplatform module for iOS (arm64 device + simulator)."
@@ -27,6 +27,8 @@ subprojects {
             dependsOn(
                 "${subproject.path}:compileKotlinIosArm64",
                 "${subproject.path}:compileKotlinIosSimulatorArm64",
+                // Test sources too (simulator only: same sources, so one target is enough).
+                "${subproject.path}:compileTestKotlinIosSimulatorArm64",
             )
         }
     }
