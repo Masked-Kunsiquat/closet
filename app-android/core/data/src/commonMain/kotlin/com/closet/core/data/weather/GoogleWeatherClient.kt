@@ -1,5 +1,6 @@
 package com.closet.core.data.weather
 
+import com.closet.core.data.di.redactSensitiveHeaders
 import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.WeatherCondition
 import io.ktor.client.HttpClient
@@ -8,7 +9,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.coroutines.CancellationException
+import com.closet.core.data.util.catchingNonCancellation
 import co.touchlab.kermit.Logger
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -16,6 +17,14 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
 import kotlin.time.Clock
+
+/**
+ * Stand-in for a failed Google Weather request that is safe to log and return: the API key travels
+ * in the query string, and Ktor exception messages (timeouts, "In response from <url>") embed the
+ * full URL. Drops the original cause so nothing downstream can print it.
+ */
+internal fun sanitizeWeatherFailure(e: Throwable): Throwable =
+    IllegalStateException("Google Weather fetch failed: " + redactSensitiveHeaders(e.toString()))
 
 private const val BASE_URL = "https://weather.googleapis.com/v1/forecast/days:lookup"
 
@@ -42,7 +51,7 @@ class GoogleWeatherClient(
         lon: Double,
         apiKey: String,
     ): Result<List<DailyForecast>> =
-        runCatching {
+        catchingNonCancellation {
             val response: GoogleForecastResponse = client.get(BASE_URL) {
                 parameter("key", apiKey)
                 parameter("location.latitude", lat)
@@ -51,7 +60,8 @@ class GoogleWeatherClient(
                 parameter("pageSize", 7)
             }.body()
             response.toForecasts()
-        }.onFailure { if (it is CancellationException) throw it else Logger.withTag("GoogleWeatherClient").e(it) { "GoogleWeatherClient: fetch failed" } }
+        }.recoverCatching { throw sanitizeWeatherFailure(it) }
+            .onFailure { Logger.withTag("GoogleWeatherClient").e(it) { "GoogleWeatherClient: fetch failed" } }
 
     // ── Response DTOs ─────────────────────────────────────────────────────────
 

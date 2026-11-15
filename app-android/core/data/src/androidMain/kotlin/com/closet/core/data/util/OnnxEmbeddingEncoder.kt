@@ -30,7 +30,7 @@ import kotlin.math.sqrt
  * Subsequent calls reuse the same session — `OrtSession` is thread-safe for concurrent
  * inference runs on the same session object.
  *
- * **Asset requirements** — both must be present in `core/data/src/main/assets/`:
+ * **Asset requirements** — both must be present in `core/data/src/androidMain/assets/`:
  * - `models/arctic-embed-xs-q8.onnx`
  * - `models/vocab.txt`
  *

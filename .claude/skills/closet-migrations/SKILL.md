@@ -7,39 +7,40 @@ description: Write database migrations and seed data for the Closet app. Use whe
 
 ## Migration Conventions
 
-Full conventions and checklist: `app-android/core/data/src/main/kotlin/com/closet/core/data/migrations/AGENTS.md`
+Full conventions and checklist: `app-android/core/data/src/commonMain/kotlin/com/closet/core/data/migrations/AGENTS.md`
 
 ### Key Rules
-- Migrations live in `ClothingDatabase.kt` as `Migration(from, to)` objects passed to `addMigrations()`
+- Migrations are `Migration(from, to)` objects in `commonMain` (`migrations/` package), registered with `.addMigrations()` in `configureClosetDatabase()` (`ClothingDatabase.kt`)
+- Room KMP with the bundled SQLite driver calls `migrate(connection: SQLiteConnection)`; a migration that only overrides the `SupportSQLiteDatabase` overload throws at upgrade time
 - Never edit an applied migration — add a new one
-- Current DB version: **6**
+- Current DB version: **1** (squashed baseline; no migration files yet)
 - Room schema JSON exported to `core/data/schemas/` — commit it alongside every migration
-- Run migration tests before any PR that touches the schema: `./gradlew connectedAndroidTest`
+- Run schema/migration tests before any PR that touches the schema: `./gradlew :core:data:jvmTest` (no device needed)
 
 ### Every migration must start with:
 ```kotlin
-override fun migrate(db: SupportSQLiteDatabase) {
-    db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+override fun migrate(connection: SQLiteConnection) {
+    connection.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
     // ... rest of migration
 }
 ```
 
 ### Migration Template
 ```kotlin
-val MIGRATION_6_7 = object : Migration(6, 7) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
-        db.execSQL("ALTER TABLE clothing_items ADD COLUMN new_column TEXT")
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+        connection.execSQL("ALTER TABLE clothing_items ADD COLUMN new_column TEXT")
     }
 }
 ```
 
 ### OOTD Partial Index
-Lives in `ClothingDatabase.onOpen()`, not `onCreate()` or any migration:
+Lives in the `onOpen(connection)` callback in `configureClosetDatabase()`, not `onCreate()` or any migration:
 ```kotlin
-override fun onOpen(db: SupportSQLiteDatabase) {
-    db.execSQL("PRAGMA foreign_keys = ON")
-    db.execSQL("""
+override fun onOpen(connection: SQLiteConnection) {
+    connection.execSQL("PRAGMA foreign_keys = ON")
+    connection.execSQL("""
         CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day
         ON outfit_logs(date) WHERE is_ootd = 1
     """)
@@ -51,12 +52,12 @@ override fun onOpen(db: SupportSQLiteDatabase) {
 ## Seed Data Conventions
 - All inserts use `INSERT OR IGNORE` — seeds must be idempotent
 - Never use `INSERT OR REPLACE` (breaks foreign key references via row ID change)
-- Seeds run in `DatabaseSeeder` on `onCreate` only
+- Seeds run in `DatabaseSeeder` (`seedAll(connection)`) from the `onCreate` callback only
 - Values must match the canonical reference below exactly
 
 ### Seed Template (Kotlin)
 ```kotlin
-private fun seedSeasons(db: SupportSQLiteDatabase) {
+private fun seedSeasons(connection: SQLiteConnection) {
     val seasons = listOf(
         "Spring" to "flower",
         "Summer" to "sun",
@@ -65,10 +66,11 @@ private fun seedSeasons(db: SupportSQLiteDatabase) {
         "All Season" to "thermometer",
     )
     seasons.forEach { (name, icon) ->
-        db.execSQL(
-            "INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)",
-            arrayOf(name, icon)
-        )
+        connection.prepare("INSERT OR IGNORE INTO seasons (name, icon) VALUES (?, ?)").use { stmt ->
+            stmt.bindText(1, name)
+            stmt.bindText(2, icon)
+            stmt.step()
+        }
     }
 }
 ```
@@ -107,4 +109,4 @@ Casual, Work/Business, Formal, Athletic, Loungewear, Date Night, Vacation, Outdo
 - Do not skip `INSERT OR IGNORE`
 - Do not add columns without a migration
 - Do not forget to `DROP INDEX IF EXISTS one_ootd_per_day` at the top of every migration
-- Do not put the OOTD index in a migration or `onCreate` — it belongs in `onOpen` only
+- Do not put the OOTD index in a migration or `onCreate` — it belongs in the `onOpen` callback only

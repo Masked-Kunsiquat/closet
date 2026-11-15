@@ -50,14 +50,14 @@ Module dependencies: `app` → `features/*` → `core/ui` → `core/data`.
   CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1
   ```
 - Every manual `migrate()` must `DROP INDEX IF EXISTS one_ootd_per_day` unconditionally at the top
-- Current DB version: **6**
+- Current DB version: **1** (squashed baseline)
 
 ## Migration Rules
-- Migrations live in `ClothingDatabase.kt`
+- Migrations are `Migration` objects in `core/data` `commonMain` (`migrations/`), registered in `configureClosetDatabase()`; they implement `migrate(connection: SQLiteConnection)`
 - Never edit an applied migration — add a new one
 - Room schema JSON exported to `core/data/schemas/`
-- Run migration tests before any PR that touches the schema: `./gradlew connectedAndroidTest`
-- Full migration conventions: `core/data/src/main/kotlin/com/closet/core/data/migrations/AGENTS.md`
+- Run schema tests before any PR that touches the schema: `./gradlew :core:data:jvmTest`
+- Full migration conventions: `core/data/src/commonMain/kotlin/com/closet/core/data/migrations/AGENTS.md`
 
 ## Error Handling
 - `DataResult<T>` sealed interface (`Loading | Success | Error`) for all repository returns
@@ -87,7 +87,7 @@ Every destructive user action (delete item, delete outfit, delete log) must be g
 - `AiPreferencesRepository` is constructed only in `dataModule`'s explicit `single { }` — never `singleOf`
 
 ## Logging
-Timber. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only.
+`core/data` logs with Kermit (`co.touchlab.kermit.Logger`), debug-only via `configureLogging(BuildFlags)`, called in `ClosetApp.onCreate()` before `startKoin`. App and feature modules still use Timber until Phase 5 (debug tree planted under `BuildConfig.DEBUG` only).
 
 ## What Is Deferred — Do Not Build
 - Collage builder
