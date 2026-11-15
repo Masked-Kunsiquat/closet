@@ -7,11 +7,6 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.closet.core.data.dao.*
-import com.closet.core.data.migrations.MIGRATION_1_2
-import com.closet.core.data.migrations.MIGRATION_2_3
-import com.closet.core.data.migrations.MIGRATION_3_4
-import com.closet.core.data.migrations.MIGRATION_4_5
-import com.closet.core.data.migrations.MIGRATION_5_6
 import com.closet.core.data.model.*
 
 /**
@@ -43,7 +38,9 @@ import com.closet.core.data.model.*
         ClothingItemPatternEntity::class,
         ItemEmbeddingEntity::class
     ],
-    version = 6,
+    // Version 1 is the squashed baseline (the old 1→6 chain was reset; see migrations/AGENTS.md).
+    // Every schema change from here on needs a real migration.
+    version = 1,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -121,13 +118,12 @@ abstract class ClothingDatabase : RoomDatabase() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)
                         db.execSQL("PRAGMA foreign_keys = ON")
-                        // Partial index — Room cannot represent this in entity annotations so it is
-                        // created here (runs for every open) rather than in onCreate. This avoids
-                        // Room's post-migration schema validator rejecting it as an unexpected index.
+                        // Partial index — Room cannot represent this in entity annotations, so it is
+                        // created here (runs on every open) rather than in onCreate. Room's
+                        // post-migration validator would reject it as an unexpected index.
                         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS one_ootd_per_day ON outfit_logs(date) WHERE is_ootd = 1")
                     }
                 })
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
                 INSTANCE = instance
                 instance
