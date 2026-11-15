@@ -4,7 +4,9 @@ import androidx.annotation.StringRes
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalResources
 import com.closet.core.ui.util.UserMessage
 import kotlinx.coroutines.flow.Flow
 
@@ -23,13 +25,15 @@ fun UserMessageSnackbarEffect(
     messages: Flow<UserMessage>,
     snackbarHostState: SnackbarHostState
 ) {
-    val context = LocalContext.current
+    // LocalResources tracks configuration changes; rememberUpdatedState keeps the
+    // long-running collector below reading the current value without restarting it.
+    val resources by rememberUpdatedState(LocalResources.current)
     LaunchedEffect(messages) {
         messages.collect { message ->
             val text = if (message.args.isEmpty()) {
-                context.getString(message.resId)
+                resources.getString(message.resId)
             } else {
-                context.getString(message.resId, *message.args)
+                resources.getString(message.resId, *message.args)
             }
             snackbarHostState.showSnackbar(text)
         }
@@ -47,10 +51,10 @@ fun ResErrorSnackbarEffect(
     snackbarHostState: SnackbarHostState,
     onErrorConsumed: () -> Unit
 ) {
-    val context = LocalContext.current
+    val resources by rememberUpdatedState(LocalResources.current)
     LaunchedEffect(errorRes) {
         if (errorRes != null) {
-            snackbarHostState.showSnackbar(context.getString(errorRes))
+            snackbarHostState.showSnackbar(resources.getString(errorRes))
             onErrorConsumed()
         }
     }

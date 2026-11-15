@@ -81,7 +81,7 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 - **Initialization order:** `PRAGMA foreign_keys = ON` → create tables → `DatabaseSeeder` seeds lookup data on `onCreate`.
 - **Migrations** live in `ClothingDatabase.kt`. Never edit an applied migration — add a new one. Room schema JSON is exported to `core/data/schemas/`.
 - **Junction tables** (`clothing_item_colors`, `_materials`, `_seasons`, `_occasions`, `_patterns`) use delete-then-insert helpers in `ClothingRepository`. Never append.
-- **Computed fields** — `wear_count` (`COUNT(DISTINCT outfit_logs.id)` joined via `outfit_items`) and `cost_per_wear` (`purchase_price / wear_count`, `null` when wears = 0 or price is null) are never columns; always computed in queries.
+- **Computed fields** — `wear_count` (`COUNT(DISTINCT outfit_logs.id)` joined via the `outfit_log_items` snapshot, not the live `outfit_items`; log wears with `LogDao.insertLogAndSnapshot`, including in tests) and `cost_per_wear` (`purchase_price / wear_count`, `null` when wears = 0 or price is null) are never columns; always computed in queries.
 - **OOTD partial index** — `one_ootd_per_day` lives in `ClothingDatabase.onOpen()` via `CREATE … IF NOT EXISTS`, **not** `onCreate` or migrations. Room can't represent partial indexes in `@Entity` and crashes if it finds an unexpected index during migration validation.
 - Every manual `migrate()` must `DROP INDEX IF EXISTS one_ootd_per_day` unconditionally at the top (even if the migration doesn't touch `outfit_logs`).
 - Migration tests must also drop that index on the pre-migration DB before closing it (see `AGENTS.md` for the pattern).

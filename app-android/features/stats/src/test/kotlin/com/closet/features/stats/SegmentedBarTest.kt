@@ -107,7 +107,7 @@ class SegmentedBarTest {
     @Test
     fun `resolveTooltip - tapping Other segment returns OtherDetail`() {
         val hidden = listOf(BarSegment("X", 2, red), BarSegment("Y", 1, blue))
-        val segs = listOf(BarSegment("Alpha", 97, red), BarSegment("Other", 3, gray))
+        val segs = listOf(BarSegment("Alpha", 97, red), BarSegment("Other", 3, gray, isSyntheticOther = true))
         val result = resolveTooltip(tapX = 99f, barWidthPx = 100, segments = segs, hiddenSegments = hidden, totalCount = 100)
         assertTrue(result is TooltipContent.OtherDetail)
         val detail = result as TooltipContent.OtherDetail
@@ -117,9 +117,17 @@ class SegmentedBarTest {
     }
 
     @Test
+    fun `resolveTooltip - a real segment named Other is a SingleSegment`() {
+        // Only the synthetic segment from withOtherGroup is "Other"; a user's own "Other" label isn't.
+        val segs = listOf(BarSegment("Alpha", 97, red), BarSegment("Other", 3, blue))
+        val result = resolveTooltip(tapX = 99f, barWidthPx = 100, segments = segs, hiddenSegments = emptyList(), totalCount = 100)
+        assertEquals(TooltipContent.SingleSegment(label = "Other", percent = 3), result)
+    }
+
+    @Test
     fun `resolveTooltip - OtherDetail caps topItems at 3 and reports remaining correctly`() {
         val hidden = (1..6).map { BarSegment("H$it", it, red) }
-        val segs = listOf(BarSegment("Alpha", 79, red), BarSegment("Other", 21, gray))
+        val segs = listOf(BarSegment("Alpha", 79, red), BarSegment("Other", 21, gray, isSyntheticOther = true))
         val result = resolveTooltip(tapX = 99f, barWidthPx = 100, segments = segs, hiddenSegments = hidden, totalCount = 100)
         val detail = result as TooltipContent.OtherDetail
         assertEquals(3, detail.topItems.size)
