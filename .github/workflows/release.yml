@@ -1,12 +1,14 @@
 name: Release
 
 # Builds signed Full and FOSS release APKs and publishes a GitHub Release.
-# Only fires on version tags (v*) — and only when that tag points to a commit
-# on main (enforced by the verify job).
+# Fires on version tags (v*), only when the tag points to a commit on main
+# (enforced by the verify job). A manual run (workflow_dispatch) on main builds
+# and uploads the APKs as artifacts but never publishes a release.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 # Read-only by default; only the publish job gets contents: write.
 permissions:
@@ -36,6 +38,7 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - flavor: full
@@ -87,7 +90,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew ${{ matrix.task }}
+        run: ./gradlew ${{ matrix.task }} --stacktrace
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -99,6 +102,7 @@ jobs:
   # ── 3. Publish GitHub Release ───────────────────────────────────────────────
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
