@@ -64,7 +64,6 @@ kotlin {
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.android)
             implementation(libs.androidx.core.ktx)
-            implementation(libs.androidx.ui.tooling.preview)
         }
         jvmTest.dependencies {
             implementation(project.dependencies.platform(libs.koin.bom))
