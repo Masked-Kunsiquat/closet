@@ -5,6 +5,10 @@ import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
+import com.closet.core.data.ai.tools.ToolCallingChatProvider
+import com.closet.core.data.ai.tools.ToolSpec
+import com.closet.core.data.ai.tools.ToolStep
+import com.closet.core.data.ai.tools.ToolTurn
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.di.AiHttpClient
 import io.ktor.client.HttpClient
@@ -12,6 +16,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.coroutines.flow.first
@@ -40,7 +45,7 @@ class GeminiChatProvider(
     aiHttpClient: AiHttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
-) : ChatAiProvider {
+) : ChatAiProvider, ToolCallingChatProvider {
 
     private val client: HttpClient = aiHttpClient.client
 
@@ -81,6 +86,49 @@ class GeminiChatProvider(
             if (e is kotlinx.coroutines.CancellationException) throw e
             Timber.tag(TAG).w(e, "GeminiChatProvider inference failed (model=%s)", model)
             Result.failure(e)
+        }
+    }
+
+    override suspend fun supportsTools(): Boolean = true
+
+    override suspend fun step(
+        system: String,
+        turns: List<ToolTurn>,
+        tools: List<ToolSpec>,
+        allowTools: Boolean,
+    ): Result<ToolStep> {
+        val apiKey = aiPreferencesRepository.getGeminiApiKey().first()
+        if (apiKey.isBlank()) {
+            return Result.failure(IllegalStateException("Gemini API key is not configured"))
+        }
+        val model = aiPreferencesRepository.getGeminiModel().first()
+            .takeIf { it.isNotBlank() } ?: DEFAULT_MODEL
+        return try {
+            val body = GeminiToolFormat.buildRequest(system, turns, tools, allowTools)
+            val response = client.post("$BASE_URL/$model:generateContent") {
+                contentType(ContentType.Application.Json)
+                header("x-goog-api-key", apiKey)
+                setBody(body.toString())
+            }
+            handleResponse(response.status.value, response.bodyAsText(), model, GeminiToolFormat.roundOf(turns))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            val redacted = IllegalStateException("GeminiChatProvider tool step failed (model=$model)", e)
+            Timber.tag(TAG).w(redacted, "tool step failed")
+            Result.failure(redacted)
+        }
+    }
+
+    internal fun handleResponse(status: Int, body: String, model: String, round: Int): Result<ToolStep> {
+        if (status !in 200..299) {
+            Timber.tag(TAG).w("Gemini tool step failed: http=%d model=%s", status, model)
+            return Result.failure(IllegalStateException("GeminiChatProvider tool step failed (model=$model, http=$status)"))
+        }
+        return try {
+            Result.success(GeminiToolFormat.parseResponse(body, json, round))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Result.failure(IllegalStateException("GeminiChatProvider tool response unreadable (model=$model)", e))
         }
     }
 

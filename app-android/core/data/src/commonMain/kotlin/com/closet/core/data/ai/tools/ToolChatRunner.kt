@@ -7,7 +7,9 @@ import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 
 /**
@@ -63,6 +65,10 @@ class ToolChatRunner(private val registry: ToolRegistry) {
     }
 
     private suspend fun execute(call: ToolCall): Pair<JsonElement, Set<Long>> {
+        call.args[ARGS_PARSE_ERROR_KEY]?.let { message ->
+            val text = (message as? JsonPrimitive)?.contentOrNull ?: "invalid arguments"
+            return buildJsonObject { put("error", text) } to emptySet()
+        }
         val tool = registry.find(call.name) ?: return TOOL_FAILED to emptySet()
         return try {
             val result = tool.run(call.args)

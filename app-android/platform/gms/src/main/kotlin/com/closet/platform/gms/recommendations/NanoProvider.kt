@@ -200,8 +200,9 @@ class NanoProvider(
             engine.checkStatus()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Timber.tag(TAG).w(e, "initNanoFlow: checkStatus threw — AICore unavailable on this device")
-            emit(NanoInitResult.NotSupported)
+            Timber.tag(TAG).w(e, "initNanoFlow: checkStatus threw — AICore status check failed")
+            // A thrown check is transient (AICore busy or updating), not proof the device lacks Nano.
+            emit(NanoInitResult.Failed("Couldn't reach on-device AI. Try again later."))
             return@flow
         }
         when (status) {

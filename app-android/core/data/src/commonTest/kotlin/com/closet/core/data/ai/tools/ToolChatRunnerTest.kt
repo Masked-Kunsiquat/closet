@@ -220,4 +220,26 @@ class ToolChatRunnerTest {
         }
         assertTrue(runner().run(provider, "hi", emptyList()).isFailure)
     }
+
+    @Test
+    fun callWithArgsParseErrorDoesNotRunTheTool() = runTest {
+        var ran = false
+        val bad = ToolStep.Calls(
+            listOf(
+                ToolCall(
+                    "c1", "search_items",
+                    buildJsonObject { put(ARGS_PARSE_ERROR_KEY, "arguments were not valid JSON") },
+                ),
+            ),
+        )
+        val provider = ScriptedProvider(
+            listOf(bad, ToolStep.Final("""{"type":"items","text":"Here","item_ids":[2]}""")),
+        )
+        val result = runner(FakeTool("search_items", setOf(2L)) { ran = true }).run(provider, "hi", emptyList())
+        assertFalse(ran)
+        val results = provider.seen.last().turns.filterIsInstance<ToolTurn.ToolResults>().single().results
+        assertTrue(results.single().result.toString().contains("arguments were not valid JSON"))
+        // No ids were exposed, so the items reply is downgraded to text.
+        assertIs<ChatResponse.Text>(result.getOrThrow())
+    }
 }

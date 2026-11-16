@@ -4,6 +4,7 @@ import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.ai.tools.ToolCallingChatProvider
 import com.closet.core.data.ai.tools.ToolChatRunner
+import com.closet.core.data.ai.tools.ToolsUnsupportedException
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.util.EmbeddingEncoder
@@ -21,8 +22,9 @@ import kotlinx.coroutines.CancellationException
  * route → (if unrouted) encode query → retrieve top-K items → build context block → call AI provider.
  *
  * [ChatRouter] is checked first. On a [ChatRouter.RouterResult.Routed] result the response is
- * returned immediately — the encoder, index, and provider are never touched. This keeps routed
- * responses zero-token-cost and fully offline.
+ * returned immediately — the encoder and index are never touched, and the provider is never
+ * invoked (it is only selected beforehand, so tool-capable providers can take the tool path).
+ * This keeps routed responses zero-token-cost and fully offline.
  *
  * In the FOSS flavor [ChatRouter] is a no-op stub, so all queries go through the full pipeline.
  */
@@ -46,8 +48,10 @@ class ChatRepository(
             val selectedProvider = selected.getOrNull()
             if (selectedProvider is ToolCallingChatProvider && supportsToolsSafely(selectedProvider)) {
                 val toolResult = toolRunner.run(selectedProvider, userMessage, history)
-                toolResult.exceptionOrNull()?.let { if (it is CancellationException) throw it }
-                return toolResult
+                val toolError = toolResult.exceptionOrNull()
+                if (toolError is CancellationException) throw toolError
+                // The server rejected tools: retry this message once on the router + RAG path.
+                if (toolError !is ToolsUnsupportedException) return toolResult
             }
 
             // Router check — short-circuits the RAG pipeline for stat queries.
