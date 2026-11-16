@@ -83,7 +83,8 @@ internal object OpenAiToolFormat {
         put("properties", buildJsonObject {
             params.forEach { p -> put(p.name, paramSchema(p)) }
         })
-        put("required", JsonArray(params.filter { it.required }.map { JsonPrimitive(it.name) }))
+        val required = params.filter { it.required }
+        if (required.isNotEmpty()) put("required", JsonArray(required.map { JsonPrimitive(it.name) }))
     }
 
     private fun paramSchema(p: ToolParam): JsonObject = buildJsonObject {
@@ -140,7 +141,13 @@ internal object OpenAiToolFormat {
 
     /** Whether an HTTP error means the server doesn't accept tool calling. */
     fun isToolsUnsupported(status: Int, body: String): Boolean =
-        status in UNSUPPORTED_STATUSES && (body.contains("tools") || body.contains("tool_choice"))
+        status in UNSUPPORTED_STATUSES && body.lowercase().let { b ->
+            (b.contains("tools") || b.contains("tool_choice")) && SIGNALS.any { b.contains(it) }
+        }
+
+    private val SIGNALS = listOf(
+        "not support", "unsupported", "unknown", "unrecognized", "not allowed", "invalid",
+    )
 
     private val UNSUPPORTED_STATUSES = setOf(400, 404, 422)
 }
