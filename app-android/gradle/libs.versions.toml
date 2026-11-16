@@ -18,6 +18,8 @@ room = "2.8.4"
 sqliteBundled = "2.6.2"
 coil = "3.6.3"
 composeMultiplatform = "1.12.2"
+# Skiko native runtime for JVM tests; keep equal to the skiko version CMP resolves (see dependencyInsight --dependency skiko).
+skiko = "0.150.2"
 composeMultiplatformMaterial3 = "1.9.0"
 junit = "4.13.2"
 androidxTestExt = "1.3.0"
@@ -85,6 +87,11 @@ compose-mp-foundation = { group = "org.jetbrains.compose.foundation", name = "fo
 compose-mp-ui = { group = "org.jetbrains.compose.ui", name = "ui", version.ref = "composeMultiplatform" }
 compose-mp-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "composeMultiplatformMaterial3" }
 compose-mp-components-resources = { group = "org.jetbrains.compose.components", name = "components-resources", version.ref = "composeMultiplatform" }
+# Skiko native libs are OS/arch specific: the build script picks the classifier; declare them by coordinates here.
+skiko-awt-runtime-linux-x64 = { group = "org.jetbrains.skiko", name = "skiko-awt-runtime-linux-x64", version.ref = "skiko" }
+skiko-awt-runtime-macos-x64 = { group = "org.jetbrains.skiko", name = "skiko-awt-runtime-macos-x64", version.ref = "skiko" }
+skiko-awt-runtime-macos-arm64 = { group = "org.jetbrains.skiko", name = "skiko-awt-runtime-macos-arm64", version.ref = "skiko" }
+skiko-awt-runtime-windows-x64 = { group = "org.jetbrains.skiko", name = "skiko-awt-runtime-windows-x64", version.ref = "skiko" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExt" }
