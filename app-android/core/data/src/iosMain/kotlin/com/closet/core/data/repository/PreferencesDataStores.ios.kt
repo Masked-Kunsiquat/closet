@@ -10,7 +10,7 @@ import platform.Foundation.NSUserDomainMask
 fun iosPreferencesPath(name: String): String = documentDirectory() + "/$name.preferences_pb"
 
 @OptIn(ExperimentalForeignApi::class)
-private fun documentDirectory(): String {
+internal fun documentDirectory(): String {
     val directory: NSURL? = NSFileManager.defaultManager.URLForDirectory(
         directory = NSDocumentDirectory,
         inDomain = NSUserDomainMask,

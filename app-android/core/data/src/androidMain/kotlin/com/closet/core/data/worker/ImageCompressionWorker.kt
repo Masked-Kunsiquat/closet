@@ -8,7 +8,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.ClothingDao
-import com.closet.core.data.repository.StorageRepository.Companion.IMAGES_DIR_NAME
+import com.closet.core.data.repository.IMAGES_DIR_NAME
 import com.closet.core.data.repository.StorageRepository.Companion.JPEG_QUALITY
 import com.closet.core.data.repository.StorageRepository.Companion.MAX_DIMENSION
 import com.closet.core.data.worker.ImageCompressionWork.KEY_DONE

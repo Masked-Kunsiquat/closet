@@ -9,6 +9,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 ## [Unreleased]
 
 ### Changed
+- **Stats screen is Kotlin Multiplatform** (KMP Phase 5): shared UI and logic, Compose resources, Material Symbols icons.
 - **targetSdk 35 → 36** — predictive back (the back-to-home preview) is on by
   default on Android 14+.
 - **`core/ui` is Kotlin Multiplatform / Compose Multiplatform** (KMP Phase 4):
