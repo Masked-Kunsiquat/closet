@@ -2,6 +2,8 @@ package com.closet.features.chat
 
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ConversationTurn
+import com.closet.core.data.ai.tools.ToolCallingChatProvider
+import com.closet.core.data.ai.tools.ToolChatRunner
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.util.EmbeddingEncoder
@@ -10,7 +12,12 @@ import com.closet.features.chat.ai.ChatAiProviderSelector
 import kotlinx.coroutines.CancellationException
 
 /**
- * Orchestrates the full RAG query pipeline:
+ * Chat entry point. When the selected provider is a [ToolCallingChatProvider] that reports
+ * [ToolCallingChatProvider.supportsTools], the query goes through [ToolChatRunner] and neither the
+ * router nor the RAG pipeline runs. Otherwise (and if provider selection fails) the RAG path below
+ * runs unchanged, so routed stat queries still answer offline with no provider configured.
+ *
+ * RAG query pipeline:
  * route → (if unrouted) encode query → retrieve top-K items → build context block → call AI provider.
  *
  * [ChatRouter] is checked first. On a [ChatRouter.RouterResult.Routed] result the response is
@@ -25,12 +32,24 @@ class ChatRepository(
     private val index: EmbeddingIndex,
     private val clothingDao: ClothingDao,
     private val providerSelector: ChatAiProviderSelector,
+    private val toolRunner: ToolChatRunner,
 ) {
     suspend fun query(
         userMessage: String,
         history: List<ConversationTurn> = emptyList(),
     ): Result<ChatResponse> {
         return try {
+            // Select first: Nano availability can change per query. A selection failure is not
+            // fatal yet - the router may still answer, and the RAG path reports it otherwise.
+            val selected = providerSelector.current()
+            selected.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+            val selectedProvider = selected.getOrNull()
+            if (selectedProvider is ToolCallingChatProvider && supportsToolsSafely(selectedProvider)) {
+                val toolResult = toolRunner.run(selectedProvider, userMessage, history)
+                toolResult.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+                return toolResult
+            }
+
             // Router check — short-circuits the RAG pipeline for stat queries.
             when (val routed = router.route(userMessage)) {
                 is ChatRouter.RouterResult.Routed -> return Result.success(routed.response)
@@ -51,10 +70,7 @@ class ChatRepository(
             // Context is built once and injected into the provider's system message only.
             // History turns are passed separately — providers never re-inject context per turn.
             val context = buildContextBlock(items)
-            val provider = providerSelector.current().getOrElse {
-                if (it is CancellationException) throw it
-                return Result.failure(it)
-            }
+            val provider = selected.getOrElse { return Result.failure(it) }
             val chatResult = provider.chat(userMessage, context, history)
             chatResult.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             chatResult
@@ -63,6 +79,14 @@ class ChatRepository(
             Result.failure(e)
         }
     }
+
+    private suspend fun supportsToolsSafely(provider: ToolCallingChatProvider): Boolean =
+        try {
+            provider.supportsTools()
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            false
+        }
 
     internal fun buildContextBlock(items: List<ClothingItemDetail>): String {
         if (items.isEmpty()) return "No wardrobe items available."

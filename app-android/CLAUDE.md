@@ -61,7 +61,7 @@ features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrob
 features/stats/        — Stats screen, StatsViewModel, breakdown sections
 features/recommendations/ — Outfit recommendations, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms)
 features/settings/     — Settings screen, AI settings sub-screen, model picker, key management
-features/chat/         — RAG wardrobe chat: ChatScreen, ChatViewModel, ChatRepository, provider impls
+features/chat/         — Wardrobe chat (tool-calling or RAG): ChatScreen, ChatViewModel, ChatRepository, provider impls
 platform/gms/          — GMS/ML Kit implementations of feature capability interfaces (full flavor only)
 ```
 
@@ -135,9 +135,16 @@ Timber in `app` and the features. Debug tree planted in `ClosetApp.onCreate()` u
 
 Every destructive user action (delete item, delete outfit, delete log entry) must be guarded by an `AlertDialog` confirmation. Pattern: local `var showDeleteDialog by remember { mutableStateOf(false) }` → button sets it true → dialog calls the ViewModel. Never call a delete ViewModel function directly from a button click.
 
-### RAG pipeline (chat)
+### Chat pipeline
 
-`ChatRepository` runs: encode query via `EmbeddingEncoder` (`OnnxEmbeddingEncoder` on Android, same model as `EmbeddingWorker`) → cosine search via `EmbeddingIndex` (top-5) → fetch `ClothingItemDetail` for matched IDs → build context block (name, category, colours, materials, `semanticDescription`, `imageCaption`) → call active provider via `ChatAiProviderSelector`. `CancellationException` must be rethrown at every `getOrElse` / `Result` unwrap point — never swallow it.
+`ChatRepository` selects the provider via `ChatAiProviderSelector.current()` on every query, then picks a path:
+
+- **Tool path.** If the provider implements `ToolCallingChatProvider` and `supportsTools()` is true (checked per query after selection; a throwing `supportsTools()` counts as false), `ToolChatRunner.run(...)` drives the model: at most 4 tool rounds, then a final answer with tools disabled. Neither the router nor RAG runs. The final reply uses the usual JSON contract (`ChatResponseParser`), and the runner drops any `item_id` that did not appear in a tool result during that turn ("item_ids only from tool results"); an `items`/`outfit` reply left with no ids becomes `Text`.
+- **Router + RAG path** (providers without tool support, and the fallback). `ChatRouter` is checked first; unrouted queries encode via `EmbeddingEncoder` (`OnnxEmbeddingEncoder` on Android, same model as `EmbeddingWorker`) -> cosine search via `EmbeddingIndex` (top-5) -> fetch `ClothingItemDetail` -> build context block (name, category, colours, materials, `semanticDescription`, `imageCaption`) -> `provider.chat(...)`. A provider-selection failure only surfaces here, so routed stat queries still answer offline.
+
+The tool layer lives in `core/data/.../ai/tools/` (`ToolRegistry`, the read-only wardrobe tools, `ToolChatRunner`). Tools are read-only, names are `snake_case`, every tool description must be at most 180 characters, results are compact JSON with item lists capped at 20, and an unknown filter value returns an error with `valid_values`.
+
+`CancellationException` must be rethrown at every `getOrElse` / `Result` unwrap point - never swallow it.
 
 ### MLKit namespaces
 
@@ -163,7 +170,7 @@ Two distinct MLKit namespaces — do not confuse them. Both are used only from `
 | `core/data/src/.../migrations/AGENTS.md` | Full migration conventions and checklist |
 | `core/data/src/.../dao/StatsDao.kt` | Stats queries (wear counts, breakdowns by category/color/occasion) |
 | `features/stats/src/.../StatsViewModel.kt` | Stats state with `StatPeriod` filter |
-| `features/chat/src/.../ChatRepository.kt` | RAG query pipeline (encode → search → context → provider) |
+| `features/chat/src/.../ChatRepository.kt` | Chat entry point (tool path, or router → encode → search → context → provider) |
 | `core/data/src/commonMain/.../util/EmbeddingIndex.kt` | In-memory FAISS-style flat index; `search(vec, topK)` returns item IDs by cosine similarity |
 | `core/data/src/commonMain/.../util/EmbeddingEncoder.kt` | Encoder interface (`HIDDEN_SIZE`, `modelVersion`); Android impl is `androidMain/.../OnnxEmbeddingEncoder.kt` |
 | `core/data/src/commonMain/.../worker/EmbeddingWork.kt` | `EmbeddingScheduler` interface + work name constants (`WorkStatus.kt` beside it) |

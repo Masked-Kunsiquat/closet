@@ -11,7 +11,7 @@ import org.junit.Test
 
 class ChatContextBlockTest {
 
-    private val repository = ChatRepository(mockk(), mockk(), mockk(), mockk(), mockk())
+    private val repository = ChatRepository(mockk(), mockk(), mockk(), mockk(), mockk(), mockk())
 
     private fun detail(id: Long, name: String, color: String) = ClothingItemDetail(
         item = ClothingItemEntity(id = id, name = name),
