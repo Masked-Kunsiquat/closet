@@ -80,28 +80,35 @@ class ToolChatRunner(private val registry: ToolRegistry) {
             if (ids.isEmpty()) {
                 ChatResponse.Text(response.text)
             } else {
-                response.copy(itemIds = ids, action = response.action?.takeIf { it.isValid(seen) })
+                response.copy(itemIds = ids, action = response.action?.takeIf { it.isValidFor(ids) })
             }
         }
         is ChatResponse.WithOutfit -> {
             val ids = response.itemIds.filter { it in seen }
-            if (ids.isEmpty()) {
-                ChatResponse.Text(response.text)
-            } else {
-                response.copy(itemIds = ids, action = response.action?.takeIf { it.isValid(seen) })
+            when {
+                ids.isEmpty() -> ChatResponse.Text(response.text)
+                // An outfit must keep 2–4 items (ChatResponseParser); one survivor is just an item.
+                ids.size < MIN_OUTFIT_ITEMS -> ChatResponse.WithItems(
+                    text = response.text,
+                    itemIds = ids,
+                    action = response.action?.takeIf { it !is ChatAction.LogOutfit && it.isValidFor(ids) },
+                )
+                else -> response.copy(itemIds = ids, action = response.action?.takeIf { it.isValidFor(ids) })
             }
         }
         else -> response
     }
 
-    private fun ChatAction.isValid(seen: Set<Long>): Boolean = when (this) {
-        is ChatAction.LogOutfit -> itemIds.all { it in seen }
-        is ChatAction.OpenItem -> itemId in seen
+    /** An action may only reference items that survive validation in the final reply. */
+    private fun ChatAction.isValidFor(ids: List<Long>): Boolean = when (this) {
+        is ChatAction.LogOutfit -> itemIds.isNotEmpty() && itemIds.all { it in ids }
+        is ChatAction.OpenItem -> itemId in ids
         ChatAction.OpenRecommendations -> true
     }
 
     private companion object {
         const val MAX_ROUNDS = 4
+        const val MIN_OUTFIT_ITEMS = 2
         val TOOL_FAILED: JsonElement = buildJsonObject { put("error", "tool failed") }
     }
 }

@@ -43,10 +43,14 @@ private fun JsonObject.string(name: String): String? =
     primitive(name)?.content?.trim()?.takeIf { it.isNotEmpty() }
 
 private fun JsonObject.int(name: String): Int? =
-    primitive(name)?.content?.trim()?.let { it.toIntOrNull() ?: it.toDoubleOrNull()?.toInt() }
+    primitive(name)?.content?.trim()?.let { it.toIntOrNull() ?: integralOrNull(it, Int.MIN_VALUE.toDouble(), Int.MAX_VALUE.toDouble())?.toInt() }
 
 private fun JsonObject.long(name: String): Long? =
-    primitive(name)?.content?.trim()?.let { it.toLongOrNull() ?: it.toDoubleOrNull()?.toLong() }
+    primitive(name)?.content?.trim()?.let { it.toLongOrNull() ?: integralOrNull(it, Long.MIN_VALUE.toDouble(), Long.MAX_VALUE.toDouble())?.toLong() }
+
+/** Accepts "3.0"-style numbers only when finite, integral and in range; "1.7" is rejected, not truncated. */
+private fun integralOrNull(text: String, min: Double, max: Double): Double? =
+    text.toDoubleOrNull()?.takeIf { it.isFinite() && it == kotlin.math.floor(it) && it >= min && it <= max }
 
 private fun JsonObject.bool(name: String): Boolean? =
     primitive(name)?.content?.trim()?.lowercase()?.let {
@@ -242,7 +246,10 @@ class SearchItemsTool(
     private suspend fun semanticOrder(query: String): List<Long> = try {
         withContext(Dispatchers.IO) {
             if (!encoder.isAvailable || !embeddingIndex.isLoaded) return@withContext emptyList()
-            val vec = encoder.encode(query).getOrNull() ?: return@withContext emptyList()
+            val encoded = encoder.encode(query)
+            // A cancellation wrapped in the Result must still cancel, not fall back.
+            encoded.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+            val vec = encoded.getOrNull() ?: return@withContext emptyList()
             embeddingIndex.search(vec, topK = Int.MAX_VALUE)
         }
     } catch (e: CancellationException) {
@@ -402,7 +409,8 @@ class OutfitsWornOnTool(
         val logs = logDao.getLogsForDateOnce(date)
         val allIds = mutableSetOf<Long>()
         val outfits = logs.map { log ->
-            val items = clothingDao.detailsInOrder(logDao.getItemIdsForLog(log.id))
+            // Same 20-item cap as every other item list; ids come from the capped list.
+            val items = clothingDao.detailsInOrder(logDao.getItemIdsForLog(log.id)).take(MAX_ITEMS)
             allIds += items.map { it.item.id }
             buildJsonObject {
                 put("outfit_name", log.outfitName?.let { JsonPrimitive(it) } ?: JsonNull)

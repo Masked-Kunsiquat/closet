@@ -64,6 +64,40 @@ class ToolChatRunnerTest {
     }
 
     @Test
+    fun outfitFilteredToOneItemBecomesItemsAndDropsLogOutfit() = runTest {
+        val provider = ScriptedProvider(
+            listOf(
+                call("search_items"),
+                ToolStep.Final(
+                    """{"type":"outfit","text":"Wear these","item_ids":[2,5,6],"reason":"Warm",""" +
+                        """"action":{"type":"log_outfit","item_ids":[2,5,6]}}""",
+                ),
+            ),
+        )
+        val result = runner(FakeTool("search_items", setOf(2L))).run(provider, "hi", emptyList())
+        val response = assertIs<ChatResponse.WithItems>(result.getOrThrow())
+        assertEquals(listOf(2L), response.itemIds)
+        assertNull(response.action)
+    }
+
+    @Test
+    fun outfitKeepsTwoSeenItemsButDropsActionReferencingFilteredIds() = runTest {
+        val provider = ScriptedProvider(
+            listOf(
+                call("search_items"),
+                ToolStep.Final(
+                    """{"type":"outfit","text":"Wear these","item_ids":[2,3,9],"reason":"Warm",""" +
+                        """"action":{"type":"log_outfit","item_ids":[2,3,9]}}""",
+                ),
+            ),
+        )
+        val result = runner(FakeTool("search_items", setOf(2L, 3L))).run(provider, "hi", emptyList())
+        val response = assertIs<ChatResponse.WithOutfit>(result.getOrThrow())
+        assertEquals(listOf(2L, 3L), response.itemIds)
+        assertNull(response.action)
+    }
+
+    @Test
     fun itemsReplyWithNoSeenIdsBecomesText() = runTest {
         val provider = ScriptedProvider(
             listOf(ToolStep.Final("""{"type":"items","text":"Here","item_ids":[7]}""")),

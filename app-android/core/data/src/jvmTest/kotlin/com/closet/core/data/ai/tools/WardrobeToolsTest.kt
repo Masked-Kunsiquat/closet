@@ -12,6 +12,7 @@ import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.util.toByteArrayLE
 import com.closet.core.data.worker.EmbeddingWork
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -26,6 +27,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -218,6 +220,47 @@ class WardrobeToolsTest {
         assertEquals(3, r.obj()["total_matches"]!!.jsonPrimitive.int)
     }
 
+    @Test
+    fun searchRethrowsCancellationReturnedInsideTheEncoderResult() {
+        runBlocking {
+            db.embeddingDao().upsert(
+                ItemEmbeddingEntity(
+                    itemId = sneakersId,
+                    embeddingBlob = FloatArray(EmbeddingEncoder.HIDDEN_SIZE).also { it[0] = 1f }.toByteArrayLE(),
+                    modelVersion = EmbeddingWork.MODEL_VERSION,
+                    inputSnapshot = "x",
+                    embeddedAt = Clock.System.now(),
+                ),
+            )
+            index.load()
+        }
+        encoder = object : EmbeddingEncoder {
+            override val isAvailable = true
+            override val modelVersion = EmbeddingWork.MODEL_VERSION
+            override suspend fun encode(text: String): Result<FloatArray> =
+                Result.failure(CancellationException("cancelled"))
+        }
+        registry = buildRegistry()
+        assertFailsWith<CancellationException> { search(buildJsonObject { put("query", "anything") }) }
+    }
+
+    @Test
+    fun fractionalIdIsRejectedNotTruncated() {
+        val fractional = run("wear_history", buildJsonObject { put("item_id", sneakersId + 0.5) })
+        assertNotNull(fractional.obj()["error"])
+        val integral = run("wear_history", buildJsonObject { put("item_id", sneakersId.toDouble()) })
+        assertNull(integral.obj()["error"])
+        assertEquals(setOf(sneakersId), integral.itemIds)
+    }
+
+    @Test
+    fun fractionalLimitIsNotTruncated() {
+        runBlocking { repeat(5) { insertItem("Extra yellow $it", "Tops", "T-Shirt", listOf("Yellow")) } }
+        // 1.7 must not become 1; an invalid limit falls back to the default (10).
+        val r = search(buildJsonObject { put("colors", strings("yellow")); put("limit", 1.7) })
+        assertEquals(6, r.itemIdsInJson().size)
+    }
+
     // ─── other tools ──────────────────────────────────────────────────────────
 
     @Test
@@ -256,6 +299,17 @@ class WardrobeToolsTest {
         val r = run("outfits_worn_on", buildJsonObject { put("date", "2026-03-03") })
         assertEquals(1, r.obj()["outfits"]!!.jsonArray.size)
         assertEquals(setOf(overcoatId), r.itemIds)
+    }
+
+    @Test
+    fun outfitsWornOnCapsItemsPerOutfitAndKeepsIdsAligned() {
+        val ids = runBlocking { (1..25).map { insertItem("Layer $it", "Tops", "T-Shirt", listOf("Grey")) } }
+        runBlocking { db.logDao().insertAdHocLogAndSnapshot(OutfitLogEntity(date = "2026-04-04"), ids) }
+        val r = run("outfits_worn_on", buildJsonObject { put("date", "2026-04-04") })
+        val items = r.obj()["outfits"]!!.jsonArray.single().jsonObject["items"]!!.jsonArray
+        assertEquals(20, items.size)
+        val jsonIds = items.map { it.jsonObject["id"]!!.jsonPrimitive.content.toLong() }.toSet()
+        assertEquals(jsonIds, r.itemIds)
     }
 
     @Test
