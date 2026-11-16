@@ -9,12 +9,16 @@ import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSelection
 import com.closet.features.recommendations.ai.OnDeviceRecommendationProvider
+import com.closet.platform.gms.shouldFallBackToPlainText
 import com.closet.platform.gms.toOnDeviceAiException
+import com.closet.platform.gms.typedResponseOrNull
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
+import com.google.mlkit.genai.prompt.GenerateContentRequest
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
+import com.google.mlkit.genai.prompt.generateTypedContentRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
@@ -81,21 +85,57 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
         model.countTokens(request(prompt)).totalTokens
     } catch (e: Exception) {
         if (e is kotlinx.coroutines.CancellationException) throw e
-        Timber.tag("NanoInferenceEngine").w(e, "countTokens failed — trim gate disabled")
+        Timber.tag(TAG).w(e, "countTokens failed — trim gate disabled")
         Int.MAX_VALUE
     }
 
     override suspend fun tokenLimit(): Int = model.getTokenLimit()
 
-    override suspend fun generate(prompt: String): String {
-        val response = try {
-            model.generateContent(request(prompt))
+    /**
+     * Uses structured output ([NanoComboPicks]) when the model supports it, serialized back to
+     * the same JSON array text as the plain path. Falls back to plain text when structured
+     * output is unavailable, fails in a way [shouldFallBackToPlainText] accepts, or returns no
+     * picks.
+     */
+    override suspend fun generate(prompt: String): String = try {
+        val request = request(prompt)
+        generateStructured(request) ?: generatePlain(request)
+    } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        throw e.toOnDeviceAiException()
+    }
+
+    /** Typed picks as JSON text, or null to fall back to plain text. */
+    private suspend fun generateStructured(request: GenerateContentRequest): String? {
+        val available = try {
+            model.isStructuredOutputFeatureAvailable()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            throw e.toOnDeviceAiException()
+            Timber.tag(TAG).d(e, "isStructuredOutputFeatureAvailable failed — using plain text")
+            false
         }
-        return response.candidates.firstOrNull()?.text
+        if (!available) return null
+        val picks = try {
+            val response = model.generateContent(generateTypedContentRequest(request, NanoComboPicks::class))
+            typedResponseOrNull(response.candidates.map { it.response }) { it.picks.isEmpty() }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            if (!shouldFallBackToPlainText(e)) throw e
+            Timber.tag(TAG).d(e, "Structured output failed — falling back to plain text")
+            return null
+        } ?: run {
+            Timber.tag(TAG).d("Structured output returned no picks — falling back to plain text")
+            return null
+        }
+        return picks.toResponseJson()
+    }
+
+    private suspend fun generatePlain(request: GenerateContentRequest): String =
+        model.generateContent(request).candidates.firstOrNull()?.text
             ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
+
+    private companion object {
+        const val TAG = "NanoInferenceEngine"
     }
 }
 

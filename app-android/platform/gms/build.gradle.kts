@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -44,6 +45,8 @@ dependencies {
 
     // MLKit GenAI Prompt API — Gemini Nano on-device inference (chat + recommendations)
     implementation(libs.mlkit.genai.prompt)
+    // ML Kit GenAI schema processor — generates GenerableProviders for @Generable structured-output classes
+    ksp(libs.mlkit.genai.schema.compiler)
     // MLKit Entity Extraction — chat date parsing; model downloaded via Play Services (~5.6 MB)
     implementation(libs.mlkit.entity.extraction)
     // MLKit Language Identification — chat router English gate

@@ -64,15 +64,16 @@ class ChatRepository(
         }
     }
 
-    private fun buildContextBlock(items: List<ClothingItemDetail>): String {
+    internal fun buildContextBlock(items: List<ClothingItemDetail>): String {
         if (items.isEmpty()) return "No wardrobe items available."
         return buildString {
             appendLine("Wardrobe context (${items.size} items):")
-            items.forEachIndexed { idx, detail ->
+            items.forEach { detail ->
                 val item = detail.item
                 val name = (detail.brand?.let { "${it.name} ${item.name}" } ?: item.name)
                     .replace(Regex("\\s+"), " ").trim()
-                append("${idx + 1}. [ID:${item.id}] $name")
+                // No positional number: small models confuse a list index with the [ID:…].
+                append("- [ID:${item.id}] $name")
                 val category = buildString {
                     detail.category?.let { cat -> append(cat.name) }
                     detail.subcategory?.let { sub ->
