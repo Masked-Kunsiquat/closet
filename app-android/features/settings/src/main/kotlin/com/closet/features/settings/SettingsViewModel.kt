@@ -264,14 +264,16 @@ class SettingsViewModel(
         viewModelScope.launch {
             _nanoStatus.value = NanoStatus.Checking
             nanoInitializer.initNanoFlow().collect { result ->
-                // Persist the real token limit for the recommendations trim gate (0 = unknown).
-                if (result is NanoInitResult.Success && result.tokenLimit > 0) {
-                    try {
+                // Persist the outcome: chat, recommendations and the coherence scorer gate Nano on
+                // getAiReady(); the token limit feeds the recommendations trim gate (0 = unknown).
+                try {
+                    nanoReadyFor(result)?.let { aiPreferencesRepository.setAiReady(it) }
+                    if (result is NanoInitResult.Success && result.tokenLimit > 0) {
                         aiPreferencesRepository.setTokenLimit(result.tokenLimit)
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        Timber.w(e, "SettingsViewModel: failed to persist Nano token limit")
                     }
+                } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    Timber.w(e, "SettingsViewModel: failed to persist Nano readiness")
                 }
                 _nanoStatus.value = when (result) {
                     is NanoInitResult.Downloading -> NanoStatus.Downloading(result.progressPct)
