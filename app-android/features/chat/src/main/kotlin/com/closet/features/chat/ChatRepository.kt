@@ -22,8 +22,9 @@ import kotlinx.coroutines.CancellationException
  * route → (if unrouted) encode query → retrieve top-K items → build context block → call AI provider.
  *
  * [ChatRouter] is checked first. On a [ChatRouter.RouterResult.Routed] result the response is
- * returned immediately — the encoder, index, and provider are never touched. This keeps routed
- * responses zero-token-cost and fully offline.
+ * returned immediately — the encoder and index are never touched, and the provider is never
+ * invoked (it is only selected beforehand, so tool-capable providers can take the tool path).
+ * This keeps routed responses zero-token-cost and fully offline.
  *
  * In the FOSS flavor [ChatRouter] is a no-op stub, so all queries go through the full pipeline.
  */

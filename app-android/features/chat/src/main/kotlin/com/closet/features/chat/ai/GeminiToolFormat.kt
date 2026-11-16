@@ -22,11 +22,12 @@ import kotlinx.serialization.json.put
 /** Pure request-building and response-parsing for Gemini generateContent function calling. */
 internal object GeminiToolFormat {
 
+    private const val THOUGHT_SIGNATURE = "thoughtSignature"
+
     /**
      * With [allowTools] false the declarations are omitted and `responseMimeType` is JSON (Gemini
      * rejects JSON mime together with function calling). With tools on, no mime type is sent.
      */
-    private const val THOUGHT_SIGNATURE = "thoughtSignature"
 
     fun buildRequest(
         system: String,

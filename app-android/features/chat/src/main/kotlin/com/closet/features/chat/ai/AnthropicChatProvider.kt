@@ -126,6 +126,7 @@ class AnthropicChatProvider(
 
     internal fun handleResponse(status: Int, body: String, model: String): Result<ToolStep> {
         if (status !in 200..299) {
+            Timber.tag(TAG).w("Anthropic tool step failed: http=%d model=%s", status, model)
             return Result.failure(IllegalStateException("AnthropicChatProvider tool step failed (model=$model, http=$status)"))
         }
         return try {

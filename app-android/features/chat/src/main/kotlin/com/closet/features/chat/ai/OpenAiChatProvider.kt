@@ -143,6 +143,7 @@ class OpenAiChatProvider(
                 rejectedConfig = configKey
                 return Result.failure(ToolsUnsupportedException("HTTP $status rejected tools"))
             }
+            Timber.tag(TAG).w("OpenAI tool step failed: http=%d model=%s", status, model)
             return Result.failure(IllegalStateException("OpenAiChatProvider tool step failed (model=$model, http=$status)"))
         }
         return try {

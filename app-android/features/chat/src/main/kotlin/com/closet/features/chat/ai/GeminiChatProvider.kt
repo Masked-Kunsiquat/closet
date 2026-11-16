@@ -121,6 +121,7 @@ class GeminiChatProvider(
 
     internal fun handleResponse(status: Int, body: String, model: String, round: Int): Result<ToolStep> {
         if (status !in 200..299) {
+            Timber.tag(TAG).w("Gemini tool step failed: http=%d model=%s", status, model)
             return Result.failure(IllegalStateException("GeminiChatProvider tool step failed (model=$model, http=$status)"))
         }
         return try {
