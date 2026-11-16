@@ -9,6 +9,23 @@ import org.junit.Test
 class NanoChatReplyTest {
 
     @Test
+    fun `blank reply is empty and triggers the plain-text fallback`() {
+        val blank = NanoChatReply(type = "text", text = "  ", itemIds = emptyList(), reason = null)
+        assertTrue(blank.isEmpty())
+        // typedResponseOrNull returning null is what makes NanoChatProvider fall back to plain text.
+        assertEquals(null, com.closet.platform.gms.typedResponseOrNull(listOf(blank)) { it.isEmpty() })
+    }
+
+    @Test
+    fun `reply with text or item IDs is not empty`() {
+        val text = NanoChatReply(type = "text", text = "Hi", itemIds = emptyList(), reason = null)
+        val items = NanoChatReply(type = "items", text = "", itemIds = listOf(2L), reason = null)
+        assertEquals(false, text.isEmpty())
+        assertEquals(false, items.isEmpty())
+        assertEquals(text, com.closet.platform.gms.typedResponseOrNull(listOf(text)) { it.isEmpty() })
+    }
+
+    @Test
     fun `text reply becomes ChatResponse Text`() {
         val reply = NanoChatReply(type = "text", text = "Hello", itemIds = emptyList(), reason = null)
         assertEquals(ChatResponse.Text("Hello"), reply.toChatResponse().getOrThrow())

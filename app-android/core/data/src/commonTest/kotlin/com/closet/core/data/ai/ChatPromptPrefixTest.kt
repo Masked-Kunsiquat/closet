@@ -22,7 +22,8 @@ class ChatPromptPrefixTest {
     }
 
     @Test
-    fun `prompt says the listed items are closest matches, not guaranteed matches`() {
+    // No commas in test names: Kotlin/Native (iOS) rejects them.
+    fun `prompt says the listed items are closest matches and not guaranteed matches`() {
         assertTrue(prompt.contains("NOT guaranteed matches"))
         assertTrue(prompt.contains("Never attribute a color, material or category"))
     }

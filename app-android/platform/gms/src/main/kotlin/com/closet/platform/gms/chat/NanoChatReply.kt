@@ -40,6 +40,10 @@ data class NanoChatReply(
     val reason: String?,
 )
 
+/** True when the model returned nothing usable: blank text, no item IDs and no reason. */
+internal fun NanoChatReply.isEmpty(): Boolean =
+    text.isBlank() && itemIds.isEmpty() && reason.isNullOrBlank()
+
 /** Serializes this reply to the JSON shape [ChatResponseParser] expects. */
 internal fun NanoChatReply.toParserJson(): String = buildJsonObject {
     put("type", type)

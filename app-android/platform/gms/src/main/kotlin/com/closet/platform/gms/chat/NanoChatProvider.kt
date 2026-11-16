@@ -164,7 +164,8 @@ class NanoChatProvider(
     private suspend fun generateStructured(request: GenerateContentRequest): Result<ChatResponse>? {
         val reply = try {
             val response = model.generateContent(generateTypedContentRequest(request, NanoChatReply::class))
-            typedResponseOrNull(response.candidates.map { it.response })
+            // A blank reply counts as no reply, so the plain-text fallback below runs.
+            typedResponseOrNull(response.candidates.map { it.response }) { it.isEmpty() }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             if (!shouldFallBackToPlainText(e)) throw e
