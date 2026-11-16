@@ -8,6 +8,20 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ## [Unreleased]
 
+### Changed
+- **targetSdk 35 → 36** — predictive back (the back-to-home preview) is on by
+  default on Android 14+.
+- **`core/ui` is Kotlin Multiplatform / Compose Multiplatform** (KMP Phase 4):
+  the theme, shared components and preferences are in common code, and icons and
+  strings use Compose resources. Dynamic color stays Android-only.
+
+### Fixed
+- **Keyboard covering the screen** — the app now resizes above the keyboard
+  (`adjustResize` + IME insets) instead of panning the whole window, so top
+  bars stay visible and nothing slides under the status bar.
+- **Error messages showing a literal `%s`** — placeholder values are filled in.
+- Two deprecated Compose APIs replaced (`menuAnchor`, `LocalClipboardManager`).
+
 ---
 
 ## [0.8.0] — 2026-11-16

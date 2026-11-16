@@ -3,7 +3,9 @@ package com.closet.navigation
 import android.content.Intent
 import androidx.annotation.StringRes
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -166,9 +168,13 @@ fun ClosetNavGraph(
         NavHost(
             navController = navController,
             startDestination = ClosetDestination(),
+            // Edge-to-edge + adjustResize: consume the bars' padding, then pad for the
+            // keyboard so every screen shrinks above the IME (no gap under the bottom bar).
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
+                .imePadding()
         ) {
             composable<ClosetDestination> {
                 ClosetScreen(
