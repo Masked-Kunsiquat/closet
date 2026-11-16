@@ -21,16 +21,19 @@ import kotlinx.serialization.json.putJsonArray
 @Generable(description = "A reply from a personal wardrobe assistant")
 data class NanoChatReply(
     @Guide(
-        description = "text for a plain answer, items when the answer references specific " +
-            "wardrobe items, outfit for an outfit suggestion",
+        description = "text when nothing in the list matches or no specific items are needed; " +
+            "items when the answer references specific wardrobe items; outfit for an outfit suggestion",
         enumValues = ["text", "items", "outfit"],
     )
     val type: String,
-    @Guide(description = "A concise, conversational answer of 1 to 3 sentences")
+    @Guide(
+        description = "A concise, conversational answer of 1 to 3 sentences. Refer to items by " +
+            "name; never mention IDs",
+    )
     val text: String,
     @Guide(
-        description = "Numeric IDs of wardrobe items from the context. Empty for text; the " +
-            "relevant items for items; 2 to 4 items forming a complete outfit for outfit",
+        description = "The numbers inside [ID:…] of only the items whose listed attributes match " +
+            "the question; empty when none match. 2 to 4 items forming a complete outfit for outfit",
     )
     val itemIds: List<Long>,
     @Guide(description = "One-sentence rationale. Required for outfit, otherwise null")
