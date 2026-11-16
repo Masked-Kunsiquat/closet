@@ -146,7 +146,7 @@ internal object OpenAiToolFormat {
         }
 
     private val SIGNALS = listOf(
-        "not support", "unsupported", "unknown", "unrecognized", "not allowed", "invalid",
+        "not support", "unsupported", "unknown", "unrecognized", "not allowed", "invalid tool",
     )
 
     private val UNSUPPORTED_STATUSES = setOf(400, 404, 422)
