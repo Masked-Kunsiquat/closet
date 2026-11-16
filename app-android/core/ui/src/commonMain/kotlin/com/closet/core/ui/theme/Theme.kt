@@ -1,32 +1,20 @@
 package com.closet.core.ui.theme
 
-import android.app.Activity
-import android.app.UiModeManager
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
 
 /**
  * Root Material 3 theme for the app.
  *
  * Color scheme selection priority:
- * 1. Dynamic color (Material You) on Android 12+ when [dynamicColor] is `true`.
+ * 1. Dynamic color (Material You) where the platform supports it when [dynamicColor] is `true`.
  * 2. Accent-based MTB-generated [ColorScheme], with the correct contrast variant
- *    selected automatically from [UiModeManager.contrast] on API 34+.
+ *    selected automatically from the platform contrast level ([rememberContrastLevel]).
  *
- * Status bar and navigation bar icon appearance is updated to match the current
- * light/dark mode via [WindowCompat].
+ * System bar icon appearance is updated to match the current light/dark mode by
+ * [SystemBarAppearance] (Android only).
  *
  * @param accent The accent palette to apply when dynamic color is unavailable.
  * @param darkTheme Whether to use dark colors; defaults to the system setting.
@@ -44,22 +32,11 @@ fun ClosetTheme(
     val contrastLevel = rememberContrastLevel()
 
     val colorScheme: ColorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+        dynamicColor -> platformDynamicColorScheme(darkTheme) ?: accentColorScheme(accent, darkTheme, contrastLevel)
         else -> accentColorScheme(accent, darkTheme, contrastLevel)
     }
 
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            val insetsController = WindowCompat.getInsetsController(window, view)
-            insetsController.isAppearanceLightStatusBars = !darkTheme
-            insetsController.isAppearanceLightNavigationBars = !darkTheme
-        }
-    }
+    SystemBarAppearance(darkTheme)
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -69,39 +46,15 @@ fun ClosetTheme(
 }
 
 /**
- * Returns the current system contrast level as reactive Compose state.
- *
- * On Android 14+ (API 34) this registers a [UiModeManager.ContrastChangeListener] so
- * the returned value updates — and triggers recomposition — whenever the user changes
- * the system contrast setting while the app is running. On older APIs it always returns
- * `0f` (standard contrast).
- */
-@Composable
-private fun rememberContrastLevel(): Float {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return 0f
-    val context = LocalContext.current
-    val uiModeManager = remember(context) { context.getSystemService(UiModeManager::class.java) }
-    val contrastState = remember { mutableStateOf(uiModeManager?.contrast ?: 0f) }
-    DisposableEffect(uiModeManager) {
-        val listener = UiModeManager.ContrastChangeListener { newContrast ->
-            contrastState.value = newContrast
-        }
-        uiModeManager?.addContrastChangeListener(context.mainExecutor, listener)
-        onDispose { uiModeManager?.removeContrastChangeListener(listener) }
-    }
-    return contrastState.value
-}
-
-/**
  * Returns the pre-baked MTB [ColorScheme] for [accent] that best matches
  * [darkTheme] and the system's [contrastLevel].
  *
- * Contrast thresholds mirror [UiModeManager.contrast] semantics:
+ * Contrast thresholds mirror Android `UiModeManager.contrast` semantics:
  * - `>= 1.0f` → high contrast
  * - `>= 0.5f` → medium contrast
  * - otherwise → standard
  */
-private fun accentColorScheme(
+internal fun accentColorScheme(
     accent: ClosetAccent,
     darkTheme: Boolean,
     contrastLevel: Float,

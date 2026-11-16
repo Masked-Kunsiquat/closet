@@ -1,31 +1,28 @@
 package com.closet.core.ui.preferences
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.closet.core.ui.theme.ClosetAccent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "closet_prefs")
-
 /**
  * Repository for persisting and retrieving user preferences via [DataStore].
  *
- * Backed by a `preferences` DataStore named `closet_prefs`. All operations are
+ * Backed by the `closet_prefs` preferences DataStore bound per platform in Koin. All operations are
  * coroutine-safe; reads are exposed as a [Flow] so callers react to changes
  * automatically without polling.
  *
  * Provided as a Koin `single` — inject anywhere via Koin.
  */
 class PreferencesRepository(
-    private val context: Context,
+    private val dataStore: DataStore<Preferences>,
 ) {
     private val accentKey = stringPreferencesKey("accent")
-    private val dynamicColorKey = androidx.datastore.preferences.core.booleanPreferencesKey("dynamic_color")
+    private val dynamicColorKey = booleanPreferencesKey("dynamic_color")
     private val lastHandledBatchIdKey = stringPreferencesKey("last_handled_batch_id")
 
     /**
@@ -33,7 +30,7 @@ class PreferencesRepository(
      * re-emits whenever it changes. Falls back to [ClosetAccent.Amber] if no
      * value has been saved or the stored name no longer matches a known accent.
      */
-    fun getAccent(): Flow<ClosetAccent> = context.dataStore.data.map { prefs ->
+    fun getAccent(): Flow<ClosetAccent> = dataStore.data.map { prefs ->
         val name = prefs[accentKey] ?: ClosetAccent.Amber.name
         ClosetAccent.entries.find { it.name == name } ?: ClosetAccent.Amber
     }
@@ -42,7 +39,7 @@ class PreferencesRepository(
      * Persists [accent] to DataStore. Suspends until the write completes.
      */
     suspend fun setAccent(accent: ClosetAccent) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[accentKey] = accent.name
         }
     }
@@ -52,7 +49,7 @@ class PreferencesRepository(
      * Defaults to `false` so the user-selected accent always applies unless
      * explicitly opted in.
      */
-    fun getDynamicColor(): Flow<Boolean> = context.dataStore.data.map { prefs ->
+    fun getDynamicColor(): Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[dynamicColorKey] ?: false
     }
 
@@ -61,7 +58,7 @@ class PreferencesRepository(
      * the write completes.
      */
     suspend fun setDynamicColor(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[dynamicColorKey] = enabled
         }
     }
@@ -70,12 +67,12 @@ class PreferencesRepository(
      * The UUID string of the last batch segmentation job the UI acknowledged,
      * used to suppress duplicate snackbars across recompositions. Null when unset.
      */
-    val lastHandledBatchId: Flow<String?> = context.dataStore.data.map { prefs ->
+    val lastHandledBatchId: Flow<String?> = dataStore.data.map { prefs ->
         prefs[lastHandledBatchIdKey]
     }
 
     suspend fun setLastHandledBatchId(id: String): Result<Unit> = try {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[lastHandledBatchIdKey] = id
         }
         Result.success(Unit)
