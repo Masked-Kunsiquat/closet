@@ -19,4 +19,6 @@ class UnavailableOnDeviceChatProvider : OnDeviceChatProvider {
     ): Result<ChatResponse> = Result.failure(
         UnsupportedOperationException("Gemini Nano is not available in the FOSS build")
     )
+
+    override suspend fun modelLabel(): String? = null
 }

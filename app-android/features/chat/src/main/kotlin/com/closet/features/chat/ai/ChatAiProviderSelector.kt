@@ -71,7 +71,22 @@ class ChatAiProviderSelector(
         }
     }
 
-    /** The [AiProvider.label] of the currently selected provider. */
+    /**
+     * The header label for the currently selected provider: its [AiProvider.label], or for Nano
+     * "On-device (<model>)" when the on-device provider reports a model label.
+     */
     fun providerLabel(): Flow<String> = aiPreferencesRepository.getSelectedProvider()
-        .map { it.label }
+        .map { provider ->
+            val modelLabel = if (provider == AiProvider.Nano) nanoProvider.modelLabel() else null
+            chatProviderLabel(provider, modelLabel)
+        }
+}
+
+/**
+ * Formats the chat header provider label. For [AiProvider.Nano] with a non-blank [modelLabel] it
+ * is "On-device (<modelLabel>)"; otherwise the provider's own [AiProvider.label].
+ */
+internal fun chatProviderLabel(provider: AiProvider, modelLabel: String?): String {
+    val model = modelLabel?.trim()
+    return if (provider == AiProvider.Nano && !model.isNullOrEmpty()) "On-device ($model)" else provider.label
 }
