@@ -110,4 +110,18 @@ class AnthropicToolFormatTest {
         val failed = runCatching { AnthropicToolFormat.parseResponse("""{"content":[]}""", json) }
         assertTrue(failed.isFailure)
     }
+
+    @Test
+    fun `tools off with realistic history sends tools and tool_choice none`() {
+        val args = buildJsonObject { put("query", "yellow") }
+        val turns = listOf(
+            ToolTurn.User("any yellow"),
+            ToolTurn.Assistant(null, listOf(ToolCall("tu1", "find_items", args))),
+            ToolTurn.ToolResults(listOf(ToolCallResult("tu1", "find_items", buildJsonObject { put("n", 1) }))),
+        )
+        val req = request(false, turns)
+        assertEquals(2, req["tools"]!!.jsonArray.size)
+        assertEquals("none", req["tool_choice"]!!.jsonObject["type"]!!.jsonPrimitive.content)
+        assertTrue(req["messages"]!!.jsonArray[1].toString().contains("tool_use"))
+    }
 }

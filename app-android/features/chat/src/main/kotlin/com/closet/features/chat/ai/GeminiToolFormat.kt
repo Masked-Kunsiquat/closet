@@ -26,6 +26,8 @@ internal object GeminiToolFormat {
      * With [allowTools] false the declarations are omitted and `responseMimeType` is JSON (Gemini
      * rejects JSON mime together with function calling). With tools on, no mime type is sent.
      */
+    private const val THOUGHT_SIGNATURE = "thoughtSignature"
+
     fun buildRequest(
         system: String,
         turns: List<ToolTurn>,
@@ -35,7 +37,7 @@ internal object GeminiToolFormat {
         put("system_instruction", buildJsonObject {
             put("parts", buildJsonArray { add(buildJsonObject { put("text", system) }) })
         })
-        put("contents", buildContents(turns))
+        put("contents", if (allowTools) buildContents(turns) else buildFlatContents(turns))
         if (allowTools && tools.isNotEmpty()) {
             put("tools", buildJsonArray {
                 add(buildJsonObject {
@@ -60,6 +62,7 @@ internal object GeminiToolFormat {
                                     put("name", c.name)
                                     put("args", c.args)
                                 })
+                                c.providerData?.get(THOUGHT_SIGNATURE)?.let { put(THOUGHT_SIGNATURE, it) }
                             })
                         }
                     }
@@ -72,6 +75,28 @@ internal object GeminiToolFormat {
                             put("response", asObject(r.result))
                         })
                     }
+                }))
+            }
+        }
+    }
+
+    /**
+     * Tools-off history: Gemini 400s on function parts without declarations, so calls and results
+     * become plain text parts.
+     */
+    private fun buildFlatContents(turns: List<ToolTurn>): JsonArray = buildJsonArray {
+        for (turn in turns) {
+            when (turn) {
+                is ToolTurn.User -> add(content("user", listOf(textPart(turn.text))))
+                is ToolTurn.Assistant -> {
+                    val parts = buildList {
+                        turn.text?.takeIf { it.isNotBlank() }?.let { add(textPart(it)) }
+                        turn.calls.forEach { c -> add(textPart("Called ${c.name} with ${c.args}")) }
+                    }
+                    if (parts.isNotEmpty()) add(content("model", parts))
+                }
+                is ToolTurn.ToolResults -> add(content("user", turn.results.map { r ->
+                    textPart("Result of ${r.name}: ${r.result}")
                 }))
             }
         }
@@ -126,13 +151,16 @@ internal object GeminiToolFormat {
         check(candidates.isNotEmpty()) { "candidates array is empty in Gemini response" }
         val parts = candidates[0].jsonObject["content"]?.jsonObject?.get("parts")?.jsonArray
             ?: error("candidates[0].content.parts missing from Gemini response")
-        val calls = parts.map { it.jsonObject }.mapNotNull { it["functionCall"]?.jsonObject }
-            .mapIndexed { i, fc ->
+        val calls = parts.map { it.jsonObject }.filter { it["functionCall"] is JsonObject }
+            .mapIndexed { i, part ->
+                val fc = part["functionCall"]!!.jsonObject
+                val signature = part[THOUGHT_SIGNATURE]
                 val name = fc["name"]?.jsonPrimitive?.contentOrNull ?: error("functionCall name missing")
                 ToolCall(
                     id = "$name#$round.$i",
                     name = name,
                     args = fc["args"] as? JsonObject ?: JsonObject(emptyMap()),
+                    providerData = signature?.let { JsonObject(mapOf(THOUGHT_SIGNATURE to it)) },
                 )
             }
         if (calls.isNotEmpty()) return ToolStep.Calls(calls)

@@ -4,7 +4,13 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /** A tool invocation requested by the model. */
-data class ToolCall(val id: String, val name: String, val args: JsonObject)
+data class ToolCall(
+    val id: String,
+    val name: String,
+    val args: JsonObject,
+    /** Provider-specific data to echo back with this call (e.g. Gemini `thoughtSignature`). */
+    val providerData: JsonObject? = null,
+)
 
 /** The result of one [ToolCall], sent back to the model. */
 data class ToolCallResult(val callId: String, val name: String, val result: JsonElement)

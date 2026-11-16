@@ -129,4 +129,44 @@ class GeminiToolFormatTest {
     fun `empty candidates is an error`() {
         assertTrue(runCatching { GeminiToolFormat.parseResponse("""{"candidates":[]}""", json, 0) }.isFailure)
     }
+
+    private val realisticHistory = listOf(
+        ToolTurn.User("any yellow"),
+        ToolTurn.Assistant(null, listOf(ToolCall("find_items#0.0", "find_items", buildJsonObject { put("query", "yellow") }))),
+        ToolTurn.ToolResults(listOf(ToolCallResult("find_items#0.0", "find_items", buildJsonObject { put("n", 1) }))),
+    )
+
+    @Test
+    fun `tools off flattens tool history to text with no function parts`() {
+        val req = request(false, realisticHistory)
+        val text = req.toString()
+        assertTrue(!text.contains("functionCall") && !text.contains("functionResponse"))
+        assertNull(req["tools"])
+        assertEquals("application/json", req["generationConfig"]!!.jsonObject["responseMimeType"]!!.jsonPrimitive.content)
+        val contents = req["contents"]!!.jsonArray
+        assertEquals("model", contents[1].jsonObject["role"]!!.jsonPrimitive.content)
+        assertEquals(
+            "Called find_items with {\"query\":\"yellow\"}",
+            contents[1].jsonObject["parts"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content,
+        )
+        assertEquals("user", contents[2].jsonObject["role"]!!.jsonPrimitive.content)
+        assertEquals(
+            "Result of find_items: {\"n\":1}",
+            contents[2].jsonObject["parts"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content,
+        )
+    }
+
+    @Test
+    fun `thoughtSignature is kept on parse and re-emitted on history`() {
+        val body = """{"candidates":[{"content":{"parts":[
+            {"functionCall":{"name":"ping","args":{}},"thoughtSignature":"sig123"},
+            {"functionCall":{"name":"ping","args":{}}}]}}]}"""
+        val calls = (GeminiToolFormat.parseResponse(body, json, 0) as ToolStep.Calls).calls
+        assertEquals("sig123", calls[0].providerData!!["thoughtSignature"]!!.jsonPrimitive.content)
+        assertNull(calls[1].providerData)
+        val contents = request(true, listOf(ToolTurn.User("a"), ToolTurn.Assistant(null, calls)))["contents"]!!.jsonArray
+        val parts = contents[1].jsonObject["parts"]!!.jsonArray
+        assertEquals("sig123", parts[0].jsonObject["thoughtSignature"]!!.jsonPrimitive.content)
+        assertNull(parts[1].jsonObject["thoughtSignature"])
+    }
 }
