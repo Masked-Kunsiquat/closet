@@ -205,6 +205,16 @@ class NanoToolMappingTest {
     }
 
     @Test
+    fun `tools-on candidate routing`() {
+        val calls = listOf(FunctionCall("wardrobe_summary", emptyMap(), "a"))
+        assertEquals(ToolsOnOutcome.Calls, toolsOnOutcome("whatever", calls))
+        assertEquals(ToolsOnOutcome.Final, toolsOnOutcome("{\"type\":\"text\",\"text\":\"hi\"}", emptyList()))
+        assertEquals(ToolsOnOutcome.Reroute, toolsOnOutcome("just some prose", emptyList()))
+        assertEquals(ToolsOnOutcome.None, toolsOnOutcome("  ", emptyList()))
+        assertEquals(ToolsOnOutcome.None, toolsOnOutcome(null, emptyList()))
+    }
+
+    @Test
     fun `candidate with neither text nor calls is null`() {
         assertNull(candidateStep(null, emptyList()))
         assertNull(candidateStep("  ", emptyList()))

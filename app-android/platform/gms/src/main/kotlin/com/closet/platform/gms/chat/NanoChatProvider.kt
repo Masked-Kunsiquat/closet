@@ -170,9 +170,13 @@ class NanoChatProvider(
             }
             val candidate = model.generateContent(request).candidates.firstOrNull()
                 ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
-            val step = candidateStep(candidate.text, candidate.functionCalls, round = toolRound(turns))
+            // A tools-on text reply the parser can't read gets the tools-off structured final path.
+            if (allowTools && toolsOnOutcome(candidate.text, candidate.functionCalls) == ToolsOnOutcome.Reroute) {
+                return step(system, turns, tools, allowTools = false)
+            }
+            val candidateResult = candidateStep(candidate.text, candidate.functionCalls, round = toolRound(turns))
                 ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
-            Result.success(step)
+            Result.success(candidateResult)
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Timber.tag(TAG).w(e, "NanoChatProvider tool step failed")

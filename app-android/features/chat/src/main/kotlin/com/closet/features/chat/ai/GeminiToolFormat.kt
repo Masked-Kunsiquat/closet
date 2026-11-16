@@ -24,6 +24,9 @@ internal object GeminiToolFormat {
 
     private const val THOUGHT_SIGNATURE = "thoughtSignature"
 
+    /** `providerData` key set (to the id) when the id came from the server rather than synthesized. */
+    private const val SERVER_ID = "serverId"
+
     /**
      * With [allowTools] false the declarations are omitted and `responseMimeType` is JSON (Gemini
      * rejects JSON mime together with function calling). With tools on, no mime type is sent.
@@ -51,6 +54,10 @@ internal object GeminiToolFormat {
     }
 
     private fun buildContents(turns: List<ToolTurn>): JsonArray = buildJsonArray {
+        val serverIds = turns.filterIsInstance<ToolTurn.Assistant>()
+            .flatMap { it.calls }
+            .filter { it.providerData?.get(SERVER_ID) != null }
+            .mapTo(mutableSetOf()) { it.id }
         for (turn in turns) {
             when (turn) {
                 is ToolTurn.User -> add(content("user", listOf(textPart(turn.text))))
@@ -60,6 +67,7 @@ internal object GeminiToolFormat {
                         turn.calls.forEach { c ->
                             add(buildJsonObject {
                                 put("functionCall", buildJsonObject {
+                                    if (c.id in serverIds) put("id", c.id)
                                     put("name", c.name)
                                     put("args", c.args)
                                 })
@@ -72,6 +80,7 @@ internal object GeminiToolFormat {
                 is ToolTurn.ToolResults -> add(content("user", turn.results.map { r ->
                     buildJsonObject {
                         put("functionResponse", buildJsonObject {
+                            if (r.callId in serverIds) put("id", r.callId)
                             put("name", r.name)
                             put("response", asObject(r.result))
                         })
@@ -145,7 +154,11 @@ internal object GeminiToolFormat {
     /** Count of prior model turns that made calls; the [parseResponse] round. */
     fun roundOf(turns: List<ToolTurn>): Int = turns.count { it is ToolTurn.Assistant && it.calls.isNotEmpty() }
 
-    /** Ids are `name#round.index`: unique within a turn and across rounds. Throws on a bad envelope. */
+    /**
+     * A call keeps the server's `functionCall.id` when it sends one (echoed back on history);
+     * otherwise the id is synthetic, `name#round.index`: unique within a turn and across rounds.
+     * Throws on a bad envelope.
+     */
     fun parseResponse(body: String, json: Json, round: Int): ToolStep {
         val root = json.parseToJsonElement(body.trim()).jsonObject
         val candidates = root["candidates"]?.jsonArray ?: error("candidates missing from Gemini response")
@@ -157,11 +170,16 @@ internal object GeminiToolFormat {
                 val fc = part["functionCall"]!!.jsonObject
                 val signature = part[THOUGHT_SIGNATURE]
                 val name = fc["name"]?.jsonPrimitive?.contentOrNull ?: error("functionCall name missing")
+                val serverId = (fc["id"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+                val data = buildMap<String, JsonElement> {
+                    signature?.let { put(THOUGHT_SIGNATURE, it) }
+                    serverId?.let { put(SERVER_ID, JsonPrimitive(it)) }
+                }
                 ToolCall(
-                    id = "$name#$round.$i",
+                    id = serverId ?: "$name#$round.$i",
                     name = name,
                     args = fc["args"] as? JsonObject ?: JsonObject(emptyMap()),
-                    providerData = signature?.let { JsonObject(mapOf(THOUGHT_SIGNATURE to it)) },
+                    providerData = data.takeIf { it.isNotEmpty() }?.let { JsonObject(it) },
                 )
             }
         if (calls.isNotEmpty()) return ToolStep.Calls(calls)

@@ -169,4 +169,40 @@ class GeminiToolFormatTest {
         assertEquals("sig123", parts[0].jsonObject["thoughtSignature"]!!.jsonPrimitive.content)
         assertNull(parts[1].jsonObject["thoughtSignature"])
     }
+
+    @Test
+    fun `server function call id round-trips on call and response parts`() {
+        val body = """{"candidates":[{"content":{"parts":[
+            {"functionCall":{"id":"abc","name":"ping","args":{}}}
+        ]}}]}"""
+        val calls = (GeminiToolFormat.parseResponse(body, json, 0) as ToolStep.Calls).calls
+        assertEquals("abc", calls[0].id)
+        val turns = listOf(
+            ToolTurn.User("hi"),
+            ToolTurn.Assistant(null, calls),
+            ToolTurn.ToolResults(listOf(ToolCallResult("abc", "ping", JsonPrimitive("ok")))),
+        )
+        val contents = request(true, turns)["contents"]!!.jsonArray
+        val fc = contents[1].jsonObject["parts"]!!.jsonArray[0].jsonObject["functionCall"]!!.jsonObject
+        val fr = contents[2].jsonObject["parts"]!!.jsonArray[0].jsonObject["functionResponse"]!!.jsonObject
+        assertEquals("abc", fc["id"]!!.jsonPrimitive.content)
+        assertEquals("abc", fr["id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `synthetic ids are not sent on the wire`() {
+        val body = """{"candidates":[{"content":{"parts":[{"functionCall":{"name":"ping","args":{}}}]}}]}"""
+        val calls = (GeminiToolFormat.parseResponse(body, json, 0) as ToolStep.Calls).calls
+        assertEquals("ping#0.0", calls[0].id)
+        val turns = listOf(
+            ToolTurn.User("hi"),
+            ToolTurn.Assistant(null, calls),
+            ToolTurn.ToolResults(listOf(ToolCallResult(calls[0].id, "ping", JsonPrimitive("ok")))),
+        )
+        val contents = request(true, turns)["contents"]!!.jsonArray
+        val fc = contents[1].jsonObject["parts"]!!.jsonArray[0].jsonObject["functionCall"]!!.jsonObject
+        val fr = contents[2].jsonObject["parts"]!!.jsonArray[0].jsonObject["functionResponse"]!!.jsonObject
+        assertNull(fc["id"])
+        assertNull(fr["id"])
+    }
 }

@@ -1,5 +1,6 @@
 package com.closet.features.chat.ai
 
+import com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY
 import com.closet.core.data.ai.tools.ToolCall
 import com.closet.core.data.ai.tools.ToolParam
 import com.closet.core.data.ai.tools.ToolParamType
@@ -126,27 +127,57 @@ internal object OpenAiToolFormat {
         return ToolStep.Final(content)
     }
 
-    /** `arguments` is a JSON string; anything unparseable becomes `{"error": ...}` for that call. */
+    /** `arguments` is a JSON string; anything unparseable becomes `{ARGS_PARSE_ERROR_KEY: ...}` so the runner skips the tool. */
     private fun parseArguments(raw: kotlinx.serialization.json.JsonElement?, json: Json): JsonObject {
         if (raw is JsonObject) return raw
         val text = (raw as? JsonPrimitive)?.contentOrNull
         if (text.isNullOrBlank()) return JsonObject(emptyMap())
         return try {
             json.parseToJsonElement(text) as? JsonObject
-                ?: JsonObject(mapOf("error" to JsonPrimitive("arguments were not a JSON object")))
+                ?: JsonObject(mapOf(ARGS_PARSE_ERROR_KEY to JsonPrimitive("arguments were not a JSON object")))
         } catch (e: kotlinx.serialization.SerializationException) {
-            JsonObject(mapOf("error" to JsonPrimitive("arguments were not valid JSON")))
+            JsonObject(mapOf(ARGS_PARSE_ERROR_KEY to JsonPrimitive("arguments were not valid JSON")))
         }
     }
 
     /** Whether an HTTP error means the server doesn't accept tool calling. */
-    fun isToolsUnsupported(status: Int, body: String): Boolean =
-        status in UNSUPPORTED_STATUSES && body.lowercase().let { b ->
-            (b.contains("tools") || b.contains("tool_choice")) && SIGNALS.any { b.contains(it) }
+    fun isToolsUnsupported(status: Int, body: String): Boolean {
+        if (status !in UNSUPPORTED_STATUSES) return false
+        val root = try {
+            Json.parseToJsonElement(body.trim()) as? JsonObject
+        } catch (e: Exception) {
+            null
         }
+        val errorElement = root?.get("error")
+        val error = errorElement as? JsonObject
+        val param = (error?.get("param") as? JsonPrimitive)?.contentOrNull
+        if (param == "tools" || param == "tool_choice") return true
+        val code = (error?.get("code") as? JsonPrimitive)?.contentOrNull
+        if (code != null && code in NON_TOOL_CODES) return false
+        // Judge the human-readable message when the body has one, else the raw body.
+        val text = ((error?.get("message") as? JsonPrimitive)?.contentOrNull
+            ?: (errorElement as? JsonPrimitive)?.contentOrNull
+            ?: body).lowercase()
+        return TOOL_WORDS.findAll(text).any { tool ->
+            val from = maxOf(0, tool.range.first - WINDOW)
+            val to = minOf(text.length, tool.range.last + 1 + WINDOW)
+            val near = text.substring(from, to)
+            SIGNALS.any { near.contains(it) }
+        }
+    }
+
+    private val TOOL_WORDS = Regex("tool_choice|tools|tool calling|function calling")
+    private const val WINDOW = 60
+
+    /** Error codes that are never about tool support, even if the message mentions a tool-ish word. */
+    private val NON_TOOL_CODES = setOf(
+        "model_not_found", "context_length_exceeded", "invalid_api_key", "insufficient_quota",
+        "rate_limit_exceeded",
+    )
 
     private val SIGNALS = listOf(
-        "not support", "unsupported", "unknown", "unrecognized", "not allowed", "invalid tool",
+        "not support", "unsupported", "unknown parameter", "unknown field", "unrecognized",
+        "not allowed", "extra fields not permitted", "invalid tool",
     )
 
     private val UNSUPPORTED_STATUSES = setOf(400, 404, 422)

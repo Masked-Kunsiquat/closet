@@ -122,7 +122,48 @@ class OpenAiToolFormatTest {
     @Test
     fun `malformed arguments become an error object for that call`() {
         val step = OpenAiToolFormat.parseResponse(toolCallBody("{not json"), json) as ToolStep.Calls
-        assertTrue(step.calls[0].args.containsKey("error"))
+        assertTrue(step.calls[0].args.containsKey(com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY))
+    }
+
+    @Test
+    fun `non-object arguments also carry the parse error marker`() {
+        val step = OpenAiToolFormat.parseResponse(toolCallBody("[1,2]"), json) as ToolStep.Calls
+        assertTrue(step.calls[0].args.containsKey(com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY))
+    }
+
+    @Test
+    fun `model_not_found with tools in the model name is not a tool rejection`() {
+        val body = """{"error":{"message":"The model `gpt-tools-preview` does not exist or you do not have access to it.","type":"invalid_request_error","param":null,"code":"model_not_found"}}"""
+        assertFalse(OpenAiToolFormat.isToolsUnsupported(404, body))
+    }
+
+    @Test
+    fun `error param tools or tool_choice is a rejection`() {
+        assertTrue(OpenAiToolFormat.isToolsUnsupported(400, """{"error":{"message":"Invalid value","param":"tools","code":"x"}}"""))
+        assertTrue(OpenAiToolFormat.isToolsUnsupported(400, """{"error":{"message":"Invalid value","param":"tool_choice"}}"""))
+    }
+
+    @Test
+    fun `a tool word far from the signal is not a rejection`() {
+        val body = "Your tools list is fine. " + "x".repeat(200) + " The requested thing is not supported here."
+        assertFalse(OpenAiToolFormat.isToolsUnsupported(400, body))
+    }
+
+    @Test
+    fun `config key is built from the given values`() {
+        assertEquals("http://a\u0000m", OpenAiChatProvider.configKey("http://a", "m"))
+    }
+
+    @Test
+    fun `model_not_found does not cache a tool rejection`() = runTest {
+        val base = kotlinx.coroutines.flow.MutableStateFlow("http://local")
+        val provider = OpenAiChatProvider(mockk<AiHttpClient>(relaxed = true), prefs(base), json)
+        val body = """{"error":{"message":"The model `gpt-tools-preview` does not exist or you do not have access to it.","type":"invalid_request_error","param":null,"code":"model_not_found"}}"""
+        val result = provider.handleResponse(404, body, "m", OpenAiChatProvider.configKey("http://local", "m"))
+        assertTrue(result.isFailure)
+        assertFalse(result.exceptionOrNull() is ToolsUnsupportedException)
+        assertFalse(result.exceptionOrNull()!!.message!!.contains("gpt-tools-preview"))
+        assertTrue(provider.supportsTools())
     }
 
     @Test

@@ -57,6 +57,9 @@ class OpenAiChatProvider(
         private const val TAG = "OpenAiChatProvider"
         private const val DEFAULT_BASE_URL = "https://api.openai.com"
         internal const val DEFAULT_MODEL = "gpt-4o-mini"
+
+        /** Key identifying the (base URL, model) a tool rejection applies to. */
+        internal fun configKey(baseUrl: String, model: String): String = baseUrl + "\u0000" + model
     }
 
     override suspend fun chat(
@@ -100,11 +103,11 @@ class OpenAiChatProvider(
     @Volatile
     private var rejectedConfig: String? = null
 
-    private suspend fun configKey(): String =
-        aiPreferencesRepository.getOpenAiBaseUrl().first() + "\u0000" +
-            aiPreferencesRepository.getOpenAiModel().first()
+    private suspend fun currentModel(): String =
+        aiPreferencesRepository.getOpenAiModel().first().takeIf { it.isNotBlank() } ?: DEFAULT_MODEL
 
-    override suspend fun supportsTools(): Boolean = rejectedConfig != configKey()
+    override suspend fun supportsTools(): Boolean =
+        rejectedConfig != configKey(aiPreferencesRepository.getOpenAiBaseUrl().first(), currentModel())
 
     override suspend fun step(
         system: String,
@@ -112,16 +115,17 @@ class OpenAiChatProvider(
         tools: List<ToolSpec>,
         allowTools: Boolean,
     ): Result<ToolStep> {
-        val key = configKey()
+        // Read the config once: the request and the rejection cache must use the same values.
+        val rawBaseUrl = aiPreferencesRepository.getOpenAiBaseUrl().first()
+        val model = currentModel()
+        val key = configKey(rawBaseUrl, model)
         if (rejectedConfig == key) return Result.failure(ToolsUnsupportedException("server rejected tools"))
         val apiKey = aiPreferencesRepository.getOpenAiApiKey().first()
         if (apiKey.isBlank()) {
             return Result.failure(IllegalStateException("OpenAI-compatible API key is not configured"))
         }
-        val model = aiPreferencesRepository.getOpenAiModel().first().takeIf { it.isNotBlank() }
-            ?: DEFAULT_MODEL
         return try {
-            val url = buildCompletionsUrl(aiPreferencesRepository.getOpenAiBaseUrl().first())
+            val url = buildCompletionsUrl(rawBaseUrl)
             val body = OpenAiToolFormat.buildRequest(model, system, turns, tools, allowTools)
             val response = client.post(url) {
                 contentType(ContentType.Application.Json)

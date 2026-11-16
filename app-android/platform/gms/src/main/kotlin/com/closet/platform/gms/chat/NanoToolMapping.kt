@@ -1,5 +1,6 @@
 package com.closet.platform.gms.chat
 
+import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.tools.ToolCall
 import com.closet.core.data.ai.tools.ToolParam
 import com.closet.core.data.ai.tools.ToolParamType
@@ -106,6 +107,21 @@ internal fun candidateStep(text: String?, functionCalls: List<FunctionCall>, rou
         ToolStep.Calls(functionCalls.mapIndexed { i, call -> call.toToolCall(fallbackId = "call_${round}_$i") })
     !text.isNullOrBlank() -> ToolStep.Final(text)
     else -> null
+}
+
+/** What a tools-on candidate means for [NanoChatProvider.step]; see [toolsOnOutcome]. */
+internal enum class ToolsOnOutcome { Calls, Final, Reroute, None }
+
+/**
+ * Classifies a tools-on candidate: function calls win; non-blank text that
+ * [ChatResponseParser] accepts is the final reply; other non-blank text is not parser-compatible,
+ * so the step should be rerouted to the tools-off structured path; nothing usable is [None].
+ */
+internal fun toolsOnOutcome(text: String?, functionCalls: List<FunctionCall>): ToolsOnOutcome = when {
+    functionCalls.isNotEmpty() -> ToolsOnOutcome.Calls
+    text.isNullOrBlank() -> ToolsOnOutcome.None
+    ChatResponseParser.parse(text).isSuccess -> ToolsOnOutcome.Final
+    else -> ToolsOnOutcome.Reroute
 }
 
 /** How many tool rounds the current user turn (after the last [ToolTurn.User]) already has. */
