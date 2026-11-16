@@ -442,7 +442,7 @@ class WardrobeSummaryTool(
 ) : WardrobeTool {
     override val spec = ToolSpec(
         name = "wardrobe_summary",
-        description = "Summarize the wardrobe: total item count plus item counts per category and per color (active items).",
+        description = "Summarize the wardrobe: total and active item counts, plus per-category and per-color counts (breakdowns count active items only).",
         params = emptyList(),
     )
 
@@ -455,6 +455,7 @@ class WardrobeSummaryTool(
         return ToolResult(
             buildJsonObject {
                 put("total_items", total)
+                put("active_items", byCategory.values.sum())
                 put("by_category", buildJsonObject { byCategory.forEach { (k, v) -> put(k, v) } })
                 put("by_color", buildJsonObject { byColor.forEach { put(it.label, it.count) } })
             },

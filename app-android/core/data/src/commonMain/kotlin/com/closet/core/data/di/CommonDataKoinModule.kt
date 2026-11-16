@@ -9,6 +9,7 @@ import com.closet.core.data.ai.tools.OutfitsWornOnTool
 import com.closet.core.data.ai.tools.SearchItemsTool
 import com.closet.core.data.ai.tools.ToolRegistry
 import com.closet.core.data.ai.tools.WardrobeSummaryTool
+import com.closet.core.data.ai.tools.WardrobeTool
 import com.closet.core.data.ai.tools.WearHistoryTool
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.repository.AI_PREFS_NAME
@@ -33,6 +34,7 @@ import io.ktor.client.engine.HttpClientEngineFactory
 import kotlinx.serialization.json.Json
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 /**
@@ -105,18 +107,14 @@ val commonDataModule = module {
     singleOf(::OpenMeteoClient)
     singleOf(::EmbeddingIndex)
 
-    single {
-        ToolRegistry(
-            listOf(
-                SearchItemsTool(get(), get(), get(), get()),
-                GetItemsTool(get()),
-                WearHistoryTool(get(), get()),
-                ItemsNotWornSinceTool(get(), get()),
-                MostWornTool(get(), get(), get()),
-                OutfitsWornOnTool(get(), get()),
-                LaundryListTool(get()),
-                WardrobeSummaryTool(get(), get()),
-            ),
-        )
-    }
+    // Each tool is its own definition so verify() checks every tool constructor.
+    singleOf(::SearchItemsTool) bind WardrobeTool::class
+    singleOf(::GetItemsTool) bind WardrobeTool::class
+    singleOf(::WearHistoryTool) bind WardrobeTool::class
+    singleOf(::ItemsNotWornSinceTool) bind WardrobeTool::class
+    singleOf(::MostWornTool) bind WardrobeTool::class
+    singleOf(::OutfitsWornOnTool) bind WardrobeTool::class
+    singleOf(::LaundryListTool) bind WardrobeTool::class
+    singleOf(::WardrobeSummaryTool) bind WardrobeTool::class
+    single { ToolRegistry(getAll<WardrobeTool>()) }
 }

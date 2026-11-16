@@ -30,6 +30,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 
 class WardrobeToolsTest {
 
@@ -266,10 +267,71 @@ class WardrobeToolsTest {
 
     @Test
     fun itemsNotWornSinceExcludesRecentlyWorn() {
-        val today = Clock.System.now().toString().substringBefore('T')
-        wear(sneakersId, today)
+        // Dates are days away from the 30-day cutoff, so the UTC vs system-zone day never matters.
+        fun daysAgo(n: Int) = (Clock.System.now() - n.days).toString().substringBefore('T')
+        wear(sneakersId, daysAgo(5))
+        wear(overcoatId, daysAgo(100))
         val r = run("items_not_worn_since", buildJsonObject { put("days", 30) })
         assertEquals(setOf(overcoatId, shirtId), r.itemIdsInJson().toSet())
+    }
+
+    // ─── search_items filters ─────────────────────────────────────────────────
+
+    private fun archive(id: Long) = runBlocking {
+        db.clothingDao().updateItemStatus(id, "Sold", "2026-01-01T00:00:00Z")
+    }
+
+    @Test
+    fun searchExcludesArchivedItemsUnlessRequested() {
+        archive(overcoatId)
+        val default = search(buildJsonObject { put("colors", strings("grey")) })
+        assertTrue(default.itemIdsInJson().isEmpty())
+        val explicitFalse = search(buildJsonObject { put("colors", strings("grey")); put("include_archived", false) })
+        assertTrue(explicitFalse.itemIdsInJson().isEmpty())
+        val included = search(buildJsonObject { put("colors", strings("grey")); put("include_archived", true) })
+        assertEquals(listOf(overcoatId), included.itemIdsInJson())
+    }
+
+    @Test
+    fun searchLimitDefaultsToTenAndCapsAtTwenty() {
+        runBlocking { repeat(25) { insertItem("Extra yellow $it", "Tops", "T-Shirt", listOf("Yellow")) } }
+        val yellow = strings("yellow")
+        val default = search(buildJsonObject { put("colors", yellow) })
+        assertEquals(10, default.itemIdsInJson().size)
+        assertEquals(26, default.obj()["total_matches"]!!.jsonPrimitive.int)
+        val capped = search(buildJsonObject { put("colors", yellow); put("limit", 50) })
+        assertEquals(20, capped.itemIdsInJson().size)
+        assertEquals(20, capped.itemIds.size)
+        val small = search(buildJsonObject { put("colors", yellow); put("limit", 3) })
+        assertEquals(3, small.itemIdsInJson().size)
+    }
+
+    @Test
+    fun searchFiltersBySeason() {
+        runBlocking { db.clothingDao().updateItemSeasons(shirtId, listOf(idOf("seasons", "Winter"))) }
+        val r = search(buildJsonObject { put("season", "winter") })
+        assertEquals(listOf(shirtId), r.itemIdsInJson())
+        val none = search(buildJsonObject { put("season", "Summer") })
+        assertTrue(none.itemIdsInJson().isEmpty())
+        assertNotNull(search(buildJsonObject { put("season", "monsoon") }).obj()["error"])
+    }
+
+    @Test
+    fun searchFiltersByOccasion() {
+        runBlocking { db.clothingDao().updateItemOccasions(sneakersId, listOf(idOf("occasions", "Casual"))) }
+        val r = search(buildJsonObject { put("occasion", "casual") })
+        assertEquals(listOf(sneakersId), r.itemIdsInJson())
+        val none = search(buildJsonObject { put("occasion", "Formal") })
+        assertTrue(none.itemIdsInJson().isEmpty())
+        assertNotNull(search(buildJsonObject { put("occasion", "gala") }).obj()["error"])
+    }
+
+    @Test
+    fun searchCategoryMatchIsCaseInsensitive() {
+        val r = search(buildJsonObject { put("category", "outerwear") })
+        assertEquals(listOf(overcoatId), r.itemIdsInJson())
+        val upper = search(buildJsonObject { put("category", "OUTERWEAR") })
+        assertEquals(listOf(overcoatId), upper.itemIdsInJson())
     }
 
     @Test
@@ -285,8 +347,11 @@ class WardrobeToolsTest {
 
     @Test
     fun wardrobeSummaryCountsItems() {
+        runBlocking { insertItem("Old sold hat", "Tops", "T-Shirt", listOf("Red")) }
+            .also { archive(it) }
         val r = run("wardrobe_summary")
-        assertEquals(3, r.obj()["total_items"]!!.jsonPrimitive.int)
+        assertEquals(4, r.obj()["total_items"]!!.jsonPrimitive.int)
+        assertEquals(3, r.obj()["active_items"]!!.jsonPrimitive.int)
         assertEquals(1, r.obj()["by_category"]!!.jsonObject["Footwear"]!!.jsonPrimitive.int)
         assertEquals(1, r.obj()["by_color"]!!.jsonObject["Yellow"]!!.jsonPrimitive.int)
     }
