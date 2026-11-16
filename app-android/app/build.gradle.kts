@@ -35,8 +35,8 @@ android {
         applicationId = "com.closet"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 11
-        versionName = "0.7.2"
+        versionCode = 12
+        versionName = "0.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

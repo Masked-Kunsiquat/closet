@@ -8,9 +8,16 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ## [Unreleased]
 
-Kotlin Multiplatform migration, Phases 2–3: GMS code is extracted into its own
-module, and `core/data` is now multiplatform (Android, JVM, iOS). Behavior is
-unchanged on both flavors, apart from the fixes below.
+---
+
+## [0.8.0] — 2026-11-16
+
+Chat can now look things up in your wardrobe: the model calls read-only tools
+(search, wear history, laundry, …) instead of guessing from a handful of
+retrieved items. Gemini Nano chat works again on supported phones. Under the
+hood, this release also carries Kotlin Multiplatform migration Phases 2–3: GMS
+code is extracted into its own module, and `core/data` is now multiplatform
+(Android, JVM, iOS).
 
 > ⚠️ **Uninstall any v0.7.x build before installing this one.** The database
 > schema was reset to a version-1 baseline, and Room refuses to downgrade from
@@ -38,14 +45,39 @@ unchanged on both flavors, apart from the fixes below.
     `workStatus` on the work schedulers. JVM and iOS bind honest stubs for
     now.
   - **Tests:** the Room tests run on the JVM (`:core:data:jvmTest`).
+- **Coil 2.7 → 3** app-wide; compileSdk 37.
+- **ML Kit GenAI Prompt API beta1 → beta5** — Nano replies can be longer than
+  256 tokens, and chat replies and recommendations use structured output
+  instead of parsing free text. Settings shows the on-device model's name.
 
 ### Added
+- **Chat tool calling** on Gemini Nano (when the device supports function
+  calling), Anthropic, Gemini and OpenAI-compatible providers. Eight read-only
+  tools: `search_items`, `get_items`, `wear_history`, `items_not_worn_since`,
+  `most_worn`, `outfits_worn_on`, `laundry_list`, `wardrobe_summary`. Replies
+  only show items the tools actually returned. Providers without tool support
+  (or an OpenAI-compatible server that rejects tools) keep the router + RAG
+  path.
+- **Color search reads descriptions** — `search_items` also matches a color
+  named in an item's description or caption, so a mis-tagged item still turns
+  up (tagged matches are listed first).
+- **Multi-turn Nano chat** — earlier messages in the conversation are sent as
+  context.
+- **`tools/demo-backup`** — a JVM tool that builds a demo-wardrobe `.hangr`
+  backup from a public product-image dataset, for testing and screenshots.
 - **CI** — a `CI` workflow runs unit tests, lint and both debug builds on every
   PR. `ios-compile` also compiles the iOS test sources. Both are required to
   merge into `main`.
 - **Dependabot** for GitHub Actions — one grouped PR a month.
 
 ### Fixed
+- **Nano chat "Something went wrong"** — beta1 rejected the requested output
+  length, and the "model ready" state set in Settings was never saved. Both
+  fixed.
+- **Nano availability messages** — chat now says whether the model is
+  downloading, unsupported on this device, or failed, instead of a generic
+  "not ready".
+- **Nano confusing list positions with item IDs** in its replies.
 - **API keys in debug logs** — the HTTP log redaction never matched Ktor's
   `-> Authorization:` lines and didn't cover `key=` in URLs, so keys reached
   logcat in debug builds. Google Weather errors (whose messages include the
@@ -575,7 +607,8 @@ Phase 1 of the RAG pipeline (semantic descriptions + image captions).
 - Two product flavors: `full` (GMS / Play Services) and `foss` (no GMS,
   F-Droid target).
 
-[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/Masked-Kunsiquat/closet/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/Masked-Kunsiquat/closet/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Masked-Kunsiquat/closet/compare/v0.6.0...v0.7.0
