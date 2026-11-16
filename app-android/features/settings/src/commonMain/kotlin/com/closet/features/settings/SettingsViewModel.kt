@@ -2,12 +2,12 @@ package com.closet.features.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import android.content.Context
 import com.closet.core.data.ai.NanoInitResult
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.AiProvider
-import com.closet.core.data.repository.CaptionEnrichmentProvider
+import com.closet.core.data.repository.BatchCaptioner
+import com.closet.core.data.repository.ImageStorageStats
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.ImageCompressionScheduler
@@ -24,7 +24,6 @@ import com.closet.core.data.worker.WorkStatus
 import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.theme.ClosetAccent
 import kotlinx.coroutines.CancellationException
-import java.io.File
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,12 +34,14 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import kotlin.uuid.Uuid
 
 // ---------------------------------------------------------------------------
 // Intermediate grouping types — private to this file
 // ---------------------------------------------------------------------------
+
+private val log = Logger.withTag("SettingsViewModel")
 
 private data class AppPrefs(
     val accent: ClosetAccent,
@@ -102,7 +103,6 @@ private data class StorageState(val usedBytes: Long, val compressionWorkStatus: 
  */
 @OptIn(FlowPreview::class)
 class SettingsViewModel(
-    private val context: Context,
     private val preferencesRepository: PreferencesRepository,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val weatherPreferencesRepository: WeatherPreferencesRepository,
@@ -112,8 +112,9 @@ class SettingsViewModel(
     private val embeddingScheduler: EmbeddingScheduler,
     private val embeddingIndex: EmbeddingIndex,
     private val batchSegmentationScheduler: BatchSegmentationScheduler,
-    private val captionEnrichmentProvider: CaptionEnrichmentProvider,
+    private val batchCaptioner: BatchCaptioner,
     private val imageCompressionScheduler: ImageCompressionScheduler,
+    private val imageStorageStats: ImageStorageStats,
 ) : ViewModel() {
 
     // ── Private mutable state ─────────────────────────────────────────────────
@@ -182,8 +183,8 @@ class SettingsViewModel(
 
     private val captionStateFlow = combine(
         clothingDao.getCaptionEligibleCount(),
-        captionEnrichmentProvider.progress,
-        captionEnrichmentProvider.result,
+        batchCaptioner.progress,
+        batchCaptioner.result,
         _lastHandledCaptionId,
     ) { eligible, progress, result, lastHandled -> CaptionState(eligible, progress, result, lastHandled) }
 
@@ -236,7 +237,7 @@ class SettingsViewModel(
             geminiModelsLoading = gem.modelsLoading,
             embeddingWorkStatus = emb.workStatus,
             embeddingIndexSize = emb.indexSize,
-            captionSupported = captionEnrichmentProvider.isSupported,
+            captionSupported = batchCaptioner.isSupported,
             captionEligibleCount = cap.eligibleCount,
             batchCaptionProgress = cap.progress,
             captionResult = cap.result,
@@ -252,7 +253,7 @@ class SettingsViewModel(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         SettingsUiState(
-            captionSupported = captionEnrichmentProvider.isSupported,
+            captionSupported = batchCaptioner.isSupported,
             segmentationSupported = batchSegmentationScheduler.isSupported,
         ),
     )
@@ -274,8 +275,8 @@ class SettingsViewModel(
                         aiPreferencesRepository.setTokenLimit(result.tokenLimit)
                     }
                 } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    Timber.w(e, "SettingsViewModel: failed to persist Nano readiness")
+                    if (e is CancellationException) throw e
+                    log.w(e) { "failed to persist Nano readiness" }
                 }
                 _nanoStatus.value = when (result) {
                     is NanoInitResult.Downloading -> NanoStatus.Downloading(result.progressPct)
@@ -365,7 +366,7 @@ class SettingsViewModel(
                         _embeddingIndexSize.value = embeddingIndex.size
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
-                        Timber.e(e, "Failed to reload embedding index")
+                        log.e(e) { "Failed to reload embedding index" }
                     }
                 }
             }
@@ -373,22 +374,14 @@ class SettingsViewModel(
 
         // Compute closet_images/ storage size once on start, and refresh after each compression run.
         viewModelScope.launch {
-            _storageUsedBytes.value = computeStorageBytes()
+            _storageUsedBytes.value = imageStorageStats.usedBytes()
             imageCompressionScheduler.workStatus.collect { info ->
                 if (info?.state == WorkState.SUCCEEDED || info?.state == WorkState.FAILED) {
-                    _storageUsedBytes.value = computeStorageBytes()
+                    _storageUsedBytes.value = imageStorageStats.usedBytes()
                 }
             }
         }
     }
-
-    private suspend fun computeStorageBytes(): Long =
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            File(context.filesDir, "closet_images")
-                .walkTopDown()
-                .filter { it.isFile }
-                .sumOf { it.length() }
-        }
 
     // ── App settings event handlers ───────────────────────────────────────────
 
@@ -479,7 +472,7 @@ class SettingsViewModel(
     // ── Batch captioning event handlers ───────────────────────────────────────
 
     fun onStartBatchCaption() {
-        captionEnrichmentProvider.startBatchEnrichment()
+        batchCaptioner.startBatchEnrichment()
     }
 
     fun onCaptionResultHandled(id: Uuid) {
@@ -487,7 +480,7 @@ class SettingsViewModel(
     }
 
     fun onCaptionResultConsumed() {
-        captionEnrichmentProvider.consumeResult()
+        batchCaptioner.consumeResult()
     }
 
     // ── Batch segmentation event handlers ─────────────────────────────────────
@@ -499,7 +492,7 @@ class SettingsViewModel(
     fun onBatchResultHandled(id: String) {
         viewModelScope.launch {
             preferencesRepository.setLastHandledBatchId(id)
-                .onFailure { Timber.e(it, "Failed to persist last handled batch ID") }
+                .onFailure { log.e(it) { "Failed to persist last handled batch ID" } }
         }
     }
 }

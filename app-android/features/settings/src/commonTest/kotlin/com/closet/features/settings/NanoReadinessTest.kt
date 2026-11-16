@@ -2,9 +2,9 @@ package com.closet.features.settings
 
 import com.closet.core.data.ai.NanoAvailability
 import com.closet.core.data.ai.NanoInitResult
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.Test
 
 class NanoReadinessTest {
     @Test fun `success marks Nano ready`() {

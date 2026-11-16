@@ -5,7 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.work.WorkerParameters
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.di.dataModule
-import com.closet.core.data.repository.CaptionEnrichmentProvider
+import com.closet.core.data.repository.BatchCaptioner
 import com.closet.core.data.worker.BatchSegmentationScheduler
 import com.closet.core.ui.di.uiModule
 import io.ktor.client.HttpClientConfig
@@ -28,7 +28,7 @@ class SettingsKoinModuleTest {
                 // Settings can't depend on those sibling Gradle modules, so AppKoinGraphTest (both
                 // flavors, no whitelist) is what proves these bindings exist.
                 NanoInitializer::class,
-                CaptionEnrichmentProvider::class,
+                BatchCaptioner::class,
                 BatchSegmentationScheduler::class,
             )
         )
