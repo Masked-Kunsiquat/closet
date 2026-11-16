@@ -18,11 +18,10 @@ import java.util.UUID
  */
 class StorageRepository(
     private val context: Context
-) {
+) : ImagePathResolver {
     companion object {
         const val MAX_DIMENSION = 1600
         const val JPEG_QUALITY = 85
-        const val IMAGES_DIR_NAME = "closet_images"
     }
 
     private val imagesDir = File(context.filesDir, IMAGES_DIR_NAME).apply {
@@ -116,6 +115,8 @@ class StorageRepository(
     fun getFile(relativePath: String): File {
         return File(imagesDir, relativePath)
     }
+
+    override fun absolutePath(relativePath: String): String = getFile(relativePath).absolutePath
 
     /**
      * Checks if a file exists for a given relative path.

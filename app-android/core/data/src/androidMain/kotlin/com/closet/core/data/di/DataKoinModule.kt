@@ -15,6 +15,7 @@ import com.closet.core.data.location.AndroidLocationProvider
 import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.repository.AI_PREFS_NAME
 import com.closet.core.data.repository.EncryptedKeyStore
+import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.repository.WEATHER_PREFS_NAME
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.workmanager.dsl.workerOf
+import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -135,7 +137,7 @@ val androidDataModule = module {
     }
     single<SecretStore> { EncryptedKeyStore(androidContext()) }
     single<LocationProvider> { AndroidLocationProvider(androidContext()) }
-    singleOf(::StorageRepository)
+    singleOf(::StorageRepository) { bind<ImagePathResolver>() }
     single<EmbeddingEncoder> { OnnxEmbeddingEncoder(androidContext()) }
 
     workerOf(::EmbeddingWorker)

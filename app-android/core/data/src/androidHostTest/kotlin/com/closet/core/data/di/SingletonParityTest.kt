@@ -6,6 +6,7 @@ import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.EmbeddingEncoder
@@ -52,6 +53,11 @@ class SingletonParityTest {
         assertSingleton<AiPreferencesRepository>()
         assertSingleton<ClothingRepository>()
         assertSingleton<StorageRepository>()
+    }
+
+    @Test fun imagePathResolverIsTheStorageRepository() {
+        val koin = KoinPlatform.getKoin()
+        assertSame(koin.get<StorageRepository>(), koin.get<ImagePathResolver>())
     }
 
     @Test fun aiHttpClientIsDistinct() {

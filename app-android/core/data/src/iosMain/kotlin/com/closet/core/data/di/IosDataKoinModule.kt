@@ -7,7 +7,9 @@ import com.closet.core.data.getDatabaseBuilder
 import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.location.NoLocationProvider
 import com.closet.core.data.repository.AI_PREFS_NAME
+import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.InMemorySecretStore
+import com.closet.core.data.repository.IosImagePathResolver
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.WEATHER_PREFS_NAME
 import com.closet.core.data.repository.createPreferencesDataStore
@@ -44,6 +46,7 @@ val iosDataModule = module {
         createPreferencesDataStore(iosPreferencesPath(WEATHER_PREFS_NAME))
     }
     single<SecretStore> { InMemorySecretStore() }
+    single<ImagePathResolver> { IosImagePathResolver() }
     single<LocationProvider> { NoLocationProvider }
     single<EmbeddingEncoder> { UnavailableEmbeddingEncoder }
     single<EmbeddingScheduler> { NoOpEmbeddingScheduler }

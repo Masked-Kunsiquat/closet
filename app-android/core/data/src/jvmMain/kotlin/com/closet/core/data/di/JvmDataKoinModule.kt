@@ -7,7 +7,10 @@ import com.closet.core.data.getDatabaseBuilder
 import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.location.NoLocationProvider
 import com.closet.core.data.repository.AI_PREFS_NAME
+import com.closet.core.data.repository.IMAGES_DIR_NAME
+import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.InMemorySecretStore
+import com.closet.core.data.repository.JvmImagePathResolver
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.WEATHER_PREFS_NAME
 import com.closet.core.data.repository.createPreferencesDataStore
@@ -46,6 +49,7 @@ fun jvmDataModule(dataDirectory: File): Module = module {
         createPreferencesDataStore(jvmPreferencesPath(dataDirectory, WEATHER_PREFS_NAME))
     }
     single<SecretStore> { InMemorySecretStore() }
+    single<ImagePathResolver> { JvmImagePathResolver(File(dataDirectory, IMAGES_DIR_NAME)) }
     single<LocationProvider> { NoLocationProvider }
     single<EmbeddingEncoder> { UnavailableEmbeddingEncoder }
     single<EmbeddingScheduler> { NoOpEmbeddingScheduler }
