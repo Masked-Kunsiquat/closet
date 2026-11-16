@@ -7,6 +7,7 @@ import com.closet.core.data.ai.tools.LaundryListTool
 import com.closet.core.data.ai.tools.MostWornTool
 import com.closet.core.data.ai.tools.OutfitsWornOnTool
 import com.closet.core.data.ai.tools.SearchItemsTool
+import com.closet.core.data.ai.tools.ToolChatRunner
 import com.closet.core.data.ai.tools.ToolRegistry
 import com.closet.core.data.ai.tools.WardrobeSummaryTool
 import com.closet.core.data.ai.tools.WardrobeTool
@@ -117,4 +118,5 @@ val commonDataModule = module {
     singleOf(::LaundryListTool) bind WardrobeTool::class
     singleOf(::WardrobeSummaryTool) bind WardrobeTool::class
     single { ToolRegistry(getAll<WardrobeTool>()) }
+    singleOf(::ToolChatRunner)
 }
