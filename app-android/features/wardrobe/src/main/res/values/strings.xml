@@ -91,6 +91,8 @@
     <string name="wardrobe_discard_changes_title">Discard Changes?</string>
     <string name="wardrobe_discard_changes_message">You have unsaved changes. Are you sure you want to discard them?</string>
     <string name="wardrobe_discard">Discard</string>
+    <string name="error_database_query">A database error occurred.</string>
+    <string name="error_unexpected">An unexpected error occurred.</string>
     <string name="wardrobe_error_brand_duplicate">A brand with that name already exists.</string>
     <string name="wardrobe_error_brand_save_failed">Failed to save brand. Please try again.</string>
     <string name="wardrobe_error_save_failed">Failed to save item. Please try again.</string>

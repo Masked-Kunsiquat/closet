@@ -13,7 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,7 +30,7 @@ data class MultiSelectItem<out T>(
     val label: String,
     val original: T,
     val colorHex: String? = null,
-    val iconResId: Int? = null
+    val icon: DrawableResource? = null
 )
 
 /**
@@ -87,7 +88,7 @@ fun <T> MultiSelectSheet(
                     MultiSelectRow(
                         label = item.label,
                         colorHex = item.colorHex,
-                        iconResId = item.iconResId,
+                        icon = item.icon,
                         isSelected = currentSelection.contains(item.id),
                         onToggle = {
                             currentSelection = if (currentSelection.contains(item.id)) {
@@ -107,7 +108,7 @@ fun <T> MultiSelectSheet(
 private fun MultiSelectRow(
     label: String,
     colorHex: String?,
-    iconResId: Int?,
+    icon: DrawableResource?,
     isSelected: Boolean,
     onToggle: () -> Unit
 ) {
@@ -128,9 +129,9 @@ private fun MultiSelectRow(
                         .clip(CircleShape)
                         .background(color)
                 )
-            } else if (iconResId != null) {
+            } else if (icon != null) {
                 Icon(
-                    painter = painterResource(id = iconResId),
+                    painter = painterResource(icon),
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -187,7 +188,7 @@ private fun MultiSelectSheetContentPreview(
                 MultiSelectRow(
                     label = item.label,
                     colorHex = item.colorHex,
-                    iconResId = item.iconResId,
+                    icon = item.icon,
                     isSelected = item.id in selectedIds,
                     onToggle = {}
                 )

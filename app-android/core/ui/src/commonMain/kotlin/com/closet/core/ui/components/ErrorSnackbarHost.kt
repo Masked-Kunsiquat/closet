@@ -1,14 +1,11 @@
 package com.closet.core.ui.components
 
-import androidx.annotation.StringRes
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.platform.LocalResources
 import com.closet.core.ui.util.UserMessage
 import kotlinx.coroutines.flow.Flow
+import org.jetbrains.compose.resources.getString
 
 /**
  * Collects a [Flow] of [UserMessage]s and shows each as a Snackbar.
@@ -25,37 +22,9 @@ fun UserMessageSnackbarEffect(
     messages: Flow<UserMessage>,
     snackbarHostState: SnackbarHostState
 ) {
-    // LocalResources tracks configuration changes; rememberUpdatedState keeps the
-    // long-running collector below reading the current value without restarting it.
-    val resources by rememberUpdatedState(LocalResources.current)
     LaunchedEffect(messages) {
         messages.collect { message ->
-            val text = if (message.args.isEmpty()) {
-                resources.getString(message.resId)
-            } else {
-                resources.getString(message.resId, *message.args)
-            }
-            snackbarHostState.showSnackbar(text)
-        }
-    }
-}
-
-/**
- * Shows a Snackbar when [errorRes] is non-null, then calls [onErrorConsumed] to clear it.
- *
- * Use for ViewModels that expose a nullable `@StringRes Int?` error field.
- */
-@Composable
-fun ResErrorSnackbarEffect(
-    @StringRes errorRes: Int?,
-    snackbarHostState: SnackbarHostState,
-    onErrorConsumed: () -> Unit
-) {
-    val resources by rememberUpdatedState(LocalResources.current)
-    LaunchedEffect(errorRes) {
-        if (errorRes != null) {
-            snackbarHostState.showSnackbar(resources.getString(errorRes))
-            onErrorConsumed()
+            snackbarHostState.showSnackbar(getString(message.res, *message.args.toTypedArray()))
         }
     }
 }

@@ -15,7 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,7 +31,8 @@ import coil3.compose.AsyncImage
 import com.closet.features.wardrobe.BuildConfig
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
-import com.closet.core.ui.R as CoreR
+import com.closet.core.ui.resources.Res
+import com.closet.core.ui.resources.ic_icon_washing_machine
 import com.closet.core.ui.components.UserMessageSnackbarEffect
 import com.closet.core.ui.util.IconMapper
 
@@ -363,11 +364,11 @@ fun ClothingDetailScreen(
             AttributePicker.PATTERNS  -> R.string.wardrobe_patterns
         })
         val items = when (picker) {
-            AttributePicker.SEASONS   -> successState?.seasons.orEmpty().map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
-            AttributePicker.OCCASIONS -> successState?.occasions.orEmpty().map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
+            AttributePicker.SEASONS   -> successState?.seasons.orEmpty().map { MultiSelectItem(it.id, it.name, it, icon = IconMapper.getIconResource(it.icon)) }
+            AttributePicker.OCCASIONS -> successState?.occasions.orEmpty().map { MultiSelectItem(it.id, it.name, it, icon = IconMapper.getIconResource(it.icon)) }
             AttributePicker.COLORS    -> successState?.colors.orEmpty().map { MultiSelectItem(it.id, it.name, it, colorHex = it.hex) }
             AttributePicker.MATERIALS -> successState?.materials.orEmpty().map { MultiSelectItem(it.id, it.name, it) }
-            AttributePicker.PATTERNS  -> successState?.patterns.orEmpty().map { MultiSelectItem(it.id, it.name, it, iconResId = IconMapper.getIconResource(it.icon)) }
+            AttributePicker.PATTERNS  -> successState?.patterns.orEmpty().map { MultiSelectItem(it.id, it.name, it, icon = IconMapper.getIconResource(it.icon)) }
         }
         val selectedIds = when (picker) {
             AttributePicker.SEASONS   -> successItem?.seasons?.map { it.id }?.toSet()
@@ -432,7 +433,7 @@ internal fun DetailStatRow(
             StatPillCard(
                 icon = {
                     Icon(
-                        painter = painterResource(CoreR.drawable.ic_icon_washing_machine),
+                        painter = painterResource(Res.drawable.ic_icon_washing_machine),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,

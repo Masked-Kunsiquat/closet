@@ -15,7 +15,7 @@ kotlin {
         compileSdk = libs.versions.compileSdk.get().toInt()
         minSdk = libs.versions.minSdk.get().toInt()
 
-        // The icon drawables and strings in src/androidMain/res.
+        // Compose Multiplatform resources are packaged as Android assets only when this is on.
         androidResources {
             enable = true
         }
@@ -44,6 +44,8 @@ kotlin {
             implementation(libs.compose.mp.foundation)
             implementation(libs.compose.mp.ui)
             implementation(libs.compose.mp.material3)
+            // api: feature modules call painterResource/stringResource/getString on Res.* values.
+            api(libs.compose.mp.components.resources)
 
             // Image loading
             implementation(libs.coil.compose)
@@ -61,7 +63,6 @@ kotlin {
         androidMain.dependencies {
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.android)
-            implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.core.ktx)
             implementation(libs.androidx.ui.tooling.preview)
         }
@@ -78,6 +79,12 @@ kotlin {
             implementation(libs.androidx.work.runtime.ktx)
         }
     }
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "com.closet.core.ui.resources"
+    generateResClass = always
 }
 
 // KMP creates no `test` task here, so the root `./gradlew test` would skip core/ui.
