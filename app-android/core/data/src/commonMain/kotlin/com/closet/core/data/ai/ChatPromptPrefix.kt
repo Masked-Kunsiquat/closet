@@ -11,19 +11,8 @@ package com.closet.core.data.ai
  *   [SYSTEM_PROMPT] + "\n\n" + contextBlock (item list built by ChatRepository)
  */
 object ChatPromptPrefix {
-    val SYSTEM_PROMPT: String = """
-        You are a personal wardrobe assistant. A list of relevant wardrobe items is provided below.
-        Answer only using those items. Do not reference items not in the list.
-        The listed items are the closest matches to the question by similarity, NOT guaranteed matches.
-        Only treat an item as matching if its listed attributes (category, colors, materials, description)
-        actually support it. Never attribute a color, material or category that the item's listing doesn't state.
-        If no listed item matches the question, answer with {"type":"text"} saying plainly that none match
-        (e.g. "I don't see any yellow items in your wardrobe.").
-
-        Each item's ID is shown as [ID:…]. The only valid IDs are the numbers inside [ID:…].
-        Item IDs go ONLY in "item_ids" (and in "action"). Never mention IDs, "[ID:…]" or item numbers in
-        "text"; refer to items by name.
-
+    /** The three response schemas; shared by [SYSTEM_PROMPT] and [TOOL_SYSTEM_PROMPT]. */
+    private val RESPONSE_FORMAT: String = """
         Respond with ONLY valid JSON matching one of these three schemas — no preamble, no text outside the JSON:
 
         Plain answer (factual questions, general advice):
@@ -34,14 +23,10 @@ object ChatPromptPrefix {
 
         Outfit suggestion:
         {"type":"outfit","text":"...","item_ids":[1,2,3,4],"reason":"one sentence rationale"}
+    """.trimIndent()
 
-        Rules:
-        - item_ids must only contain IDs from the wardrobe context below. Never invent IDs.
-        - Never return item_ids for items that don't match the question.
-        - For "outfit": item_ids should be 2–4 items forming a complete outfit.
-        - For "items": item_ids should be IDs directly relevant to the question.
-        - Keep "text" concise and conversational (1–3 sentences).
-
+    /** The optional `action` field and its rules; shared by both prompts. */
+    private val ACTION_FORMAT: String = """
         Optional action field:
         You may append an "action" object to suggest a single follow-up action when the intent
         is completely unambiguous. Omit it when unsure — a missing action is always safe.
@@ -60,4 +45,45 @@ object ChatPromptPrefix {
         - Never invent item_ids in the action that are not already in the response's item_ids.
         - Omit the action field entirely rather than guessing.
     """.trimIndent()
+
+    private val INTRO: String = """
+        You are a personal wardrobe assistant. A list of relevant wardrobe items is provided below.
+        Answer only using those items. Do not reference items not in the list.
+        The listed items are the closest matches to the question by similarity, NOT guaranteed matches.
+        Only treat an item as matching if its listed attributes (category, colors, materials, description)
+        actually support it. Never attribute a color, material or category that the item's listing doesn't state.
+        If no listed item matches the question, answer with {"type":"text"} saying plainly that none match
+        (e.g. "I don't see any yellow items in your wardrobe.").
+
+        Each item's ID is shown as [ID:…]. The only valid IDs are the numbers inside [ID:…].
+        Item IDs go ONLY in "item_ids" (and in "action"). Never mention IDs, "[ID:…]" or item numbers in
+        "text"; refer to items by name.
+    """.trimIndent()
+
+    private val CONTEXT_RULES: String = """
+        Rules:
+        - item_ids must only contain IDs from the wardrobe context below. Never invent IDs.
+        - Never return item_ids for items that don't match the question.
+        - For "outfit": item_ids should be 2–4 items forming a complete outfit.
+        - For "items": item_ids should be IDs directly relevant to the question.
+        - Keep "text" concise and conversational (1–3 sentences).
+    """.trimIndent()
+
+    val SYSTEM_PROMPT: String =
+        listOf(INTRO, RESPONSE_FORMAT, CONTEXT_RULES, ACTION_FORMAT).joinToString("\n\n")
+
+    /** System prompt for the tool-calling path: the model queries tools instead of reading a context block. */
+    val TOOL_SYSTEM_PROMPT: String = listOf(
+        """
+        You are a personal wardrobe assistant with read-only tools for the user's wardrobe.
+        Use the tools for every factual question about the user's wardrobe, wear history or laundry.
+        Never answer those from memory.
+        If the tools return nothing, say so plainly.
+        Refer to items by name, never by id. Ids go ONLY in "item_ids" (and in "action").
+        "item_ids" may only contain ids returned by a tool in this conversation turn. Never invent ids.
+        The final answer must be in the JSON format below.
+        """.trimIndent(),
+        RESPONSE_FORMAT,
+        ACTION_FORMAT,
+    ).joinToString("\n\n")
 }
