@@ -29,6 +29,8 @@ Run all Gradle commands from the `app-android/` directory.
 ./gradlew :core:data:jvmTest               # core/data JVM tests: schema, DAO, repository (no device needed)
 ./gradlew :core:data:connectedAndroidDeviceTest   # core/data instrumented tests (database path, existing-install upgrade)
 ./gradlew :core:data:compileCommonMainKotlinMetadata  # local stand-in for the iOS compile (CI only)
+./gradlew :core:ui:jvmTest                 # core/ui JVM tests (preferences, Koin module; commonTest runs here too)
+./gradlew :core:ui:compileCommonMainKotlinMetadata  # local stand-in for the iOS compile of core/ui (CI only)
 ```
 
 `core/data` is a Kotlin Multiplatform module (targets `android`, `jvm`, `iosArm64`, `iosSimulatorArm64`). Its source sets are `commonMain`, `androidMain`, `jvmMain`, `iosMain`, `commonTest`, `jvmTest`, `androidHostTest` and `androidDeviceTest`; it has no `BuildConfig` (the debug flag is `BuildFlags`, bound in `appModule`).
@@ -38,10 +40,15 @@ Run all Gradle commands from the `app-android/` directory.
 - **Platform interfaces** (common; Android binds the real one, `jvmDataModule`/`iosDataModule` bind honest stubs): `SecretStore` (`InMemorySecretStore`), `LocationProvider` (`NoLocationProvider`), `EmbeddingEncoder` (`UnavailableEmbeddingEncoder`; `modelVersion` is the stored `model_version`), and `EmbeddingScheduler` / `ImageCompressionScheduler` / `BatchSegmentationScheduler` (`NoOp*Scheduler`). Schedulers expose `workStatus: Flow<WorkStatus?>` — never `WorkInfo` — so feature code reads `WorkStatus`/`WorkState`. Android's `BatchSegmentationScheduler` is bound by `wardrobeModule`.
 - **Logging:** `core/data` logs with Kermit (`Logger.withTag(...)`), not Timber.
 
+`core/ui` is also a Kotlin/Compose Multiplatform module (targets `android`, `jvm`, `iosArm64`, `iosSimulatorArm64`). Its source sets are `commonMain`, `androidMain`, `jvmMain`, `iosMain`, `commonTest`, `jvmTest` and `androidHostTest`.
+
+- **`commonMain`:** theme, shared components, mappers (`asUserMessage`, icon mapping), `PreferencesRepository` and `composeResources`. **`androidMain`:** the platform theme actuals (`PlatformTheme.android.kt`, dynamic color), `ResErrorSnackbarEffect` and `androidUiModule`. `jvmMain`/`iosMain` hold the platform theme actuals and their Koin modules.
+- **Koin:** `uiModule = commonUiModule + androidUiModule` (androidMain); `jvmUiModule(dataDirectory: File)` and `iosUiModule` build the DataStore themselves. `PreferencesRepository` takes the `named("closet_prefs")` `DataStore<Preferences>`.
+
 Full verification before a PR:
 
 ```bash
-./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
+./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
 CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources) on macOS. Instrumented tests don't run in CI; run them on a device.
@@ -55,7 +62,7 @@ Unit and instrumented tests exist for the stats feature. Room tests (`FreshInsta
 ```
 app/                   — Application entry point, NavGraph, MainActivity
 core/data/             — Database, DAOs, Repositories, entities, Koin data module
-core/ui/               — Material 3 theme, shared Composable components
+core/ui/               — KMP/CMP module: Material 3 theme, shared Composable components, Compose resources, preferences
 features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash, brand management
 features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet
 features/stats/        — Stats screen, StatsViewModel, breakdown sections
@@ -117,11 +124,13 @@ Type-safe Compose Navigation (2.9.7+). Destinations are `@Serializable` data cla
 
 ### Design system
 
-Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose. Dynamic color (Material You) enabled on Android 12+. All color/theme tokens live in `core/ui/theme/`. Never hardcode colors; use the theme.
+Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose. Dynamic color (Material You) enabled on Android 12+. All color/theme tokens live in `core/ui/src/commonMain/.../theme/`; dynamic color is Android-only, in `PlatformTheme.android.kt`. Never hardcode colors; use the theme.
+
+**Resources.** Shared drawables and strings live in `core/ui/src/commonMain/composeResources/` and are referenced through the generated `com.closet.core.ui.resources.Res` (e.g. `Res.drawable.ic_icon_sun`, `Res.string.error_unexpected`; import each accessor from `com.closet.core.ui.resources`). Use `org.jetbrains.compose.resources.painterResource`/`stringResource`/`getString` for them; string placeholders are positional (`%1$s`). `core/ui` exposes `components-resources` as `api`. Feature modules keep their own Android `R` until Phase 5. Launcher shortcut icons are copies in `app/` and `features/wardrobe` `res/drawable/` (the shortcut XMLs reference `@drawable/...`).
 
 ### Image handling
 
-Store only **relative paths** in the DB. Copy picked images into app-owned storage via `StorageRepository`, then store the relative path. Reconstruct full URI at display time in the repository/ViewModel layer before passing to Coil.
+Store only **relative paths** in the DB. Copy picked images into app-owned storage via `StorageRepository`, then store the relative path. Reconstruct full URI at display time in the repository/ViewModel layer before passing to Coil 3 (`coil3.compose.AsyncImage`).
 
 ### Charts
 

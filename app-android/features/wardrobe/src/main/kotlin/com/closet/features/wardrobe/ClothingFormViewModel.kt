@@ -415,7 +415,7 @@ class ClothingFormViewModel(
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                _form.update { it.copy(isLoading = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
+                _form.update { it.copy(isLoading = false, errorMessage = R.string.error_database_query) }
             }
         }
     }
@@ -518,7 +518,7 @@ class ClothingFormViewModel(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "image selection failed")
-                _form.update { it.copy(isLoading = false, errorMessage = com.closet.core.ui.R.string.error_unexpected) }
+                _form.update { it.copy(isLoading = false, errorMessage = R.string.error_unexpected) }
             }
         }
     }
@@ -810,11 +810,11 @@ class ClothingFormViewModel(
                     }
                     _events.send(ClothingFormEvent.NavigateBack)
                 } else {
-                    _form.update { it.copy(isSaving = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
+                    _form.update { it.copy(isSaving = false, errorMessage = R.string.error_database_query) }
                 }
             } catch (e: Exception) {
                 Timber.e(e, "save clothing item failed")
-                _form.update { it.copy(isSaving = false, errorMessage = com.closet.core.ui.R.string.error_database_query) }
+                _form.update { it.copy(isSaving = false, errorMessage = R.string.error_database_query) }
             }
         }
     }

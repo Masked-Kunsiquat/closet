@@ -28,7 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -98,7 +99,7 @@ internal fun ClothingAttributes(
                     item.seasons.forEach { season ->
                         AttributeChip(
                             label = season.name,
-                            iconResId = IconMapper.getIconResource(season.icon),
+                            iconRes = IconMapper.getIconResource(season.icon),
                             onClick = onEditSeasons
                         )
                     }
@@ -154,7 +155,7 @@ internal fun ClothingAttributes(
                     item.patterns.forEach { pattern ->
                         AttributeChip(
                             label = pattern.name,
-                            iconResId = IconMapper.getIconResource(pattern.icon),
+                            iconRes = IconMapper.getIconResource(pattern.icon),
                             onClick = onEditPatterns
                         )
                     }
@@ -173,7 +174,7 @@ internal fun ClothingAttributes(
                     item.occasions.forEach { occasion ->
                         AttributeChip(
                             label = occasion.name,
-                            iconResId = IconMapper.getIconResource(occasion.icon),
+                            iconRes = IconMapper.getIconResource(occasion.icon),
                             onClick = onEditOccasions
                         )
                     }
@@ -232,7 +233,7 @@ internal fun AttributeSection(
  * Supports an optional leading icon (vector or resource) or a color swatch.
  *
  * @param label The text to display.
- * @param iconResId Optional drawable resource ID for the leading icon.
+ * @param iconRes Optional drawable resource for the leading icon.
  * @param icon Optional [ImageVector] for the leading icon.
  * @param color Optional [Color] for a leading circular swatch.
  * @param onClick Callback when the chip is tapped.
@@ -241,7 +242,7 @@ internal fun AttributeSection(
 @Composable
 internal fun AttributeChip(
     label: String,
-    iconResId: Int? = null,
+    iconRes: DrawableResource? = null,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     color: Color? = null,
     onClick: () -> Unit
@@ -263,9 +264,9 @@ internal fun AttributeChip(
                         .clip(CircleShape)
                         .background(color)
                 )
-            } else if (iconResId != null) {
+            } else if (iconRes != null) {
                 Icon(
-                    painter = painterResource(id = iconResId),
+                    painter = painterResource(iconRes),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary

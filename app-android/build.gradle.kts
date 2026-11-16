@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.room) apply false
     alias(libs.plugins.android.lint) apply false
+    alias(libs.plugins.compose.multiplatform) apply false
 }
 
 // Aggregate iOS compile check for KMP modules (main sources for both iOS targets,

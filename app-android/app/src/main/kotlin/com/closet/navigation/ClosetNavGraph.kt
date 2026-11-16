@@ -1,7 +1,6 @@
 package com.closet.navigation
 
 import android.content.Intent
-import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -25,7 +25,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.closet.R
-import com.closet.core.ui.R as CoreUiR
+import com.closet.core.ui.resources.Res
+import com.closet.core.ui.resources.ic_icon_calendar_dots
+import com.closet.core.ui.resources.ic_icon_chart_bar
+import com.closet.core.ui.resources.ic_icon_chat_circle
+import com.closet.core.ui.resources.ic_icon_coat_hanger
+import com.closet.core.ui.resources.ic_icon_t_shirt
 import com.closet.features.outfits.JournalRoute
 import com.closet.features.outfits.OutfitBuilderDestination
 import com.closet.features.outfits.OutfitsRoute
@@ -67,15 +72,15 @@ private data class TopLevelRoute(
     val destination: Any,
     val routeClass: KClass<*>,
     @StringRes val labelRes: Int,
-    @DrawableRes val iconRes: Int,
+    val icon: DrawableResource,
 )
 
 private val topLevelRoutes = listOf(
-    TopLevelRoute(ClosetDestination(), ClosetDestination::class, R.string.nav_closet, CoreUiR.drawable.ic_icon_coat_hanger),
-    TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, CoreUiR.drawable.ic_icon_t_shirt),
-    TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, CoreUiR.drawable.ic_icon_calendar_dots),
-    TopLevelRoute(StatsRoute, StatsRoute::class, R.string.nav_stats, CoreUiR.drawable.ic_icon_chart_bar),
-    TopLevelRoute(ChatRoute, ChatRoute::class, R.string.nav_chat, CoreUiR.drawable.ic_icon_chat_circle),
+    TopLevelRoute(ClosetDestination(), ClosetDestination::class, R.string.nav_closet, Res.drawable.ic_icon_coat_hanger),
+    TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, Res.drawable.ic_icon_t_shirt),
+    TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, Res.drawable.ic_icon_calendar_dots),
+    TopLevelRoute(StatsRoute, StatsRoute::class, R.string.nav_stats, Res.drawable.ic_icon_chart_bar),
+    TopLevelRoute(ChatRoute, ChatRoute::class, R.string.nav_chat, Res.drawable.ic_icon_chat_circle),
 )
 
 private fun NavDestination?.isTopLevel() =
@@ -268,7 +273,7 @@ private fun ClosetBottomBar(
                 onClick = { onNavigate(topLevel.destination) },
                 icon = {
                     Icon(
-                        painter = painterResource(topLevel.iconRes),
+                        painter = painterResource(topLevel.icon),
                         contentDescription = stringResource(topLevel.labelRes)
                     )
                 },
