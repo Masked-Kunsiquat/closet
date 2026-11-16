@@ -1,6 +1,11 @@
 name: iOS compile check
 
 # Compiles all Kotlin Multiplatform modules (main + test sources) for iOS targets.
+# Runs on Linux: Kotlin/Native can build iOS klibs on any host with klib
+# cross-compilation enabled (only linking a final iOS binary needs a Mac, and
+# this check doesn't link). macOS runners were often never acquired.
+# Without the flag, Gradle silently SKIPs iOS tasks on Linux, so the step fails
+# if any iOS compile task was skipped.
 on:
   pull_request:
   push:
@@ -16,7 +21,8 @@ permissions:
 
 jobs:
   ios-compile:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     defaults:
       run:
@@ -44,4 +50,16 @@ jobs:
         run: chmod +x gradlew
 
       - name: Compile KMP modules for iOS
-        run: ./gradlew iosCompileCheck --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew iosCompileCheck --stacktrace --console=plain             -Pkotlin.native.enableKlibsCrossCompilation=true | tee "$RUNNER_TEMP/ios.log"
+          if grep -E "Task :.*:compile(Test)?KotlinIos[A-Za-z0-9]* SKIPPED" "$RUNNER_TEMP/ios.log"; then
+            echo "::error::iOS compile tasks were skipped (cross-compilation not active)."
+            exit 1
+          fi
+          count=$(grep -cE "Task :.*:compile(Test)?KotlinIos[A-Za-z0-9]*( UP-TO-DATE| FROM-CACHE)?$" "$RUNNER_TEMP/ios.log" || true)
+          echo "iOS compile tasks executed: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No iOS compile tasks ran."
+            exit 1
+          fi
