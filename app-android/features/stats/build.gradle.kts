@@ -14,11 +14,14 @@ plugins {
 fun Project.skikoRuntimeForHost(): Provider<MinimalExternalModuleDependency> {
     val os = System.getProperty("os.name").lowercase()
     val arch = System.getProperty("os.arch").lowercase()
+    val isX64 = arch == "amd64" || arch == "x86_64"
     val isArm = arch == "aarch64" || arch == "arm64"
     return when {
-        "win" in os -> libs.skiko.awt.runtime.windows.x64
-        "mac" in os -> if (isArm) libs.skiko.awt.runtime.macos.arm64 else libs.skiko.awt.runtime.macos.x64
-        else -> libs.skiko.awt.runtime.linux.x64
+        "mac" in os && isArm -> libs.skiko.awt.runtime.macos.arm64
+        "mac" in os && isX64 -> libs.skiko.awt.runtime.macos.x64
+        "windows" in os && isX64 -> libs.skiko.awt.runtime.windows.x64
+        "linux" in os && isX64 -> libs.skiko.awt.runtime.linux.x64
+        else -> error("Unsupported host for Skiko test runtime: $os/$arch")
     }
 }
 
@@ -105,6 +108,12 @@ kotlin {
             implementation(libs.androidx.work.runtime.ktx)
         }
     }
+}
+
+// Runtime-only (KMP Android library has no debugImplementation): lets Android Studio render @Preview.
+dependencies {
+    "androidRuntimeClasspath"(platform(libs.androidx.compose.bom))
+    "androidRuntimeClasspath"(libs.androidx.ui.tooling)
 }
 
 compose.resources {

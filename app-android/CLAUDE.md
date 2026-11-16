@@ -44,6 +44,7 @@ Run all Gradle commands from the `app-android/` directory.
 
 - **`commonMain`:** theme, shared components, mappers (`asUserMessage`, icon mapping), `PreferencesRepository` and `composeResources`. **`androidMain`:** the platform theme actuals (`PlatformTheme.android.kt`, dynamic color), `ResErrorSnackbarEffect` and `androidUiModule`. `jvmMain`/`iosMain` hold the platform theme actuals and their Koin modules.
 - **Koin:** `uiModule = commonUiModule + androidUiModule` (androidMain); `jvmUiModule(dataDirectory: File)` and `iosUiModule` build the DataStore themselves. `PreferencesRepository` takes the `named("closet_prefs")` `DataStore<Preferences>`.
+- **Previews:** KMP feature modules (e.g. `features/stats`) have no `debugImplementation`; add `androidx.compose.ui:ui-tooling` through the runtime-only `"androidRuntimeClasspath"(libs.androidx.ui.tooling)` configuration (with the Compose BOM) so `@Preview`s render.
 
 Full verification before a PR:
 

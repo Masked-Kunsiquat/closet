@@ -14,14 +14,19 @@ import kotlin.test.assertTrue
 class JvmImagePathResolverTest {
     @Test fun resolvesAgainstTheImagesDirectory() {
         val tmp = Files.createTempDirectory("images").toFile()
-        assertEquals(File(tmp, "a/b.jpg").absolutePath, JvmImagePathResolver(tmp).absolutePath("a/b.jpg"))
+        try {
+            assertEquals(File(tmp, "a/b.jpg").absolutePath, JvmImagePathResolver(tmp).absolutePath("a/b.jpg"))
+        } finally {
+            tmp.deleteRecursively()
+        }
     }
 
     @Test fun jvmDataModuleBindsTheResolverUnderTheImagesDirectory() {
+        val dataDir = Files.createTempDirectory("jvm-data").toFile()
         val app = koinApplication {
             modules(
                 commonDataModule,
-                jvmDataModule(Files.createTempDirectory("jvm-data").toFile()),
+                jvmDataModule(dataDir),
                 module { single { BuildFlags(isDebug = false) } },
             )
         }
@@ -30,6 +35,7 @@ class JvmImagePathResolverTest {
             assertTrue(path.endsWith("$IMAGES_DIR_NAME${File.separator}x.jpg"), path)
         } finally {
             app.close()
+            dataDir.deleteRecursively()
         }
     }
 }
