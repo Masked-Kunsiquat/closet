@@ -88,7 +88,9 @@ internal fun nanoUnavailableMessage(availability: NanoAvailability): String? = w
     NanoAvailability.READY -> null
     NanoAvailability.NOT_SUPPORTED ->
         "On-device AI isn't supported on this phone. Choose another provider in Settings → AI."
-    NanoAvailability.DOWNLOADING -> "The on-device model is still downloading. Try again in a few minutes."
+    // Only Settings runs the Nano init, so a stale DOWNLOADING also points there.
+    NanoAvailability.DOWNLOADING ->
+        "The on-device model is still downloading. Try again in a few minutes, or open Settings → AI."
     NanoAvailability.FAILED, NanoAvailability.UNKNOWN -> "On-device AI isn't ready. Open Settings → AI to check it."
 }
 

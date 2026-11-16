@@ -107,14 +107,87 @@ class NanoToolMappingTest {
             }
             putJsonObject("map") { put("k", false) }
         }
-        val toolCall = call.toToolCall(index = 0)
+        val toolCall = call.toToolCall(fallbackId = "unused")
         assertEquals(ToolCall("call-1", "search_items", expected), toolCall)
     }
 
     @Test
-    fun `blank call id gets a stable generated id`() {
+    fun `blank call id gets the fallback id`() {
         val call = FunctionCall("wardrobe_summary", emptyMap(), "")
-        assertEquals("call_3", call.toToolCall(index = 3).id)
+        assertEquals("call_1_3", call.toToolCall(fallbackId = "call_1_3").id)
+    }
+
+    @Test
+    fun `generated ids are unique across rounds of one turn`() {
+        val calls = listOf(FunctionCall("a", emptyMap(), ""), FunctionCall("b", emptyMap(), ""))
+        val first = candidateStep(null, calls, round = toolRound(listOf(ToolTurn.User("q")))) as ToolStep.Calls
+        val turns = listOf(
+            ToolTurn.User("q"),
+            ToolTurn.Assistant(null, first.calls),
+            ToolTurn.ToolResults(emptyList()),
+        )
+        val second = candidateStep(null, calls, round = toolRound(turns)) as ToolStep.Calls
+        val ids = (first.calls + second.calls).map { it.id }
+        assertEquals(listOf("call_0_0", "call_0_1", "call_1_0", "call_1_1"), ids)
+    }
+
+    @Test
+    fun `tool round counts only this turn's assistant calls`() {
+        val turns = listOf(
+            ToolTurn.User("old"),
+            ToolTurn.Assistant("old answer"),
+            ToolTurn.User("q"),
+            ToolTurn.Assistant(null, listOf(ToolCall("x", "a", buildJsonObject { }))),
+            ToolTurn.ToolResults(emptyList()),
+        )
+        assertEquals(1, toolRound(turns))
+        assertEquals(0, toolRound(turns.take(3)))
+    }
+
+    // ── in-turn trimming ─────────────────────────────────────────────────────
+
+    private val user = ToolTurn.User("q")
+    private fun pair(n: Int): List<ToolTurn> = listOf(
+        ToolTurn.Assistant(null, listOf(ToolCall("c$n", "t", buildJsonObject { }))),
+        ToolTurn.ToolResults(listOf(ToolCallResult("c$n", "t", buildJsonObject { }))),
+    )
+
+    @Test
+    fun `over budget drops the oldest call and result pairs first`() {
+        val tail = listOf(user) + pair(1) + pair(2) + pair(3)
+        // Fits once at most one pair is left.
+        val kept = trimToolRounds(tail) { it.size <= 3 }
+        assertEquals(listOf(user) + pair(3), kept)
+    }
+
+    @Test
+    fun `trimming never splits a pair`() {
+        val tail = listOf(user) + pair(1) + pair(2) + pair(3)
+        val seen = mutableListOf<List<ToolTurn>>()
+        trimToolRounds(tail) { seen += it; it.size <= 5 }
+        // Every candidate is the user turn plus whole pairs.
+        seen.forEach { candidate ->
+            assertEquals(user, candidate.first())
+            assertEquals(1, candidate.size % 2)
+            candidate.drop(1).chunked(2).forEach { (a, r) ->
+                assertTrue(a is ToolTurn.Assistant)
+                assertTrue(r is ToolTurn.ToolResults)
+            }
+        }
+        assertEquals(listOf(user) + pair(2) + pair(3), trimToolRounds(tail) { it.size <= 5 })
+    }
+
+    @Test
+    fun `user turn and latest pair are kept even when still over budget`() {
+        val tail = listOf(user) + pair(1) + pair(2)
+        assertEquals(listOf(user) + pair(2), trimToolRounds(tail) { false })
+        assertEquals(listOf(user), trimToolRounds(listOf(user)) { false })
+    }
+
+    @Test
+    fun `under budget leaves the turn unchanged`() {
+        val tail = listOf(user) + pair(1) + pair(2)
+        assertEquals(tail, trimToolRounds(tail) { true })
     }
 
     // ── candidate → ToolStep ─────────────────────────────────────────────────
@@ -162,7 +235,7 @@ class NanoToolMappingTest {
         assertEquals("search_items", callPart.functionCall.name)
         assertEquals("c1", callPart.functionCall.id)
         // The call's args round-trip back to the same JSON.
-        assertEquals(args, callPart.functionCall.toToolCall(0).args)
+        assertEquals(args, callPart.functionCall.toToolCall("unused").args)
 
         val responsePart = contents[4].parts.single() as FunctionResponsePart
         assertEquals("c1", responsePart.id)

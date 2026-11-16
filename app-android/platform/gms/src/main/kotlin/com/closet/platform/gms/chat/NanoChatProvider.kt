@@ -170,7 +170,7 @@ class NanoChatProvider(
             }
             val candidate = model.generateContent(request).candidates.firstOrNull()
                 ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
-            val step = candidateStep(candidate.text, candidate.functionCalls)
+            val step = candidateStep(candidate.text, candidate.functionCalls, round = toolRound(turns))
                 ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
             Result.success(step)
         } catch (e: Exception) {
@@ -253,10 +253,13 @@ class NanoChatProvider(
     }
 
     /**
-     * Trims the prior conversation (every turn before the last [ToolTurn.User], i.e. the current
-     * message) the way [chat] trims history: at most [MAX_HISTORY_TURNS], no leading assistant
-     * turn, then oldest first until the request fits the token budget. The current message and
-     * this turn's tool calls and results are always kept.
+     * Fits the tool conversation into the token budget:
+     * 1. The prior conversation (every turn before the last [ToolTurn.User], the current message)
+     *    is trimmed the way [chat] trims history: at most [MAX_HISTORY_TURNS], no leading
+     *    assistant turn, then oldest first.
+     * 2. If the request is still over budget with no history left, this turn's oldest tool rounds
+     *    are dropped whole ([trimToolRounds]); the current message and the latest round stay.
+     *    The runner already recorded the dropped results' item ids, so validation is unaffected.
      */
     private suspend inline fun fitToolTurns(
         turns: List<ToolTurn>,
@@ -264,21 +267,25 @@ class NanoChatProvider(
         countTokens: (GenerateContentRequest) -> Int,
     ): List<ToolTurn> {
         val current = turns.indexOfLast { it is ToolTurn.User }
-        if (current <= 0) return turns
+        if (current < 0) return turns
         val tail = turns.subList(current, turns.size)
         val history = turns.subList(0, current).takeLast(MAX_HISTORY_TURNS).dropWhile { it !is ToolTurn.User }
         val budget = tokenLimit() - MAX_OUTPUT_TOKENS
-        if (budget <= 0 || history.isEmpty()) return history + tail
-        val kept = trimOldest(history) { candidate ->
-            try {
-                countTokens(build(candidate.dropWhile { it !is ToolTurn.User } + tail)) <= budget
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                Timber.tag(TAG).d(e, "countTokens failed — history not trimmed")
-                true
-            }
-        }
-        return kept.dropWhile { it !is ToolTurn.User } + tail
+        if (budget <= 0) return history + tail
+        val keptHistory = trimOldest(history) { candidate ->
+            withinBudget(budget) { countTokens(build(candidate.dropWhile { it !is ToolTurn.User } + tail)) }
+        }.dropWhile { it !is ToolTurn.User }
+        if (keptHistory.isNotEmpty()) return keptHistory + tail
+        return trimToolRounds(tail) { candidate -> withinBudget(budget) { countTokens(build(candidate)) } }
+    }
+
+    /** True when [count] is within [budget]; a failed count counts as fitting (nothing trimmed). */
+    private inline fun withinBudget(budget: Int, count: () -> Int): Boolean = try {
+        count() <= budget
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Timber.tag(TAG).d(e, "countTokens failed — request not trimmed")
+        true
     }
 
     /**

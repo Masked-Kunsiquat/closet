@@ -45,7 +45,7 @@ class ChatAiProviderSelectorNanoTest {
     @Test
     fun `downloading says to try again later`() = runTest {
         assertEquals(
-            "The on-device model is still downloading. Try again in a few minutes.",
+            "The on-device model is still downloading. Try again in a few minutes, or open Settings → AI.",
             failureMessage(NanoAvailability.DOWNLOADING),
         )
     }

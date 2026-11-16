@@ -25,8 +25,8 @@ class ChatErrorMessageTest {
     @Test
     fun `ProviderNotConfiguredException surfaces its message`() {
         assertEquals(
-            "Gemini Nano is not ready — open Settings to set it up",
-            chatErrorMessage(ProviderNotConfiguredException("Gemini Nano is not ready — open Settings to set it up")),
+            "On-device AI isn't ready. Open Settings → AI to check it.",
+            chatErrorMessage(ProviderNotConfiguredException("On-device AI isn't ready. Open Settings → AI to check it.")),
         )
     }
 

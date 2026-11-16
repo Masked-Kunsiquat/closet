@@ -180,14 +180,12 @@ class AiPreferencesRepository(
     // ── Nano — availability ──────────────────────────────────────────────────
 
     /**
-     * The outcome of the last Nano init. Written alongside [setAiReady] (which existing callers
-     * still read); when nothing is stored yet, a legacy `true` ready flag reads as
-     * [NanoAvailability.READY] so installs from before this key keep working, else
-     * [NanoAvailability.UNKNOWN].
+     * The outcome of the last Nano init, written alongside [setAiReady] (which existing callers
+     * still read). [NanoAvailability.UNKNOWN] until an init has run.
      */
     fun getNanoAvailability(): Flow<NanoAvailability> = aiDataStore.data.map { prefs ->
         prefs[nanoAvailabilityKey]?.let { stored -> NanoAvailability.entries.firstOrNull { it.name == stored } }
-            ?: if (prefs[nanoAiReadyKey] == true) NanoAvailability.READY else NanoAvailability.UNKNOWN
+            ?: NanoAvailability.UNKNOWN
     }
 
     suspend fun setNanoAvailability(availability: NanoAvailability) {

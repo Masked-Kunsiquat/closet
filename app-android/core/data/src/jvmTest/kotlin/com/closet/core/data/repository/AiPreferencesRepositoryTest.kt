@@ -76,11 +76,11 @@ class AiPreferencesRepositoryTest {
     }
 
     @Test
-    fun legacyReadyFlagReadsAsReadyWhenNoAvailabilityStored() = runBlocking {
+    fun readyFlagAloneDoesNotSetAvailability() = runBlocking {
         withDataStore { store ->
             val repository = AiPreferencesRepository(store, InMemorySecretStore())
             repository.setAiReady(true)
-            assertEquals(NanoAvailability.READY, repository.getNanoAvailability().first())
+            assertEquals(NanoAvailability.UNKNOWN, repository.getNanoAvailability().first())
         }
     }
 

@@ -10,7 +10,7 @@ private const val GENERIC_CHAT_ERROR = "Something went wrong. Please try again."
 internal fun chatErrorMessage(error: Throwable): String = when (error) {
     is OnDeviceAiException -> error.reason.userMessage
     is ChatResponseParseException -> "The assistant's reply couldn't be read. Try asking another way."
-    // ChatAiProviderSelector (safe, user-facing text): "… is not configured", "Gemini Nano is not ready — open Settings …"
+    // ChatAiProviderSelector (safe, user-facing text): "… is not configured", "On-device AI isn't ready. Open Settings → AI …"
     is ProviderNotConfiguredException -> error.message ?: GENERIC_CHAT_ERROR
     else -> GENERIC_CHAT_ERROR
 }

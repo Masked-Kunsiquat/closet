@@ -58,11 +58,11 @@ private fun ToolParam.toSchema(): FunctionSchema = when (type) {
 }
 
 /**
- * Maps a model function call to a [ToolCall]. A blank id (the model may omit one) becomes
- * `call_<index>`, so the matching `FunctionResponsePart` can still reference it.
+ * Maps a model function call to a [ToolCall]. A null or blank id (the model may omit one) becomes
+ * [fallbackId], so the matching `FunctionResponsePart` can still reference it.
  */
-internal fun FunctionCall.toToolCall(index: Int): ToolCall = ToolCall(
-    id = id?.takeIf { it.isNotBlank() } ?: "call_$index",
+internal fun FunctionCall.toToolCall(fallbackId: String): ToolCall = ToolCall(
+    id = id?.takeIf { it.isNotBlank() } ?: fallbackId,
     name = name,
     args = JsonObject(arguments.mapValues { (_, value) -> value.toJson() }),
 )
@@ -98,12 +98,39 @@ private fun JsonObject.toArgMap(): Map<String, FunctionArgValue> =
 
 /**
  * The step a candidate represents: [ToolStep.Calls] when it has function calls, [ToolStep.Final]
- * when it has non-blank text, and null when it has neither.
+ * when it has non-blank text, and null when it has neither. Calls without an id get
+ * `call_<round>_<index>`, unique within the user's turn when [round] comes from [toolRound].
  */
-internal fun candidateStep(text: String?, functionCalls: List<FunctionCall>): ToolStep? = when {
-    functionCalls.isNotEmpty() -> ToolStep.Calls(functionCalls.mapIndexed { i, call -> call.toToolCall(i) })
+internal fun candidateStep(text: String?, functionCalls: List<FunctionCall>, round: Int = 0): ToolStep? = when {
+    functionCalls.isNotEmpty() ->
+        ToolStep.Calls(functionCalls.mapIndexed { i, call -> call.toToolCall(fallbackId = "call_${round}_$i") })
     !text.isNullOrBlank() -> ToolStep.Final(text)
     else -> null
+}
+
+/** How many tool rounds the current user turn (after the last [ToolTurn.User]) already has. */
+internal fun toolRound(turns: List<ToolTurn>): Int =
+    turns.drop(turns.indexOfLast { it is ToolTurn.User } + 1).count { it is ToolTurn.Assistant }
+
+/**
+ * Trims the current user turn ([tail]: the [ToolTurn.User] followed by this turn's tool rounds)
+ * until [fits] accepts it, by dropping the oldest round (an [ToolTurn.Assistant] with its
+ * [ToolTurn.ToolResults]) as a whole. The user turn and the most recent round are always kept,
+ * even if the result still doesn't fit.
+ *
+ * `inline` so [fits] can call suspend functions (`countTokens`).
+ */
+internal inline fun trimToolRounds(tail: List<ToolTurn>, fits: (List<ToolTurn>) -> Boolean): List<ToolTurn> {
+    if (tail.isEmpty()) return tail
+    val head = tail.first()
+    // Group into rounds: each Assistant starts one; ToolResults join the round before them.
+    val rounds = mutableListOf<MutableList<ToolTurn>>()
+    tail.drop(1).forEach { turn ->
+        if (turn is ToolTurn.Assistant || rounds.isEmpty()) rounds += mutableListOf(turn) else rounds.last() += turn
+    }
+    var kept: List<List<ToolTurn>> = rounds
+    while (kept.size > 1 && !fits(listOf(head) + kept.flatten())) kept = kept.drop(1)
+    return listOf(head) + kept.flatten()
 }
 
 /**
