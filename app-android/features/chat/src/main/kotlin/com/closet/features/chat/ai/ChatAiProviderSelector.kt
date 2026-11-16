@@ -1,6 +1,7 @@
 package com.closet.features.chat.ai
 
 import com.closet.core.data.ai.ChatAiProvider
+import com.closet.core.data.ai.NanoAvailability
 import com.closet.core.data.ai.ProviderNotConfiguredException
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.repository.AiPreferencesRepository
@@ -33,9 +34,9 @@ class ChatAiProviderSelector(
         return try {
             when (val provider = aiPreferencesRepository.getSelectedProvider().first()) {
                 AiProvider.Nano -> {
-                    val ready = aiPreferencesRepository.getAiReady().first()
-                    if (!ready) {
-                        Result.failure(ProviderNotConfiguredException("Gemini Nano is not ready — open Settings to set it up"))
+                    val message = nanoUnavailableMessage(aiPreferencesRepository.getNanoAvailability().first())
+                    if (message != null) {
+                        Result.failure(ProviderNotConfiguredException(message))
                     } else {
                         Result.success(nanoProvider)
                     }
@@ -80,6 +81,15 @@ class ChatAiProviderSelector(
             val modelLabel = if (provider == AiProvider.Nano) nanoProvider.modelLabel() else null
             chatProviderLabel(provider, modelLabel)
         }
+}
+
+/** Why the on-device provider can't be used for [availability], or null when it is ready. */
+internal fun nanoUnavailableMessage(availability: NanoAvailability): String? = when (availability) {
+    NanoAvailability.READY -> null
+    NanoAvailability.NOT_SUPPORTED ->
+        "On-device AI isn't supported on this phone. Choose another provider in Settings → AI."
+    NanoAvailability.DOWNLOADING -> "The on-device model is still downloading. Try again in a few minutes."
+    NanoAvailability.FAILED, NanoAvailability.UNKNOWN -> "On-device AI isn't ready. Open Settings → AI to check it."
 }
 
 /**

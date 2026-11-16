@@ -265,9 +265,11 @@ class SettingsViewModel(
             _nanoStatus.value = NanoStatus.Checking
             nanoInitializer.initNanoFlow().collect { result ->
                 // Persist the outcome: chat, recommendations and the coherence scorer gate Nano on
-                // getAiReady(); the token limit feeds the recommendations trim gate (0 = unknown).
+                // getAiReady(); chat words its "not ready" error from the availability; the token
+                // limit feeds the recommendations trim gate (0 = unknown).
                 try {
                     nanoReadyFor(result)?.let { aiPreferencesRepository.setAiReady(it) }
+                    aiPreferencesRepository.setNanoAvailability(nanoAvailabilityFor(result))
                     if (result is NanoInitResult.Success && result.tokenLimit > 0) {
                         aiPreferencesRepository.setTokenLimit(result.tokenLimit)
                     }

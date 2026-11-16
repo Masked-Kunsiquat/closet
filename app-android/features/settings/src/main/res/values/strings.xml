@@ -58,7 +58,7 @@
     <string name="settings_ai_nano_ready">Model ready</string>
     <string name="settings_ai_nano_not_supported">Not supported on this device</string>
     <string name="settings_ai_nano_not_supported_dialog_title">On-Device AI not available</string>
-    <string name="settings_ai_nano_not_supported_dialog_message">Gemini Nano isn\'t supported on this device. Switch to OpenAI or Anthropic to use AI outfit scoring.</string>
+    <string name="settings_ai_nano_not_supported_dialog_message">On-device AI isn\'t supported on this phone. Choose another provider to use AI features.</string>
     <string name="settings_ai_nano_not_supported_use_openai">Use OpenAI</string>
     <string name="settings_ai_nano_not_supported_use_anthropic">Use Anthropic</string>
     <string name="settings_ai_nano_not_supported_use_gemini">Use Gemini</string>
@@ -102,7 +102,7 @@
     <string name="settings_ai_enable">AI features</string>
     <string name="settings_ai_enable_summary">Enable AI-powered outfit scoring and wardrobe tools</string>
     <string name="settings_wardrobe_management">Wardrobe management</string>
-    <string name="settings_ai_nano_status_not_supported">Not supported on this device</string>
+    <string name="settings_ai_nano_status_not_supported">On-device AI isn\'t supported on this phone. Choose another provider below.</string>
     <string name="settings_ai_nano_status_loading">Checking device compatibility…</string>
     <string name="settings_ai_nano_status_ready">Model ready</string>
     <string name="settings_ai_nano_status_idle">Not initialized</string>

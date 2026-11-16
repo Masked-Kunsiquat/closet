@@ -2,6 +2,7 @@ package com.closet.core.data.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import com.closet.core.data.ai.NanoAvailability
 import com.closet.core.data.model.AiProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,46 @@ class AiPreferencesRepositoryTest {
             AiPreferencesRepository(store, InMemorySecretStore()).getSelectedProvider().first()
         }
         assertEquals(AiProvider.Anthropic, read)
+    }
+
+    @Test
+    fun nanoAvailabilityDefaultsToUnknown() = runBlocking {
+        withDataStore { store ->
+            assertEquals(
+                NanoAvailability.UNKNOWN,
+                AiPreferencesRepository(store, InMemorySecretStore()).getNanoAvailability().first(),
+            )
+        }
+    }
+
+    @Test
+    fun nanoAvailabilityPersistsAcrossInstances() = runBlocking {
+        withDataStore { store ->
+            AiPreferencesRepository(store, InMemorySecretStore()).setNanoAvailability(NanoAvailability.NOT_SUPPORTED)
+        }
+        val read = withDataStore { store ->
+            AiPreferencesRepository(store, InMemorySecretStore()).getNanoAvailability().first()
+        }
+        assertEquals(NanoAvailability.NOT_SUPPORTED, read)
+    }
+
+    @Test
+    fun legacyReadyFlagReadsAsReadyWhenNoAvailabilityStored() = runBlocking {
+        withDataStore { store ->
+            val repository = AiPreferencesRepository(store, InMemorySecretStore())
+            repository.setAiReady(true)
+            assertEquals(NanoAvailability.READY, repository.getNanoAvailability().first())
+        }
+    }
+
+    @Test
+    fun clearNanoStateResetsAvailability() = runBlocking {
+        withDataStore { store ->
+            val repository = AiPreferencesRepository(store, InMemorySecretStore())
+            repository.setNanoAvailability(NanoAvailability.READY)
+            repository.clearNanoState()
+            assertEquals(NanoAvailability.UNKNOWN, repository.getNanoAvailability().first())
+        }
     }
 
     @Test

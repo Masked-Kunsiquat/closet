@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.closet.core.data.ai.NanoAvailability
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +39,7 @@ class AiPreferencesRepository(
     private val anthropicModelKey = stringPreferencesKey("ai_anthropic_model")
     private val geminiModelKey = stringPreferencesKey("ai_gemini_model")
     private val nanoAiReadyKey = booleanPreferencesKey("ai_nano_ready")
+    private val nanoAvailabilityKey = stringPreferencesKey("ai_nano_availability")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
     private val styleVibeKey = stringPreferencesKey("ai_style_vibe")
 
@@ -175,6 +177,25 @@ class AiPreferencesRepository(
         }
     }
 
+    // ── Nano — availability ──────────────────────────────────────────────────
+
+    /**
+     * The outcome of the last Nano init. Written alongside [setAiReady] (which existing callers
+     * still read); when nothing is stored yet, a legacy `true` ready flag reads as
+     * [NanoAvailability.READY] so installs from before this key keep working, else
+     * [NanoAvailability.UNKNOWN].
+     */
+    fun getNanoAvailability(): Flow<NanoAvailability> = aiDataStore.data.map { prefs ->
+        prefs[nanoAvailabilityKey]?.let { stored -> NanoAvailability.entries.firstOrNull { it.name == stored } }
+            ?: if (prefs[nanoAiReadyKey] == true) NanoAvailability.READY else NanoAvailability.UNKNOWN
+    }
+
+    suspend fun setNanoAvailability(availability: NanoAvailability) {
+        aiDataStore.edit { prefs ->
+            prefs[nanoAvailabilityKey] = availability.name
+        }
+    }
+
     // ── Nano — token limit ───────────────────────────────────────────────────
 
     /**
@@ -253,12 +274,13 @@ class AiPreferencesRepository(
     }
 
     /**
-     * Clears the Nano ready flag and token limit.
+     * Clears the Nano ready flag, availability and token limit.
      * Called when the AI toggle is turned off or model init fails.
      */
     suspend fun clearNanoState() {
         aiDataStore.edit { prefs ->
             prefs[nanoAiReadyKey] = false
+            prefs.remove(nanoAvailabilityKey)
             prefs.remove(nanoTokenLimitKey)
         }
     }
