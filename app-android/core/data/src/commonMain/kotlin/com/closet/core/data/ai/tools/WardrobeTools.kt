@@ -4,6 +4,7 @@ import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.dao.LogDao
 import com.closet.core.data.dao.LookupDao
 import com.closet.core.data.dao.StatsDao
+import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.repository.LogRepository
@@ -88,9 +89,39 @@ private fun ClothingItemDetail.toJson(): JsonObject = buildJsonObject {
     put("wear_count", wearCount)
 }
 
-private fun itemsResult(items: List<ClothingItemDetail>, extra: Map<String, JsonElement> = emptyMap()) = ToolResult(
+private const val MATCH_TAGGED = "tagged"
+private const val MATCH_DESCRIPTION = "description"
+
+/** True when [word] occurs in [text] (both lower case) bounded by non-alphanumerics, so "yellow" skips "yellowish". */
+private fun containsWholeWord(text: String, word: String): Boolean {
+    var from = 0
+    while (true) {
+        val i = text.indexOf(word, from)
+        if (i < 0) return false
+        val before = i == 0 || !text[i - 1].isLetterOrDigit()
+        val end = i + word.length
+        val after = end >= text.length || !text[end].isLetterOrDigit()
+        if (before && after) return true
+        from = i + 1
+    }
+}
+
+/** [matchKinds], when given, adds a `match` label to each item. */
+private fun itemsResult(
+    items: List<ClothingItemDetail>,
+    extra: Map<String, JsonElement> = emptyMap(),
+    matchKinds: Map<Long, String>? = null,
+) = ToolResult(
     buildJsonObject {
-        put("items", JsonArray(items.map { it.toJson() }))
+        put(
+            "items",
+            JsonArray(
+                items.map { d ->
+                    val kind = matchKinds?.get(d.item.id)
+                    if (kind == null) d.toJson() else JsonObject(d.toJson() + ("match" to JsonPrimitive(kind)))
+                },
+            ),
+        )
         extra.forEach { (k, v) -> put(k, v) }
     },
     items.map { it.item.id }.toSet(),
@@ -110,17 +141,30 @@ private sealed interface Resolved<out T> {
     data class Bad(val result: ToolResult) : Resolved<Nothing>
 }
 
-/** Resolves model-supplied values against the lookup tables, case-insensitively. */
+/** What a color filter matches: tagged color names (lower case) and the requested words for description matching. */
+private class ColorFilter(val taggedNames: Set<String>, val words: List<String>)
+
+/**
+ * Resolves model-supplied values against the lookup tables, case-insensitively.
+ * Create one per tool invocation: it caches the category tree for that call only.
+ */
 private class LookupResolver(private val lookupDao: LookupDao) {
+    private var categoryTree: Pair<List<CategoryEntity>, List<Pair<String, String>>>? = null
+
+    private suspend fun tree(): Pair<List<CategoryEntity>, List<Pair<String, String>>> =
+        categoryTree ?: run {
+            val categories = lookupDao.getCategories().first()
+            val subs = categories.flatMap { cat ->
+                lookupDao.getSubcategories(cat.id).first().map { it.name to cat.name }
+            }
+            (categories to subs).also { categoryTree = it }
+        }
 
     /** A category or subcategory name resolves to its category's name. */
     suspend fun category(value: String): Resolved<String> {
-        val categories = lookupDao.getCategories().first()
+        val (categories, subs) = tree()
         categories.firstOrNull { it.name.equals(value, ignoreCase = true) }
             ?.let { return Resolved.Ok(it.name) }
-        val subs = categories.flatMap { cat ->
-            lookupDao.getSubcategories(cat.id).first().map { it.name to cat.name }
-        }
         subs.firstOrNull { it.first.equals(value, ignoreCase = true) }
             ?.let { return Resolved.Ok(it.second) }
         return Resolved.Bad(
@@ -128,10 +172,11 @@ private class LookupResolver(private val lookupDao: LookupDao) {
         )
     }
 
-    /** Lower-cased color names matching any of [values]: exact, or containing it as a whole word. */
-    suspend fun colors(values: List<String>): Resolved<Set<String>> {
+    /** Validates [values] against the color table: exact, or as a whole word of a name. */
+    suspend fun colors(values: List<String>): Resolved<ColorFilter> {
         val names = lookupDao.getAllColors().map { it.name }
         val matched = mutableSetOf<String>()
+        val words = mutableListOf<String>()
         for (value in values) {
             val v = value.lowercase()
             val hits = names.filter { name ->
@@ -140,8 +185,9 @@ private class LookupResolver(private val lookupDao: LookupDao) {
             }
             if (hits.isEmpty()) return Resolved.Bad(errorResult("Unknown color '$value'.", names))
             hits.forEach { matched += it.lowercase() }
+            words += v
         }
-        return Resolved.Ok(matched)
+        return Resolved.Ok(ColorFilter(matched, words))
     }
 
     suspend fun season(value: String): Resolved<String> {
@@ -161,15 +207,14 @@ private class LookupResolver(private val lookupDao: LookupDao) {
 
 class SearchItemsTool(
     private val clothingDao: ClothingDao,
-    lookupDao: LookupDao,
+    private val lookupDao: LookupDao,
     private val embeddingIndex: EmbeddingIndex,
     private val encoder: EmbeddingEncoder,
 ) : WardrobeTool {
-    private val resolver = LookupResolver(lookupDao)
 
     override val spec = ToolSpec(
         name = "search_items",
-        description = "Find wardrobe items by text, color, category, season or occasion. Returns up to 20 items with id, name, category, colors, wash status and wear count.",
+        description = "Find items by text, color, category, season or occasion. Colors match tags or description text. Up to 20 items with id, name, category, colors, wash status, wear count.",
         params = listOf(
             ToolParam("query", ToolParamType.STRING, "Free text, e.g. 'warm wool sweater'. Ranks the results."),
             ToolParam("colors", ToolParamType.STRING_ARRAY, "Color names; an item matching any of them is kept. 'blue' covers Royal Blue and Sky Blue."),
@@ -182,13 +227,14 @@ class SearchItemsTool(
     )
 
     override suspend fun run(args: JsonObject): ToolResult {
+        val resolver = LookupResolver(lookupDao)
         val limit = (args.int("limit") ?: DEFAULT_SEARCH_LIMIT).coerceIn(1, MAX_ITEMS)
         val includeArchived = args.bool("include_archived") ?: false
 
-        var colorNames: Set<String>? = null
+        var colorFilter: ColorFilter? = null
         args.strings("colors").takeIf { it.isNotEmpty() }?.let {
             when (val r = resolver.colors(it)) {
-                is Resolved.Ok -> colorNames = r.value
+                is Resolved.Ok -> colorFilter = r.value
                 is Resolved.Bad -> return r.result
             }
         }
@@ -214,19 +260,37 @@ class SearchItemsTool(
             }
         }
 
+        val colors = colorFilter
+        val matchKind = mutableMapOf<Long, String>()
         val filtered = clothingDao.getAllClothingItemDetails().first().filter { d ->
-            (includeArchived || d.item.status == ClothingStatus.Active) &&
-                (colorNames == null || d.colors.any { it.name.lowercase() in colorNames }) &&
+            val colorOk = colors == null || when {
+                d.colors.any { it.name.lowercase() in colors.taggedNames } -> true.also { matchKind[d.item.id] = MATCH_TAGGED }
+                descriptionMentions(d, colors.words) -> true.also { matchKind[d.item.id] = MATCH_DESCRIPTION }
+                else -> false
+            }
+            colorOk &&
+                (includeArchived || d.item.status == ClothingStatus.Active) &&
                 (category == null || d.category?.name == category) &&
                 (season == null || d.seasons.any { it.name == season }) &&
                 (occasion == null || d.occasions.any { it.name == occasion })
         }
 
         val ranked = args.string("query")?.let { rank(it, filtered) } ?: filtered
+        // Tagged matches first, then description-only; each group keeps its ranking order.
+        val ordered = if (colors == null) ranked else {
+            val (tagged, described) = ranked.partition { matchKind[it.item.id] == MATCH_TAGGED }
+            tagged + described
+        }
         return itemsResult(
-            ranked.take(limit),
-            mapOf("total_matches" to JsonPrimitive(ranked.size)),
+            ordered.take(limit),
+            mapOf("total_matches" to JsonPrimitive(ordered.size)),
+            if (colors == null) null else matchKind,
         )
+    }
+
+    private fun descriptionMentions(d: ClothingItemDetail, words: List<String>): Boolean {
+        val text = listOfNotNull(d.item.semanticDescription, d.item.imageCaption).joinToString("\n").lowercase()
+        return text.isNotEmpty() && words.any { containsWholeWord(text, it) }
     }
 
     /** Semantic ranking when the encoder is up, else name/description substring matching. */
@@ -311,7 +375,7 @@ class WearHistoryTool(
                 put("item", detail.toJson())
                 put("wear_count", detail.wearCount)
                 put("last_worn", logs.firstOrNull()?.date?.let { JsonPrimitive(it) } ?: JsonNull)
-                putJsonArray("recent_dates") { logs.take(5).forEach { add(JsonPrimitive(it.date)) } }
+                putJsonArray("recent_dates") { logs.map { it.date }.distinct().take(5).forEach { add(JsonPrimitive(it)) } }
             },
             setOf(id),
         )
@@ -320,9 +384,8 @@ class WearHistoryTool(
 
 class ItemsNotWornSinceTool(
     private val clothingDao: ClothingDao,
-    lookupDao: LookupDao,
+    private val lookupDao: LookupDao,
 ) : WardrobeTool {
-    private val resolver = LookupResolver(lookupDao)
 
     override val spec = ToolSpec(
         name = "items_not_worn_since",
@@ -334,6 +397,7 @@ class ItemsNotWornSinceTool(
     )
 
     override suspend fun run(args: JsonObject): ToolResult {
+        val resolver = LookupResolver(lookupDao)
         val days = args.int("days")?.takeIf { it >= 0 } ?: return errorResult("days must be a non-negative integer.")
         var category: String? = null
         args.string("category")?.let {
@@ -357,9 +421,8 @@ class ItemsNotWornSinceTool(
 class MostWornTool(
     private val statsDao: StatsDao,
     private val clothingDao: ClothingDao,
-    lookupDao: LookupDao,
+    private val lookupDao: LookupDao,
 ) : WardrobeTool {
-    private val resolver = LookupResolver(lookupDao)
 
     override val spec = ToolSpec(
         name = "most_worn",
@@ -371,6 +434,7 @@ class MostWornTool(
     )
 
     override suspend fun run(args: JsonObject): ToolResult {
+        val resolver = LookupResolver(lookupDao)
         val limit = (args.int("limit") ?: 5).coerceIn(1, MAX_ITEMS)
         var category: String? = null
         args.string("category")?.let {
