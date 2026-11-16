@@ -1,7 +1,10 @@
 name: CI
 
 # Unit tests (all modules, incl. core/data's JVM Room tests), lint, and debug
-# builds of both flavors. The iOS compile lives in ios-compile.yml; device
+# builds of both flavors, as three parallel jobs. One combined Gradle run hung
+# after its last task on two runs in a row, so each job keeps its Gradle
+# invocation small. The `android` job is the single required check and passes
+# only when all three do. The iOS compile lives in ios-compile.yml; device
 # tests stay manual (see app-android/CLAUDE.md).
 on:
   pull_request:
@@ -17,9 +20,24 @@ permissions:
   contents: read
 
 jobs:
-  android:
+  gradle:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: test
+            tasks: test :core:data:jvmTest
+            reports: app-android/**/build/reports/tests/
+          - name: lint
+            tasks: lint
+            reports: app-android/**/build/reports/lint-results-*.html
+          - name: build
+            tasks: assembleFullDebug assembleFossDebug
+            reports: app-android/build/reports/problems/
 
     defaults:
       run:
@@ -38,15 +56,28 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Test, lint, build
-        run: ./gradlew test :core:data:jvmTest lint assembleFullDebug assembleFossDebug --stacktrace
+      - name: ./gradlew ${{ matrix.tasks }}
+        run: ./gradlew ${{ matrix.tasks }} --stacktrace
 
-      - name: Upload test and lint reports
+      - name: Upload reports
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: reports
-          path: |
-            app-android/**/build/reports/tests/
-            app-android/**/build/reports/lint-results-*.html
+          name: reports-${{ matrix.name }}
+          path: ${{ matrix.reports }}
           retention-days: 7
+
+  # The required status check. Kept under its old name so the branch ruleset
+  # doesn't change; fails unless every gradle job succeeded.
+  android:
+    needs: gradle
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All Gradle jobs passed
+        run: |
+          if [ "${{ needs.gradle.result }}" != "success" ]; then
+            echo "::error::Gradle jobs result: ${{ needs.gradle.result }}"
+            exit 1
+          fi
