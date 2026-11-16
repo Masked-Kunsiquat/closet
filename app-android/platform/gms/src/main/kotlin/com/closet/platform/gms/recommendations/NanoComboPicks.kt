@@ -8,7 +8,8 @@ import kotlinx.serialization.json.addJsonObject
 
 /**
  * Structured-output schema for Nano outfit recommendations. The ML Kit schema compiler (KSP)
- * generates the `GenerableProvider`s.
+ * generates the `GenerableProvider`s. Public because the generated providers expose them publicly
+ * (`internal` fails to compile).
  */
 @Generable(description = "The three best outfit combos from the provided list")
 data class NanoComboPicks(

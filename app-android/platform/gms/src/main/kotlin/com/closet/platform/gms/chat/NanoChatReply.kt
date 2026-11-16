@@ -11,7 +11,8 @@ import kotlinx.serialization.json.putJsonArray
 
 /**
  * Structured-output schema for Nano chat replies. The ML Kit schema compiler (KSP) generates
- * its `GenerableProvider`.
+ * its `GenerableProvider`. Public because the generated provider exposes it publicly (`internal`
+ * fails to compile).
  *
  * Mirrors the shapes [ChatResponseParser] accepts (see `ChatPromptPrefix.SYSTEM_PROMPT`). The
  * optional `action` object is left out of the schema; the parser treats a missing action as

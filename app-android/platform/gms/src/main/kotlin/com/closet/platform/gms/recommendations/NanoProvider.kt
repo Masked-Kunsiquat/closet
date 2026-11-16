@@ -9,8 +9,9 @@ import com.closet.core.data.ai.OutfitComboPayload
 import com.closet.core.data.ai.OutfitPromptPrefix
 import com.closet.core.data.ai.OutfitSelection
 import com.closet.features.recommendations.ai.OnDeviceRecommendationProvider
-import com.closet.platform.gms.isStructuredOutputError
+import com.closet.platform.gms.shouldFallBackToPlainText
 import com.closet.platform.gms.toOnDeviceAiException
+import com.closet.platform.gms.typedResponseOrNull
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.GenerateContentRequest
@@ -93,7 +94,8 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
     /**
      * Uses structured output ([NanoComboPicks]) when the model supports it, serialized back to
      * the same JSON array text as the plain path. Falls back to plain text when structured
-     * output is unavailable or fails with a structured-output error.
+     * output is unavailable, fails in a way [shouldFallBackToPlainText] accepts, or returns no
+     * picks.
      */
     override suspend fun generate(prompt: String): String = try {
         val request = request(prompt)
@@ -113,16 +115,19 @@ internal class MlKitNanoInferenceEngine : NanoInferenceEngine {
             false
         }
         if (!available) return null
-        val response = try {
-            model.generateContent(generateTypedContentRequest(request, NanoComboPicks::class))
+        val picks = try {
+            val response = model.generateContent(generateTypedContentRequest(request, NanoComboPicks::class))
+            typedResponseOrNull(response.candidates.map { it.response }) { it.picks.isEmpty() }
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            if (!e.isStructuredOutputError()) throw e
+            if (!shouldFallBackToPlainText(e)) throw e
             Timber.tag(TAG).d(e, "Structured output failed — falling back to plain text")
             return null
+        } ?: run {
+            Timber.tag(TAG).d("Structured output returned no picks — falling back to plain text")
+            return null
         }
-        return response.candidates.firstOrNull()?.response?.toResponseJson()
-            ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
+        return picks.toResponseJson()
     }
 
     private suspend fun generatePlain(request: GenerateContentRequest): String =

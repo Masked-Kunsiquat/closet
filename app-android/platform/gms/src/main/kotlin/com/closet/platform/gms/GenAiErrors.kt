@@ -35,6 +35,30 @@ internal fun Throwable.isStructuredOutputError(): Boolean =
         else -> false
     }
 
+/**
+ * Whether a failure on the structured-output (typed) path should be retried once on the
+ * plain-text path:
+ * - structured-output [GenAiException]s (-104..-106): yes;
+ * - any other [GenAiException] (busy, quota, background, too large, not available, …): no, the
+ *   plain path would fail the same way;
+ * - anything else (missing generated provider, decoding/serialization problems): yes;
+ * - [kotlinx.coroutines.CancellationException]: never; callers rethrow it.
+ */
+internal fun shouldFallBackToPlainText(error: Throwable): Boolean = when (error) {
+    is kotlinx.coroutines.CancellationException -> false
+    is GenAiException -> error.isStructuredOutputError()
+    else -> true
+}
+
+/**
+ * The first typed response, or null (fall back to plain text) when there are no candidates, the
+ * response is null, or [isEmpty] says it carries nothing.
+ */
+internal inline fun <T : Any> typedResponseOrNull(
+    responses: List<T?>,
+    isEmpty: (T) -> Boolean = { false },
+): T? = responses.firstOrNull()?.takeUnless(isEmpty)
+
 /** Converts any failure from the on-device stack into an [OnDeviceAiException]. */
 internal fun Throwable.toOnDeviceAiException(): OnDeviceAiException = when (this) {
     is OnDeviceAiException -> this

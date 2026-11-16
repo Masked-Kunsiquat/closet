@@ -7,8 +7,9 @@ import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.ai.OnDeviceAiException
 import com.closet.features.chat.ai.OnDeviceChatProvider
-import com.closet.platform.gms.isStructuredOutputError
+import com.closet.platform.gms.shouldFallBackToPlainText
 import com.closet.platform.gms.toOnDeviceAiException
+import com.closet.platform.gms.typedResponseOrNull
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Content
 import com.google.mlkit.genai.prompt.GenerateContentRequest
@@ -36,8 +37,8 @@ import timber.log.Timber
  * user content. Oldest history turns are dropped until the request fits the model's token limit.
  *
  * When the model supports structured output the reply is decoded into [NanoChatReply]; if it
- * doesn't, or the structured call fails with a structured-output error, the call falls back to
- * plain text. Both paths end in [ChatResponseParser].
+ * doesn't, or the structured call fails in a way [shouldFallBackToPlainText] accepts or returns no
+ * reply, the call falls back to plain text. Both paths end in [ChatResponseParser].
  */
 class NanoChatProvider(
     private val json: Json,
@@ -46,8 +47,8 @@ class NanoChatProvider(
     private val model by lazy { Generation.getClient() }
 
     // Cached per client. Volatile only for visibility; a racing duplicate lookup is harmless.
-    @Volatile private var tokenLimit: Int? = null
-    @Volatile private var modelLabel: String? = null
+    @Volatile private var cachedTokenLimit: Int? = null
+    @Volatile private var cachedModelLabel: String? = null
 
     companion object {
         private const val TAG = "NanoChatProvider"
@@ -102,9 +103,9 @@ class NanoChatProvider(
 
     /** The base model AICore serves (e.g. a Nano version), cached; null if unknown. */
     override suspend fun modelLabel(): String? {
-        modelLabel?.let { return it }
+        cachedModelLabel?.let { return it }
         return try {
-            model.getBaseModelName().trim().takeIf { it.isNotEmpty() }?.also { modelLabel = it }
+            model.getBaseModelName().trim().takeIf { it.isNotEmpty() }?.also { cachedModelLabel = it }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Timber.tag(TAG).d(e, "getBaseModelName failed")
@@ -156,18 +157,23 @@ class NanoChatProvider(
         }
     }
 
-    /** Typed reply, or null to fall back to plain text after a structured-output error. */
+    /**
+     * Typed reply, or null to fall back to plain text (see [shouldFallBackToPlainText]; also when
+     * the typed response is missing).
+     */
     private suspend fun generateStructured(request: GenerateContentRequest): Result<ChatResponse>? {
-        val response = try {
-            model.generateContent(generateTypedContentRequest(request, NanoChatReply::class))
+        val reply = try {
+            val response = model.generateContent(generateTypedContentRequest(request, NanoChatReply::class))
+            typedResponseOrNull(response.candidates.map { it.response })
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            if (!e.isStructuredOutputError()) throw e
+            if (!shouldFallBackToPlainText(e)) throw e
             Timber.tag(TAG).d(e, "Structured output failed — falling back to plain text")
             return null
+        } ?: run {
+            Timber.tag(TAG).d("Structured output returned no reply — falling back to plain text")
+            return null
         }
-        val reply = response.candidates.firstOrNull()?.response
-            ?: throw OnDeviceAiException(OnDeviceAiException.Reason.FAILED)
         // A parse failure stays a ChatResponseParseException (not an on-device failure).
         return reply.toChatResponse()
     }
@@ -181,9 +187,9 @@ class NanoChatProvider(
 
     /** The model's input token limit, cached once known; 0 if ML Kit can't report it. */
     private suspend fun tokenLimit(): Int {
-        tokenLimit?.let { return it }
+        cachedTokenLimit?.let { return it }
         return try {
-            model.getTokenLimit().also { tokenLimit = it }
+            model.getTokenLimit().also { cachedTokenLimit = it }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Timber.tag(TAG).d(e, "getTokenLimit failed — history not trimmed")
