@@ -619,7 +619,7 @@ private fun ModelSelector(
             label = { Text(label) },
             trailingIcon = { androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
-                .menuAnchor()
+                .menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryEditable)
                 .fillMaxWidth(),
             readOnly = false, // Allow manual input if discovery fails
         )

@@ -1,5 +1,6 @@
 package com.closet.features.wardrobe
 
+import android.content.ClipData
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,12 +27,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 /**
  * Debug-only card that surfaces `semantic_description` and `image_caption` for a clothing item.
@@ -90,7 +93,11 @@ private fun SemanticDebugSheetContent(
     semanticDescription: String?,
     imageCaption: String?,
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val copy: (String?) -> Unit = { text ->
+        scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("text", text ?: ""))) }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -106,14 +113,14 @@ private fun SemanticDebugSheetContent(
         DebugTextField(
             label = "Semantic description",
             value = semanticDescription,
-            onCopy = { clipboardManager.setText(AnnotatedString(semanticDescription ?: "")) },
+            onCopy = { copy(semanticDescription) },
             copyContentDescription = "Copy semantic description",
         )
         Spacer(Modifier.height(12.dp))
         DebugTextField(
             label = "Image caption",
             value = imageCaption,
-            onCopy = { clipboardManager.setText(AnnotatedString(imageCaption ?: "")) },
+            onCopy = { copy(imageCaption) },
             copyContentDescription = "Copy image caption",
         )
         Spacer(Modifier.height(16.dp))
