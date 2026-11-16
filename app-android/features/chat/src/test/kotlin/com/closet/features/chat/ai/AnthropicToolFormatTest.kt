@@ -100,6 +100,20 @@ class AnthropicToolFormatTest {
     }
 
     @Test
+    fun `non-object input becomes an args parse error and missing input stays empty`() {
+        val body = """{"content":[
+            {"type":"tool_use","id":"a","name":"ping","input":"oops"},
+            {"type":"tool_use","id":"b","name":"ping","input":[1]},
+            {"type":"tool_use","id":"c","name":"ping"},
+            {"type":"tool_use","id":"d","name":"ping","input":null}]}"""
+        val calls = (AnthropicToolFormat.parseResponse(body, json) as ToolStep.Calls).calls
+        assertTrue(calls[0].args.containsKey(com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY))
+        assertTrue(calls[1].args.containsKey(com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY))
+        assertTrue(calls[2].args.isEmpty())
+        assertTrue(calls[3].args.isEmpty())
+    }
+
+    @Test
     fun `response with text blocks yields Final`() {
         val body = """{"content":[{"type":"text","text":"a"},{"type":"text","text":"b"}],"stop_reason":"end_turn"}"""
         assertEquals(ToolStep.Final("ab"), AnthropicToolFormat.parseResponse(body, json))

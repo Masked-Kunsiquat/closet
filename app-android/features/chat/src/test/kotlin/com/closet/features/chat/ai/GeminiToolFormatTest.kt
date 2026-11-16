@@ -109,6 +109,20 @@ class GeminiToolFormatTest {
     }
 
     @Test
+    fun `non-object args becomes an args parse error and missing args stays empty`() {
+        val body = """{"candidates":[{"content":{"parts":[
+            {"functionCall":{"name":"p","args":"oops"}},
+            {"functionCall":{"name":"p","args":[1]}},
+            {"functionCall":{"name":"p"}},
+            {"functionCall":{"name":"p","args":null}}]}}]}"""
+        val calls = (GeminiToolFormat.parseResponse(body, json, 0) as ToolStep.Calls).calls
+        assertTrue(calls[0].args.containsKey(com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY))
+        assertTrue(calls[1].args.containsKey(com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY))
+        assertTrue(calls[2].args.isEmpty())
+        assertTrue(calls[3].args.isEmpty())
+    }
+
+    @Test
     fun `response with text yields Final`() {
         val body = """{"candidates":[{"content":{"parts":[{"text":"hello"}]}}]}"""
         assertEquals(ToolStep.Final("hello"), GeminiToolFormat.parseResponse(body, json, 0))

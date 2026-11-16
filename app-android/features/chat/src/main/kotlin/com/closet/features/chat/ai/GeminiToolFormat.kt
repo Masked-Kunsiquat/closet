@@ -1,5 +1,6 @@
 package com.closet.features.chat.ai
 
+import com.closet.core.data.ai.tools.ARGS_PARSE_ERROR_KEY
 import com.closet.core.data.ai.tools.ToolCall
 import com.closet.core.data.ai.tools.ToolParam
 import com.closet.core.data.ai.tools.ToolParamType
@@ -9,6 +10,7 @@ import com.closet.core.data.ai.tools.ToolTurn
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -178,7 +180,7 @@ internal object GeminiToolFormat {
                 ToolCall(
                     id = serverId ?: "$name#$round.$i",
                     name = name,
-                    args = fc["args"] as? JsonObject ?: JsonObject(emptyMap()),
+                    args = objectArgs(fc["args"]),
                     providerData = data.takeIf { it.isNotEmpty() }?.let { JsonObject(it) },
                 )
             }
@@ -186,5 +188,12 @@ internal object GeminiToolFormat {
         val text = parts.mapNotNull { it.jsonObject["text"]?.jsonPrimitive?.contentOrNull }.joinToString("")
         check(text.isNotEmpty()) { "no text or functionCall in Gemini response" }
         return ToolStep.Final(text)
+    }
+
+    /** Absent or null args means no arguments; any other non-object value is a parse error the runner reports. */
+    private fun objectArgs(args: JsonElement?): JsonObject = when (args) {
+        null, is JsonNull -> JsonObject(emptyMap())
+        is JsonObject -> args
+        else -> JsonObject(mapOf(ARGS_PARSE_ERROR_KEY to JsonPrimitive("args was not a JSON object")))
     }
 }
