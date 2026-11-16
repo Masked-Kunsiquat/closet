@@ -48,7 +48,7 @@ import timber.log.Timber
  *
  * **Tool calling.** When the model reports [Feature.FUNCTION_CALLING], [supportsTools] is true and
  * `ChatRepository` drives [step] through `ToolChatRunner` instead of [chat]. Each step sends the
- * tool conversation (see [toContents]) with the tools declared; a candidate with function calls
+ * tool conversation (see [toContents]) with the tools declared, or flattened to text ([toFlatContents]) when tools are off; a candidate with function calls
  * becomes [ToolStep.Calls], otherwise its text is the [ToolStep.Final] reply. The forced final
  * step (tools disabled) uses the structured [NanoChatReply] path when the model supports it.
  */
@@ -242,7 +242,9 @@ class NanoChatProvider(
         systemInstruction: Boolean,
         declarations: List<FunctionDeclaration>?,
     ): GenerateContentRequest {
-        val contents = turns.toContents(inlineSystemPrompt = if (systemInstruction) null else system)
+        val inline = if (systemInstruction) null else system
+        // No declarations (the forced final step): function parts would be rejected, so flatten.
+        val contents = if (declarations != null) turns.toContents(inline) else turns.toFlatContents(inline)
         return GenerateContentRequest.Builder(contents).apply {
             if (systemInstruction) this.systemInstruction = SystemInstruction(system)
             temperature = 0.2f

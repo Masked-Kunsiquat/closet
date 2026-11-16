@@ -259,6 +259,41 @@ class NanoToolMappingTest {
         assertEquals("three", (contents[2].parts.single() as TextPart).textString)
     }
 
+    // ── tools-off flat history ───────────────────────────────────────────────
+
+    private val flatTurns = listOf(
+        ToolTurn.User("what tops do I have"),
+        ToolTurn.Assistant("checking", listOf(ToolCall("c1", "search_items", buildJsonObject { put("category", "Tops") }))),
+        ToolTurn.ToolResults(listOf(ToolCallResult("c1", "search_items", buildJsonObject { put("count", 2) }))),
+    )
+
+    @Test
+    fun `flat contents have only text parts with the flattened strings and roles`() {
+        val contents = flatTurns.toFlatContents()
+
+        assertEquals(listOf(Content.Role.USER, Content.Role.MODEL, Content.Role.USER), contents.map { it.role })
+        assertTrue(contents.all { c -> c.parts.all { it is TextPart } })
+        assertEquals("what tops do I have", (contents[0].parts.single() as TextPart).textString)
+        assertEquals(
+            listOf("checking", """Called search_items with {"category":"Tops"}"""),
+            contents[1].parts.map { (it as TextPart).textString },
+        )
+        assertEquals("""Result of search_items: {"count":2}""", (contents[2].parts.single() as TextPart).textString)
+    }
+
+    @Test
+    fun `flat contents prepend the inline system prompt to the first user turn`() {
+        val contents = flatTurns.toFlatContents(inlineSystemPrompt = "SYS")
+        assertEquals("SYS\n\nwhat tops do I have", (contents[0].parts.single() as TextPart).textString)
+    }
+
+    @Test
+    fun `tools-on mapping still emits function parts`() {
+        val contents = flatTurns.toContents()
+        assertTrue(contents[1].parts.any { it is FunctionCallPart })
+        assertTrue(contents[2].parts.single() is FunctionResponsePart)
+    }
+
     // ── tool result JSON → response map ──────────────────────────────────────
 
     @Test

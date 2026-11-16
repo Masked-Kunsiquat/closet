@@ -163,6 +163,36 @@ internal fun List<ToolTurn>.toContents(inlineSystemPrompt: String? = null): List
 }
 
 /**
+ * Tools-off history: function parts without declarations are the pattern Gemini rejects, so calls
+ * and results become plain text. A call is MODEL text `Called <name> with <args json>` (after the
+ * turn's own text, if any); a result is USER text `Result of <name>: <result json>`. An assistant
+ * turn with neither text nor calls is dropped. [inlineSystemPrompt] works as in [toContents].
+ */
+internal fun List<ToolTurn>.toFlatContents(inlineSystemPrompt: String? = null): List<Content> {
+    val firstUser = indexOfFirst { it is ToolTurn.User }
+    return mapIndexedNotNull { i, turn ->
+        when (turn) {
+            is ToolTurn.User -> {
+                val text = if (i == firstUser && inlineSystemPrompt != null) "$inlineSystemPrompt\n\n${turn.text}" else turn.text
+                Content.Builder().role(Content.Role.USER).addPart(TextPart(text)).build()
+            }
+            is ToolTurn.Assistant -> {
+                val texts = listOfNotNull(turn.text?.takeIf { it.isNotBlank() }) +
+                    turn.calls.map { "Called ${it.name} with ${it.args}" }
+                if (texts.isEmpty()) null
+                else Content.Builder().role(Content.Role.MODEL).apply { texts.forEach { addPart(TextPart(it)) } }.build()
+            }
+            is ToolTurn.ToolResults -> {
+                if (turn.results.isEmpty()) null
+                else Content.Builder().role(Content.Role.USER).apply {
+                    turn.results.forEach { addPart(TextPart("Result of ${it.name}: ${it.result}")) }
+                }.build()
+            }
+        }
+    }
+}
+
+/**
  * Converts a tool result to the plain-value map `FunctionResponsePart` takes: objects → `Map`,
  * arrays → `List`, primitives → `String`/`Long`/`Double`/`Boolean`, nulls dropped. A non-object
  * result is wrapped as `{"result": …}` (and a null result is an empty map).
