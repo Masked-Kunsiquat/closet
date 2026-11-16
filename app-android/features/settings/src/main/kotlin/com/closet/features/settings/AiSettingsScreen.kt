@@ -124,7 +124,10 @@ fun AiSettingsScreen(
         if (result.resultId == uiState.lastHandledCaptionId) return@LaunchedEffect
         viewModel.onCaptionResultHandled(result.resultId)
         viewModel.onCaptionResultConsumed()
-        val msg = if (result.failed > 0) {
+        val stoppedReason = result.stoppedReason
+        val msg = if (stoppedReason != null) {
+            stoppedReason
+        } else if (result.failed > 0) {
             context.resources.getQuantityString(
                 R.plurals.settings_wardrobe_caption_result_with_failures, result.done, result.done, result.failed,
             )

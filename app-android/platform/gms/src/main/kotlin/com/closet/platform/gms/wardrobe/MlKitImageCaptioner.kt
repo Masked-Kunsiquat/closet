@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import com.closet.core.data.ai.BatchCaptionProgress
 import com.closet.core.data.ai.BatchCaptionResult
+import com.closet.core.data.ai.OnDeviceAiException
+import com.closet.platform.gms.mapGenAiErrorCode
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.util.BitmapUtils
@@ -156,6 +158,7 @@ class MlKitImageCaptioner(
                 val imagesDir = File(context.filesDir, "closet_images")
                 var done = 0
                 var failed = 0
+                var stoppedReason: String? = null
                 for (item in items) {
                     val relativePath = item.imagePath ?: continue
                     try {
@@ -179,12 +182,19 @@ class MlKitImageCaptioner(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        val reason = e.stopReason()
+                        if (reason != null) {
+                            // OS-level block affects every remaining item — stop instead of failing them all.
+                            Timber.w(e, "Caption batch stopped at item ${item.id}")
+                            stoppedReason = reason.userMessage
+                            break
+                        }
                         Timber.w(e, "Caption failed for item ${item.id}")
                         failed++
                     }
                     _progress.value = BatchCaptionProgress(done = done, total = items.size, failed = failed)
                 }
-                _result.value = BatchCaptionResult(done = done, failed = failed)
+                _result.value = BatchCaptionResult(done = done, failed = failed, stoppedReason = stoppedReason)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -198,5 +208,18 @@ class MlKitImageCaptioner(
     /** Clears the last result so the UI does not show the same summary twice. */
     override fun consumeResult() {
         _result.value = null
+    }
+}
+
+/**
+ * The [OnDeviceAiException.Reason] if this failure (or its [ExecutionException] cause) means the
+ * whole batch should stop: on-device AI blocked in the background, or the daily quota is spent.
+ */
+private fun Throwable.stopReason(): OnDeviceAiException.Reason? {
+    val genAi = (this as? GenAiException) ?: (cause as? GenAiException) ?: return null
+    return when (val reason = mapGenAiErrorCode(genAi.errorCode)) {
+        OnDeviceAiException.Reason.BACKGROUND_BLOCKED,
+        OnDeviceAiException.Reason.QUOTA_EXCEEDED -> reason
+        else -> null
     }
 }

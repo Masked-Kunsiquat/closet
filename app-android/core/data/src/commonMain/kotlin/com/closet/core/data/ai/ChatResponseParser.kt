@@ -1,5 +1,6 @@
 package com.closet.core.data.ai
 
+import com.closet.core.data.util.catchingNonCancellation
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -31,9 +32,15 @@ object ChatResponseParser {
      * Parses [responseText] into a [ChatResponse].
      *
      * Returns [Result.failure] if the text is not valid JSON, missing the required `type`
-     * or `text` fields, or structurally malformed. Providers wrap this in [runCatching].
+     * or `text` fields, or structurally malformed; the failure is a [ChatResponseParseException] so callers can
+     * tell a parse failure from a provider failure.
      */
-    fun parse(responseText: String): Result<ChatResponse> = runCatching {
+    fun parse(responseText: String): Result<ChatResponse> = parseUnwrapped(responseText).fold(
+        onSuccess = { Result.success(it) },
+        onFailure = { Result.failure(ChatResponseParseException(it)) },
+    )
+
+    private fun parseUnwrapped(responseText: String): Result<ChatResponse> = catchingNonCancellation {
         val obj = json.parseToJsonElement(extractJson(responseText)).jsonObject
         val type = obj["type"]?.jsonPrimitive?.content ?: error("missing 'type' field in chat response")
         val text = obj["text"]?.jsonPrimitive?.content ?: error("missing 'text' field in chat response")
