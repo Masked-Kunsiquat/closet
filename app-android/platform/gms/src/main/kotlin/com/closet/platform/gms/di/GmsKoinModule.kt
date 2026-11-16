@@ -2,6 +2,7 @@ package com.closet.platform.gms.di
 
 import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.ai.OutfitAiProvider
+import com.closet.core.data.repository.BatchCaptioner
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.features.chat.ChatDateParser
 import com.closet.features.chat.ChatRouter
@@ -17,6 +18,7 @@ import com.closet.platform.gms.recommendations.NanoProvider
 import com.closet.platform.gms.wardrobe.MlKitImageCaptioner
 import com.closet.platform.gms.wardrobe.MlKitSubjectSegmenter
 import org.koin.android.ext.koin.androidContext
+import org.koin.dsl.bind
 import org.koin.dsl.binds
 import org.koin.dsl.module
 
@@ -35,6 +37,6 @@ val gmsModule = module {
     single<OnDeviceRecommendationProvider> { NanoProvider(get()) } binds arrayOf(OutfitAiProvider::class, NanoInitializer::class)
 
     // wardrobe
-    single<CaptionEnrichmentProvider> { MlKitImageCaptioner(androidContext(), get()) }
+    single<CaptionEnrichmentProvider> { MlKitImageCaptioner(androidContext(), get()) } bind BatchCaptioner::class
     single<SubjectSegmenter> { MlKitSubjectSegmenter() }
 }

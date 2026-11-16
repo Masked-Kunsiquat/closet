@@ -1,9 +1,6 @@
 package com.closet.core.data.repository
 
 import android.graphics.Bitmap
-import com.closet.core.data.ai.BatchCaptionProgress
-import com.closet.core.data.ai.BatchCaptionResult
-import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Abstraction over the ML Kit GenAI Image Description API exposed to modules that
@@ -15,10 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
  * Provided by `wardrobeNoOpModule` (foss) or `gmsModule` in `platform/gms` (full), following the same
  * pattern as [BatchSegmentationScheduler].
  */
-interface CaptionEnrichmentProvider {
-
-    /** `true` in full builds; `false` in FOSS builds. Gate all caption paths on this. */
-    val isSupported: Boolean
+interface CaptionEnrichmentProvider : BatchCaptioner {
 
     /**
      * Generates a one-sentence photo caption for [bitmap].
@@ -43,29 +37,4 @@ interface CaptionEnrichmentProvider {
      * is re-thrown unchanged. See [describe] for the rationale.
      */
     suspend fun ensureModelDownloaded()
-
-    /**
-     * In-flight progress for the current batch enrichment run.
-     * `null` when idle; non-null while [startBatchEnrichment] is executing.
-     */
-    val progress: StateFlow<BatchCaptionProgress?>
-
-    /**
-     * Terminal result of the most recent batch enrichment run.
-     * Set when the run finishes; cleared by [consumeResult].
-     */
-    val result: StateFlow<BatchCaptionResult?>
-
-    /**
-     * Launches a batch caption enrichment pass over all items that have an image but
-     * no caption yet. Updates [progress] throughout and sets [result] on completion.
-     * No-op if a run is already in progress.
-     */
-    fun startBatchEnrichment()
-
-    /**
-     * Signals that the UI has consumed the most recent batch-caption result.
-     * Clears [result] so the same summary is not shown again after dismissal.
-     */
-    fun consumeResult()
 }

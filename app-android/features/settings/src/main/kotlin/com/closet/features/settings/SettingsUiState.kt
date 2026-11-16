@@ -8,7 +8,7 @@ import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
 import com.closet.core.data.worker.WorkStatus
 import com.closet.core.ui.theme.ClosetAccent
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 /**
  * Single state object for [SettingsViewModel].
@@ -62,7 +62,7 @@ data class SettingsUiState(
     val batchCaptionProgress: BatchCaptionProgress? = null,
     val captionResult: BatchCaptionResult? = null,
     /** ID of the last caption result the UI acknowledged; mirrors [lastHandledBatchId] for segmentation. */
-    val lastHandledCaptionId: UUID? = null,
+    val lastHandledCaptionId: Uuid? = null,
 
     // ── Batch segmentation ────────────────────────────────────────────────────
     val segmentationSupported: Boolean = false,

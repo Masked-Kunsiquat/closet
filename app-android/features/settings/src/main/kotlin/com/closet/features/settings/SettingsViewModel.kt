@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 // ---------------------------------------------------------------------------
 // Intermediate grouping types — private to this file
@@ -86,7 +86,7 @@ private data class CaptionState(
     val eligibleCount: Int,
     val progress: com.closet.core.data.ai.BatchCaptionProgress?,
     val result: com.closet.core.data.ai.BatchCaptionResult?,
-    val lastHandledCaptionId: UUID?,
+    val lastHandledCaptionId: Uuid?,
 )
 
 private data class SegmentationState(
@@ -127,7 +127,7 @@ class SettingsViewModel(
     private val _geminiModelsLoading = MutableStateFlow(false)
     private val _storageUsedBytes = MutableStateFlow(-1L)
     private val _embeddingIndexSize = MutableStateFlow(embeddingIndex.size)
-    private val _lastHandledCaptionId = MutableStateFlow<UUID?>(null)
+    private val _lastHandledCaptionId = MutableStateFlow<Uuid?>(null)
 
     // ── Intermediate flows (private, used to build uiState) ───────────────────
 
@@ -482,7 +482,7 @@ class SettingsViewModel(
         captionEnrichmentProvider.startBatchEnrichment()
     }
 
-    fun onCaptionResultHandled(id: UUID) {
+    fun onCaptionResultHandled(id: Uuid) {
         _lastHandledCaptionId.value = id
     }
 

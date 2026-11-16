@@ -1,6 +1,7 @@
 package com.closet.core.data.repository
 
 import com.closet.core.data.BuildFlags
+import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.di.commonDataModule
 import com.closet.core.data.di.jvmDataModule
 import org.koin.dsl.koinApplication
@@ -33,6 +34,25 @@ class JvmImagePathResolverTest {
         try {
             val path = app.koin.get<ImagePathResolver>().absolutePath("x.jpg")
             assertTrue(path.endsWith("$IMAGES_DIR_NAME${File.separator}x.jpg"), path)
+        } finally {
+            app.close()
+            dataDir.deleteRecursively()
+        }
+    }
+
+    @Test fun jvmDataModuleBindsStatsAndUnsupportedAiStubs() {
+        val dataDir = Files.createTempDirectory("jvm-data").toFile()
+        val app = koinApplication {
+            modules(
+                commonDataModule,
+                jvmDataModule(dataDir),
+                module { single { BuildFlags(isDebug = false) } },
+            )
+        }
+        try {
+            app.koin.get<ImageStorageStats>()
+            app.koin.get<NanoInitializer>()
+            assertEquals(false, app.koin.get<BatchCaptioner>().isSupported)
         } finally {
             app.close()
             dataDir.deleteRecursively()

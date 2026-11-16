@@ -165,6 +165,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(platform(libs.koin.bom))
     testImplementation(libs.koin.test.junit4)
+    testImplementation(libs.mockk)
     testImplementation(libs.ktor.client.okhttp)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.espresso.core)

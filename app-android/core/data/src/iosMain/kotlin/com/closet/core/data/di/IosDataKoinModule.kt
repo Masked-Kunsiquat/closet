@@ -3,13 +3,19 @@ package com.closet.core.data.di
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.closet.core.data.ClothingDatabase
+import com.closet.core.data.ai.NanoInitializer
+import com.closet.core.data.ai.UnavailableNanoInitializer
 import com.closet.core.data.getDatabaseBuilder
 import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.location.NoLocationProvider
 import com.closet.core.data.repository.AI_PREFS_NAME
+import com.closet.core.data.repository.BatchCaptioner
 import com.closet.core.data.repository.ImagePathResolver
+import com.closet.core.data.repository.ImageStorageStats
 import com.closet.core.data.repository.InMemorySecretStore
 import com.closet.core.data.repository.IosImagePathResolver
+import com.closet.core.data.repository.IosImageStorageStats
+import com.closet.core.data.repository.NoOpBatchCaptioner
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.WEATHER_PREFS_NAME
 import com.closet.core.data.repository.createPreferencesDataStore
@@ -47,6 +53,9 @@ val iosDataModule = module {
     }
     single<SecretStore> { InMemorySecretStore() }
     single<ImagePathResolver> { IosImagePathResolver() }
+    single<ImageStorageStats> { IosImageStorageStats() }
+    single<NanoInitializer> { UnavailableNanoInitializer }
+    single<BatchCaptioner> { NoOpBatchCaptioner }
     single<LocationProvider> { NoLocationProvider }
     single<EmbeddingEncoder> { UnavailableEmbeddingEncoder }
     single<EmbeddingScheduler> { NoOpEmbeddingScheduler }
