@@ -100,6 +100,7 @@ class WardrobeToolsTest {
         subcategory: String,
         colors: List<String>,
         wash: WashStatus = WashStatus.Clean,
+        description: String? = null,
     ): Long {
         val id = db.clothingDao().insertClothingItem(
             ClothingItemEntity(
@@ -107,6 +108,7 @@ class WardrobeToolsTest {
                 categoryId = idOf("categories", category),
                 subcategoryId = idOf("subcategories", subcategory),
                 washStatus = wash,
+                semanticDescription = description,
             ),
         )
         db.clothingDao().updateItemColors(id, colors.map { idOf("colors", it) })
@@ -141,7 +143,7 @@ class WardrobeToolsTest {
     fun searchItemShapeHasDocumentedFields() {
         val r = search(buildJsonObject { put("colors", strings("grey")) })
         val item = r.obj()["items"]!!.jsonArray.single().jsonObject
-        assertEquals(setOf("id", "name", "category", "subcategory", "colors", "wash_status", "wear_count"), item.keys)
+        assertEquals(setOf("id", "name", "category", "subcategory", "colors", "wash_status", "wear_count", "match"), item.keys)
         assertEquals("Outerwear", item["category"]!!.jsonPrimitive.content)
         assertEquals("Coat", item["subcategory"]!!.jsonPrimitive.content)
     }
@@ -183,6 +185,66 @@ class WardrobeToolsTest {
         val navy = search(buildJsonObject { put("colors", strings("navy")) })
         assertTrue(navy.itemIdsInJson().isEmpty())
         assertNull(navy.obj()["error"])
+    }
+
+    private fun ToolResult.matches(): Map<Long, String> = obj()["items"]!!.jsonArray.associate {
+        it.jsonObject["id"]!!.jsonPrimitive.content.toLong() to it.jsonObject["match"]!!.jsonPrimitive.content
+    }
+
+    @Test
+    fun colorSearchMatchesDescriptionAfterTaggedItems() {
+        val tanId = runBlocking { insertItem("Trainers", "Footwear", "Sneakers", listOf("Tan"), description = "Yellow sneakers with white soles") }
+        val r = search(buildJsonObject { put("colors", strings("yellow")) })
+        assertEquals(listOf(sneakersId, tanId), r.itemIdsInJson())
+        assertEquals("tagged", r.matches()[sneakersId])
+        assertEquals("description", r.matches()[tanId])
+        assertEquals(2, r.obj()["total_matches"]!!.jsonPrimitive.int)
+    }
+
+    @Test
+    fun colorSearchTaggedWinsWhenDescriptionAlsoMatches() {
+        runBlocking { insertItem("Mustard top", "Tops", "T-Shirt", listOf("Yellow"), description = "A yellow top") }
+        val r = search(buildJsonObject { put("colors", strings("yellow")) })
+        assertTrue(r.matches().values.all { it == "tagged" })
+    }
+
+    @Test
+    fun colorSearchIgnoresYellowishInDescription() {
+        runBlocking { insertItem("Odd", "Tops", "T-Shirt", listOf("Tan"), description = "A yellowish shirt") }
+        val r = search(buildJsonObject { put("colors", strings("yellow")) })
+        assertEquals(listOf(sneakersId), r.itemIdsInJson())
+    }
+
+    @Test
+    fun colorSearchExcludesItemsWithNoTagOrWordMatch() {
+        runBlocking { insertItem("Plain", "Tops", "T-Shirt", listOf("Tan"), description = "A plain cotton shirt") }
+        val r = search(buildJsonObject { put("colors", strings("yellow")) })
+        assertEquals(listOf(sneakersId), r.itemIdsInJson())
+    }
+
+    @Test
+    fun colorSearchMatchesImageCaptionAndMultiWordColor() {
+        val id = runBlocking {
+            val i = insertItem("Cap", "Tops", "T-Shirt", listOf("Tan"))
+            val e = db.clothingDao().getItemDetailsByIds(listOf(i)).first().item
+            db.clothingDao().updateClothingItem(e.copy(imageCaption = "a Royal Blue hat"))
+            i
+        }
+        val r = search(buildJsonObject { put("colors", strings("royal blue")) })
+        assertEquals(setOf(shirtId, id), r.itemIdsInJson().toSet())
+        assertEquals("description", r.matches()[id])
+    }
+
+    @Test
+    fun wearHistoryDeduplicatesRecentDates() {
+        wear(sneakersId, "2026-02-10")
+        wear(sneakersId, "2026-02-10")
+        wear(sneakersId, "2026-01-05")
+        val r = run("wear_history", buildJsonObject { put("item_id", sneakersId) })
+        assertEquals(
+            listOf("2026-02-10", "2026-01-05"),
+            r.obj()["recent_dates"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
     }
 
     @Test
