@@ -4,6 +4,7 @@ import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ConversationTurn
 import com.closet.core.data.ai.tools.ToolCallingChatProvider
 import com.closet.core.data.ai.tools.ToolChatRunner
+import com.closet.core.data.ai.tools.ToolsUnsupportedException
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.util.EmbeddingEncoder
@@ -46,8 +47,10 @@ class ChatRepository(
             val selectedProvider = selected.getOrNull()
             if (selectedProvider is ToolCallingChatProvider && supportsToolsSafely(selectedProvider)) {
                 val toolResult = toolRunner.run(selectedProvider, userMessage, history)
-                toolResult.exceptionOrNull()?.let { if (it is CancellationException) throw it }
-                return toolResult
+                val toolError = toolResult.exceptionOrNull()
+                if (toolError is CancellationException) throw toolError
+                // The server rejected tools: retry this message once on the router + RAG path.
+                if (toolError !is ToolsUnsupportedException) return toolResult
             }
 
             // Router check — short-circuits the RAG pipeline for stat queries.

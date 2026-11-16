@@ -8,6 +8,7 @@ import com.closet.core.data.ai.tools.ToolChatRunner
 import com.closet.core.data.ai.tools.ToolSpec
 import com.closet.core.data.ai.tools.ToolStep
 import com.closet.core.data.ai.tools.ToolTurn
+import com.closet.core.data.ai.tools.ToolsUnsupportedException
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
@@ -131,5 +132,38 @@ class ChatRepositoryToolPathTest {
         stubRagPath()
 
         assertTrue(repo.query("hi").isFailure)
+    }
+
+    @Test
+    fun `tools unsupported failure retries the message on the RAG path`() = runTest {
+        val provider = ToolProvider({ true }, ragReply)
+        coEvery { selector.current() } returns Result.success(provider)
+        coEvery { runner.run(provider, "hi", emptyList()) } returns
+            Result.failure(ToolsUnsupportedException("rejected"))
+        stubRagPath()
+
+        val result = repo.query("hi")
+
+        assertEquals(ragReply, result.getOrNull())
+        coVerify(exactly = 1) { runner.run(any(), any(), any()) }
+        coVerify(exactly = 1) { router.route("hi") }
+    }
+
+    @Test
+    fun `other tool failures are returned without a RAG retry`() = runTest {
+        val provider = ToolProvider({ true }, ragReply)
+        coEvery { selector.current() } returns Result.success(provider)
+        coEvery { runner.run(provider, "hi", emptyList()) } returns Result.failure(IllegalStateException("x"))
+
+        assertTrue(repo.query("hi").isFailure)
+        coVerify(exactly = 0) { router.route(any()) }
+    }
+
+    @Test
+    fun `tools unsupported message is never surfaced to the user`() {
+        assertEquals(
+            "Something went wrong. Please try again.",
+            chatErrorMessage(ToolsUnsupportedException("HTTP 400 rejected tools")),
+        )
     }
 }

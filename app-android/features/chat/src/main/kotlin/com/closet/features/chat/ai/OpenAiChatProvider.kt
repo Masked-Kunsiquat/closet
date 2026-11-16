@@ -5,6 +5,11 @@ import com.closet.core.data.ai.ChatPromptPrefix
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.ai.ChatResponseParser
 import com.closet.core.data.ai.ConversationTurn
+import com.closet.core.data.ai.tools.ToolCallingChatProvider
+import com.closet.core.data.ai.tools.ToolSpec
+import com.closet.core.data.ai.tools.ToolStep
+import com.closet.core.data.ai.tools.ToolTurn
+import com.closet.core.data.ai.tools.ToolsUnsupportedException
 import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.di.AiHttpClient
 import io.ktor.client.HttpClient
@@ -12,6 +17,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
@@ -43,7 +49,7 @@ class OpenAiChatProvider(
     aiHttpClient: AiHttpClient,
     private val aiPreferencesRepository: AiPreferencesRepository,
     private val json: Json,
-) : ChatAiProvider {
+) : ChatAiProvider, ToolCallingChatProvider {
 
     private val client: HttpClient = aiHttpClient.client
 
@@ -89,6 +95,58 @@ class OpenAiChatProvider(
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /** Set once the server rejects `tools`/`tool_choice`; stays set for this instance. */
+    @Volatile
+    private var toolsRejected = false
+
+    override suspend fun supportsTools(): Boolean = !toolsRejected
+
+    override suspend fun step(
+        system: String,
+        turns: List<ToolTurn>,
+        tools: List<ToolSpec>,
+        allowTools: Boolean,
+    ): Result<ToolStep> {
+        if (toolsRejected) return Result.failure(ToolsUnsupportedException("server rejected tools"))
+        val apiKey = aiPreferencesRepository.getOpenAiApiKey().first()
+        if (apiKey.isBlank()) {
+            return Result.failure(IllegalStateException("OpenAI-compatible API key is not configured"))
+        }
+        val model = aiPreferencesRepository.getOpenAiModel().first().takeIf { it.isNotBlank() }
+            ?: DEFAULT_MODEL
+        return try {
+            val url = buildCompletionsUrl(aiPreferencesRepository.getOpenAiBaseUrl().first())
+            val body = OpenAiToolFormat.buildRequest(model, system, turns, tools, allowTools)
+            val response = client.post(url) {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $apiKey")
+                setBody(body.toString())
+            }
+            handleResponse(response.status.value, response.bodyAsText(), model)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            val redacted = IllegalStateException("OpenAiChatProvider tool step failed (model=$model)", e)
+            Timber.tag(TAG).w(redacted, "tool step failed")
+            Result.failure(redacted)
+        }
+    }
+
+    internal fun handleResponse(status: Int, body: String, model: String): Result<ToolStep> {
+        if (status !in 200..299) {
+            if (OpenAiToolFormat.isToolsUnsupported(status, body)) {
+                toolsRejected = true
+                return Result.failure(ToolsUnsupportedException("HTTP $status rejected tools"))
+            }
+            return Result.failure(IllegalStateException("OpenAiChatProvider tool step failed (model=$model, http=$status)"))
+        }
+        return try {
+            Result.success(OpenAiToolFormat.parseResponse(body, json))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Result.failure(IllegalStateException("OpenAiChatProvider tool response unreadable (model=$model)", e))
+        }
+    }
 
     /**
      * Builds the full chat-completions endpoint URL from the user-supplied base.
