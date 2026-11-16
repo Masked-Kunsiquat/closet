@@ -16,10 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +31,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
+import com.closet.features.stats.resources.Res
+import com.closet.features.stats.resources.stats_empty_no_items_subtitle
+import com.closet.features.stats.resources.stats_empty_no_items_title
+import com.closet.features.stats.resources.stats_never_worn_collapse
+import com.closet.features.stats.resources.stats_never_worn_empty
+import com.closet.features.stats.resources.stats_never_worn_expand
+import com.closet.features.stats.resources.stats_no_logs_subtitle
+import com.closet.features.stats.resources.stats_no_logs_title
+import com.closet.features.stats.resources.stats_section_never_worn_count
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +51,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.closet.core.data.dao.StatItem
+import com.closet.core.ui.resources.ic_symbol_checkroom
+import com.closet.core.ui.resources.ic_symbol_keyboard_arrow_down
+import com.closet.core.ui.resources.ic_symbol_keyboard_arrow_up
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
 
 // ─── Section header ───────────────────────────────────────────────────────────
 
@@ -163,14 +173,16 @@ internal fun NeverWornSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = stringResource(R.string.stats_section_never_worn_count, items.size),
+            text = stringResource(Res.string.stats_section_never_worn_count, items.size),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.weight(1f)
         )
         Icon(
-            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            painter = painterResource(
+                if (expanded) CoreRes.drawable.ic_symbol_keyboard_arrow_up else CoreRes.drawable.ic_symbol_keyboard_arrow_down
+            ),
             contentDescription = stringResource(
-                if (expanded) R.string.stats_never_worn_collapse else R.string.stats_never_worn_expand
+                if (expanded) Res.string.stats_never_worn_collapse else Res.string.stats_never_worn_expand
             )
         )
     }
@@ -179,7 +191,7 @@ internal fun NeverWornSection(
         Column {
             if (items.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.stats_never_worn_empty),
+                    text = stringResource(Res.string.stats_never_worn_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -244,20 +256,20 @@ internal fun StatsEmptyState(modifier: Modifier = Modifier) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                imageVector = Icons.Outlined.Checkroom,
+                painter = painterResource(CoreRes.drawable.ic_symbol_checkroom),
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = stringResource(R.string.stats_empty_no_items_title),
+                text = stringResource(Res.string.stats_empty_no_items_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(R.string.stats_empty_no_items_subtitle),
+                text = stringResource(Res.string.stats_empty_no_items_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -284,13 +296,13 @@ internal fun NoLogsInfoCard(modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = stringResource(R.string.stats_no_logs_title),
+                text = stringResource(Res.string.stats_no_logs_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = stringResource(R.string.stats_no_logs_subtitle),
+                text = stringResource(Res.string.stats_no_logs_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

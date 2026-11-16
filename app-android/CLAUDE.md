@@ -48,7 +48,7 @@ Run all Gradle commands from the `app-android/` directory.
 Full verification before a PR:
 
 ```bash
-./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
+./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
 CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources) on macOS. Instrumented tests don't run in CI; run them on a device.
@@ -65,7 +65,7 @@ core/data/             — Database, DAOs, Repositories, entities, Koin data mod
 core/ui/               — KMP/CMP module: Material 3 theme, shared Composable components, Compose resources, preferences
 features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash, brand management
 features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet
-features/stats/        — Stats screen, StatsViewModel, breakdown sections
+features/stats/        — KMP module: Stats screen, StatsViewModel, breakdown sections (commonMain UI + ViewModel; androidMain navigation, previews, Koin module)
 features/recommendations/ — Outfit recommendations, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms)
 features/settings/     — Settings screen, AI settings sub-screen, model picker, key management
 features/chat/         — Wardrobe chat (tool-calling or RAG): ChatScreen, ChatViewModel, ChatRepository, provider impls
@@ -126,15 +126,15 @@ Type-safe Compose Navigation (2.9.7+). Destinations are `@Serializable` data cla
 
 Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose. Dynamic color (Material You) enabled on Android 12+. All color/theme tokens live in `core/ui/src/commonMain/.../theme/`; dynamic color is Android-only, in `PlatformTheme.android.kt`. Never hardcode colors; use the theme.
 
-**Resources.** Shared drawables and strings live in `core/ui/src/commonMain/composeResources/` and are referenced through the generated `com.closet.core.ui.resources.Res` (e.g. `Res.drawable.ic_icon_sun`, `Res.string.error_unexpected`; import each accessor from `com.closet.core.ui.resources`). Use `org.jetbrains.compose.resources.painterResource`/`stringResource`/`getString` for them; string placeholders are positional (`%1$s`). `core/ui` exposes `components-resources` as `api`. Feature modules keep their own Android `R` until Phase 5. Launcher shortcut icons are copies in `app/` and `features/wardrobe` `res/drawable/` (the shortcut XMLs reference `@drawable/...`).
+**Resources.** Shared drawables and strings live in `core/ui/src/commonMain/composeResources/` and are referenced through the generated `com.closet.core.ui.resources.Res` (e.g. `Res.drawable.ic_icon_sun`, `Res.string.error_unexpected`; import each accessor from `com.closet.core.ui.resources`). Use `org.jetbrains.compose.resources.painterResource`/`stringResource`/`getString` for them; string placeholders are positional (`%1$s`). `core/ui` exposes `components-resources` as `api`. A feature's own strings live in its `composeResources` with an internal generated `Res` (`com.closet.features.<name>.resources`; `features/stats` is the first). Shared icons are Material Symbols named `ic_symbol_*` in `core/ui` (e.g. `Res.drawable.ic_symbol_checkroom`); other feature modules keep their own Android `R` until Phase 5. Launcher shortcut icons are copies in `app/` and `features/wardrobe` `res/drawable/` (the shortcut XMLs reference `@drawable/...`).
 
 ### Image handling
 
-Store only **relative paths** in the DB. Copy picked images into app-owned storage via `StorageRepository`, then store the relative path. Reconstruct full URI at display time in the repository/ViewModel layer before passing to Coil 3 (`coil3.compose.AsyncImage`).
+Store only **relative paths** in the DB. Copy picked images into app-owned storage via `StorageRepository`, then store the relative path. Reconstruct full URI at display time in the repository/ViewModel layer before passing to Coil 3 (`coil3.compose.AsyncImage`). Common ViewModels resolve paths through `ImagePathResolver` rather than Android `Context`.
 
 ### Charts
 
-Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/`. Import from `com.patrykandpatrick.vico.compose`.
+Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/` (`commonMain`). Import from `com.patrykandpatrick.vico.compose`.
 
 ### Logging
 

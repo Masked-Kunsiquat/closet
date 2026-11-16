@@ -21,7 +21,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import com.closet.features.stats.resources.Res
+import com.closet.features.stats.resources.stats_cd_wash_clean
+import com.closet.features.stats.resources.stats_cd_wash_dirty
+import com.closet.features.stats.resources.stats_section_category_count
+import com.closet.features.stats.resources.stats_section_color
+import com.closet.features.stats.resources.stats_section_occasion
+import com.closet.features.stats.resources.stats_section_wash_status
+import com.closet.features.stats.resources.stats_wash_clean
+import com.closet.features.stats.resources.stats_wash_dirty
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.dao.BreakdownRow
@@ -39,7 +48,7 @@ internal fun WashStatusSection(
 ) {
     val clean = rows.firstOrNull { it.label == WashStatus.Clean.label }?.count ?: 0
     val dirty = rows.firstOrNull { it.label == WashStatus.Dirty.label }?.count ?: 0
-    SectionHeader(stringResource(R.string.stats_section_wash_status))
+    SectionHeader(stringResource(Res.string.stats_section_wash_status))
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -48,14 +57,14 @@ internal fun WashStatusSection(
     ) {
         StatHeadlineCard(
             value = clean.toString(),
-            label = stringResource(R.string.stats_wash_clean),
-            accessibilityLabel = stringResource(R.string.stats_cd_wash_clean, clean),
+            label = stringResource(Res.string.stats_wash_clean),
+            accessibilityLabel = stringResource(Res.string.stats_cd_wash_clean, clean),
             modifier = Modifier.weight(1f)
         )
         StatHeadlineCard(
             value = dirty.toString(),
-            label = stringResource(R.string.stats_wash_dirty),
-            accessibilityLabel = stringResource(R.string.stats_cd_wash_dirty, dirty),
+            label = stringResource(Res.string.stats_wash_dirty),
+            accessibilityLabel = stringResource(Res.string.stats_cd_wash_dirty, dirty),
             modifier = Modifier.weight(1f)
         )
     }
@@ -81,7 +90,7 @@ internal fun CategorySubcategorySection(
             .entries
             .sortedByDescending { (_, subcats) -> subcats.sumOf { it.count } }
     }
-    SectionHeader(stringResource(R.string.stats_section_category_count))
+    SectionHeader(stringResource(Res.string.stats_section_category_count))
     sortedCategories.forEachIndexed { catIndex, (categoryLabel, subcategoryRows) ->
         val colors = subcategoryColors(catIndex, subcategoryRows.size)
         val segments = subcategoryRows.mapIndexed { i, row ->
@@ -164,7 +173,7 @@ internal fun OccasionBreakdownSection(
     modifier: Modifier = Modifier
 ) {
     BreakdownSection(
-        title = stringResource(R.string.stats_section_occasion),
+        title = stringResource(Res.string.stats_section_occasion),
         rows = rows,
         modifier = modifier
     )
@@ -245,7 +254,7 @@ internal fun ColorBreakdownSection(
     val (visible, hidden) = remember(segments, otherColor) {
         segments.withOtherGroup(otherColor = otherColor)
     }
-    SectionHeader(stringResource(R.string.stats_section_color))
+    SectionHeader(stringResource(Res.string.stats_section_color))
     Column(modifier = modifier.padding(horizontal = 16.dp)) {
         SegmentedBar(
             segments = visible,

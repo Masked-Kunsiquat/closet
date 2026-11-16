@@ -16,7 +16,7 @@ kotlin {
         compileSdk = libs.versions.compileSdk.get().toInt()
         minSdk = libs.versions.minSdk.get().toInt()
 
-        // Android `R` strings (until Task 3) and Compose Multiplatform resources need this on.
+        // Compose Multiplatform resources are packaged as Android assets only when this is on.
         androidResources {
             enable = true
         }
@@ -79,11 +79,11 @@ kotlin {
 
             implementation(project.dependencies.platform(libs.androidx.compose.bom))
             implementation(libs.androidx.ui.tooling.preview)
-            // Temporary: the androidMain Composables still use Icons.*; Task 3 removes this.
-            implementation(libs.androidx.compose.material.icons.extended)
         }
         jvmTest.dependencies {
             implementation(libs.mockk)
+            // Compose resources' getString() touches Skiko on the JVM; tests need its native runtime.
+            implementation(compose.desktop.currentOs)
         }
         getByName("androidHostTest").dependencies {
             implementation(libs.junit)
@@ -93,6 +93,11 @@ kotlin {
             implementation(libs.androidx.work.runtime.ktx)
         }
     }
+}
+
+compose.resources {
+    packageOfResClass = "com.closet.features.stats.resources"
+    generateResClass = always
 }
 
 // KMP creates no `test` task here, so the root `./gradlew test` would skip features/stats.

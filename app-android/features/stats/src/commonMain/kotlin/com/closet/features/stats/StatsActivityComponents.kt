@@ -31,8 +31,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
+import com.closet.features.stats.resources.Res
+import com.closet.features.stats.resources.stats_cd_total_items
+import com.closet.features.stats.resources.stats_cd_total_value
+import com.closet.features.stats.resources.stats_cd_total_value_unknown
+import com.closet.features.stats.resources.stats_cd_worn_pct
+import com.closet.features.stats.resources.stats_cost_per_wear_formatted
+import com.closet.features.stats.resources.stats_headline_items
+import com.closet.features.stats.resources.stats_headline_value
+import com.closet.features.stats.resources.stats_headline_worn
+import com.closet.features.stats.resources.stats_period_30_days
+import com.closet.features.stats.resources.stats_period_90_days
+import com.closet.features.stats.resources.stats_period_all_time
+import com.closet.features.stats.resources.stats_period_this_year
+import com.closet.features.stats.resources.stats_section_cost_per_wear
+import com.closet.features.stats.resources.stats_section_most_worn
+import com.closet.features.stats.resources.stats_section_wear_by_category
+import com.closet.features.stats.resources.stats_total_logs
+import com.closet.features.stats.resources.stats_wear_badge
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,10 +101,10 @@ internal fun PeriodSelectorRow(
 /** Localized display string for the period chip label. */
 private val StatPeriod.label: String
     @Composable get() = when (this) {
-        StatPeriod.ALL_TIME -> stringResource(R.string.stats_period_all_time)
-        StatPeriod.LAST_30 -> stringResource(R.string.stats_period_30_days)
-        StatPeriod.LAST_90 -> stringResource(R.string.stats_period_90_days)
-        StatPeriod.THIS_YEAR -> stringResource(R.string.stats_period_this_year)
+        StatPeriod.ALL_TIME -> stringResource(Res.string.stats_period_all_time)
+        StatPeriod.LAST_30 -> stringResource(Res.string.stats_period_30_days)
+        StatPeriod.LAST_90 -> stringResource(Res.string.stats_period_90_days)
+        StatPeriod.THIS_YEAR -> stringResource(Res.string.stats_period_this_year)
     }
 
 // ─── Headline cards ───────────────────────────────────────────────────────────
@@ -103,14 +121,16 @@ internal fun HeadlineCardsRow(
     val wornPct = if (overview.totalItems > 0) {
         "${(overview.wornItems * 100.0 / overview.totalItems).roundToInt()}%"
     } else "0%"
-    val formattedValue = overview.totalValue?.let(::formatCurrency) ?: "—"
+    val formattedValue = remember(overview.totalValue) {
+        overview.totalValue?.let(::formatCurrency) ?: "—"
+    }
 
-    val cdItems = stringResource(R.string.stats_cd_total_items, overview.totalItems)
-    val cdWorn = stringResource(R.string.stats_cd_worn_pct, overview.wornItems, overview.totalItems)
+    val cdItems = stringResource(Res.string.stats_cd_total_items, overview.totalItems)
+    val cdWorn = stringResource(Res.string.stats_cd_worn_pct, overview.wornItems, overview.totalItems)
     val cdValue = if (overview.totalValue != null) {
-        stringResource(R.string.stats_cd_total_value, formattedValue)
+        stringResource(Res.string.stats_cd_total_value, formattedValue)
     } else {
-        stringResource(R.string.stats_cd_total_value_unknown)
+        stringResource(Res.string.stats_cd_total_value_unknown)
     }
 
     Row(
@@ -121,19 +141,19 @@ internal fun HeadlineCardsRow(
     ) {
         StatHeadlineCard(
             value = overview.totalItems.toString(),
-            label = stringResource(R.string.stats_headline_items),
+            label = stringResource(Res.string.stats_headline_items),
             accessibilityLabel = cdItems,
             modifier = Modifier.weight(1f)
         )
         StatHeadlineCard(
             value = wornPct,
-            label = stringResource(R.string.stats_headline_worn),
+            label = stringResource(Res.string.stats_headline_worn),
             accessibilityLabel = cdWorn,
             modifier = Modifier.weight(1f)
         )
         StatHeadlineCard(
             value = formattedValue,
-            label = stringResource(R.string.stats_headline_value),
+            label = stringResource(Res.string.stats_headline_value),
             accessibilityLabel = cdValue,
             modifier = Modifier.weight(1f)
         )
@@ -155,7 +175,7 @@ internal fun MostWornSection(
     modifier: Modifier = Modifier
 ) {
     if (items.isEmpty()) return
-    SectionHeader(stringResource(R.string.stats_section_most_worn))
+    SectionHeader(stringResource(Res.string.stats_section_most_worn))
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -200,7 +220,7 @@ private fun MostWornThumbnail(
         ) {
             Text(
                 text = pluralStringResource(
-                    R.plurals.stats_wear_badge,
+                    Res.plurals.stats_wear_badge,
                     item.wearCount,
                     item.wearCount
                 ),
@@ -225,7 +245,7 @@ internal fun CostPerWearSection(
     onItemClick: (Long) -> Unit
 ) {
     if (items.isEmpty()) return
-    SectionHeader(stringResource(R.string.stats_section_cost_per_wear))
+    SectionHeader(stringResource(Res.string.stats_section_cost_per_wear))
     items.forEachIndexed { index, item ->
         CostPerWearRow(item, resolveImagePath, onItemClick)
         if (index < items.lastIndex) {
@@ -244,6 +264,7 @@ private fun CostPerWearRow(
     resolveImagePath: (String?) -> String?,
     onItemClick: (Long) -> Unit
 ) {
+    val formattedCost = remember(item.costPerWear) { formatCurrency(item.costPerWear) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -275,8 +296,8 @@ private fun CostPerWearRow(
         Spacer(Modifier.width(8.dp))
         Text(
             text = stringResource(
-                R.string.stats_cost_per_wear_formatted,
-                formatCurrency(item.costPerWear)
+                Res.string.stats_cost_per_wear_formatted,
+                formattedCost
             ),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
@@ -308,7 +329,7 @@ internal fun TotalLogsCallout(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = pluralStringResource(R.plurals.stats_total_logs, count, count),
+                text = pluralStringResource(Res.plurals.stats_total_logs, count, count),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -325,7 +346,7 @@ internal fun CategoryWearSection(
     modifier: Modifier = Modifier
 ) {
     if (rows.isEmpty()) return
-    SectionHeader(stringResource(R.string.stats_section_wear_by_category))
+    SectionHeader(stringResource(Res.string.stats_section_wear_by_category))
 
     val modelProducer = remember { CartesianChartModelProducer() }
     LaunchedEffect(rows) {
