@@ -180,6 +180,10 @@ interface LogDao {
     """)
     fun getLogsForItem(clothingItemId: Long): Flow<List<ItemWearLog>>
 
+    /** The snapshot item ids of one log (used by the chat `outfits_worn_on` tool). */
+    @Query("SELECT clothing_item_id FROM outfit_log_items WHERE outfit_log_id = :logId")
+    suspend fun getItemIdsForLog(logId: Long): List<Long>
+
     /**
      * Inserts snapshot rows for all items currently in an outfit into [outfit_log_items].
      * Snapshots the outfit name at call time so renames don't affect history.

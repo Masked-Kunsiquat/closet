@@ -1,6 +1,15 @@
 package com.closet.core.data.di
 
 import com.closet.core.data.BuildFlags
+import com.closet.core.data.ai.tools.GetItemsTool
+import com.closet.core.data.ai.tools.ItemsNotWornSinceTool
+import com.closet.core.data.ai.tools.LaundryListTool
+import com.closet.core.data.ai.tools.MostWornTool
+import com.closet.core.data.ai.tools.OutfitsWornOnTool
+import com.closet.core.data.ai.tools.SearchItemsTool
+import com.closet.core.data.ai.tools.ToolRegistry
+import com.closet.core.data.ai.tools.WardrobeSummaryTool
+import com.closet.core.data.ai.tools.WearHistoryTool
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.repository.AI_PREFS_NAME
 import com.closet.core.data.repository.AiPreferencesRepository
@@ -95,4 +104,19 @@ val commonDataModule = module {
     singleOf(::NwsClient)
     singleOf(::OpenMeteoClient)
     singleOf(::EmbeddingIndex)
+
+    single {
+        ToolRegistry(
+            listOf(
+                SearchItemsTool(get(), get(), get(), get()),
+                GetItemsTool(get()),
+                WearHistoryTool(get(), get()),
+                ItemsNotWornSinceTool(get(), get()),
+                MostWornTool(get(), get(), get()),
+                OutfitsWornOnTool(get(), get()),
+                LaundryListTool(get()),
+                WardrobeSummaryTool(get(), get()),
+            ),
+        )
+    }
 }
