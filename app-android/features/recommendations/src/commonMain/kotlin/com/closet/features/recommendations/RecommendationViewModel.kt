@@ -27,6 +27,7 @@ import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.model.WeatherConditions
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -138,6 +139,8 @@ class RecommendationViewModel(
      */
     private val shownComboKeys = mutableSetOf<Set<Long>>()
 
+    private var runJob: Job? = null
+
     // -------------------------------------------------------------------------
     // One-shot events
     // -------------------------------------------------------------------------
@@ -181,15 +184,13 @@ class RecommendationViewModel(
      */
     fun onWeatherConfirmed(weather: WeatherConditions) {
         val occasionId = (uiState.value as? RecommendationUiState.WeatherSheet)?.occasionId
-        shownComboKeys.clear() // new suggestion session
-        runEngine(occasionId = occasionId, weather = weather)
+        runEngine(occasionId = occasionId, weather = weather, firstOfSession = true)
     }
 
     /** User skips the weather sheet — run the engine with no weather input. */
     fun onWeatherSkipped() {
         val occasionId = (uiState.value as? RecommendationUiState.WeatherSheet)?.occasionId
-        shownComboKeys.clear() // new suggestion session
-        runEngine(occasionId = occasionId, weather = null)
+        runEngine(occasionId = occasionId, weather = null, firstOfSession = true)
     }
 
     /**
@@ -202,7 +203,7 @@ class RecommendationViewModel(
             is RecommendationUiState.NoResults -> s.occasionId to s.weather
             else -> return
         }
-        runEngine(occasionId = occasionId, weather = weather)
+        runEngine(occasionId = occasionId, weather = weather, firstOfSession = false)
     }
 
     /**
@@ -293,11 +294,13 @@ class RecommendationViewModel(
      * 5. Calls [OutfitRecommendationEngine.recommend].
      * 6. Transitions to [Results] or [Error].
      */
-    private fun runEngine(occasionId: Long?, weather: WeatherConditions?) {
+    private fun runEngine(occasionId: Long?, weather: WeatherConditions?, firstOfSession: Boolean) {
+        runJob?.cancel()
+        if (firstOfSession) shownComboKeys.clear() // new suggestion session
         _uiState.value = RecommendationUiState.Loading
-        viewModelScope.launch {
+        runJob = viewModelScope.launch {
             try {
-                val combos = fetchAndRun(occasionId = occasionId, weather = weather)
+                val combos = fetchAndRun(occasionId, weather, firstOfSession)
                 shownComboKeys.addAll(combos.map { it.key() })
                 _uiState.value = if (combos.isEmpty()) {
                     RecommendationUiState.NoResults(occasionId = occasionId, weather = weather)
@@ -330,7 +333,8 @@ class RecommendationViewModel(
      */
     private suspend fun fetchAndRun(
         occasionId: Long?,
-        weather: WeatherConditions?
+        weather: WeatherConditions?,
+        firstOfSession: Boolean
     ): List<OutfitCombo> = coroutineScope {
         val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         val calendarSeason = seasonFor(today.month)
@@ -430,7 +434,8 @@ class RecommendationViewModel(
         //    stable within a day but varies between days.
         val aiReady = isAiReady()
         val runEngineOnce = { exclude: Set<Set<Long>> ->
-            val jitter = Random(today.toEpochDays())
+            // First pick of a session is seeded by the date; Regenerate is unseeded.
+            val jitter = if (firstOfSession) Random(today.toEpochDays()) else Random(Random.nextLong())
             if (aiReady) {
                 engine.recommend(
                     input, topN = 25, candidatesPerSlot = 3, exclude = exclude, jitter = jitter

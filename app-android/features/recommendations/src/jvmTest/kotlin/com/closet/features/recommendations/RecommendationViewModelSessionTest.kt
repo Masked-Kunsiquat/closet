@@ -92,8 +92,10 @@ class RecommendationViewModelSessionTest {
 
         viewModel.onRegenerate()
         val second = results()
+        // Regenerate is unseeded: assert the property, not an order. Only the 4th combo is unseen.
+        assertEquals(1, second.size)
         assertNotEquals(keys(first).toSet(), keys(second).toSet())
-        assertTrue(keys(second).any { it !in keys(first) })
+        assertTrue(keys(second).none { it in keys(first) })
 
         // Every combo has now been shown; the cycle restarts instead of NoResults.
         viewModel.onRegenerate()
