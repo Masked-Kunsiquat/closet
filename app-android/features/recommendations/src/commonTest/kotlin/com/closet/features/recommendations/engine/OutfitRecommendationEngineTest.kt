@@ -127,7 +127,7 @@ class OutfitRecommendationEngineTest {
     }
 
     @Test
-    fun `sparse temp data (less than 5 logs) skips temperature signal`() {
+    fun `sparse temp data - less than 5 logs - skips temperature signal`() {
         val top = item(id = 1, role = "Top")
         val bottom = item(id = 2, role = "Bottom")
 
