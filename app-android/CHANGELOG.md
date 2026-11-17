@@ -9,6 +9,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 ## [Unreleased]
 
 ### Changed
+- **Better outfit suggestions** — Regenerate shows new outfits instead of repeating, results no longer repeat the same top and bottom, outfits with shoes are preferred, and clothes you haven't worn in a while get a nudge.
 - **Outfit recommendations are Kotlin Multiplatform** (KMP Phase 5): shared engine, AI providers and UI, Compose resources, Material Symbols icons.
 - **Outfits and journal are Kotlin Multiplatform** (KMP Phase 5): shared UI and view models, Compose resources, Material Symbols icons.
 - **Settings screens are Kotlin Multiplatform** (KMP Phase 5): shared UI, view model and DI, Compose resources, Material Symbols icons.

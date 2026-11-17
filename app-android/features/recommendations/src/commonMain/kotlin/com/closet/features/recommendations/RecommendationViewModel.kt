@@ -22,6 +22,7 @@ import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.OutfitCombo
+import com.closet.features.recommendations.engine.key
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.model.WeatherConditions
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.closet.core.data.model.StyleVibe
+import kotlin.random.Random
 import co.touchlab.kermit.Logger
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
@@ -129,6 +131,13 @@ class RecommendationViewModel(
             initialValue = RecommendationUiState.Idle
         )
 
+    /**
+     * Keys of the outfits shown in the current suggestion session. Regenerate excludes them
+     * so it shows unseen outfits; cleared when a new session starts (weather confirmed or
+     * skipped) and reset when every outfit has been shown (the cycle restarts).
+     */
+    private val shownComboKeys = mutableSetOf<Set<Long>>()
+
     // -------------------------------------------------------------------------
     // One-shot events
     // -------------------------------------------------------------------------
@@ -172,12 +181,14 @@ class RecommendationViewModel(
      */
     fun onWeatherConfirmed(weather: WeatherConditions) {
         val occasionId = (uiState.value as? RecommendationUiState.WeatherSheet)?.occasionId
+        shownComboKeys.clear() // new suggestion session
         runEngine(occasionId = occasionId, weather = weather)
     }
 
     /** User skips the weather sheet — run the engine with no weather input. */
     fun onWeatherSkipped() {
         val occasionId = (uiState.value as? RecommendationUiState.WeatherSheet)?.occasionId
+        shownComboKeys.clear() // new suggestion session
         runEngine(occasionId = occasionId, weather = null)
     }
 
@@ -287,6 +298,7 @@ class RecommendationViewModel(
         viewModelScope.launch {
             try {
                 val combos = fetchAndRun(occasionId = occasionId, weather = weather)
+                shownComboKeys.addAll(combos.map { it.key() })
                 _uiState.value = if (combos.isEmpty()) {
                     RecommendationUiState.NoResults(occasionId = occasionId, weather = weather)
                 } else {
@@ -320,7 +332,8 @@ class RecommendationViewModel(
         occasionId: Long?,
         weather: WeatherConditions?
     ): List<OutfitCombo> = coroutineScope {
-        val calendarSeason = currentCalendarSeason()
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val calendarSeason = seasonFor(today.month)
 
         // 1. Fetch candidates (sequential — item IDs are needed for subsequent queries)
         val candidatesResult = recommendationRepository.getCandidates(
@@ -407,16 +420,30 @@ class RecommendationViewModel(
             rainSuitability = rainMap,
             windSuitability = windMap,
             lastWornDates = lastWornMap,
-            weather = engineWeather
+            weather = engineWeather,
+            today = today
         )
 
         // 6. Run the pure engine — expand the pool when AI is ready so the scorer
-        //    has more combos to curate from.
+        //    has more combos to curate from. Regenerate excludes combos already shown
+        //    this session; the jitter is seeded by the date so the day's first pick is
+        //    stable within a day but varies between days.
         val aiReady = isAiReady()
-        val programmaticCombos = if (aiReady) {
-            engine.recommend(input, topN = 25, candidatesPerSlot = 3)
-        } else {
-            engine.recommend(input)
+        val runEngineOnce = { exclude: Set<Set<Long>> ->
+            val jitter = Random(today.toEpochDays())
+            if (aiReady) {
+                engine.recommend(
+                    input, topN = 25, candidatesPerSlot = 3, exclude = exclude, jitter = jitter
+                )
+            } else {
+                engine.recommend(input, exclude = exclude, jitter = jitter)
+            }
+        }
+        var programmaticCombos = runEngineOnce(shownComboKeys.toSet())
+        if (programmaticCombos.isEmpty() && shownComboKeys.isNotEmpty()) {
+            // Everything has been shown: restart the cycle.
+            shownComboKeys.clear()
+            programmaticCombos = runEngineOnce(emptySet())
         }
         if (programmaticCombos.isEmpty()) return@coroutineScope emptyList()
 
@@ -518,20 +545,6 @@ class RecommendationViewModel(
     // -------------------------------------------------------------------------
     // Utilities
     // -------------------------------------------------------------------------
-
-    /**
-     * Returns the current northern-hemisphere calendar season as a season name string
-     * matching the seeded values in the `seasons` table
-     * (Spring / Summer / Fall / Winter).
-     *
-     * Month assignments:
-     * - Spring: March, April, May
-     * - Summer: June, July, August
-     * - Fall: September, October, November
-     * - Winter: December, January, February
-     */
-    private fun currentCalendarSeason(): String =
-        seasonFor(Clock.System.todayIn(TimeZone.currentSystemDefault()).month)
 
     /**
      * Maps a feature-layer [WeatherConditions] to the engine's [EngineWeather].
