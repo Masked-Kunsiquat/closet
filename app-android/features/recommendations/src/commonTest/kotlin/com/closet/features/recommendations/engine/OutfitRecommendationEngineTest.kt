@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
  * Unit tests for [OutfitRecommendationEngine].
  *
  * All tests are pure JUnit — no Robolectric, no Room, no Android context.
- * Test fixtures are plain data-builder functions at the bottom of this file.
+ * Test fixtures are the shared data-builder functions in EngineTestFixtures.kt.
  */
 class OutfitRecommendationEngineTest {
 
@@ -701,55 +701,4 @@ class OutfitRecommendationEngineTest {
         // mean = 1.0; cold-no-outer = × 0.50; warm+cool = × 0.85
         assertEquals(1.0 * 0.50 * 0.85, result[0].score, 0.001)
     }
-
-    // =========================================================================
-    // Test fixture builders
-    // =========================================================================
-
-    private fun item(
-        id: Long,
-        role: String? = null,
-        warmthLayer: String? = null,
-        colorFamilies: Set<String> = emptySet(),
-        isPatternSolid: Boolean = true,
-        subcategoryId: Long? = null
-    ) = EngineItem(
-        id = id,
-        name = "Item $id",
-        imagePath = null,
-        categoryId = null,
-        subcategoryId = subcategoryId,
-        outfitRole = role,
-        warmthLayer = warmthLayer,
-        colorFamilies = colorFamilies,
-        isPatternSolid = isPatternSolid
-    )
-
-    private fun weather(
-        tempLow: Double? = null,
-        tempHigh: Double? = null,
-        isRaining: Boolean = false,
-        isWindy: Boolean = false
-    ) = EngineWeather(
-        tempLowC = tempLow,
-        tempHighC = tempHigh,
-        isRaining = isRaining,
-        isWindy = isWindy
-    )
-
-    private fun engineInput(
-        candidates: List<EngineItem> = emptyList(),
-        tempPercentiles: Map<Long, ItemTempPercentiles> = emptyMap(),
-        rainSuitability: Map<Long, ItemRainSuitability> = emptyMap(),
-        windSuitability: Map<Long, ItemWindSuitability> = emptyMap(),
-        lastWornDates: Map<Long, ItemLastWorn> = emptyMap(),
-        weather: EngineWeather? = null
-    ) = EngineInput(
-        candidates = candidates,
-        tempPercentiles = tempPercentiles,
-        rainSuitability = rainSuitability,
-        windSuitability = windSuitability,
-        lastWornDates = lastWornDates,
-        weather = weather
-    )
 }

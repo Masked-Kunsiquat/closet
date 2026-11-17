@@ -4,6 +4,7 @@ import com.closet.core.data.dao.ItemLastWorn
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
+import kotlinx.datetime.LocalDate
 
 // ---------------------------------------------------------------------------
 // Item-level input — one row per candidate item
@@ -65,6 +66,8 @@ data class EngineItem(
  * @property weather          Today's weather conditions, or null if the weather sheet
  *                            was skipped. When null, all weather-based suitability signals
  *                            and layering validation are skipped.
+ * @property today            Today's date, for the wear-recency multiplier. Null (the default)
+ *                            disables recency scoring. Passed in so the engine never reads a clock.
  */
 data class EngineInput(
     val candidates: List<EngineItem>,
@@ -72,7 +75,8 @@ data class EngineInput(
     val rainSuitability: Map<Long, ItemRainSuitability>,
     val windSuitability: Map<Long, ItemWindSuitability>,
     val lastWornDates: Map<Long, ItemLastWorn>,
-    val weather: EngineWeather?
+    val weather: EngineWeather?,
+    val today: LocalDate? = null
 )
 
 /**
@@ -120,3 +124,9 @@ data class OutfitCombo(
     val isAiSelected: Boolean = false,
     val reason: String? = null,
 )
+
+/**
+ * Identity of a combo: the set of its item IDs. Used for exclusion of already-shown combos
+ * ([OutfitRecommendationEngine.recommend]'s `exclude`) and by the ViewModel's session tracking.
+ */
+fun OutfitCombo.key(): Set<Long> = items.map { it.id }.toSet()

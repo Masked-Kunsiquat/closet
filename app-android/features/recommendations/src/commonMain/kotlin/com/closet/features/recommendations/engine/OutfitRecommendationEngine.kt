@@ -1,5 +1,10 @@
 package com.closet.features.recommendations.engine
 
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.daysUntil
+import kotlin.math.pow
+import kotlin.random.Random
+
 /**
  * Pure outfit recommendation engine — no Android, no coroutines, no Room.
  *
@@ -14,16 +19,22 @@ package com.closet.features.recommendations.engine
  * ### Pipeline
  * 1. Hard filter — redundant safety check: Active + Clean (DAO already filtered, but
  *    the engine applies it again as a defensive guard).
- * 2. Per-item suitability scoring — multiplicative multipliers from weather signals.
- *    Signals with < 5 logs are skipped (sparse-data guard).
+ * 2. Per-item suitability scoring — multiplicative multipliers from weather signals
+ *    (signals with < 5 logs are skipped: sparse-data guard) and wear recency (only when
+ *    [EngineInput.today] is set: worn ≤ 3 days ago × 0.90, ≥ 30 days ago × 1.05).
  * 3. Per-category cap — keep top 1–2 scored candidates per outfit-role slot.
  * 4. Color deduplication — one item per (color+subcategory) combo within each slot.
  * 5. Category completeness — build valid combos: (Top + Bottom) OR (OnePiece),
  *    optional Outerwear / Footwear / Accessory.
  * 6. Outfit-level scoring — mean of item scores × outfit-level multipliers (layering,
- *    color harmony, pattern mixing).
- * 7. Sort + tie-break — descending score; ties broken by oldest last-worn date.
- * 8. Return top 3.
+ *    color harmony as the geometric mean of its pair multipliers, pattern mixing, and
+ *    × 0.85 for a shoe-less outfit when the capped pool has footwear).
+ * 7. Exclusion — drop combos whose [key] is in `exclude` (already shown this session).
+ * 8. Sort + tie-break — descending score (or score × (1 ± 0.03) when a `jitter` [Random]
+ *    is given; [OutfitCombo.score] stays un-jittered); ties broken by oldest last-worn date.
+ * 9. Diversity — take combos greedily, skipping any whose core (Top + Bottom, or
+ *    OnePiece) is already picked; fill remaining slots from the skipped combos in order.
+ * 10. Return the top N (default 3).
  */
 class OutfitRecommendationEngine {
 
@@ -50,6 +61,18 @@ class OutfitRecommendationEngine {
         // --- Pattern mixing ---
         private const val BONUS_ONE_PATTERNED = 0.10
         private const val MULTIPLIER_MULTI_PATTERNED = 0.75
+
+        // --- Footwear ---
+        private const val MULTIPLIER_NO_FOOTWEAR = 0.85
+
+        // --- Wear recency ---
+        private const val RECENT_WEAR_DAYS = 3
+        private const val STALE_WEAR_DAYS = 30
+        private const val MULTIPLIER_WORN_RECENTLY = 0.90
+        private const val BONUS_NOT_WORN_LATELY = 1.05
+
+        // --- Ranking jitter (sort key only) ---
+        private const val JITTER_AMPLITUDE = 0.03
 
         // --- Sparse data guard ---
         private const val MIN_LOGS_FOR_SIGNAL = 5
@@ -93,13 +116,21 @@ class OutfitRecommendationEngine {
      * @param candidatesPerSlot Maximum candidates kept per outfit-role slot after scoring
      *                          and deduplication. Defaults to [CANDIDATES_PER_SLOT] (2).
      *                          Increase to 3 when AI is enabled to broaden variety.
-     * @return Up to [topN] [OutfitCombo]s ranked highest-score-first. Empty if the wardrobe
-     *         cannot form any valid outfit combination.
+     * @param exclude           Combo keys ([OutfitCombo.key]) to drop before ranking — the
+     *                          combos already shown in the current session. Empty by default.
+     * @param jitter            Optional randomness for the ranking only: each combo's sort key
+     *                          becomes `score × (1 + u)`, `u` uniform in [-0.03, 0.03].
+     *                          [OutfitCombo.score] keeps the un-jittered value. Null (default)
+     *                          gives the deterministic order.
+     * @return Up to [topN] [OutfitCombo]s ranked highest-first, preferring distinct cores.
+     *         Empty if the wardrobe cannot form any valid, non-excluded outfit combination.
      */
     fun recommend(
         input: EngineInput,
         topN: Int = TOP_N,
         candidatesPerSlot: Int = CANDIDATES_PER_SLOT,
+        exclude: Set<Set<Long>> = emptySet(),
+        jitter: Random? = null,
     ): List<OutfitCombo> {
         require(topN >= 0) { "topN must be >= 0, was $topN" }
         require(candidatesPerSlot >= 0) { "candidatesPerSlot must be >= 0, was $candidatesPerSlot" }
@@ -126,21 +157,67 @@ class OutfitRecommendationEngine {
         val combos = buildCombos(cappedByRole)
         if (combos.isEmpty()) return emptyList()
 
-        // 5. Score each combo and sort
+        // 5. Score each combo
         val weather = input.weather
+        val hasFootwearInPool = cappedByRole[ROLE_FOOTWEAR].orEmpty().isNotEmpty()
         val scoredCombos: List<OutfitCombo> = combos.map { comboItems ->
-            val score = scoreCombo(comboItems, itemScores, weather)
+            val score = scoreCombo(comboItems, itemScores, weather, hasFootwearInPool)
             OutfitCombo(items = comboItems, score = score)
         }
 
-        // 6. Sort: descending score, tie-break by oldest last-worn
-        return scoredCombos
+        // 6. Exclusion — drop combos already shown this session
+        val remaining = if (exclude.isEmpty()) {
+            scoredCombos
+        } else {
+            scoredCombos.filter { it.key() !in exclude }
+        }
+
+        // 7. Sort: descending (optionally jittered) score, tie-break by oldest last-worn.
+        // Jittered keys are drawn once per combo, in build order, so a seed is reproducible.
+        val sortKeys: List<Double>? = jitter?.let { random ->
+            remaining.map { it.score * (1.0 + random.nextDouble(-JITTER_AMPLITUDE, JITTER_AMPLITUDE)) }
+        }
+        val sorted = remaining.indices
             .sortedWith(
-                compareByDescending<OutfitCombo> { it.score }
-                    .thenBy { combo -> comboTieBreakKey(combo, input) }
+                compareByDescending<Int> { i -> sortKeys?.get(i) ?: remaining[i].score }
+                    .thenBy { i -> comboTieBreakKey(remaining[i], input) }
             )
-            .take(topN)
+            .map { remaining[it] }
+
+        // 8. Diversity: distinct cores first, then fill from the skipped combos
+        return selectDiverse(sorted, topN)
     }
+
+    // -------------------------------------------------------------------------
+    // Diversity selection
+    // -------------------------------------------------------------------------
+
+    /**
+     * Greedily takes combos from [sorted] whose core (Top + Bottom IDs, or the OnePiece ID)
+     * has not been picked yet, up to [topN]. If that yields fewer than [topN], the remaining
+     * slots are filled from the skipped combos in their sorted order, so no valid outfit is
+     * dropped just for sharing a core.
+     */
+    private fun selectDiverse(sorted: List<OutfitCombo>, topN: Int): List<OutfitCombo> {
+        val picked = mutableListOf<OutfitCombo>()
+        val skipped = mutableListOf<OutfitCombo>()
+        val seenCores = mutableSetOf<Set<Long>>()
+        for (combo in sorted) {
+            if (picked.size == topN) break
+            if (seenCores.add(comboCore(combo))) picked.add(combo) else skipped.add(combo)
+        }
+        if (picked.size < topN) {
+            picked.addAll(skipped.take(topN - picked.size))
+        }
+        return picked
+    }
+
+    /** The combo's core: its Top + Bottom IDs, or its OnePiece ID. */
+    private fun comboCore(combo: OutfitCombo): Set<Long> =
+        combo.items
+            .filter { it.outfitRole == ROLE_TOP || it.outfitRole == ROLE_BOTTOM || it.outfitRole == ROLE_ONEPIECE }
+            .map { it.id }
+            .toSet()
 
     // -------------------------------------------------------------------------
     // Step 1 — Hard filter
@@ -162,8 +239,8 @@ class OutfitRecommendationEngine {
     // -------------------------------------------------------------------------
 
     private fun scoreItem(item: EngineItem, input: EngineInput): Double {
-        var score = 1.0
-        val weather = input.weather ?: return score // no weather → neutral score
+        var score = recencyMultiplier(item, input) // runs with or without weather
+        val weather = input.weather ?: return score // no weather → no weather signals
 
         // Temperature signal
         val tempPercentile = input.tempPercentiles[item.id]
@@ -201,6 +278,25 @@ class OutfitRecommendationEngine {
         }
 
         return score
+    }
+
+    /**
+     * Wear-recency multiplier: × [MULTIPLIER_WORN_RECENTLY] when worn ≤ [RECENT_WEAR_DAYS]
+     * days before [EngineInput.today], × [BONUS_NOT_WORN_LATELY] when ≥ [STALE_WEAR_DAYS]
+     * days before. Neutral (1.0) when `today` is null, the item was never worn, the date is
+     * unparseable (only the first 10 chars, `YYYY-MM-DD`, are read) or lies in the future.
+     */
+    private fun recencyMultiplier(item: EngineItem, input: EngineInput): Double {
+        val today = input.today ?: return 1.0
+        val raw = input.lastWornDates[item.id]?.lastWornDate ?: return 1.0
+        val lastWorn = runCatching { LocalDate.parse(raw.take(10)) }.getOrNull() ?: return 1.0
+        val days = lastWorn.daysUntil(today)
+        return when {
+            days < 0 -> 1.0 // future date → neutral
+            days <= RECENT_WEAR_DAYS -> MULTIPLIER_WORN_RECENTLY
+            days >= STALE_WEAR_DAYS -> BONUS_NOT_WORN_LATELY
+            else -> 1.0
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -287,7 +383,8 @@ class OutfitRecommendationEngine {
     private fun scoreCombo(
         items: List<EngineItem>,
         itemScores: Map<Long, Double>,
-        weather: EngineWeather?
+        weather: EngineWeather?,
+        hasFootwearInPool: Boolean
     ): Double {
         // Mean of individual item scores
         val meanScore = items.map { itemScores[it.id] ?: 1.0 }.average()
@@ -313,6 +410,11 @@ class OutfitRecommendationEngine {
         // Pattern mixing
         multiplier *= patternMixingMultiplier(items)
 
+        // Footwear — penalise a shoe-less outfit only when shoes were available
+        if (hasFootwearInPool && items.none { it.outfitRole == ROLE_FOOTWEAR }) {
+            multiplier *= MULTIPLIER_NO_FOOTWEAR
+        }
+
         return meanScore * multiplier
     }
 
@@ -322,9 +424,11 @@ class OutfitRecommendationEngine {
 
     /**
      * Computes the combined color harmony multiplier for an outfit by evaluating
-     * all distinct pairs of non-Neutral dominant color families.
+     * all distinct pairs of non-Neutral dominant color families and returning the
+     * **geometric mean** of the pair multipliers, `(∏ pair)^(1/pairCount)`, so the effect
+     * does not compound with outfit size. With one pair this is that pair's value.
      *
-     * Rules (applied per pair — multipliers stack):
+     * Rules (per pair):
      * - Neutral + anything → no effect (skip Neutral items in pairwise check)
      * - Same family + same family → +0.10 bonus (additive to base multiplier 1.0)
      * - Earth + Warm → +0.05 bonus
@@ -341,15 +445,15 @@ class OutfitRecommendationEngine {
         val nonNeutral = families.filter { it != FAMILY_NEUTRAL }
         if (nonNeutral.size < 2) return 1.0
 
-        var multiplier = 1.0
+        var product = 1.0
+        var pairCount = 0
         for (i in nonNeutral.indices) {
             for (j in i + 1 until nonNeutral.size) {
-                val a = nonNeutral[i]
-                val b = nonNeutral[j]
-                multiplier *= pairHarmonyMultiplier(a, b)
+                product *= pairHarmonyMultiplier(nonNeutral[i], nonNeutral[j])
+                pairCount++
             }
         }
-        return multiplier
+        return product.pow(1.0 / pairCount)
     }
 
     /**
