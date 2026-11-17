@@ -9,6 +9,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 ## [Unreleased]
 
 ### Changed
+- **Outfit recommendations are Kotlin Multiplatform** (KMP Phase 5): shared engine, AI providers and UI, Compose resources, Material Symbols icons.
 - **Outfits and journal are Kotlin Multiplatform** (KMP Phase 5): shared UI and view models, Compose resources, Material Symbols icons.
 - **Settings screens are Kotlin Multiplatform** (KMP Phase 5): shared UI, view model and DI, Compose resources, Material Symbols icons.
 - **Stats screen is Kotlin Multiplatform** (KMP Phase 5): shared UI and logic, Compose resources, Material Symbols icons.
@@ -19,6 +20,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
   strings use Compose resources. Dynamic color stays Android-only.
 
 ### Fixed
+- **Fall clothes left out of suggestions in September–November**: the recommendation season filter looked for "Autumn", but the season is named "Fall".
 - **Keyboard covering the screen** — the app now resizes above the keyboard
   (`adjustResize` + IME insets) instead of panning the whole window, so top
   bars stay visible and nothing slides under the status bar.
