@@ -20,6 +20,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
   strings use Compose resources. Dynamic color stays Android-only.
 
 ### Fixed
+- **Fall clothes left out of suggestions in September–November**: the recommendation season filter looked for "Autumn", but the season is named "Fall".
 - **Keyboard covering the screen** — the app now resizes above the keyboard
   (`adjustResize` + IME insets) instead of panning the whole window, so top
   bars stay visible and nothing slides under the status bar.

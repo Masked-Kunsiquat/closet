@@ -9,7 +9,7 @@ class SeasonForMonthTest {
         val expected = mapOf(
             Month.MARCH to "Spring", Month.APRIL to "Spring", Month.MAY to "Spring",
             Month.JUNE to "Summer", Month.JULY to "Summer", Month.AUGUST to "Summer",
-            Month.SEPTEMBER to "Autumn", Month.OCTOBER to "Autumn", Month.NOVEMBER to "Autumn",
+            Month.SEPTEMBER to "Fall", Month.OCTOBER to "Fall", Month.NOVEMBER to "Fall",
             Month.DECEMBER to "Winter", Month.JANUARY to "Winter", Month.FEBRUARY to "Winter",
         )
         assertEquals(12, expected.size)

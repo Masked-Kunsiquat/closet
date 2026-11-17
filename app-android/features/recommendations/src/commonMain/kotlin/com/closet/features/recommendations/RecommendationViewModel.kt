@@ -522,12 +522,12 @@ class RecommendationViewModel(
     /**
      * Returns the current northern-hemisphere calendar season as a season name string
      * matching the seeded values in the `seasons` table
-     * (Spring / Summer / Autumn / Winter).
+     * (Spring / Summer / Fall / Winter).
      *
      * Month assignments:
      * - Spring: March, April, May
      * - Summer: June, July, August
-     * - Autumn: September, October, November
+     * - Fall: September, October, November
      * - Winter: December, January, February
      */
     private fun currentCalendarSeason(): String =

@@ -182,7 +182,7 @@ data class ItemMaterialHint(
  * -------------------------
  * An item passes the season filter if ANY of the following is true:
  *   1. Calendar mode: the item has a season whose name matches [calendarSeason]
- *      (passed in as "Spring", "Summer", "Autumn", or "Winter").
+ *      (passed in as "Spring", "Summer", "Fall", or "Winter", the seeded `seasons.name` values).
  *   2. Temperature-band mode: the item has a season whose temp_low_c / temp_high_c
  *      range overlaps the forecast range ([tempLow], [tempHigh]).
  *   3. The item has a season whose name = 'All Season'.
