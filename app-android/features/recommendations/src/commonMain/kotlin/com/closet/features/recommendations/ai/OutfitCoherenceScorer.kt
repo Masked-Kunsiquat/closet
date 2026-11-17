@@ -11,6 +11,7 @@ import com.closet.core.data.util.DataResult
 import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitCombo
+import com.closet.features.recommendations.engine.core
 import kotlinx.coroutines.flow.first
 import co.touchlab.kermit.Logger
 
@@ -79,8 +80,9 @@ class OutfitCoherenceScorer(
      *                     Items absent from this map receive a neutral score of 1.0.
      * @param styleVibe    The requested aesthetic e.g. "Smart Casual", "Streetwear". Passed to
      *                     the provider as the style filter instruction.
-     * @return A list of exactly 3 [OutfitCombo]s with [OutfitCombo.isAiSelected] = true if the
-     *         scorer produced a valid result, or null if AI is unavailable / scoring failed.
+     * @return A list of exactly 3 [OutfitCombo]s with distinct cores where the pool allows,
+     *         the AI's picks marked [OutfitCombo.isAiSelected] = true, if the scorer produced a
+     *         valid result; or null if AI is unavailable / scoring failed.
      */
     suspend fun score(
         combos: List<OutfitCombo>,
@@ -183,12 +185,23 @@ class OutfitCoherenceScorer(
             return null
         }
 
-        // 9. Map the 3 selections back to OutfitCombo objects
+        // 9. Map the selections back to OutfitCombo objects, one per core (Top + Bottom, or
+        //    OnePiece): the AI's picks with a new core first, in the AI's order. If the AI
+        //    repeated a core, fill from the pool in engine order with combos whose core is new
+        //    (not AI-selected, so no reason is shown). Only if the pool has fewer than 3
+        //    distinct cores do the AI's repeated-core picks fill the rest.
         val comboByIndex: Map<Int, OutfitCombo> = pool.mapIndexed { index, combo -> index to combo }.toMap()
-        val aiCombos = validSelections.take(3).mapNotNull { selection ->
-            val original = comboByIndex[selection.comboId] ?: return@mapNotNull null
-            original.copy(isAiSelected = true, reason = selection.reason)
+        val aiPicked = validSelections.mapNotNull { selection ->
+            comboByIndex[selection.comboId]?.copy(isAiSelected = true, reason = selection.reason)
         }
+        val takenCores = mutableSetOf<Set<Long>>()
+        val (distinctPicks, repeatedPicks) = aiPicked.partition { takenCores.add(it.core()) }
+        val aiCombos = distinctPicks.take(3).toMutableList()
+        if (aiCombos.size < 3) {
+            val poolCores = aiCombos.mapTo(mutableSetOf()) { it.core() }
+            aiCombos += pool.filter { poolCores.add(it.core()) }.take(3 - aiCombos.size)
+        }
+        if (aiCombos.size < 3) aiCombos += repeatedPicks.take(3 - aiCombos.size)
         if (aiCombos.size < 3) return null
 
         logger.d("AI selected 3 combos (provider=${provider.name}, styleVibe=$styleVibe)")
