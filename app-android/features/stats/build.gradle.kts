@@ -10,21 +10,6 @@ plugins {
     alias(libs.plugins.android.lint)
 }
 
-// Picks the Skiko native runtime for the machine running the JVM tests (Windows, Linux CI, macOS).
-fun Project.skikoRuntimeForHost(): Provider<MinimalExternalModuleDependency> {
-    val os = System.getProperty("os.name").lowercase()
-    val arch = System.getProperty("os.arch").lowercase()
-    val isX64 = arch == "amd64" || arch == "x86_64"
-    val isArm = arch == "aarch64" || arch == "arm64"
-    return when {
-        "mac" in os && isArm -> libs.skiko.awt.runtime.macos.arm64
-        "mac" in os && isX64 -> libs.skiko.awt.runtime.macos.x64
-        "windows" in os && isX64 -> libs.skiko.awt.runtime.windows.x64
-        "linux" in os && isX64 -> libs.skiko.awt.runtime.linux.x64
-        else -> error("Unsupported host for Skiko test runtime: $os/$arch")
-    }
-}
-
 kotlin {
     android {
         namespace = "com.closet.features.stats"
@@ -97,8 +82,6 @@ kotlin {
         }
         jvmTest.dependencies {
             implementation(libs.mockk)
-            // Compose resources' getString() touches Skiko on the JVM; tests need its native runtime.
-            implementation(skikoRuntimeForHost())
         }
         getByName("androidHostTest").dependencies {
             implementation(libs.junit)
@@ -109,6 +92,8 @@ kotlin {
         }
     }
 }
+
+apply(from = rootProject.file("gradle/skiko-jvm-test-runtime.gradle.kts"))
 
 // Runtime-only (KMP Android library has no debugImplementation): lets Android Studio render @Preview.
 dependencies {
