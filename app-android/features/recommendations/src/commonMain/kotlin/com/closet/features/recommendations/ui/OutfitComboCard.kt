@@ -69,7 +69,7 @@ import org.jetbrains.compose.resources.painterResource
  *
  * @param combo           The outfit combination to display.
  * @param resolveImage    Maps a relative [EngineItem.imagePath] to an absolute path for Coil,
- *                        or returns null when no image exists for that path.
+ *                        or returns null when the item has no image path.
  * @param logItEnabled    When false, the "Log it" button is disabled. Set to false until
  *                        [OutfitBuilderDestination] supports pre-selected item IDs.
  * @param onLogIt         Called when the user taps "Log it".

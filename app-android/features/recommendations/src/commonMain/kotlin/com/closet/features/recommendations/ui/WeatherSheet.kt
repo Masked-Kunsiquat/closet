@@ -63,9 +63,8 @@ import com.closet.features.recommendations.resources.recs_weather_toggle_windy
 import org.jetbrains.compose.resources.StringResource
 
 /**
- * Conditions available in the condition picker row. Each carries the string
- * resource ID for its label — resolved in the composable so the model stays
- * free of Android dependencies.
+ * Conditions available in the condition picker row. Each carries the Compose
+ * [org.jetbrains.compose.resources.StringResource] for its label, resolved in the composable.
  */
 // Condition picker options. Only Rainy and Windy map to distinct engine signals
 // (WeatherConditions.isRaining / isWindy). Selecting Rainy/Windy also flips the
