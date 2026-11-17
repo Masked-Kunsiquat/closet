@@ -1,6 +1,10 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_add
+import com.closet.core.ui.resources.ic_symbol_arrow_back
 import com.closet.features.wardrobe.resources.brand_management_add_brand
 import com.closet.features.wardrobe.resources.brand_management_confirm_delete
 import com.closet.features.wardrobe.resources.brand_management_delete_blocked_message
@@ -13,20 +17,15 @@ import com.closet.features.wardrobe.resources.brand_management_new_brand_hint
 import com.closet.features.wardrobe.resources.brand_management_title
 import com.closet.features.wardrobe.resources.wardrobe_back
 import com.closet.features.wardrobe.resources.wardrobe_cancel
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.BrandEntity
@@ -97,7 +96,7 @@ internal fun BrandManagementContent(
                 title = { Text(stringResource(Res.string.brand_management_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.wardrobe_back))
+                        Icon(painterResource(CoreRes.drawable.ic_symbol_arrow_back), contentDescription = stringResource(Res.string.wardrobe_back))
                     }
                 }
             )
@@ -107,7 +106,7 @@ internal fun BrandManagementContent(
                 FloatingActionButton(onClick = {
                     editorState = BrandEditorState.Adding()
                 }) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.brand_management_add_brand))
+                    Icon(painterResource(CoreRes.drawable.ic_symbol_add), contentDescription = stringResource(Res.string.brand_management_add_brand))
                 }
             }
         }
@@ -230,94 +229,5 @@ internal fun BrandManagementContent(
             )
         }
         null -> Unit
-    }
-}
-
-// --- Previews ---
-
-private val previewBrandsList = listOf(
-    BrandEntity(id = 1, name = "Nike", normalizedName = "nike"),
-    BrandEntity(id = 2, name = "Adidas", normalizedName = "adidas"),
-    BrandEntity(id = 3, name = "Levi's", normalizedName = "levi's"),
-    BrandEntity(id = 4, name = "Uniqlo", normalizedName = "uniqlo"),
-    BrandEntity(id = 5, name = "Zara", normalizedName = "zara"),
-)
-
-@Preview(showBackground = true, name = "Brand List - Light")
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Brand List - Dark")
-@Composable
-private fun BrandManagementContentPreview() {
-    ClosetTheme {
-        Surface {
-            BrandManagementContent(
-                uiState = BrandManagementUiState(brands = previewBrandsList),
-                onBack = {},
-                onSaveBrand = { _, _ -> },
-                onRequestDelete = {},
-                onConfirmDelete = {},
-                onDismissDialog = {},
-                onErrorConsumed = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Empty State")
-@Composable
-private fun BrandManagementEmptyPreview() {
-    ClosetTheme {
-        Surface {
-            BrandManagementContent(
-                uiState = BrandManagementUiState(brands = emptyList()),
-                onBack = {},
-                onSaveBrand = { _, _ -> },
-                onRequestDelete = {},
-                onConfirmDelete = {},
-                onDismissDialog = {},
-                onErrorConsumed = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Confirm Delete Dialog")
-@Composable
-private fun BrandManagementConfirmDeletePreview() {
-    ClosetTheme {
-        Surface {
-            BrandManagementContent(
-                uiState = BrandManagementUiState(
-                    brands = previewBrandsList,
-                    dialog = BrandManagementDialog.ConfirmDelete(previewBrandsList[0])
-                ),
-                onBack = {},
-                onSaveBrand = { _, _ -> },
-                onRequestDelete = {},
-                onConfirmDelete = {},
-                onDismissDialog = {},
-                onErrorConsumed = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Blocked Delete Dialog")
-@Composable
-private fun BrandManagementBlockedDeletePreview() {
-    ClosetTheme {
-        Surface {
-            BrandManagementContent(
-                uiState = BrandManagementUiState(
-                    brands = previewBrandsList,
-                    dialog = BrandManagementDialog.BlockedDelete(previewBrandsList[1], itemCount = 7)
-                ),
-                onBack = {},
-                onSaveBrand = { _, _ -> },
-                onRequestDelete = {},
-                onConfirmDelete = {},
-                onDismissDialog = {},
-                onErrorConsumed = {}
-            )
-        }
     }
 }

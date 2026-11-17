@@ -1,6 +1,11 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_add
+import com.closet.core.ui.resources.ic_symbol_calendar_month
+import com.closet.core.ui.resources.ic_symbol_check
 import com.closet.features.wardrobe.resources.wardrobe_brand_add
 import com.closet.features.wardrobe.resources.wardrobe_date_cancel
 import com.closet.features.wardrobe.resources.wardrobe_date_clear
@@ -9,6 +14,7 @@ import com.closet.features.wardrobe.resources.wardrobe_field_brand
 import com.closet.features.wardrobe.resources.wardrobe_field_none
 import com.closet.features.wardrobe.resources.wardrobe_field_purchase_date
 import com.closet.features.wardrobe.resources.wardrobe_field_size_system
+import com.closet.core.ui.format.parseHexColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,10 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -65,10 +67,6 @@ import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.toJavaLocalDate
-import kotlinx.datetime.toKotlinLocalDate
-import java.time.Instant
-import java.time.ZoneOffset
 
 // ─── DropdownSelector ────────────────────────────────────────────────────────
 
@@ -159,11 +157,7 @@ internal fun ColorSelectionGrid(
     ) {
         items(allColors) { color ->
             val isSelected = selectedColors.any { it.id == color.id }
-            val hexColor = try {
-                Color(android.graphics.Color.parseColor(color.hex))
-            } catch (_: Exception) {
-                MaterialTheme.colorScheme.outlineVariant
-            }
+            val hexColor = parseHexColor(color.hex) ?: MaterialTheme.colorScheme.outlineVariant
             val label = color.name.ifBlank { color.hex ?: "" }
 
             Box(
@@ -192,7 +186,7 @@ internal fun ColorSelectionGrid(
                 ) {
                     if (isSelected) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            painter = painterResource(CoreRes.drawable.ic_symbol_check),
                             contentDescription = null,
                             tint = if (isColorDark(hexColor)) Color.White else Color.Black,
                             modifier = Modifier.size(24.dp)
@@ -264,30 +258,20 @@ internal fun DatePickerField(
         modifier = Modifier.fillMaxWidth(),
         trailingIcon = {
             IconButton(onClick = { showDatePicker = true }) {
-                Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null)
+                Icon(painter = painterResource(CoreRes.drawable.ic_symbol_calendar_month), contentDescription = null)
             }
         }
     )
 
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = selectedDate
-                ?.toJavaLocalDate()
-                ?.atStartOfDay(ZoneOffset.UTC)
-                ?.toInstant()
-                ?.toEpochMilli()
+            initialSelectedDateMillis = selectedDate?.let(::localDateToUtcMillis)
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        val date = Instant.ofEpochMilli(it)
-                            .atZone(ZoneOffset.UTC)
-                            .toLocalDate()
-                            .toKotlinLocalDate()
-                        onDateChange(date)
-                    }
+                    datePickerState.selectedDateMillis?.let { onDateChange(utcMillisToLocalDate(it)) }
                     showDatePicker = false
                 }) {
                     Text(stringResource(Res.string.wardrobe_date_confirm))
@@ -358,7 +342,7 @@ internal fun BrandAutocompleteField(
                 HorizontalDivider()
                 DropdownMenuItem(
                     text = { Text(stringResource(Res.string.wardrobe_brand_add, query)) },
-                    leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    leadingIcon = { Icon(painterResource(CoreRes.drawable.ic_symbol_add), contentDescription = null) },
                     onClick = { onAddNewBrand(query); expanded = false }
                 )
             }

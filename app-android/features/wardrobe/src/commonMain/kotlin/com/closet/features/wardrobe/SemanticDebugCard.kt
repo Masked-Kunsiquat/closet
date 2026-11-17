@@ -1,6 +1,9 @@
 package com.closet.features.wardrobe
 
-import android.content.ClipData
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_content_copy
+import com.closet.core.ui.resources.ic_symbol_keyboard_arrow_right
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,9 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -31,7 +31,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -71,7 +70,7 @@ internal fun SemanticDebugCard(
             )
             Spacer(Modifier.weight(1f))
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                painter = painterResource(CoreRes.drawable.ic_symbol_keyboard_arrow_right),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -96,7 +95,7 @@ private fun SemanticDebugSheetContent(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val copy: (String?) -> Unit = { text ->
-        scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("text", text ?: ""))) }
+        scope.launch { clipboard.setClipEntry(plainTextClipEntry(text ?: "")) }
     }
     Column(
         modifier = Modifier
@@ -146,7 +145,7 @@ private fun DebugTextField(
         trailingIcon = {
             if (value != null) {
                 IconButton(onClick = onCopy) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = copyContentDescription)
+                    Icon(painterResource(CoreRes.drawable.ic_symbol_content_copy), contentDescription = copyContentDescription)
                 }
             }
         },

@@ -84,10 +84,9 @@ kotlin {
             // Palette (colour extraction)
             implementation(libs.androidx.palette.ktx)
 
-            // @Preview annotation and Android-only icons; temporary until the UI moves to commonMain
+            // @Preview annotation (previews live in androidMain)
             implementation(project.dependencies.platform(libs.androidx.compose.bom))
             implementation(libs.androidx.ui.tooling.preview)
-            implementation(libs.androidx.compose.material.icons.extended)
 
             // Logging: only BatchSegmentationWorker still uses Timber; common code uses Kermit
             implementation(libs.timber)

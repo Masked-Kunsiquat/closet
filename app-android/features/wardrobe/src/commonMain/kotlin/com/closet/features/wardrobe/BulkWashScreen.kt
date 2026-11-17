@@ -1,6 +1,9 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_arrow_back
 import com.closet.features.wardrobe.resources.bulk_wash_apply_error
 import com.closet.features.wardrobe.resources.bulk_wash_deselect_all
 import com.closet.features.wardrobe.resources.bulk_wash_mark_clean
@@ -24,8 +27,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -123,7 +124,7 @@ private fun BulkWashContent(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            painter = painterResource(CoreRes.drawable.ic_symbol_arrow_back),
                             contentDescription = stringResource(Res.string.wardrobe_back),
                         )
                     }

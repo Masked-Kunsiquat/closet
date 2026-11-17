@@ -1,6 +1,9 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_add
+import com.closet.core.ui.resources.ic_symbol_straighten
 import com.closet.features.wardrobe.resources.wardrobe_colors
 import com.closet.features.wardrobe.resources.wardrobe_edit_with_section
 import com.closet.features.wardrobe.resources.wardrobe_materials
@@ -9,6 +12,7 @@ import com.closet.features.wardrobe.resources.wardrobe_occasions
 import com.closet.features.wardrobe.resources.wardrobe_patterns
 import com.closet.features.wardrobe.resources.wardrobe_seasons
 import com.closet.features.wardrobe.resources.wardrobe_size
+import com.closet.core.ui.format.parseHexColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,9 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,7 +92,7 @@ internal fun ClothingAttributes(
                 
                 AttributeChip(
                     label = label,
-                    icon = Icons.Default.Straighten,
+                    iconRes = CoreRes.drawable.ic_symbol_straighten,
                     onClick = onEditSize
                 )
             }
@@ -127,10 +128,7 @@ internal fun ClothingAttributes(
                     item.colors.forEach { color ->
                         AttributeChip(
                             label = color.name,
-                            color = color.hex?.let {
-                                try { Color(android.graphics.Color.parseColor(it)) }
-                                catch (_: Exception) { null }
-                            },
+                            color = parseHexColor(color.hex),
                             onClick = onEditColors
                         )
                     }
@@ -223,7 +221,7 @@ internal fun AttributeSection(
             )
             IconButton(onClick = onEditClick) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    painter = painterResource(CoreRes.drawable.ic_symbol_add),
                     contentDescription = stringResource(Res.string.wardrobe_edit_with_section, title),
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -239,11 +237,10 @@ internal fun AttributeSection(
 /**
  * A specialized chip used to display a single attribute value.
  *
- * Supports an optional leading icon (vector or resource) or a color swatch.
+ * Supports an optional leading icon (resource) or a color swatch.
  *
  * @param label The text to display.
  * @param iconRes Optional drawable resource for the leading icon.
- * @param icon Optional [ImageVector] for the leading icon.
  * @param color Optional [Color] for a leading circular swatch.
  * @param onClick Callback when the chip is tapped.
  */
@@ -252,7 +249,6 @@ internal fun AttributeSection(
 internal fun AttributeChip(
     label: String,
     iconRes: DrawableResource? = null,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     color: Color? = null,
     onClick: () -> Unit
 ) {
@@ -276,13 +272,6 @@ internal fun AttributeChip(
             } else if (iconRes != null) {
                 Icon(
                     painter = painterResource(iconRes),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            } else if (icon != null) {
-                Icon(
-                    imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary

@@ -1,6 +1,13 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_add_a_photo
+import com.closet.core.ui.resources.ic_symbol_arrow_back
+import com.closet.core.ui.resources.ic_symbol_check
+import com.closet.core.ui.resources.ic_symbol_palette
+import com.closet.core.ui.resources.ic_symbol_settings
 import com.closet.features.wardrobe.resources.brand_management_manage_brands
 import com.closet.features.wardrobe.resources.wardrobe_add_item
 import com.closet.features.wardrobe.resources.wardrobe_add_photo
@@ -26,10 +33,6 @@ import com.closet.features.wardrobe.resources.wardrobe_revert_segmentation
 import com.closet.features.wardrobe.resources.wardrobe_save
 import com.closet.features.wardrobe.resources.wardrobe_seasons
 import com.closet.features.wardrobe.resources.wardrobe_section_colors
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,12 +49,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -107,18 +104,13 @@ fun ClothingFormScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> viewModel.onImageSelected(uri?.toString()) }
-    )
+    val launchPhotoPicker = rememberPhotoPicker(viewModel::onImageSelected)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 ClothingFormEvent.NavigateBack -> onBackClick()
-                ClothingFormEvent.OpenImagePicker -> launcher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
+                ClothingFormEvent.OpenImagePicker -> launchPhotoPicker()
             }
         }
     }
@@ -137,7 +129,7 @@ fun ClothingFormScreen(
         }
     }
 
-    BackHandler(onBack = handleBack)
+    PlatformBackHandler(enabled = true, onBack = handleBack)
 
     if (showDiscardDialog) {
         AlertDialog(
@@ -199,9 +191,7 @@ fun ClothingFormScreen(
                 onOccasionToggle = viewModel::onOccasionToggle,
                 onMaterialToggle = viewModel::onMaterialToggle,
                 onPatternToggle = viewModel::onPatternToggle,
-                onImageClick = {
-                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
+                onImageClick = launchPhotoPicker,
                 onRemoveBackground = viewModel::removeBackground,
                 onRevertSegmentation = viewModel::revertSegmentation,
                 onColorToggle = viewModel::onColorToggle,
@@ -229,7 +219,7 @@ internal fun ClothingFormTopBar(
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    painter = painterResource(CoreRes.drawable.ic_symbol_arrow_back),
                     contentDescription = stringResource(Res.string.wardrobe_back)
                 )
             }
@@ -240,7 +230,7 @@ internal fun ClothingFormTopBar(
                 enabled = canSave
             ) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    painter = painterResource(CoreRes.drawable.ic_symbol_check),
                     contentDescription = stringResource(Res.string.wardrobe_save)
                 )
             }
@@ -304,7 +294,7 @@ internal fun ClothingFormContent(
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Default.AddAPhoto,
+                                painter = painterResource(CoreRes.drawable.ic_symbol_add_a_photo),
                                 contentDescription = null,
                                 modifier = Modifier.size(48.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -382,7 +372,7 @@ internal fun ClothingFormContent(
                 }
                 IconButton(onClick = onManageBrands) {
                     Icon(
-                        imageVector = Icons.Default.Settings,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_settings),
                         contentDescription = stringResource(Res.string.brand_management_manage_brands),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -429,7 +419,7 @@ internal fun ClothingFormContent(
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Default.Palette,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_palette),
                         contentDescription = null,
                         modifier = Modifier.size(20.dp)
                     )

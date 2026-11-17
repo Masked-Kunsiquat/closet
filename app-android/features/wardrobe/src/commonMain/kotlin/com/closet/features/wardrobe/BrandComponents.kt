@@ -1,6 +1,12 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_check
+import com.closet.core.ui.resources.ic_symbol_close
+import com.closet.core.ui.resources.ic_symbol_delete
+import com.closet.core.ui.resources.ic_symbol_edit
 import com.closet.features.wardrobe.resources.wardrobe_cancel
 import com.closet.features.wardrobe.resources.wardrobe_delete
 import com.closet.features.wardrobe.resources.wardrobe_edit
@@ -11,11 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -55,11 +56,11 @@ internal fun BrandRow(
         trailingContent = {
             Row {
                 IconButton(onClick = onEditClick) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.wardrobe_edit))
+                    Icon(painterResource(CoreRes.drawable.ic_symbol_edit), contentDescription = stringResource(Res.string.wardrobe_edit))
                 }
                 IconButton(onClick = onDeleteClick) {
                     Icon(
-                        Icons.Default.Delete,
+                        painterResource(CoreRes.drawable.ic_symbol_delete),
                         contentDescription = stringResource(Res.string.wardrobe_delete),
                         tint = MaterialTheme.colorScheme.error
                     )
@@ -102,10 +103,10 @@ internal fun BrandInputRow(
             keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank() && !isSaving) onConfirm() })
         )
         IconButton(onClick = onConfirm, enabled = text.isNotBlank() && !isSaving) {
-            Icon(Icons.Default.Check, contentDescription = stringResource(Res.string.wardrobe_save))
+            Icon(painterResource(CoreRes.drawable.ic_symbol_check), contentDescription = stringResource(Res.string.wardrobe_save))
         }
         IconButton(onClick = onCancel, enabled = !isSaving) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.wardrobe_cancel))
+            Icon(painterResource(CoreRes.drawable.ic_symbol_close), contentDescription = stringResource(Res.string.wardrobe_cancel))
         }
     }
 }

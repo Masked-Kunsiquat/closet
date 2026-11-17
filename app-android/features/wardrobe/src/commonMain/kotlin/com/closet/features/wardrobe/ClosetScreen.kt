@@ -1,6 +1,16 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_add
+import com.closet.core.ui.resources.ic_symbol_check
+import com.closet.core.ui.resources.ic_symbol_favorite
+import com.closet.core.ui.resources.ic_symbol_favorite_filled
+import com.closet.core.ui.resources.ic_symbol_filter_list
+import com.closet.core.ui.resources.ic_symbol_push_pin
+import com.closet.core.ui.resources.ic_symbol_settings
+import com.closet.core.ui.resources.ic_symbol_sort
 import com.closet.features.wardrobe.resources.wardrobe_add_item
 import com.closet.features.wardrobe.resources.wardrobe_all_items
 import com.closet.features.wardrobe.resources.wardrobe_cd_open_filters
@@ -26,21 +36,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.FilterList
-import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.*
@@ -179,7 +179,7 @@ internal fun ClosetContent(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.FilterList,
+                                painter = painterResource(CoreRes.drawable.ic_symbol_filter_list),
                                 contentDescription = stringResource(Res.string.wardrobe_cd_open_filters)
                             )
                         }
@@ -187,7 +187,7 @@ internal fun ClosetContent(
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(
-                                imageVector = Icons.Outlined.Sort,
+                                painter = painterResource(CoreRes.drawable.ic_symbol_sort),
                                 contentDescription = stringResource(Res.string.wardrobe_cd_sort)
                             )
                         }
@@ -212,7 +212,7 @@ internal fun ClosetContent(
                                         showSortMenu = false
                                     },
                                     trailingIcon = if (order == sortOrder) {
-                                        { Icon(Icons.Default.Check, contentDescription = null) }
+                                        { Icon(painterResource(CoreRes.drawable.ic_symbol_check), contentDescription = null) }
                                     } else null,
                                 )
                             }
@@ -220,7 +220,7 @@ internal fun ClosetContent(
                     }
                     IconButton(onClick = onSettingsClick) {
                         Icon(
-                            imageVector = Icons.Outlined.Settings,
+                            painter = painterResource(CoreRes.drawable.ic_symbol_settings),
                             contentDescription = stringResource(Res.string.wardrobe_cd_open_settings),
                         )
                     }
@@ -230,7 +230,7 @@ internal fun ClosetContent(
         floatingActionButton = {
             FloatingActionButton(onClick = onAddItemClick) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    painter = painterResource(CoreRes.drawable.ic_symbol_add),
                     contentDescription = stringResource(Res.string.wardrobe_add_item)
                 )
             }
@@ -304,7 +304,7 @@ private fun CategoryFilterRow(
                 label = { Text(stringResource(Res.string.wardrobe_filter_favorites)) },
                 leadingIcon = {
                     Icon(
-                        imageVector = if (favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        painter = if (favoritesOnly) painterResource(CoreRes.drawable.ic_symbol_favorite_filled) else painterResource(CoreRes.drawable.ic_symbol_favorite),
                         contentDescription = null,
                         modifier = Modifier.size(FilterChipDefaults.IconSize)
                     )
@@ -337,7 +337,7 @@ private fun CategoryFilterRow(
                     modifier = Modifier.size(32.dp),
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.PushPin,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_push_pin),
                         contentDescription = stringResource(Res.string.wardrobe_pin_category, category.name),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -434,111 +434,6 @@ private fun FilteredEmptyMessage(
             TextButton(onClick = onClearFilters) {
                 Text(stringResource(Res.string.wardrobe_filter_clear_filters))
             }
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Items - Light")
-@Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Items - Dark")
-@Composable
-private fun ClosetScreenPreview() {
-    ClosetTheme {
-        Surface {
-            ClosetContent(
-                items = listOf(
-                    ClothingItemDetail(
-                        item = ClothingItemEntity(
-                            id = 1,
-                            name = "Vintage Denim Jacket",
-                            brandId = 1,
-                            categoryId = 1,
-                            status = ClothingStatus.Active,
-                            isFavorite = 1,
-                            washStatus = WashStatus.Clean
-                        ),
-                        wearCount = 12,
-                        brand = com.closet.core.data.model.BrandEntity(id = 1, name = "Levi's", normalizedName = "levi's"),
-                        category = CategoryEntity(id = 1, name = "Outerwear", sortOrder = 3),
-                        subcategory = null,
-                        sizeValue = null,
-                        colors = emptyList(),
-                        materials = emptyList(),
-                        seasons = emptyList(),
-                        occasions = emptyList(),
-                        patterns = emptyList()
-                    )
-                ),
-                categories = listOf(
-                    CategoryEntity(id = 1, name = "Tops", sortOrder = 1),
-                    CategoryEntity(id = 2, name = "Pants", sortOrder = 2),
-                    CategoryEntity(id = 3, name = "Outerwear", sortOrder = 3)
-                ),
-                selectedCategoryId = null,
-                favoritesOnly = false,
-                showArchived = false,
-                sortOrder = SortOrder.NEWEST,
-                colors = emptyList(),
-                seasons = emptyList(),
-                occasions = emptyList(),
-                sizeSystems = emptyList(),
-                selectedColorIds = emptySet(),
-                selectedSeasonIds = emptySet(),
-                selectedOccasionIds = emptySet(),
-                selectedSizeSystemIds = emptySet(),
-                activeFilterCount = 0,
-                onCategorySelect = {},
-                onToggleFavorites = {},
-                onToggleShowArchived = {},
-                onSortOrderSelected = {},
-                onToggleColor = {},
-                onToggleSeason = {},
-                onToggleOccasion = {},
-                onToggleSizeSystem = {},
-                onClearAdvancedFilters = {},
-                onClearAllFilters = {},
-                resolveImagePath = { null },
-                onAddItemClick = {},
-                onItemClick = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Empty State")
-@Composable
-private fun ClosetScreenEmptyPreview() {
-    ClosetTheme {
-        Surface {
-            ClosetContent(
-                items = emptyList(),
-                categories = emptyList(),
-                selectedCategoryId = null,
-                favoritesOnly = false,
-                showArchived = false,
-                sortOrder = SortOrder.NEWEST,
-                colors = emptyList(),
-                seasons = emptyList(),
-                occasions = emptyList(),
-                sizeSystems = emptyList(),
-                selectedColorIds = emptySet(),
-                selectedSeasonIds = emptySet(),
-                selectedOccasionIds = emptySet(),
-                selectedSizeSystemIds = emptySet(),
-                activeFilterCount = 0,
-                onCategorySelect = {},
-                onToggleFavorites = {},
-                onToggleShowArchived = {},
-                onSortOrderSelected = {},
-                onToggleColor = {},
-                onToggleSeason = {},
-                onToggleOccasion = {},
-                onToggleSizeSystem = {},
-                onClearAdvancedFilters = {},
-                onClearAllFilters = {},
-                resolveImagePath = { null },
-                onAddItemClick = {},
-                onItemClick = {}
-            )
         }
     }
 }

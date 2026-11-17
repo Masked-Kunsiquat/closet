@@ -1,6 +1,18 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import com.closet.core.ui.resources.ic_symbol_arrow_back
+import com.closet.core.ui.resources.ic_symbol_attach_money
+import com.closet.core.ui.resources.ic_symbol_check_circle_filled
+import com.closet.core.ui.resources.ic_symbol_delete
+import com.closet.core.ui.resources.ic_symbol_edit
+import com.closet.core.ui.resources.ic_symbol_favorite
+import com.closet.core.ui.resources.ic_symbol_favorite_filled
+import com.closet.core.ui.resources.ic_symbol_image
+import com.closet.core.ui.resources.ic_symbol_keyboard_arrow_right
+import com.closet.core.ui.resources.ic_symbol_numbers
+import com.closet.core.ui.resources.ic_symbol_savings
+import com.closet.core.ui.resources.ic_symbol_star_filled
 import com.closet.features.wardrobe.resources.wardrobe_cancel
 import com.closet.features.wardrobe.resources.wardrobe_change_status
 import com.closet.features.wardrobe.resources.wardrobe_colors
@@ -31,26 +43,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import org.koin.compose.viewmodel.koinViewModel
-import java.text.NumberFormat
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import com.closet.core.ui.format.formatCurrency
+import com.closet.core.ui.format.formatDateLong
+import com.closet.core.ui.format.formatMonthYear
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.LocalDate
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -170,16 +178,16 @@ fun ClothingDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(painterResource(CoreRes.drawable.ic_symbol_arrow_back), contentDescription = "Back")
                     }
                 },
                 actions = {
                     (uiState as? ClothingDetailUiState.Success)?.item?.let { detail ->
                         IconButton(onClick = { onEdit(detail.item.id) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit")
+                            Icon(painterResource(CoreRes.drawable.ic_symbol_edit), contentDescription = "Edit")
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete")
+                            Icon(painterResource(CoreRes.drawable.ic_symbol_delete), contentDescription = "Delete")
                         }
                     }
                 }
@@ -229,7 +237,7 @@ fun ClothingDetailScreen(
                             )
                         } ?: run {
                             Icon(
-                                imageVector = Icons.Default.Image,
+                                painter = painterResource(CoreRes.drawable.ic_symbol_image),
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(64.dp)
@@ -246,7 +254,7 @@ fun ClothingDetailScreen(
                                 .padding(16.dp)
                         ) {
                             Icon(
-                                imageVector = if (detail.item.isFavorite == 1) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                painter = if (detail.item.isFavorite == 1) painterResource(CoreRes.drawable.ic_symbol_favorite_filled) else painterResource(CoreRes.drawable.ic_symbol_favorite),
                                 contentDescription = "Favorite",
                                 tint = if (detail.item.isFavorite == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -308,7 +316,7 @@ fun ClothingDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                painter = painterResource(CoreRes.drawable.ic_symbol_check_circle_filled),
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
@@ -438,12 +446,10 @@ internal fun DetailStatRow(
     onToggleWash: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val locale = LocalConfiguration.current.locales[0]
-    val currencyFormat = NumberFormat.getCurrencyInstance(locale)
     val naText = stringResource(Res.string.wardrobe_stat_cpw_na)
-    val priceText = if (purchasePrice != null) currencyFormat.format(purchasePrice) else naText
+    val priceText = if (purchasePrice != null) formatCurrency(purchasePrice) else naText
     val cpwText = if (purchasePrice != null && wearCount > 0)
-        currencyFormat.format(purchasePrice / wearCount)
+        formatCurrency(purchasePrice / wearCount)
     else
         naText
 
@@ -476,7 +482,7 @@ internal fun DetailStatRow(
             StatPillCard(
                 icon = {
                     Icon(
-                        imageVector = Icons.Default.Numbers,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_numbers),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -494,7 +500,7 @@ internal fun DetailStatRow(
             StatPillCard(
                 icon = {
                     Icon(
-                        imageVector = Icons.Default.AttachMoney,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_attach_money),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -507,7 +513,7 @@ internal fun DetailStatRow(
             StatPillCard(
                 icon = {
                     Icon(
-                        imageVector = Icons.Default.Savings,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_savings),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -580,11 +586,9 @@ private fun PurchaseMetaRow(
     purchaseLocation: String?,
     modifier: Modifier = Modifier,
 ) {
-    val locale = LocalConfiguration.current.locales[0]
-    val monthYearFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", locale)
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         purchaseDate?.let { raw ->
-            val formatted = runCatching { LocalDate.parse(raw).format(monthYearFormatter) }
+            val formatted = runCatching { formatMonthYear(LocalDate.parse(raw).let { YearMonth(it.year, it.month) }) }
                 .getOrDefault(raw)
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -672,7 +676,7 @@ private fun WearHistoryRow(
     modifier: Modifier = Modifier,
 ) {
     val formattedDate = remember(log.date) {
-        runCatching { LocalDate.parse(log.date).format(DateTimeFormatter.ofPattern("MMMM d, yyyy")) }
+        runCatching { formatDateLong(LocalDate.parse(log.date)) }
             .getOrElse { log.date }
     }
     Row(
@@ -695,7 +699,7 @@ private fun WearHistoryRow(
         }
         if (log.isOotd == 1) {
             Icon(
-                imageVector = Icons.Filled.Star,
+                painter = painterResource(CoreRes.drawable.ic_symbol_star_filled),
                 contentDescription = stringResource(Res.string.wardrobe_wear_history_ootd),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(16.dp),
@@ -703,7 +707,7 @@ private fun WearHistoryRow(
             Spacer(Modifier.width(4.dp))
         }
         Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            painter = painterResource(CoreRes.drawable.ic_symbol_keyboard_arrow_right),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
