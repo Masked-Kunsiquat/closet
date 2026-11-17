@@ -34,6 +34,19 @@ class EngineRankingTest {
         assertEquals(1.10, threeItem.score, 0.001)
     }
 
+    @Test
+    fun `Warm Warm Cool scores the geometric mean of mixed pairs`() {
+        val items = listOf(
+            item(id = 1, role = "Top", colorFamilies = setOf("Warm")),
+            item(id = 2, role = "Bottom", colorFamilies = setOf("Warm")),
+            item(id = 3, role = "Outerwear", colorFamilies = setOf("Cool"))
+        )
+        val result = engine.recommend(engineInput(candidates = items))
+        val threeItem = assertNotNull(result.find { it.items.size == 3 })
+        // Pairs: Warm+Warm 1.10, Warm+Cool 0.85, Warm+Cool 0.85 → (1.10 × 0.85 × 0.85)^(1/3) ≈ 0.926
+        assertEquals(0.926, threeItem.score, 0.001)
+    }
+
     // =========================================================================
     // Footwear penalty
     // =========================================================================
@@ -127,6 +140,21 @@ class EngineRankingTest {
         assertEquals(1.0, onePieceScore("2026-03-28", today = null), 0.001)
     }
 
+    @Test
+    fun `recency applies when weather is set`() {
+        // Mild weather with no item signals → no weather multiplier; worn 2 days ago → 0.90.
+        val result = engine.recommend(
+            engineInput(
+                candidates = listOf(item(id = 1, role = "OnePiece")),
+                lastWornDates = mapOf(1L to ItemLastWorn(clothingItemId = 1, lastWornDate = "2026-03-29")),
+                weather = weather(tempLow = 10.0, tempHigh = 20.0),
+                today = today
+            )
+        )
+        assertEquals(1, result.size)
+        assertEquals(0.90, result[0].score, 0.001)
+    }
+
     // =========================================================================
     // Exclusion
     // =========================================================================
@@ -146,6 +174,52 @@ class EngineRankingTest {
         assertFalse(result.any { it.key() == best.key() })
         assertEquals(setOf(1L, 2L), result.first().key())
     }
+
+    @Test
+    fun `excluding the only result surfaces a different top`() {
+        val items = listOf(
+            item(id = 1, role = "Top"),
+            item(id = 2, role = "Top"),
+            item(id = 3, role = "Top"),
+            item(id = 4, role = "Bottom")
+        )
+        val input = engineInput(candidates = items)
+        val first = engine.recommend(input, topN = 1).single()
+        val second = engine.recommend(input, topN = 1, exclude = setOf(first.key())).single()
+        assertTrue(topIds(second).isNotEmpty())
+        assertTrue(topIds(second).none { it in topIds(first) }, "Expected a new top, got ${second.key()}")
+    }
+
+    @Test
+    fun `excluding a whole page rotates a new top into the capped pool`() {
+        val items = (1L..5L).map { item(id = it, role = "Top") } +
+            listOf(item(id = 6, role = "Bottom"), item(id = 7, role = "Bottom"))
+        val input = engineInput(candidates = items)
+        val first = engine.recommend(input, topN = 3, candidatesPerSlot = 2)
+        assertEquals(3, first.size)
+        val second = engine.recommend(
+            input, topN = 3, candidatesPerSlot = 2, exclude = first.map { it.key() }.toSet()
+        )
+        val firstTops = first.flatMap { topIds(it) }.toSet()
+        assertTrue(
+            second.flatMap { topIds(it) }.any { it !in firstTops },
+            "Expected a top outside $firstTops, got ${second.map { it.key() }}"
+        )
+    }
+
+    @Test
+    fun `empty exclude keeps the pre-change ordering`() {
+        val input = engineInput(candidates = diversityItems)
+        val expected = listOf(
+            setOf(1L, 3L, 4L), setOf(2L, 3L, 4L), setOf(1L, 3L, 5L),
+            setOf(2L, 3L, 5L), setOf(1L, 3L), setOf(2L, 3L)
+        )
+        assertEquals(expected, engine.recommend(input, topN = 6).map { it.key() })
+        assertEquals(expected, engine.recommend(input, topN = 6, exclude = emptySet()).map { it.key() })
+    }
+
+    private fun topIds(combo: OutfitCombo): List<Long> =
+        combo.items.filter { it.outfitRole == "Top" }.map { it.id }
 
     // =========================================================================
     // Diversity — no two results share a core, then fill

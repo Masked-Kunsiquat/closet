@@ -139,6 +139,9 @@ class RecommendationViewModel(
      */
     private val shownComboKeys = mutableSetOf<Set<Long>>()
 
+    /** Keys of the page shown last; the cycle restart excludes them so it doesn't repeat that page. */
+    private var lastPageKeys: Set<Set<Long>> = emptySet()
+
     private var runJob: Job? = null
 
     // -------------------------------------------------------------------------
@@ -291,17 +294,26 @@ class RecommendationViewModel(
      * 2. Calls [RecommendationRepository.getCandidates] for the hard-filtered pool.
      * 3. Executes the four score queries in parallel.
      * 4. Maps results to [EngineInput] (including [CandidateItem] → [EngineItem]).
-     * 5. Calls [OutfitRecommendationEngine.recommend].
-     * 6. Transitions to [Results] or [Error].
+     * 5. Calls [OutfitRecommendationEngine.recommend], excluding every combo shown so far this
+     *    session ([shownComboKeys]; cleared when [firstOfSession]).
+     * 6. Wrap-around: if exclusion leaves nothing, retries excluding only the last page
+     *    ([lastPageKeys]), then with no exclusion, and resets the session set — the cycle
+     *    restarts instead of showing "no results".
+     * 7. Optional AI curation of the pool; the shown page's keys are recorded in [shownComboKeys].
+     * 8. Transitions to [Results], [NoResults] or [Error].
      */
     private fun runEngine(occasionId: Long?, weather: WeatherConditions?, firstOfSession: Boolean) {
         runJob?.cancel()
-        if (firstOfSession) shownComboKeys.clear() // new suggestion session
+        if (firstOfSession) { // new suggestion session
+            shownComboKeys.clear()
+            lastPageKeys = emptySet()
+        }
         _uiState.value = RecommendationUiState.Loading
         runJob = viewModelScope.launch {
             try {
                 val combos = fetchAndRun(occasionId, weather, firstOfSession)
-                shownComboKeys.addAll(combos.map { it.key() })
+                lastPageKeys = combos.map { it.key() }.toSet()
+                shownComboKeys.addAll(lastPageKeys)
                 _uiState.value = if (combos.isEmpty()) {
                     RecommendationUiState.NoResults(occasionId = occasionId, weather = weather)
                 } else {
@@ -430,8 +442,9 @@ class RecommendationViewModel(
 
         // 6. Run the pure engine — expand the pool when AI is ready so the scorer
         //    has more combos to curate from. Regenerate excludes combos already shown
-        //    this session; the jitter is seeded by the date so the day's first pick is
-        //    stable within a day but varies between days.
+        //    this session. Only the session's first run seeds the jitter with the date (the
+        //    day's first pick is stable within a day but varies between days); Regenerate
+        //    uses an unseeded Random.
         val aiReady = isAiReady()
         val runEngineOnce = { exclude: Set<Set<Long>> ->
             // First pick of a session is seeded by the date; Regenerate is unseeded.
@@ -444,21 +457,23 @@ class RecommendationViewModel(
                 engine.recommend(input, exclude = exclude, jitter = jitter)
             }
         }
-        var programmaticCombos = runEngineOnce(shownComboKeys.toSet())
-        if (programmaticCombos.isEmpty() && shownComboKeys.isNotEmpty()) {
-            // Everything has been shown: restart the cycle.
+        val shownSoFar = shownComboKeys.toSet()
+        var programmaticCombos = runEngineOnce(shownSoFar)
+        if (programmaticCombos.isEmpty() && shownSoFar.isNotEmpty()) {
+            // Everything has been shown: restart the cycle, avoiding the page just seen if
+            // possible. runEngine then records only the new page's keys.
             shownComboKeys.clear()
-            programmaticCombos = runEngineOnce(emptySet())
+            if (lastPageKeys.isNotEmpty() && lastPageKeys != shownSoFar) {
+                programmaticCombos = runEngineOnce(lastPageKeys)
+            }
+            if (programmaticCombos.isEmpty()) programmaticCombos = runEngineOnce(emptySet())
         }
         if (programmaticCombos.isEmpty()) return@coroutineScope emptyList()
 
         // 7. Per-item scores used by the engine — needed for ClothingItemDto suitability hints.
-        //    Re-derive using the same logic the engine used (safeItems are all in engineItems
-        //    since the hard filter is a no-op; engine exposes no public score map, so we
-        //    derive here to avoid coupling to engine internals).
+        //    Uses the engine's own per-item scoring (weather signals + wear recency).
         val itemScoresForScorer: Map<Long, Double> = engineItems.associate { item ->
-            val baseScore = deriveItemScore(item, input)
-            item.id to baseScore
+            item.id to engine.itemScore(item, input)
         }
 
         // 8. Optional AI coherence scoring — replaces top-3 with AI-curated combos if successful
@@ -477,7 +492,8 @@ class RecommendationViewModel(
             null
         }
 
-        return@coroutineScope aiCombos ?: programmaticCombos
+        // AI fallback shows only the default page, so only what is shown gets recorded.
+        return@coroutineScope aiCombos ?: programmaticCombos.take(OutfitRecommendationEngine.TOP_N)
     }
 
     /**
@@ -502,49 +518,6 @@ class RecommendationViewModel(
             AiProvider.Anthropic -> aiPrefsRepo.getAnthropicApiKey().first().isNotBlank()
             AiProvider.Gemini -> aiPrefsRepo.getGeminiApiKey().first().isNotBlank()
         }
-    }
-
-    /**
-     * Derives a per-item suitability score for use as a context hint in [OutfitCoherenceScorer].
-     *
-     * Mirrors the scoring logic in [OutfitRecommendationEngine.scoreItem] but is intentionally
-     * kept as a private helper here so the engine remains a pure class with no exposed score map.
-     * If the engine's scoring logic changes, this helper must be kept in sync.
-     */
-    private fun deriveItemScore(item: EngineItem, input: EngineInput): Double {
-        var score = 1.0
-        val weather = input.weather ?: return score
-
-        // Temperature signal (skip if < 5 logs)
-        val tempPercentile = input.tempPercentiles[item.id]
-        if (tempPercentile != null && tempPercentile.logCount >= 5) {
-            val forecastLow = weather.tempLowC
-            val forecastHigh = weather.tempHighC
-            if (forecastLow != null && forecastHigh != null) {
-                val outsideRange =
-                    forecastHigh < tempPercentile.p10TempLow ||
-                    forecastLow > tempPercentile.p90TempHigh
-                if (outsideRange) score *= 0.55
-            }
-        }
-
-        // Rain signal (skip if < 5 logs)
-        if (weather.isRaining) {
-            val rain = input.rainSuitability[item.id]
-            if (rain != null && rain.rainLogCount >= 5) {
-                if (rain.rainPct < 0.20) score *= 0.60
-            }
-        }
-
-        // Wind signal (skip if < 5 logs)
-        if (weather.isWindy) {
-            val wind = input.windSuitability[item.id]
-            if (wind != null && wind.windLogCount >= 5) {
-                if (wind.windPct < 0.20) score *= 0.70
-            }
-        }
-
-        return score
     }
 
     // -------------------------------------------------------------------------

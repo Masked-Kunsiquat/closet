@@ -66,7 +66,7 @@ Every new engine input defaults to "off". Callers that don't opt in, which inclu
 
 ## Review Focus
 
-1. **Regenerate never repeats while untried combos exist, then cycles.** With 4 possible combos and `topN = 3`, Regenerate shows the 4th plus 2 earlier ones, never an empty screen. (Task 2 test.)
+1. **Regenerate never repeats while untried combos exist, then cycles.** With 4 possible combos and `topN = 3`, Regenerate shows only the unseen 4th; the next Regenerate wraps the cycle, never an empty screen. (Task 2 test.)
 2. **Existing exact-score tests still pass unchanged**, except any that combine 3+ non-neutral coloured items. Those change under the geometric mean; update only those, and justify each in the report. (Task 1.)
 3. **Diversity doesn't drop valid outfits.** When there are fewer distinct cores than `topN`, the fill pass still returns up to `topN`. (Task 1 test.)
 4. **Recency date edge cases:**
@@ -156,5 +156,6 @@ Every new engine input defaults to "off". Callers that don't opt in, which inclu
     - Regenerate 3 times: each time shows a different first outfit, until the wardrobe's combos run out and the cycle restarts.
     - The 3 pages have different top/bottom pairs.
     - With shoes in the wardrobe, the top results include shoes.
+    - Within 3 Regenerates a new top or bottom appears (not only new shoes/accessories).
   - Before/after screenshots go in the PR comment.
   - Wait for the owner to merge.

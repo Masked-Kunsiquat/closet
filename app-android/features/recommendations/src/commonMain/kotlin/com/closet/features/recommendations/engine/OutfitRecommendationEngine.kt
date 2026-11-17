@@ -22,7 +22,10 @@ import kotlin.random.Random
  * 2. Per-item suitability scoring — multiplicative multipliers from weather signals
  *    (signals with < 5 logs are skipped: sparse-data guard) and wear recency (only when
  *    [EngineInput.today] is set: worn ≤ 3 days ago × 0.90, ≥ 30 days ago × 1.05).
- * 3. Per-category cap — keep top 1–2 scored candidates per outfit-role slot.
+ * 3. Per-category cap — keep top 1–2 scored candidates per outfit-role slot. When `exclude`
+ *    is non-empty, items that appear in any excluded combo are ranked after the unshown ones
+ *    (ranking only — their scores are unchanged), so Regenerate rotates new clothes into the
+ *    capped pool instead of re-pairing the same few.
  * 4. Color deduplication — one item per (color+subcategory) combo within each slot.
  * 5. Category completeness — build valid combos: (Top + Bottom) OR (OnePiece),
  *    optional Outerwear / Footwear / Accessory.
@@ -32,8 +35,11 @@ import kotlin.random.Random
  * 7. Exclusion — drop combos whose [key] is in `exclude` (already shown this session).
  * 8. Sort + tie-break — descending score (or score × (1 ± 0.03) when a `jitter` [Random]
  *    is given; [OutfitCombo.score] stays un-jittered); ties broken by oldest last-worn date.
+ *    With jitter, exact ties are rare, so the last-worn tie-break effectively applies only
+ *    to un-jittered runs; the recency multiplier covers wear history either way.
  * 9. Diversity — take combos greedily, skipping any whose core (Top + Bottom, or
- *    OnePiece) is already picked; fill remaining slots from the skipped combos in order.
+ *    OnePiece) is already picked or was in an excluded combo; fill remaining slots from the
+ *    skipped combos in order.
  * 10. Return the top N (default 3).
  */
 class OutfitRecommendationEngine {
@@ -80,8 +86,8 @@ class OutfitRecommendationEngine {
         // --- Per-category slot cap ---
         private const val CANDIDATES_PER_SLOT = 2
 
-        // --- Top N result ---
-        private const val TOP_N = 3
+        // --- Top N result (the default page size; the ViewModel shows this many) ---
+        internal const val TOP_N = 3
 
         // --- Outfit roles ---
         private const val ROLE_TOP = "Top"
@@ -90,6 +96,7 @@ class OutfitRecommendationEngine {
         private const val ROLE_OUTERWEAR = "Outerwear"
         private const val ROLE_FOOTWEAR = "Footwear"
         private const val ROLE_ACCESSORY = "Accessory"
+        private val CORE_ROLES = setOf(ROLE_TOP, ROLE_BOTTOM, ROLE_ONEPIECE)
 
         // --- Color families ---
         private const val FAMILY_NEUTRAL = "Neutral"
@@ -141,14 +148,18 @@ class OutfitRecommendationEngine {
         // 2. Score each item individually
         val itemScores: Map<Long, Double> = safeItems.associateBy(
             keySelector = { it.id },
-            valueTransform = { item -> scoreItem(item, input) }
+            valueTransform = { item -> itemScore(item, input) }
         )
 
-        // 3. Group by outfit role, cap per slot
+        // 3. Group by outfit role, cap per slot. Items already shown (in any excluded combo)
+        //    rank after unshown ones within their slot — ranking only, scores unchanged. Both
+        //    sorts are stable, so with an empty `exclude` the order is exactly score-descending.
+        val shownItemIds: Set<Long> = exclude.flatMapTo(mutableSetOf()) { it }
         val byRole = safeItems.groupBy { it.outfitRole ?: "Other" }
         val cappedByRole: Map<String, List<EngineItem>> = byRole.mapValues { (_, items) ->
             items
                 .sortedByDescending { itemScores[it.id] ?: 1.0 }
+                .let { sorted -> if (shownItemIds.isEmpty()) sorted else sorted.sortedBy { it.id in shownItemIds } }
                 .deduplicateByColorAndSubcategory()
                 .take(candidatesPerSlot)
         }
@@ -184,8 +195,19 @@ class OutfitRecommendationEngine {
             )
             .map { remaining[it] }
 
-        // 8. Diversity: distinct cores first, then fill from the skipped combos
-        return selectDiverse(sorted, topN)
+        // 8. Diversity: distinct cores first (cores already shown count as taken), then fill
+        //    from the skipped combos
+        return selectDiverse(sorted, topN, shownCores = excludedCores(exclude, input))
+    }
+
+    /** The cores of the excluded combos, resolving each key's item IDs to their input roles. */
+    private fun excludedCores(exclude: Set<Set<Long>>, input: EngineInput): Set<Set<Long>> {
+        if (exclude.isEmpty()) return emptySet()
+        val roleById: Map<Long, String?> = input.candidates.associate { it.id to it.outfitRole }
+        return exclude
+            .map { key -> key.filter { roleById[it] in CORE_ROLES }.toSet() }
+            .filter { it.isNotEmpty() }
+            .toSet()
     }
 
     // -------------------------------------------------------------------------
@@ -194,14 +216,19 @@ class OutfitRecommendationEngine {
 
     /**
      * Greedily takes combos from [sorted] whose core (Top + Bottom IDs, or the OnePiece ID)
-     * has not been picked yet, up to [topN]. If that yields fewer than [topN], the remaining
-     * slots are filled from the skipped combos in their sorted order, so no valid outfit is
-     * dropped just for sharing a core.
+     * has not been picked yet and is not in [shownCores] (cores of combos already shown this
+     * session), up to [topN]. If that yields fewer than [topN], the remaining slots are filled
+     * from the skipped combos in their sorted order, so no valid outfit is dropped just for
+     * sharing a core.
      */
-    private fun selectDiverse(sorted: List<OutfitCombo>, topN: Int): List<OutfitCombo> {
+    private fun selectDiverse(
+        sorted: List<OutfitCombo>,
+        topN: Int,
+        shownCores: Set<Set<Long>> = emptySet(),
+    ): List<OutfitCombo> {
         val picked = mutableListOf<OutfitCombo>()
         val skipped = mutableListOf<OutfitCombo>()
-        val seenCores = mutableSetOf<Set<Long>>()
+        val seenCores = shownCores.toMutableSet()
         for (combo in sorted) {
             if (picked.size == topN) break
             if (seenCores.add(comboCore(combo))) picked.add(combo) else skipped.add(combo)
@@ -215,7 +242,7 @@ class OutfitRecommendationEngine {
     /** The combo's core: its Top + Bottom IDs, or its OnePiece ID. */
     private fun comboCore(combo: OutfitCombo): Set<Long> =
         combo.items
-            .filter { it.outfitRole == ROLE_TOP || it.outfitRole == ROLE_BOTTOM || it.outfitRole == ROLE_ONEPIECE }
+            .filter { it.outfitRole in CORE_ROLES }
             .map { it.id }
             .toSet()
 
@@ -238,7 +265,11 @@ class OutfitRecommendationEngine {
     // Step 2 — Per-item suitability scoring
     // -------------------------------------------------------------------------
 
-    private fun scoreItem(item: EngineItem, input: EngineInput): Double {
+    /**
+     * Per-item suitability score: the wear-recency multiplier times the weather-signal
+     * multipliers. Internal so the ViewModel's AI hint scores use exactly the engine's logic.
+     */
+    internal fun itemScore(item: EngineItem, input: EngineInput): Double {
         var score = recencyMultiplier(item, input) // runs with or without weather
         val weather = input.weather ?: return score // no weather → no weather signals
 
@@ -508,6 +539,9 @@ class OutfitRecommendationEngine {
      * Rule: among tied combos, the one whose *most-recently-worn item* is the oldest
      * (i.e. least recently worn overall) wins — favouring combos that haven't been
      * worn in a while.
+     *
+     * With a `jitter` [Random], exact score ties are rare, so this tie-break effectively
+     * applies only to un-jittered runs; the recency multiplier covers wear history then.
      *
      * Implementation:
      * 1. Map each item to its last-worn date string, or [NEVER_WORN_SENTINEL] ("") if
