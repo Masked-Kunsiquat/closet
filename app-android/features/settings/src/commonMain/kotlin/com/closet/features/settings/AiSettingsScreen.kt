@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -119,6 +120,7 @@ import com.closet.features.settings.resources.settings_wardrobe_search_index
 import com.closet.features.settings.resources.settings_wardrobe_search_index_rebuild
 import com.closet.features.settings.resources.settings_wardrobe_search_index_rebuilding
 import org.jetbrains.compose.resources.StringResource
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
@@ -163,6 +165,7 @@ fun AiSettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
     var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
     var lastHandledCompressionId by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -190,8 +193,8 @@ fun AiSettingsScreen(
     LaunchedEffect(uiState.captionResult) {
         val result = uiState.captionResult ?: return@LaunchedEffect
         if (result.resultId == uiState.lastHandledCaptionId) return@LaunchedEffect
-        viewModel.onCaptionResultHandled(result.resultId)
-        viewModel.onCaptionResultConsumed()
+        // Resolve the message before consuming: consumeResult() clears captionResult (this
+        // effect's key), which cancels this coroutine.
         val stoppedReason = result.stoppedReason
         val msg = if (stoppedReason != null) {
             stoppedReason
@@ -204,7 +207,10 @@ fun AiSettingsScreen(
                 Res.plurals.settings_wardrobe_caption_result, result.done, result.done,
             )
         }
-        snackbarHostState.showSnackbar(msg)
+        viewModel.onCaptionResultHandled(result.resultId)
+        // Show from the screen scope so the restart triggered by consumeResult() can't cancel it.
+        snackbarScope.launch { snackbarHostState.showSnackbar(msg) }
+        viewModel.onCaptionResultConsumed()
     }
 
     LaunchedEffect(uiState.compressionWorkStatus?.id, uiState.compressionWorkStatus?.state) {
