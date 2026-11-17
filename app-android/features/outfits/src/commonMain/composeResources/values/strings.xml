@@ -3,7 +3,7 @@
     <!-- Wardrobe Picker -->
     <string name="outfits_picker_title">Add Items</string>
     <string name="outfits_picker_done">Done</string>
-    <string name="outfits_picker_done_count">Done (%d)</string>
+    <string name="outfits_picker_done_count">Done (%1$d)</string>
     <string name="outfits_picker_all_categories">All</string>
     <string name="outfits_picker_all_seasons">All seasons</string>
     <string name="outfits_picker_empty">No items in your wardrobe</string>
@@ -20,7 +20,7 @@
     <string name="outfits_gallery_create">Create Outfit</string>
     <string name="outfits_gallery_empty">No outfits yet. Create your first one!</string>
     <string name="outfits_gallery_untitled">Untitled outfit</string>
-    <string name="outfits_gallery_item_count">%d items</string>
+    <string name="outfits_gallery_item_count">%1$d items</string>
 
     <!-- Gallery FAB -->
     <string name="outfits_fab_expand">More actions</string>
@@ -49,7 +49,7 @@
     <string name="journal_edit_weather_label">Weather</string>
     <string name="journal_edit_save">Save</string>
     <string name="journal_edit_cancel">Cancel</string>
-    <string name="journal_forecast_chip_description">Today\'s forecast — tap to see 7-day forecast</string>
+    <string name="journal_forecast_chip_description">Today's forecast — tap to see 7-day forecast</string>
     <string name="journal_forecast_sheet_title">7-Day Forecast</string>
     <string name="journal_forecast_today">Today</string>
     <string name="journal_forecast_tomorrow">Tomorrow</string>

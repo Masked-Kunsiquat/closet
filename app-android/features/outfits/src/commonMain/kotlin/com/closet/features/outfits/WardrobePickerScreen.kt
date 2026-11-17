@@ -1,19 +1,29 @@
 package com.closet.features.outfits
 
+import com.closet.core.ui.resources.ic_symbol_check_circle_filled
+import com.closet.core.ui.resources.ic_symbol_arrow_back
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.outfits_picker_all_categories
+import com.closet.features.outfits.resources.outfits_picker_all_seasons
+import com.closet.features.outfits.resources.outfits_picker_back
+import com.closet.features.outfits.resources.outfits_picker_done
+import com.closet.features.outfits.resources.outfits_picker_done_count
+import com.closet.features.outfits.resources.outfits_picker_empty
+import com.closet.features.outfits.resources.outfits_picker_selected
+import com.closet.features.outfits.resources.outfits_picker_title
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.model.CategoryEntity
@@ -61,21 +71,21 @@ internal fun WardrobePickerContent(
 ) {
     val selectedCount = uiState.selectedItemIds.size
     val confirmLabel = if (selectedCount > 0) {
-        stringResource(R.string.outfits_picker_done_count, selectedCount)
+        stringResource(Res.string.outfits_picker_done_count, selectedCount)
     } else {
-        stringResource(R.string.outfits_picker_done)
+        stringResource(Res.string.outfits_picker_done)
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.outfits_picker_title)) },
+                title = { Text(stringResource(Res.string.outfits_picker_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.outfits_picker_back)
+                            painter = painterResource(CoreRes.drawable.ic_symbol_arrow_back),
+                            contentDescription = stringResource(Res.string.outfits_picker_back)
                         )
                     }
                 },
@@ -136,7 +146,7 @@ private fun PickerCategoryRow(
             FilterChip(
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelect(null) },
-                label = { Text(stringResource(R.string.outfits_picker_all_categories)) }
+                label = { Text(stringResource(Res.string.outfits_picker_all_categories)) }
             )
         }
         items(categories, key = { it.id }) { category ->
@@ -165,7 +175,7 @@ private fun PickerSeasonRow(
             FilterChip(
                 selected = selectedSeasonId == null,
                 onClick = { onSeasonSelect(null) },
-                label = { Text(stringResource(R.string.outfits_picker_all_seasons)) }
+                label = { Text(stringResource(Res.string.outfits_picker_all_seasons)) }
             )
         }
         items(seasons, key = { it.id }) { season ->
@@ -222,8 +232,8 @@ private fun SelectableItemCard(
         )
         if (isSelected) {
             Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = stringResource(R.string.outfits_picker_selected),
+                painter = painterResource(CoreRes.drawable.ic_symbol_check_circle_filled),
+                contentDescription = stringResource(Res.string.outfits_picker_selected),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -240,6 +250,6 @@ private fun PickerEmptyState(modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(stringResource(R.string.outfits_picker_empty))
+        Text(stringResource(Res.string.outfits_picker_empty))
     }
 }

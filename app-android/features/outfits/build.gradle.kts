@@ -79,8 +79,6 @@ kotlin {
 
             implementation(project.dependencies.platform(libs.androidx.compose.bom))
             implementation(libs.androidx.ui.tooling.preview)
-            // Temporary: Task 4 moves the screens to commonMain and drops this.
-            implementation(libs.androidx.compose.material.icons.extended)
         }
         jvmTest.dependencies {
             implementation(libs.mockk)

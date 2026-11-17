@@ -1,13 +1,24 @@
 package com.closet.features.outfits
 
+import com.closet.core.ui.resources.ic_symbol_arrow_back
+import com.closet.core.ui.resources.ic_symbol_add
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.outfits_builder_add_items
+import com.closet.features.outfits.resources.outfits_builder_back
+import com.closet.features.outfits.resources.outfits_builder_name_hint
+import com.closet.features.outfits.resources.outfits_builder_save
+import com.closet.features.outfits.resources.outfits_builder_save_error
+import com.closet.features.outfits.resources.outfits_builder_title
+import com.closet.features.outfits.resources.outfits_builder_title_edit
+import com.closet.features.outfits.resources.outfits_builder_update
+import com.closet.features.outfits.resources.outfits_builder_update_error
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
@@ -27,9 +38,9 @@ fun OutfitBuilderScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val errorMessage = stringResource(R.string.outfits_builder_save_error)
+    val errorMessage = stringResource(Res.string.outfits_builder_save_error)
 
-    val updateErrorMessage = stringResource(R.string.outfits_builder_update_error)
+    val updateErrorMessage = stringResource(Res.string.outfits_builder_update_error)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -75,16 +86,16 @@ internal fun OutfitBuilderContent(
                 title = {
                     Text(
                         stringResource(
-                            if (uiState.isEditing) R.string.outfits_builder_title_edit
-                            else R.string.outfits_builder_title
+                            if (uiState.isEditing) Res.string.outfits_builder_title_edit
+                            else Res.string.outfits_builder_title
                         )
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.outfits_builder_back)
+                            painter = painterResource(CoreRes.drawable.ic_symbol_arrow_back),
+                            contentDescription = stringResource(Res.string.outfits_builder_back)
                         )
                     }
                 },
@@ -101,8 +112,8 @@ internal fun OutfitBuilderContent(
                         } else {
                             Text(
                                 stringResource(
-                                    if (uiState.isEditing) R.string.outfits_builder_update
-                                    else R.string.outfits_builder_save
+                                    if (uiState.isEditing) Res.string.outfits_builder_update
+                                    else Res.string.outfits_builder_save
                                 )
                             )
                         }
@@ -119,11 +130,11 @@ internal fun OutfitBuilderContent(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Add,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_add),
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.outfits_builder_add_items))
+                    Text(stringResource(Res.string.outfits_builder_add_items))
                 }
             }
         },
@@ -137,7 +148,7 @@ internal fun OutfitBuilderContent(
             OutlinedTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
-                placeholder = { Text(stringResource(R.string.outfits_builder_name_hint)) },
+                placeholder = { Text(stringResource(Res.string.outfits_builder_name_hint)) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()

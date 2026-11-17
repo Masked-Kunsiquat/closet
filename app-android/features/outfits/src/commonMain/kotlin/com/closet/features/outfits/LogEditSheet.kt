@@ -1,5 +1,14 @@
 package com.closet.features.outfits
 
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.journal_edit_cancel
+import com.closet.features.outfits.resources.journal_edit_notes_hint
+import com.closet.features.outfits.resources.journal_edit_notes_label
+import com.closet.features.outfits.resources.journal_edit_save
+import com.closet.features.outfits.resources.journal_edit_title
+import com.closet.features.outfits.resources.journal_edit_weather_label
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -29,7 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.dao.OutfitLogWithMeta
@@ -75,7 +84,7 @@ internal fun LogEditSheet(
             // Title + outfit name
             Column {
                 Text(
-                    text = stringResource(R.string.journal_edit_title),
+                    text = stringResource(Res.string.journal_edit_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -93,8 +102,8 @@ internal fun LogEditSheet(
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text(stringResource(R.string.journal_edit_notes_label)) },
-                placeholder = { Text(stringResource(R.string.journal_edit_notes_hint)) },
+                label = { Text(stringResource(Res.string.journal_edit_notes_label)) },
+                placeholder = { Text(stringResource(Res.string.journal_edit_notes_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 maxLines = 6,
@@ -103,7 +112,7 @@ internal fun LogEditSheet(
             // Weather condition chips
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = stringResource(R.string.journal_edit_weather_label),
+                    text = stringResource(Res.string.journal_edit_weather_label),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -121,7 +130,7 @@ internal fun LogEditSheet(
                             label = { Text(condition.label) },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = condition.icon(),
+                                    painter = painterResource(condition.icon()),
                                     contentDescription = null,
                                 )
                             },
@@ -137,13 +146,13 @@ internal fun LogEditSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.journal_edit_cancel))
+                    Text(stringResource(Res.string.journal_edit_cancel))
                 }
                 Spacer(Modifier.width(8.dp))
                 androidx.compose.material3.Button(
                     onClick = { onSave(notes.ifBlank { null }, selectedWeather) },
                 ) {
-                    Text(stringResource(R.string.journal_edit_save))
+                    Text(stringResource(Res.string.journal_edit_save))
                 }
             }
         }

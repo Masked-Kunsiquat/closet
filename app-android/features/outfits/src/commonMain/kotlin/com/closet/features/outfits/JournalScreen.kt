@@ -1,5 +1,14 @@
 package com.closet.features.outfits
 
+import com.closet.core.ui.resources.ic_symbol_chevron_right
+import com.closet.core.ui.resources.ic_symbol_chevron_left
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.journal_empty_month
+import com.closet.features.outfits.resources.journal_next_month
+import com.closet.features.outfits.resources.journal_prev_month
+import com.closet.features.outfits.resources.journal_title
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,9 +25,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -42,7 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,14 +59,15 @@ import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.OutfitWithItems
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherCondition
+import com.closet.core.ui.format.formatMonthYear
+import com.closet.core.ui.format.weekdayNarrow
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.onDay
+import kotlinx.datetime.yearMonth
 import org.koin.compose.viewmodel.koinViewModel
-import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.YearMonth
-import kotlinx.datetime.number
-import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
-import java.util.Locale
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
@@ -131,7 +138,7 @@ internal fun JournalContent(
     onDismissForecastSheet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val today = remember(uiState.currentYearMonth) { LocalDate.now() }
+    val today = remember(uiState.currentYearMonth) { todayLocal() }
     val logsByDate = remember(uiState.calendarDays) {
         uiState.calendarDays.associateBy { it.date }
     }
@@ -141,7 +148,7 @@ internal fun JournalContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.journal_title)) }
+                title = { Text(stringResource(Res.string.journal_title)) }
             )
         }
     ) { innerPadding ->
@@ -162,7 +169,7 @@ internal fun JournalContent(
             }
 
             MonthNavHeader(
-                yearMonth = uiState.currentYearMonth.toJavaYearMonth(),
+                yearMonth = uiState.currentYearMonth,
                 onPrevious = onPreviousMonth,
                 onNext = onNextMonth,
             )
@@ -172,7 +179,7 @@ internal fun JournalContent(
             Spacer(Modifier.height(4.dp))
 
             CalendarGrid(
-                yearMonth = uiState.currentYearMonth.toJavaYearMonth(),
+                yearMonth = uiState.currentYearMonth,
                 logsByDate = logsByDate,
                 selectedDate = uiState.selectedDate,
                 today = today,
@@ -233,9 +240,9 @@ private fun MonthNavHeader(
     modifier: Modifier = Modifier,
 ) {
     val monthLabel = remember(yearMonth) {
-        yearMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+        formatMonthYear(yearMonth)
     }
-    val isCurrentMonth = yearMonth >= YearMonth.now()
+    val isCurrentMonth = yearMonth >= todayLocal().yearMonth
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -244,8 +251,8 @@ private fun MonthNavHeader(
     ) {
         IconButton(onClick = onPrevious) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = stringResource(R.string.journal_prev_month),
+                painter = painterResource(CoreRes.drawable.ic_symbol_chevron_left),
+                contentDescription = stringResource(Res.string.journal_prev_month),
             )
         }
 
@@ -257,8 +264,8 @@ private fun MonthNavHeader(
 
         IconButton(onClick = onNext, enabled = !isCurrentMonth) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.journal_next_month),
+                painter = painterResource(CoreRes.drawable.ic_symbol_chevron_right),
+                contentDescription = stringResource(Res.string.journal_next_month),
                 tint = if (isCurrentMonth) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                        else MaterialTheme.colorScheme.onSurface,
             )
@@ -272,7 +279,7 @@ private fun MonthNavHeader(
 private fun WeekDayRow(modifier: Modifier = Modifier) {
     val dayNames = remember {
         // Monday-start week (DayOfWeek.entries starts at MONDAY = index 0)
-        DayOfWeek.entries.map { it.getDisplayName(TextStyle.NARROW, Locale.getDefault()) }
+        DayOfWeek.entries.map { weekdayNarrow(it) }
     }
     Row(modifier = modifier.fillMaxWidth()) {
         dayNames.forEach { name ->
@@ -299,8 +306,8 @@ private fun CalendarGrid(
     modifier: Modifier = Modifier,
 ) {
     // Monday = 0 offset, Sunday = 6 offset
-    val firstDayOffset = yearMonth.atDay(1).dayOfWeek.value - 1
-    val daysInMonth = yearMonth.lengthOfMonth()
+    val firstDayOffset = yearMonth.onDay(1).dayOfWeek.isoDayNumber - 1
+    val daysInMonth = yearMonth.numberOfDays
     val totalCells = firstDayOffset + daysInMonth
     val rows = (totalCells + 6) / 7
 
@@ -312,11 +319,11 @@ private fun CalendarGrid(
                     val day = cellIndex - firstDayOffset + 1
                     Box(Modifier.weight(1f)) {
                         if (day in 1..daysInMonth) {
-                            val dateStr = yearMonth.atDay(day).toString()
+                            val dateStr = yearMonth.onDay(day).toString()
                             val calDay = logsByDate[dateStr]
                             DayCell(
                                 day = day,
-                                isToday = yearMonth.atDay(day) == today,
+                                isToday = yearMonth.onDay(day) == today,
                                 isSelected = dateStr == selectedDate,
                                 hasLog = calDay != null,
                                 isOotd = calDay?.hasOotd == 1,
@@ -422,7 +429,7 @@ private fun TodayForecastChip(
         },
         leadingIcon = {
             Icon(
-                imageVector = forecast.condition.icon(),
+                painter = painterResource(forecast.condition.icon()),
                 contentDescription = null,
                 modifier = Modifier.size(AssistChipDefaults.IconSize),
             )
@@ -442,7 +449,7 @@ private fun JournalEmptyState(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(R.string.journal_empty_month),
+            text = stringResource(Res.string.journal_empty_month),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -450,5 +457,3 @@ private fun JournalEmptyState(modifier: Modifier = Modifier) {
     }
 }
 
-/** Bridges the ViewModel kotlinx month to java.time for the calendar formatting below (Task 4 removes this). */
-private fun kotlinx.datetime.YearMonth.toJavaYearMonth(): YearMonth = YearMonth.of(year, month.number)

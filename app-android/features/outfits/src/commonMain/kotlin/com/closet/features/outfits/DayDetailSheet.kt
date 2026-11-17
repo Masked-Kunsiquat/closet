@@ -1,5 +1,23 @@
 package com.closet.features.outfits
 
+import com.closet.core.ui.resources.ic_symbol_star_filled
+import com.closet.core.ui.resources.ic_symbol_star
+import com.closet.core.ui.resources.ic_symbol_delete
+import com.closet.core.ui.resources.ic_symbol_add
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.journal_day_no_logs
+import com.closet.features.outfits.resources.journal_delete_log
+import com.closet.features.outfits.resources.journal_delete_log_confirm_message
+import com.closet.features.outfits.resources.journal_delete_log_confirm_title
+import com.closet.features.outfits.resources.journal_log_outfit
+import com.closet.features.outfits.resources.journal_ootd_set
+import com.closet.features.outfits.resources.journal_ootd_unset
+import com.closet.features.outfits.resources.outfits_actions_cancel
+import com.closet.features.outfits.resources.outfits_actions_confirm_delete
+import com.closet.features.outfits.resources.outfits_gallery_item_count
+import com.closet.features.outfits.resources.outfits_gallery_untitled
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,11 +34,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,7 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,8 +63,7 @@ import coil3.compose.AsyncImage
 import com.closet.core.data.dao.OutfitLogWithMeta
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherCondition
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import com.closet.core.ui.format.formatDayMonthLong
 
 /**
  * Bottom sheet that shows all outfit logs for a single calendar day.
@@ -89,8 +101,8 @@ internal fun DayDetailSheet(
         var isDeleting by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { logPendingDelete = null },
-            title = { Text(stringResource(R.string.journal_delete_log_confirm_title)) },
-            text = { Text(stringResource(R.string.journal_delete_log_confirm_message)) },
+            title = { Text(stringResource(Res.string.journal_delete_log_confirm_title)) },
+            text = { Text(stringResource(Res.string.journal_delete_log_confirm_message)) },
             confirmButton = {
                 TextButton(
                     enabled = !isDeleting,
@@ -101,19 +113,19 @@ internal fun DayDetailSheet(
                         onDeleteLog(logId)
                     },
                 ) {
-                    Text(stringResource(R.string.outfits_actions_confirm_delete))
+                    Text(stringResource(Res.string.outfits_actions_confirm_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { logPendingDelete = null }) {
-                    Text(stringResource(R.string.outfits_actions_cancel))
+                    Text(stringResource(Res.string.outfits_actions_cancel))
                 }
             },
         )
     }
 
     val headerLabel = remember(date) {
-        LocalDate.parse(date).format(DateTimeFormatter.ofPattern("EEEE, MMMM d"))
+        parseIsoDateOrNull(date)?.let { formatDayMonthLong(it) } ?: date
     }
 
     ModalBottomSheet(
@@ -140,12 +152,12 @@ internal fun DayDetailSheet(
                 contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Add,
+                    painter = painterResource(CoreRes.drawable.ic_symbol_add),
                     contentDescription = null,
                     modifier = Modifier.size(ButtonDefaults.IconSize),
                 )
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text(stringResource(R.string.journal_log_outfit))
+                Text(stringResource(Res.string.journal_log_outfit))
             }
         }
 
@@ -157,7 +169,7 @@ internal fun DayDetailSheet(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = stringResource(R.string.journal_day_no_logs),
+                    text = stringResource(Res.string.journal_day_no_logs),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -235,14 +247,14 @@ private fun LogCard(
             // Outfit name + item count + notes/weather summary
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = log.outfitName ?: stringResource(R.string.outfits_gallery_untitled),
+                    text = log.outfitName ?: stringResource(Res.string.outfits_gallery_untitled),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = stringResource(R.string.outfits_gallery_item_count, log.itemCount),
+                    text = stringResource(Res.string.outfits_gallery_item_count, log.itemCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -265,7 +277,7 @@ private fun LogCard(
                     ) {
                         if (condition != null) {
                             Icon(
-                                imageVector = condition.icon(),
+                                painter = painterResource(condition.icon()),
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -297,9 +309,9 @@ private fun LogCard(
             // OOTD crown toggle
             IconButton(onClick = onOotdToggle) {
                 Icon(
-                    imageVector = if (isOotd) Icons.Filled.Star else Icons.Outlined.Star,
+                    painter = painterResource(if (isOotd) CoreRes.drawable.ic_symbol_star_filled else CoreRes.drawable.ic_symbol_star),
                     contentDescription = stringResource(
-                        if (isOotd) R.string.journal_ootd_unset else R.string.journal_ootd_set,
+                        if (isOotd) Res.string.journal_ootd_unset else Res.string.journal_ootd_set,
                     ),
                     tint = if (isOotd) MaterialTheme.colorScheme.primary
                            else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -309,8 +321,8 @@ private fun LogCard(
             // Delete
             IconButton(onClick = onDelete) {
                 Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = stringResource(R.string.journal_delete_log),
+                    painter = painterResource(CoreRes.drawable.ic_symbol_delete),
+                    contentDescription = stringResource(Res.string.journal_delete_log),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }

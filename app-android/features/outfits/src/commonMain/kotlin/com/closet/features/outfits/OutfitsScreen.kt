@@ -1,5 +1,35 @@
 package com.closet.features.outfits
 
+import com.closet.core.ui.resources.ic_symbol_more_vert
+import com.closet.core.ui.resources.ic_symbol_edit
+import com.closet.core.ui.resources.ic_symbol_delete
+import com.closet.core.ui.resources.ic_symbol_close
+import com.closet.core.ui.resources.ic_symbol_check_circle
+import com.closet.core.ui.resources.ic_symbol_add
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.outfits_actions_cancel
+import com.closet.features.outfits.resources.outfits_actions_confirm_delete
+import com.closet.features.outfits.resources.outfits_actions_delete
+import com.closet.features.outfits.resources.outfits_actions_delete_confirm_message
+import com.closet.features.outfits.resources.outfits_actions_delete_confirm_title
+import com.closet.features.outfits.resources.outfits_actions_edit
+import com.closet.features.outfits.resources.outfits_actions_open
+import com.closet.features.outfits.resources.outfits_delete_error
+import com.closet.features.outfits.resources.outfits_delete_success
+import com.closet.features.outfits.resources.outfits_fab_add_outfit
+import com.closet.features.outfits.resources.outfits_fab_collapse
+import com.closet.features.outfits.resources.outfits_fab_expand
+import com.closet.features.outfits.resources.outfits_fab_get_suggestions
+import com.closet.features.outfits.resources.outfits_gallery_create
+import com.closet.features.outfits.resources.outfits_gallery_empty
+import com.closet.features.outfits.resources.outfits_gallery_item_count
+import com.closet.features.outfits.resources.outfits_gallery_title
+import com.closet.features.outfits.resources.outfits_gallery_untitled
+import com.closet.features.outfits.resources.outfits_wear_error
+import com.closet.features.outfits.resources.outfits_wear_success
+import com.closet.features.outfits.resources.outfits_wear_today
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,18 +41,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,10 +63,10 @@ fun OutfitsScreen(
     val outfits by viewModel.outfits.collectAsStateWithLifecycle()
     val wearingOutfitId by viewModel.wearingOutfitId.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val wearSuccess = stringResource(R.string.outfits_wear_success)
-    val wearError = stringResource(R.string.outfits_wear_error)
-    val deleteSuccess = stringResource(R.string.outfits_delete_success)
-    val deleteError = stringResource(R.string.outfits_delete_error)
+    val wearSuccess = stringResource(Res.string.outfits_wear_success)
+    val wearError = stringResource(Res.string.outfits_wear_error)
+    val deleteSuccess = stringResource(Res.string.outfits_delete_success)
+    val deleteError = stringResource(Res.string.outfits_delete_error)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -92,7 +115,7 @@ internal fun OutfitsContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.outfits_gallery_title)) }
+                title = { Text(stringResource(Res.string.outfits_gallery_title)) }
             )
         },
         floatingActionButton = {
@@ -180,8 +203,8 @@ internal fun OutfitsContent(
     outfitToDelete?.let { outfit ->
         AlertDialog(
             onDismissRequest = { outfitToDelete = null },
-            title = { Text(stringResource(R.string.outfits_actions_delete_confirm_title)) },
-            text = { Text(stringResource(R.string.outfits_actions_delete_confirm_message)) },
+            title = { Text(stringResource(Res.string.outfits_actions_delete_confirm_title)) },
+            text = { Text(stringResource(Res.string.outfits_actions_delete_confirm_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -190,14 +213,14 @@ internal fun OutfitsContent(
                     }
                 ) {
                     Text(
-                        text = stringResource(R.string.outfits_actions_confirm_delete),
+                        text = stringResource(Res.string.outfits_actions_confirm_delete),
                         color = MaterialTheme.colorScheme.error
                     )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { outfitToDelete = null }) {
-                    Text(stringResource(R.string.outfits_actions_cancel))
+                    Text(stringResource(Res.string.outfits_actions_cancel))
                 }
             }
         )
@@ -221,22 +244,22 @@ private fun OutfitActionsSheetContent(
             HorizontalDivider()
         }
         ListItem(
-            headlineContent = { Text(stringResource(R.string.outfits_actions_edit)) },
+            headlineContent = { Text(stringResource(Res.string.outfits_actions_edit)) },
             leadingContent = {
-                Icon(Icons.Outlined.Edit, contentDescription = null)
+                Icon(painterResource(CoreRes.drawable.ic_symbol_edit), contentDescription = null)
             },
             modifier = Modifier.clickable(onClick = onEdit)
         )
         ListItem(
             headlineContent = {
                 Text(
-                    text = stringResource(R.string.outfits_actions_delete),
+                    text = stringResource(Res.string.outfits_actions_delete),
                     color = MaterialTheme.colorScheme.error
                 )
             },
             leadingContent = {
                 Icon(
-                    Icons.Outlined.Delete,
+                    painterResource(CoreRes.drawable.ic_symbol_delete),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error
                 )
@@ -278,11 +301,11 @@ private fun OutfitsFab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 FabOption(
-                    label = stringResource(R.string.outfits_fab_get_suggestions),
+                    label = stringResource(Res.string.outfits_fab_get_suggestions),
                     onClick = onGetSuggestions
                 )
                 FabOption(
-                    label = stringResource(R.string.outfits_fab_add_outfit),
+                    label = stringResource(Res.string.outfits_fab_add_outfit),
                     onClick = onCreateOutfit
                 )
             }
@@ -290,11 +313,11 @@ private fun OutfitsFab(
 
         FloatingActionButton(onClick = onToggle) {
             Icon(
-                imageVector = if (expanded) Icons.Default.Close else Icons.Default.Add,
+                painter = painterResource(if (expanded) CoreRes.drawable.ic_symbol_close else CoreRes.drawable.ic_symbol_add),
                 contentDescription = if (expanded) {
-                    stringResource(R.string.outfits_fab_collapse)
+                    stringResource(Res.string.outfits_fab_collapse)
                 } else {
-                    stringResource(R.string.outfits_fab_expand)
+                    stringResource(Res.string.outfits_fab_expand)
                 }
             )
         }
@@ -328,7 +351,7 @@ private fun FabOption(
         }
         SmallFloatingActionButton(onClick = onClick) {
             Icon(
-                imageVector = Icons.Default.Add,
+                painter = painterResource(CoreRes.drawable.ic_symbol_add),
                 contentDescription = label
             )
         }
@@ -367,7 +390,7 @@ private fun OutfitGridCell(
             ) {
                 Text(
                     text = outfitWithItems.outfit.name
-                        ?: stringResource(R.string.outfits_gallery_untitled),
+                        ?: stringResource(Res.string.outfits_gallery_untitled),
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -378,8 +401,8 @@ private fun OutfitGridCell(
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = stringResource(R.string.outfits_actions_open),
+                        painter = painterResource(CoreRes.drawable.ic_symbol_more_vert),
+                        contentDescription = stringResource(Res.string.outfits_actions_open),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -391,7 +414,7 @@ private fun OutfitGridCell(
             ) {
                 Text(
                     text = stringResource(
-                        R.string.outfits_gallery_item_count,
+                        Res.string.outfits_gallery_item_count,
                         outfitWithItems.items.size
                     ),
                     style = MaterialTheme.typography.bodySmall,
@@ -409,8 +432,8 @@ private fun OutfitGridCell(
                         )
                     } else {
                         Icon(
-                            imageVector = Icons.Outlined.CheckCircle,
-                            contentDescription = stringResource(R.string.outfits_wear_today),
+                            painter = painterResource(CoreRes.drawable.ic_symbol_check_circle),
+                            contentDescription = stringResource(Res.string.outfits_wear_today),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -432,13 +455,13 @@ private fun OutfitsEmptyState(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = stringResource(R.string.outfits_gallery_empty),
+            text = stringResource(Res.string.outfits_gallery_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onCreateOutfit) {
-            Text(stringResource(R.string.outfits_gallery_create))
+            Text(stringResource(Res.string.outfits_gallery_create))
         }
     }
 }

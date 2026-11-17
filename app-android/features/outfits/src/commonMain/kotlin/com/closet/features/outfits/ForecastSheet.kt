@@ -1,5 +1,13 @@
 package com.closet.features.outfits
 
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.journal_forecast_empty
+import com.closet.features.outfits.resources.journal_forecast_sheet_title
+import com.closet.features.outfits.resources.journal_forecast_temp_range
+import com.closet.features.outfits.resources.journal_forecast_today
+import com.closet.features.outfits.resources.journal_forecast_tomorrow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
@@ -19,24 +27,23 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.DailyForecast
+import com.closet.core.ui.format.formatWeekdayDay
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.plus
 import com.closet.core.data.model.TemperatureUnit
-import java.time.LocalDate
-import java.time.format.TextStyle
-import kotlinx.datetime.toJavaLocalDate
 
 @Composable
 private fun LocalDate.toForecastLabelComposable(today: LocalDate): String = when (this) {
-    today -> stringResource(R.string.journal_forecast_today)
-    today.plusDays(1) -> stringResource(R.string.journal_forecast_tomorrow)
+    today -> stringResource(Res.string.journal_forecast_today)
+    today.plus(1, DateTimeUnit.DAY) -> stringResource(Res.string.journal_forecast_tomorrow)
     else -> {
-        val locale = LocalConfiguration.current.locales[0]
-        "${dayOfWeek.getDisplayName(TextStyle.SHORT, locale)} $dayOfMonth"
+        formatWeekdayDay(this)
     }
 }
 
@@ -68,15 +75,15 @@ internal fun ForecastSheet(
                 .padding(bottom = 32.dp),
         ) {
             Text(
-                text = stringResource(R.string.journal_forecast_sheet_title),
+                text = stringResource(Res.string.journal_forecast_sheet_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
-            val today = LocalDate.now()
+            val today = todayLocal()
             if (forecasts.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.journal_forecast_empty),
+                    text = stringResource(Res.string.journal_forecast_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -108,12 +115,12 @@ private fun DailyForecastRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = forecast.date.toJavaLocalDate().toForecastLabelComposable(today),
+            text = forecast.date.toForecastLabelComposable(today),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.weight(1f),
         )
         Icon(
-            imageVector = forecast.condition.icon(),
+            painter = painterResource(forecast.condition.icon()),
             contentDescription = null, // decorative — condition label follows immediately
             modifier = Modifier.size(18.dp),
         )
@@ -126,7 +133,7 @@ private fun DailyForecastRow(
         )
         Text(
             text = stringResource(
-                R.string.journal_forecast_temp_range,
+                Res.string.journal_forecast_temp_range,
                 forecast.tempLow.toDisplayTemp(temperatureUnit),
                 forecast.tempHigh.toDisplayTemp(temperatureUnit),
             ),

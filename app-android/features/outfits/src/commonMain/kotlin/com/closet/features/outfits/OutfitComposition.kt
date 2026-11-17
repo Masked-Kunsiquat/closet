@@ -1,16 +1,20 @@
 package com.closet.features.outfits
 
+import com.closet.core.ui.resources.ic_symbol_close
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.outfits_builder_empty_hint
+import com.closet.features.outfits.resources.outfits_builder_remove_item
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.closet.core.ui.components.ClothingItemCard
 
@@ -67,8 +71,8 @@ private fun MemberCard(
             modifier = Modifier.align(Alignment.TopEnd)
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.outfits_builder_remove_item),
+                painter = painterResource(CoreRes.drawable.ic_symbol_close),
+                contentDescription = stringResource(Res.string.outfits_builder_remove_item),
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -82,7 +86,7 @@ private fun CompositionEmptyState(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = stringResource(R.string.outfits_builder_empty_hint),
+            text = stringResource(Res.string.outfits_builder_empty_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

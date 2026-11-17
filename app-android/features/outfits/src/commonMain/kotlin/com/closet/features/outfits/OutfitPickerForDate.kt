@@ -1,5 +1,14 @@
 package com.closet.features.outfits
 
+import com.closet.core.ui.resources.ic_symbol_arrow_back
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.outfits.resources.Res
+import com.closet.features.outfits.resources.journal_picker_back
+import com.closet.features.outfits.resources.journal_picker_empty
+import com.closet.features.outfits.resources.journal_picker_title
+import com.closet.features.outfits.resources.outfits_gallery_item_count
+import com.closet.features.outfits.resources.outfits_gallery_untitled
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,8 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,12 +31,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.OutfitWithItems
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import com.closet.core.ui.format.formatMonthDay
 
 /**
  * Bottom sheet that lets the user pick a saved outfit to log on [date].
@@ -56,8 +62,7 @@ internal fun OutfitPickerForDate(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val headerLabel = remember(date) {
-        runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("MMMM d")) }
-            .getOrElse { date }
+        parseIsoDateOrNull(date)?.let { formatMonthDay(it) } ?: date
     }
 
     ModalBottomSheet(
@@ -75,13 +80,13 @@ internal fun OutfitPickerForDate(
         ) {
             IconButton(onClick = onDismiss) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = stringResource(R.string.journal_picker_back),
+                    painter = painterResource(CoreRes.drawable.ic_symbol_arrow_back),
+                    contentDescription = stringResource(Res.string.journal_picker_back),
                 )
             }
             Column {
                 Text(
-                    text = stringResource(R.string.journal_picker_title),
+                    text = stringResource(Res.string.journal_picker_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -101,7 +106,7 @@ internal fun OutfitPickerForDate(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = stringResource(R.string.journal_picker_empty),
+                    text = stringResource(Res.string.journal_picker_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -157,13 +162,13 @@ private fun PickerOutfitCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = outfitWithItems.outfit.name
-                        ?: stringResource(R.string.outfits_gallery_untitled),
+                        ?: stringResource(Res.string.outfits_gallery_untitled),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                 )
                 Text(
                     text = stringResource(
-                        R.string.outfits_gallery_item_count,
+                        Res.string.outfits_gallery_item_count,
                         outfitWithItems.items.size,
                     ),
                     style = MaterialTheme.typography.bodySmall,
