@@ -1,6 +1,5 @@
 package com.closet.features.chat
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,11 +29,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Checkroom
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -62,20 +56,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringArrayResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.closet.core.data.ai.ChatAction
 import com.closet.core.ui.theme.ClosetTheme
-import com.closet.features.chat.R
 import com.closet.features.chat.model.ChatItemSummary
 import com.closet.features.chat.model.ChatMessage
 import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringArrayResource
+import org.jetbrains.compose.resources.stringResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_auto_awesome
+import com.closet.core.ui.resources.ic_symbol_checkroom
+import com.closet.core.ui.resources.ic_symbol_edit
+import com.closet.core.ui.resources.ic_symbol_error
+import com.closet.features.chat.resources.Res
+import com.closet.features.chat.resources.chat_action_alternatives
+import com.closet.features.chat.resources.chat_action_chip_explore_outfits
+import com.closet.features.chat.resources.chat_action_chip_log_outfit
+import com.closet.features.chat.resources.chat_action_chip_view_item
+import com.closet.features.chat.resources.chat_action_log_it
+import com.closet.features.chat.resources.chat_clear_dialog_cancel
+import com.closet.features.chat.resources.chat_clear_dialog_confirm
+import com.closet.features.chat.resources.chat_clear_dialog_message
+import com.closet.features.chat.resources.chat_clear_dialog_title
+import com.closet.features.chat.resources.chat_index_building_notice
+import com.closet.features.chat.resources.chat_input_placeholder
+import com.closet.features.chat.resources.chat_new_chat
+import com.closet.features.chat.resources.chat_powered_by
+import com.closet.features.chat.resources.chat_send_button_description
+import com.closet.features.chat.resources.chat_title
+import com.closet.features.chat.resources.chat_welcome_subtitle_not_ready
+import com.closet.features.chat.resources.chat_welcome_subtitle_ready
+import com.closet.features.chat.resources.chat_welcome_title
+import com.closet.features.chat.resources.chat_welcome_suggestions
 
 // ─── Entry point ───────────────────────────────────────────────────────────────
 
@@ -106,7 +125,7 @@ fun ChatScreen(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun ChatContent(
+internal fun ChatContent(
     uiState: ChatUiState,
     onInputChanged: (String) -> Unit,
     onSendMessage: () -> Unit,
@@ -130,19 +149,19 @@ private fun ChatContent(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text(stringResource(R.string.chat_clear_dialog_title)) },
-            text = { Text(stringResource(R.string.chat_clear_dialog_message)) },
+            title = { Text(stringResource(Res.string.chat_clear_dialog_title)) },
+            text = { Text(stringResource(Res.string.chat_clear_dialog_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showClearDialog = false
                     onClearChat()
                 }) {
-                    Text(stringResource(R.string.chat_clear_dialog_confirm))
+                    Text(stringResource(Res.string.chat_clear_dialog_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text(stringResource(R.string.chat_clear_dialog_cancel))
+                    Text(stringResource(Res.string.chat_clear_dialog_cancel))
                 }
             },
         )
@@ -154,7 +173,7 @@ private fun ChatContent(
                 title = {
                     Column {
                         Text(
-                            text = stringResource(R.string.chat_title),
+                            text = stringResource(Res.string.chat_title),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Row(
@@ -162,13 +181,13 @@ private fun ChatContent(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.AutoAwesome,
+                                painter = painterResource(CoreRes.drawable.ic_symbol_auto_awesome),
                                 contentDescription = null,
                                 modifier = Modifier.size(10.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                text = stringResource(R.string.chat_powered_by, uiState.providerLabel),
+                                text = stringResource(Res.string.chat_powered_by, uiState.providerLabel),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -179,8 +198,8 @@ private fun ChatContent(
                     if (uiState.messages.isNotEmpty()) {
                         IconButton(onClick = { showClearDialog = true }) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.chat_new_chat),
+                                painter = painterResource(CoreRes.drawable.ic_symbol_edit),
+                                contentDescription = stringResource(Res.string.chat_new_chat),
                             )
                         }
                     }
@@ -240,7 +259,7 @@ private fun WelcomeContent(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Checkroom,
+                painter = painterResource(CoreRes.drawable.ic_symbol_checkroom),
                 contentDescription = null,
                 modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -248,7 +267,7 @@ private fun WelcomeContent(
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = stringResource(R.string.chat_welcome_title),
+            text = stringResource(Res.string.chat_welcome_title),
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
@@ -256,8 +275,8 @@ private fun WelcomeContent(
         Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(
-                if (isIndexReady) R.string.chat_welcome_subtitle_ready
-                else R.string.chat_welcome_subtitle_not_ready
+                if (isIndexReady) Res.string.chat_welcome_subtitle_ready
+                else Res.string.chat_welcome_subtitle_not_ready
             ),
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
@@ -268,7 +287,7 @@ private fun WelcomeContent(
             },
         )
         Spacer(Modifier.height(24.dp))
-        val suggestions = stringArrayResource(R.array.chat_welcome_suggestions)
+        val suggestions = stringArrayResource(Res.array.chat_welcome_suggestions)
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -297,13 +316,13 @@ private fun IndexNotReadyBanner() {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Icon(
-            imageVector = Icons.Default.AutoAwesome,
+            painter = painterResource(CoreRes.drawable.ic_symbol_auto_awesome),
             contentDescription = null,
             modifier = Modifier.size(14.dp),
             tint = MaterialTheme.colorScheme.onTertiaryContainer,
         )
         Text(
-            text = stringResource(R.string.chat_index_building_notice),
+            text = stringResource(Res.string.chat_index_building_notice),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onTertiaryContainer,
         )
@@ -484,7 +503,7 @@ private fun ItemChip(item: ChatItemSummary, onTap: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                     error = {
                         Icon(
-                            imageVector = Icons.Default.Checkroom,
+                            painter = painterResource(CoreRes.drawable.ic_symbol_checkroom),
                             contentDescription = null,
                             modifier = Modifier.size(28.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -493,7 +512,7 @@ private fun ItemChip(item: ChatItemSummary, onTap: () -> Unit) {
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Default.Checkroom,
+                    painter = painterResource(CoreRes.drawable.ic_symbol_checkroom),
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -590,7 +609,7 @@ private fun OutfitMiniCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Default.AutoAwesome,
+                    painter = painterResource(CoreRes.drawable.ic_symbol_auto_awesome),
                     contentDescription = null,
                     modifier = Modifier.size(12.dp).padding(top = 2.dp),
                     tint = MaterialTheme.colorScheme.primary,
@@ -615,14 +634,14 @@ private fun OutfitMiniCard(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                         modifier = Modifier.height(32.dp),
                     ) {
-                        Text(text = stringResource(R.string.chat_action_log_it), style = MaterialTheme.typography.labelMedium)
+                        Text(text = stringResource(Res.string.chat_action_log_it), style = MaterialTheme.typography.labelMedium)
                     }
                 } else {
                     Spacer(Modifier.width(1.dp))
                 }
                 TextButton(onClick = onAlternatives) {
                     Text(
-                        text = stringResource(R.string.chat_action_alternatives),
+                        text = stringResource(Res.string.chat_action_alternatives),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -686,7 +705,7 @@ private fun OutfitImageCell(
                 modifier = Modifier.fillMaxSize(),
                 error = {
                     Icon(
-                        imageVector = Icons.Default.Checkroom,
+                        painter = painterResource(CoreRes.drawable.ic_symbol_checkroom),
                         contentDescription = item.name,
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
@@ -695,7 +714,7 @@ private fun OutfitImageCell(
             )
         } else {
             Icon(
-                imageVector = Icons.Default.Checkroom,
+                painter = painterResource(CoreRes.drawable.ic_symbol_checkroom),
                 contentDescription = item.name,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
@@ -720,18 +739,18 @@ private fun ActionChipRow(
 ) {
     val (label, icon, onClick) = when (action) {
         is ChatAction.LogOutfit -> Triple(
-            stringResource(R.string.chat_action_chip_log_outfit),
-            Icons.Default.Checkroom,
+            stringResource(Res.string.chat_action_chip_log_outfit),
+            CoreRes.drawable.ic_symbol_checkroom,
             { onNavigateToLog?.invoke(action.itemIds) ?: Unit },
         )
         is ChatAction.OpenItem -> Triple(
-            stringResource(R.string.chat_action_chip_view_item),
-            Icons.Default.Checkroom,
+            stringResource(Res.string.chat_action_chip_view_item),
+            CoreRes.drawable.ic_symbol_checkroom,
             { onNavigateToItem(action.itemId) },
         )
         is ChatAction.OpenRecommendations -> Triple(
-            stringResource(R.string.chat_action_chip_explore_outfits),
-            Icons.Default.AutoAwesome,
+            stringResource(Res.string.chat_action_chip_explore_outfits),
+            CoreRes.drawable.ic_symbol_auto_awesome,
             onNavigateToRecommendations,
         )
     }
@@ -741,7 +760,7 @@ private fun ActionChipRow(
             label = { Text(label, style = MaterialTheme.typography.labelMedium) },
             leadingIcon = {
                 Icon(
-                    imageVector = icon,
+                    painter = painterResource(icon),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )
@@ -863,7 +882,7 @@ private fun ErrorBubble(text: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Default.ErrorOutline,
+            painter = painterResource(CoreRes.drawable.ic_symbol_error),
             contentDescription = null,
             modifier = Modifier.size(16.dp),
             tint = MaterialTheme.colorScheme.error,
@@ -899,7 +918,7 @@ private fun ChatInputBar(
                 onValueChange = onInputChanged,
                 placeholder = {
                     Text(
-                        text = stringResource(R.string.chat_input_placeholder),
+                        text = stringResource(Res.string.chat_input_placeholder),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 },
@@ -913,85 +932,11 @@ private fun ChatInputBar(
                 modifier = Modifier.size(48.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = stringResource(R.string.chat_send_button_description),
+                    painter = painterResource(CoreRes.drawable.ic_symbol_auto_awesome),
+                    contentDescription = stringResource(Res.string.chat_send_button_description),
                     modifier = Modifier.size(20.dp),
                 )
             }
-        }
-    }
-}
-
-// ─── Previews ─────────────────────────────────────────────────────────────────
-
-@Preview(showBackground = true, name = "Welcome - Light")
-@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Welcome - Dark")
-@Composable
-private fun WelcomePreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ChatContent(
-                uiState = ChatUiState(),
-                onInputChanged = {},
-                onSendMessage = {},
-                onSuggestionSelected = {},
-                onClearChat = {},
-                onNavigateToItem = {},
-                onNavigateToRecommendations = {},
-                onNavigateToLog = null,
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Text Answer - Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-private fun TextAnswerPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ChatContent(
-                uiState = ChatUiState(
-                    messages = listOf(
-                        ChatMessage.User("How many times have I worn my navy chinos?"),
-                        ChatMessage.Assistant.Text(
-                            "Your Navy Chinos have been worn 14 times. Last worn 19 days ago."
-                        ),
-                    ),
-                    providerLabel = "Claude",
-                ),
-                onInputChanged = {},
-                onSendMessage = {},
-                onSuggestionSelected = {},
-                onClearChat = {},
-                onNavigateToItem = {},
-                onNavigateToRecommendations = {},
-                onNavigateToLog = null,
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Thinking - Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-private fun ThinkingPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ChatContent(
-                uiState = ChatUiState(
-                    messages = listOf(
-                        ChatMessage.User("Suggest something for a weekend brunch"),
-                        ChatMessage.Assistant.Thinking,
-                    ),
-                    isLoading = true,
-                ),
-                onInputChanged = {},
-                onSendMessage = {},
-                onSuggestionSelected = {},
-                onClearChat = {},
-                onNavigateToItem = {},
-                onNavigateToRecommendations = {},
-                onNavigateToLog = null,
-            )
         }
     }
 }

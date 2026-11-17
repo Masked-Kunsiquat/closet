@@ -16,7 +16,7 @@ kotlin {
         compileSdk = libs.versions.compileSdk.get().toInt()
         minSdk = libs.versions.minSdk.get().toInt()
 
-        // ChatScreen still reads src/androidMain/res (R.string.*) until Task 2 moves it to compose resources.
+        // Compose Multiplatform resources are packaged as Android assets only when this is on.
         androidResources {
             enable = true
         }
@@ -77,10 +77,9 @@ kotlin {
             // Navigation
             implementation(libs.androidx.navigation.compose)
 
-            // @Preview annotation and Icons.Default.Checkroom (Task 2 drops the icons dependency)
+            // @Preview annotation for ChatPreviews.kt
             implementation(project.dependencies.platform(libs.androidx.compose.bom))
             implementation(libs.androidx.ui.tooling.preview)
-            implementation(libs.androidx.compose.material.icons.extended)
         }
         jvmTest.dependencies {
             implementation(libs.mockk)
@@ -100,6 +99,11 @@ kotlin {
 }
 
 apply(from = rootProject.file("gradle/skiko-jvm-test-runtime.gradle.kts"))
+
+compose.resources {
+    packageOfResClass = "com.closet.features.chat.resources"
+    generateResClass = always
+}
 
 // Runtime-only (KMP Android library has no debugImplementation): lets Android Studio render @Preview.
 dependencies {
