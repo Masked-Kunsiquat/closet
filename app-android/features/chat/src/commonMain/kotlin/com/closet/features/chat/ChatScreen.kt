@@ -62,11 +62,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.closet.core.data.ai.ChatAction
-import com.closet.core.ui.theme.ClosetTheme
 import com.closet.features.chat.model.ChatItemSummary
 import com.closet.features.chat.model.ChatMessage
 import org.koin.compose.viewmodel.koinViewModel
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
