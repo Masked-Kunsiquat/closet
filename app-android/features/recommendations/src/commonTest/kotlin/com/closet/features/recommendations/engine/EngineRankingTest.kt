@@ -208,6 +208,30 @@ class EngineRankingTest {
     }
 
     @Test
+    fun `an unseen combo beyond the per-slot cap is still reachable`() {
+        // Every item has been shown, so the capped pool is tops 1-2 x bottoms 4-5, all
+        // excluded. Top 3 + bottom 5 is the only unseen combo, outside the cap of 2.
+        val items = listOf(
+            item(id = 1, role = "Top"), item(id = 2, role = "Top"), item(id = 3, role = "Top"),
+            item(id = 4, role = "Bottom"), item(id = 5, role = "Bottom")
+        )
+        val input = engineInput(candidates = items)
+        val exclude = setOf(
+            setOf(1L, 4L), setOf(1L, 5L), setOf(2L, 4L), setOf(2L, 5L), setOf(3L, 4L)
+        )
+        val result = engine.recommend(input, topN = 1, candidatesPerSlot = 2, exclude = exclude)
+        assertEquals(listOf(setOf(3L, 5L)), result.map { it.key() })
+    }
+
+    @Test
+    fun `exclusion of every combo still returns empty`() {
+        val items = listOf(item(id = 1, role = "Top"), item(id = 2, role = "Top"), item(id = 3, role = "Bottom"))
+        val input = engineInput(candidates = items)
+        val result = engine.recommend(input, exclude = setOf(setOf(1L, 3L), setOf(2L, 3L)))
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
     fun `empty exclude keeps the pre-change ordering`() {
         val input = engineInput(candidates = diversityItems)
         val expected = listOf(

@@ -6,11 +6,13 @@ import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.util.DataResult
+import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.key
 import com.closet.features.recommendations.model.WeatherConditions
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +49,11 @@ class RecommendationViewModelSessionTest {
         subcategoryId = id, outfitRole = role, warmthLayer = null,
     )
 
+    // Always returns null, so the AI path takes the programmatic fallback.
+    private val scorer = mockk<OutfitCoherenceScorer> {
+        coEvery { score(any(), any(), any(), any()) } returns null
+    }
+
     // 2 tops x 2 bottoms = exactly 4 valid combos; the engine returns 3 per run.
     private val viewModel by lazy { buildViewModel(aiReady = false) }
 
@@ -65,7 +72,7 @@ class RecommendationViewModelSessionTest {
         return RecommendationViewModel(
             recommendationRepository = repo,
             engine = OutfitRecommendationEngine(),
-            scorer = mockk { coEvery { score(any(), any(), any(), any()) } returns null },
+            scorer = scorer,
             weatherRepository = mockk(relaxed = true),
             outfitRepository = mockk(relaxed = true),
             lookupRepository = mockk(relaxed = true),
@@ -122,6 +129,7 @@ class RecommendationViewModelSessionTest {
         val first = results(vm)
         // The AI pool holds all 4 combos, but the null-scorer fallback shows only the page.
         assertEquals(3, first.size)
+        coVerify(atLeast = 1) { scorer.score(any(), any(), any(), any()) }
 
         vm.onRegenerate()
         val second = results(vm)

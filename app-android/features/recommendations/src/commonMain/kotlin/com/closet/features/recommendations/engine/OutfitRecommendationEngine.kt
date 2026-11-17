@@ -89,6 +89,10 @@ class OutfitRecommendationEngine {
         // --- Top N result (the default page size; the ViewModel shows this many) ---
         internal const val TOP_N = 3
 
+        // --- Exclusion widening: the largest per-slot cap tried when exclusion leaves less
+        //     than a page. 5 per slot builds at most 30 cores × 6³ optional choices = 6,480 combos.
+        private const val MAX_WIDENED_CANDIDATES_PER_SLOT = 5
+
         // --- Outfit roles ---
         private const val ROLE_TOP = "Top"
         private const val ROLE_BOTTOM = "Bottom"
@@ -96,7 +100,7 @@ class OutfitRecommendationEngine {
         private const val ROLE_OUTERWEAR = "Outerwear"
         private const val ROLE_FOOTWEAR = "Footwear"
         private const val ROLE_ACCESSORY = "Accessory"
-        private val CORE_ROLES = setOf(ROLE_TOP, ROLE_BOTTOM, ROLE_ONEPIECE)
+        internal val CORE_ROLES = setOf(ROLE_TOP, ROLE_BOTTOM, ROLE_ONEPIECE)
 
         // --- Color families ---
         private const val FAMILY_NEUTRAL = "Neutral"
@@ -122,7 +126,9 @@ class OutfitRecommendationEngine {
      *                          coherence scorer has a wider pool to curate from.
      * @param candidatesPerSlot Maximum candidates kept per outfit-role slot after scoring
      *                          and deduplication. Defaults to [CANDIDATES_PER_SLOT] (2).
-     *                          Increase to 3 when AI is enabled to broaden variety.
+     *                          Increase to 3 when AI is enabled to broaden variety. With a
+     *                          non-empty [exclude] that leaves fewer than [topN] combos, the cap
+     *                          widens one step at a time up to [MAX_WIDENED_CANDIDATES_PER_SLOT].
      * @param exclude           Combo keys ([OutfitCombo.key]) to drop before ranking — the
      *                          combos already shown in the current session. Empty by default.
      * @param jitter            Optional randomness for the ranking only: each combo's sort key
@@ -130,7 +136,8 @@ class OutfitRecommendationEngine {
      *                          [OutfitCombo.score] keeps the un-jittered value. Null (default)
      *                          gives the deterministic order.
      * @return Up to [topN] [OutfitCombo]s ranked highest-first, preferring distinct cores.
-     *         Empty if the wardrobe cannot form any valid, non-excluded outfit combination.
+     *         Empty if the wardrobe cannot form any valid, non-excluded outfit combination
+     *         within the widened cap.
      */
     fun recommend(
         input: EngineInput,
@@ -151,37 +158,20 @@ class OutfitRecommendationEngine {
             valueTransform = { item -> itemScore(item, input) }
         )
 
-        // 3. Group by outfit role, cap per slot. Items already shown (in any excluded combo)
-        //    rank after unshown ones within their slot — ranking only, scores unchanged. Both
-        //    sorts are stable, so with an empty `exclude` the order is exactly score-descending.
+        // 3–6. Cap per slot, build and score combos, drop the excluded ones. When exclusion
+        //      leaves less than a page, widen the per-slot cap (bounded) so unseen combos that
+        //      need lower-ranked items are still reachable before the caller restarts the cycle.
         val shownItemIds: Set<Long> = exclude.flatMapTo(mutableSetOf()) { it }
         val byRole = safeItems.groupBy { it.outfitRole ?: "Other" }
-        val cappedByRole: Map<String, List<EngineItem>> = byRole.mapValues { (_, items) ->
-            items
-                .sortedByDescending { itemScores[it.id] ?: 1.0 }
-                .let { sorted -> if (shownItemIds.isEmpty()) sorted else sorted.sortedBy { it.id in shownItemIds } }
-                .deduplicateByColorAndSubcategory()
-                .take(candidatesPerSlot)
+        val widestSlot = byRole.values.maxOf { it.size }
+        val maxCap = if (exclude.isEmpty()) candidatesPerSlot else maxOf(candidatesPerSlot, MAX_WIDENED_CANDIDATES_PER_SLOT)
+        var cap = candidatesPerSlot
+        var remaining = unexcludedCombos(byRole, itemScores, shownItemIds, cap, exclude, input)
+        while (remaining.size < topN && cap < maxCap && cap < widestSlot) {
+            cap++
+            remaining = unexcludedCombos(byRole, itemScores, shownItemIds, cap, exclude, input)
         }
-
-        // 4. Build valid combos from capped candidates
-        val combos = buildCombos(cappedByRole)
-        if (combos.isEmpty()) return emptyList()
-
-        // 5. Score each combo
-        val weather = input.weather
-        val hasFootwearInPool = cappedByRole[ROLE_FOOTWEAR].orEmpty().isNotEmpty()
-        val scoredCombos: List<OutfitCombo> = combos.map { comboItems ->
-            val score = scoreCombo(comboItems, itemScores, weather, hasFootwearInPool)
-            OutfitCombo(items = comboItems, score = score)
-        }
-
-        // 6. Exclusion — drop combos already shown this session
-        val remaining = if (exclude.isEmpty()) {
-            scoredCombos
-        } else {
-            scoredCombos.filter { it.key() !in exclude }
-        }
+        if (remaining.isEmpty()) return emptyList()
 
         // 7. Sort: descending (optionally jittered) score, tie-break by oldest last-worn.
         // Jittered keys are drawn once per combo, in build order, so a seed is reproducible.
@@ -198,6 +188,39 @@ class OutfitRecommendationEngine {
         // 8. Diversity: distinct cores first (cores already shown count as taken), then fill
         //    from the skipped combos
         return selectDiverse(sorted, topN, shownCores = excludedCores(exclude, input))
+    }
+
+    /**
+     * Steps 3–6 at one per-slot [cap]: group by role and cap each slot (items already shown,
+     * in [shownItemIds], rank after unshown ones within their slot — ranking only, scores
+     * unchanged; both sorts are stable, so with nothing shown the order is exactly
+     * score-descending), build every valid combo, score it, and drop the [exclude]d keys.
+     */
+    private fun unexcludedCombos(
+        byRole: Map<String, List<EngineItem>>,
+        itemScores: Map<Long, Double>,
+        shownItemIds: Set<Long>,
+        cap: Int,
+        exclude: Set<Set<Long>>,
+        input: EngineInput,
+    ): List<OutfitCombo> {
+        val cappedByRole: Map<String, List<EngineItem>> = byRole.mapValues { (_, items) ->
+            items
+                .sortedByDescending { itemScores[it.id] ?: 1.0 }
+                .let { sorted -> if (shownItemIds.isEmpty()) sorted else sorted.sortedBy { it.id in shownItemIds } }
+                .deduplicateByColorAndSubcategory()
+                .take(cap)
+        }
+        val combos = buildCombos(cappedByRole)
+        val hasFootwearInPool = cappedByRole[ROLE_FOOTWEAR].orEmpty().isNotEmpty()
+        return combos
+            .map { comboItems ->
+                OutfitCombo(
+                    items = comboItems,
+                    score = scoreCombo(comboItems, itemScores, input.weather, hasFootwearInPool),
+                )
+            }
+            .let { scored -> if (exclude.isEmpty()) scored else scored.filter { it.key() !in exclude } }
     }
 
     /** The cores of the excluded combos, resolving each key's item IDs to their input roles. */
@@ -231,7 +254,7 @@ class OutfitRecommendationEngine {
         val seenCores = shownCores.toMutableSet()
         for (combo in sorted) {
             if (picked.size == topN) break
-            if (seenCores.add(comboCore(combo))) picked.add(combo) else skipped.add(combo)
+            if (seenCores.add(combo.core())) picked.add(combo) else skipped.add(combo)
         }
         if (picked.size < topN) {
             picked.addAll(skipped.take(topN - picked.size))
@@ -239,12 +262,6 @@ class OutfitRecommendationEngine {
         return picked
     }
 
-    /** The combo's core: its Top + Bottom IDs, or its OnePiece ID. */
-    private fun comboCore(combo: OutfitCombo): Set<Long> =
-        combo.items
-            .filter { it.outfitRole in CORE_ROLES }
-            .map { it.id }
-            .toSet()
 
     // -------------------------------------------------------------------------
     // Step 1 — Hard filter
@@ -564,3 +581,11 @@ class OutfitRecommendationEngine {
         return dates.maxOrNull() ?: NEVER_WORN_SENTINEL
     }
 }
+
+/** The combo's core: its Top + Bottom IDs, or its OnePiece ID. Two combos with the same core
+ *  differ only in outerwear, footwear or accessories. */
+internal fun OutfitCombo.core(): Set<Long> =
+    items
+        .filter { it.outfitRole in OutfitRecommendationEngine.CORE_ROLES }
+        .map { it.id }
+        .toSet()
