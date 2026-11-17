@@ -12,3 +12,5 @@ internal actual fun rememberContrastLevel(): Float = 0f
 @Composable
 internal actual fun SystemBarAppearance(darkTheme: Boolean) {
 }
+
+actual val supportsDynamicColor: Boolean = false

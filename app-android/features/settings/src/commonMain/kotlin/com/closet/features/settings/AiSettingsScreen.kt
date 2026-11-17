@@ -1,6 +1,5 @@
 package com.closet.features.settings
 
-import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -28,7 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,11 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.ai.BatchCaptionProgress
@@ -49,35 +40,118 @@ import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.worker.WorkState
 import com.closet.core.data.worker.WorkStatus
-import com.closet.core.ui.theme.ClosetTheme
+import com.closet.core.ui.resources.ic_symbol_arrow_back
+import com.closet.features.settings.resources.settings_image_compress_result
+import com.closet.features.settings.resources.settings_image_compress_result_with_failures
+import com.closet.features.settings.resources.settings_wardrobe_batch_result
+import com.closet.features.settings.resources.settings_wardrobe_batch_result_with_failures
+import com.closet.features.settings.resources.settings_wardrobe_caption_result
+import com.closet.features.settings.resources.settings_wardrobe_caption_result_with_failures
+import com.closet.features.settings.resources.settings_wardrobe_enrich_descriptions_summary
+import com.closet.features.settings.resources.settings_wardrobe_remove_backgrounds_summary
+import com.closet.features.settings.resources.settings_wardrobe_search_index_summary
+import com.closet.features.settings.resources.settings_ai_anthropic_key
+import com.closet.features.settings.resources.settings_ai_anthropic_model
+import com.closet.features.settings.resources.settings_ai_enable
+import com.closet.features.settings.resources.settings_ai_enable_summary
+import com.closet.features.settings.resources.settings_ai_gemini_key
+import com.closet.features.settings.resources.settings_ai_gemini_model
+import com.closet.features.settings.resources.settings_ai_models_loading
+import com.closet.features.settings.resources.settings_ai_nano_downloading
+import com.closet.features.settings.resources.settings_ai_nano_failed
+import com.closet.features.settings.resources.settings_ai_nano_not_supported_alternatives
+import com.closet.features.settings.resources.settings_ai_nano_not_supported_dialog_message
+import com.closet.features.settings.resources.settings_ai_nano_not_supported_dialog_title
+import com.closet.features.settings.resources.settings_ai_nano_not_supported_dismiss
+import com.closet.features.settings.resources.settings_ai_nano_not_supported_use_anthropic
+import com.closet.features.settings.resources.settings_ai_nano_not_supported_use_gemini
+import com.closet.features.settings.resources.settings_ai_nano_not_supported_use_openai
+import com.closet.features.settings.resources.settings_ai_nano_status_idle
+import com.closet.features.settings.resources.settings_ai_nano_status_loading
+import com.closet.features.settings.resources.settings_ai_nano_status_not_supported
+import com.closet.features.settings.resources.settings_ai_nano_status_ready
+import com.closet.features.settings.resources.settings_ai_openai_base_url
+import com.closet.features.settings.resources.settings_ai_openai_key
+import com.closet.features.settings.resources.settings_ai_openai_model
+import com.closet.features.settings.resources.settings_ai_provider
+import com.closet.features.settings.resources.settings_ai_provider_anthropic
+import com.closet.features.settings.resources.settings_ai_provider_gemini
+import com.closet.features.settings.resources.settings_ai_provider_nano
+import com.closet.features.settings.resources.settings_ai_provider_openai
+import com.closet.features.settings.resources.settings_ai_style_vibe
+import com.closet.features.settings.resources.settings_ai_title
+import com.closet.features.settings.resources.settings_image_compress
+import com.closet.features.settings.resources.settings_image_compress_progress
+import com.closet.features.settings.resources.settings_image_compress_run
+import com.closet.features.settings.resources.settings_image_compress_running
+import com.closet.features.settings.resources.settings_image_compress_summary
+import com.closet.features.settings.resources.settings_image_storage
+import com.closet.features.settings.resources.settings_image_storage_used
+import com.closet.features.settings.resources.settings_image_storage_used_computing
+import com.closet.features.settings.resources.settings_image_storage_used_summary
+import com.closet.features.settings.resources.settings_style_vibe_business
+import com.closet.features.settings.resources.settings_style_vibe_business_desc
+import com.closet.features.settings.resources.settings_style_vibe_casual
+import com.closet.features.settings.resources.settings_style_vibe_casual_desc
+import com.closet.features.settings.resources.settings_style_vibe_formal
+import com.closet.features.settings.resources.settings_style_vibe_formal_desc
+import com.closet.features.settings.resources.settings_style_vibe_minimalist
+import com.closet.features.settings.resources.settings_style_vibe_minimalist_desc
+import com.closet.features.settings.resources.settings_style_vibe_smart_casual
+import com.closet.features.settings.resources.settings_style_vibe_smart_casual_desc
+import com.closet.features.settings.resources.settings_style_vibe_streetwear
+import com.closet.features.settings.resources.settings_style_vibe_streetwear_desc
+import com.closet.features.settings.resources.settings_wardrobe_all_backgrounds_removed
+import com.closet.features.settings.resources.settings_wardrobe_batch_confirm_cancel
+import com.closet.features.settings.resources.settings_wardrobe_batch_confirm_message
+import com.closet.features.settings.resources.settings_wardrobe_batch_confirm_ok
+import com.closet.features.settings.resources.settings_wardrobe_batch_confirm_title
+import com.closet.features.settings.resources.settings_wardrobe_descriptions_up_to_date
+import com.closet.features.settings.resources.settings_wardrobe_enrich_descriptions
+import com.closet.features.settings.resources.settings_wardrobe_enriching_descriptions
+import com.closet.features.settings.resources.settings_wardrobe_enriching_descriptions_progress
+import com.closet.features.settings.resources.settings_wardrobe_management
+import com.closet.features.settings.resources.settings_wardrobe_remove_backgrounds
+import com.closet.features.settings.resources.settings_wardrobe_removing_backgrounds
+import com.closet.features.settings.resources.settings_wardrobe_removing_backgrounds_progress
+import com.closet.features.settings.resources.settings_wardrobe_search_index
+import com.closet.features.settings.resources.settings_wardrobe_search_index_rebuild
+import com.closet.features.settings.resources.settings_wardrobe_search_index_rebuilding
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getPluralString
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.settings.resources.Res
 import org.koin.compose.viewmodel.koinViewModel
 
-private val AiProvider.labelRes: Int
+private val AiProvider.labelRes: StringResource
     get() = when (this) {
-        AiProvider.Nano -> R.string.settings_ai_provider_nano
-        AiProvider.OpenAi -> R.string.settings_ai_provider_openai
-        AiProvider.Anthropic -> R.string.settings_ai_provider_anthropic
-        AiProvider.Gemini -> R.string.settings_ai_provider_gemini
+        AiProvider.Nano -> Res.string.settings_ai_provider_nano
+        AiProvider.OpenAi -> Res.string.settings_ai_provider_openai
+        AiProvider.Anthropic -> Res.string.settings_ai_provider_anthropic
+        AiProvider.Gemini -> Res.string.settings_ai_provider_gemini
     }
 
-private val StyleVibe.labelRes: Int
+private val StyleVibe.labelRes: StringResource
     get() = when (this) {
-        StyleVibe.SmartCasual -> R.string.settings_style_vibe_smart_casual
-        StyleVibe.Minimalist -> R.string.settings_style_vibe_minimalist
-        StyleVibe.Streetwear -> R.string.settings_style_vibe_streetwear
-        StyleVibe.Business -> R.string.settings_style_vibe_business
-        StyleVibe.Casual -> R.string.settings_style_vibe_casual
-        StyleVibe.Formal -> R.string.settings_style_vibe_formal
+        StyleVibe.SmartCasual -> Res.string.settings_style_vibe_smart_casual
+        StyleVibe.Minimalist -> Res.string.settings_style_vibe_minimalist
+        StyleVibe.Streetwear -> Res.string.settings_style_vibe_streetwear
+        StyleVibe.Business -> Res.string.settings_style_vibe_business
+        StyleVibe.Casual -> Res.string.settings_style_vibe_casual
+        StyleVibe.Formal -> Res.string.settings_style_vibe_formal
     }
 
-private val StyleVibe.descriptionRes: Int
+private val StyleVibe.descriptionRes: StringResource
     get() = when (this) {
-        StyleVibe.SmartCasual -> R.string.settings_style_vibe_smart_casual_desc
-        StyleVibe.Minimalist -> R.string.settings_style_vibe_minimalist_desc
-        StyleVibe.Streetwear -> R.string.settings_style_vibe_streetwear_desc
-        StyleVibe.Business -> R.string.settings_style_vibe_business_desc
-        StyleVibe.Casual -> R.string.settings_style_vibe_casual_desc
-        StyleVibe.Formal -> R.string.settings_style_vibe_formal_desc
+        StyleVibe.SmartCasual -> Res.string.settings_style_vibe_smart_casual_desc
+        StyleVibe.Minimalist -> Res.string.settings_style_vibe_minimalist_desc
+        StyleVibe.Streetwear -> Res.string.settings_style_vibe_streetwear_desc
+        StyleVibe.Business -> Res.string.settings_style_vibe_business_desc
+        StyleVibe.Casual -> Res.string.settings_style_vibe_casual_desc
+        StyleVibe.Formal -> Res.string.settings_style_vibe_formal_desc
     }
 
 @Composable
@@ -87,8 +161,6 @@ fun AiSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val context = LocalContext.current
-    val view = LocalView.current
     val snackbarHostState = remember { SnackbarHostState() }
     var nanoNotSupportedDismissed by remember { mutableStateOf(false) }
     var lastHandledCompressionId by remember { mutableStateOf<String?>(null) }
@@ -100,24 +172,19 @@ fun AiSettingsScreen(
             val done = info.done
             val failed = info.failed
             val msg = if (failed > 0) {
-                context.resources.getQuantityString(
-                    R.plurals.settings_wardrobe_batch_result_with_failures, done, done, failed,
+                getPluralString(
+                    Res.plurals.settings_wardrobe_batch_result_with_failures, done, done, failed,
                 )
             } else {
-                context.resources.getQuantityString(
-                    R.plurals.settings_wardrobe_batch_result, done, done,
+                getPluralString(
+                    Res.plurals.settings_wardrobe_batch_result, done, done,
                 )
             }
             snackbarHostState.showSnackbar(msg)
         }
     }
 
-    LaunchedEffect(uiState.batchCaptionProgress) {
-        view.keepScreenOn = uiState.batchCaptionProgress != null
-    }
-    DisposableEffect(Unit) {
-        onDispose { view.keepScreenOn = false }
-    }
+    KeepScreenOn(uiState.batchCaptionProgress != null)
 
     LaunchedEffect(uiState.captionResult) {
         val result = uiState.captionResult ?: return@LaunchedEffect
@@ -128,12 +195,12 @@ fun AiSettingsScreen(
         val msg = if (stoppedReason != null) {
             stoppedReason
         } else if (result.failed > 0) {
-            context.resources.getQuantityString(
-                R.plurals.settings_wardrobe_caption_result_with_failures, result.done, result.done, result.failed,
+            getPluralString(
+                Res.plurals.settings_wardrobe_caption_result_with_failures, result.done, result.done, result.failed,
             )
         } else {
-            context.resources.getQuantityString(
-                R.plurals.settings_wardrobe_caption_result, result.done, result.done,
+            getPluralString(
+                Res.plurals.settings_wardrobe_caption_result, result.done, result.done,
             )
         }
         snackbarHostState.showSnackbar(msg)
@@ -147,12 +214,12 @@ fun AiSettingsScreen(
             val skipped = info.skipped
             val failed = info.failed
             val msg = if (failed > 0) {
-                context.resources.getQuantityString(
-                    R.plurals.settings_image_compress_result_with_failures, done, done, skipped, failed,
+                getPluralString(
+                    Res.plurals.settings_image_compress_result_with_failures, done, done, skipped, failed,
                 )
             } else {
-                context.resources.getQuantityString(
-                    R.plurals.settings_image_compress_result, done, done, skipped,
+                getPluralString(
+                    Res.plurals.settings_image_compress_result, done, done, skipped,
                 )
             }
             snackbarHostState.showSnackbar(msg)
@@ -239,7 +306,7 @@ fun AiSettingsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AiSettingsContent(
+internal fun AiSettingsContent(
     aiEnabled: Boolean,
     onAiToggled: (Boolean) -> Unit,
     styleVibe: StyleVibe,
@@ -287,10 +354,10 @@ private fun AiSettingsContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_ai_title)) },
+                title = { Text(stringResource(Res.string.settings_ai_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Icon(painterResource(CoreRes.drawable.ic_symbol_arrow_back), contentDescription = null)
                     }
                 },
             )
@@ -304,8 +371,8 @@ private fun AiSettingsContent(
                 .verticalScroll(rememberScrollState()),
         ) {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_ai_enable)) },
-                supportingContent = { Text(stringResource(R.string.settings_ai_enable_summary)) },
+                headlineContent = { Text(stringResource(Res.string.settings_ai_enable)) },
+                supportingContent = { Text(stringResource(Res.string.settings_ai_enable_summary)) },
                 trailingContent = {
                     Switch(checked = aiEnabled, onCheckedChange = onAiToggled)
                 },
@@ -350,7 +417,7 @@ private fun AiSettingsContent(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
-                    text = stringResource(R.string.settings_wardrobe_management),
+                    text = stringResource(Res.string.settings_wardrobe_management),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -382,7 +449,7 @@ private fun AiSettingsContent(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = stringResource(R.string.settings_image_storage),
+                text = stringResource(Res.string.settings_image_storage),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -407,7 +474,7 @@ private fun StyleVibeSection(
 ) {
     Column {
         Text(
-            text = stringResource(R.string.settings_ai_style_vibe),
+            text = stringResource(Res.string.settings_ai_style_vibe),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -460,7 +527,7 @@ private fun AiProviderSection(
 ) {
     Column {
         Text(
-            text = stringResource(R.string.settings_ai_provider),
+            text = stringResource(Res.string.settings_ai_provider),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -482,11 +549,12 @@ private fun AiProviderSection(
                         val color = if (isEnabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
                         Text(
                             text = when (nanoStatus) {
-                                is NanoStatus.NotSupported -> stringResource(R.string.settings_ai_nano_status_not_supported)
-                                is NanoStatus.Checking, is NanoStatus.Downloading -> stringResource(R.string.settings_ai_nano_status_loading)
-                                is NanoStatus.Ready -> stringResource(R.string.settings_ai_nano_status_ready)
-                                is NanoStatus.Idle -> stringResource(R.string.settings_ai_nano_status_idle)
-                                is NanoStatus.Failed -> nanoStatus.message
+                                is NanoStatus.NotSupported -> stringResource(Res.string.settings_ai_nano_status_not_supported)
+                                is NanoStatus.Checking -> stringResource(Res.string.settings_ai_nano_status_loading)
+                                is NanoStatus.Downloading -> stringResource(Res.string.settings_ai_nano_downloading, nanoStatus.progressPct)
+                                is NanoStatus.Ready -> stringResource(Res.string.settings_ai_nano_status_ready)
+                                is NanoStatus.Idle -> stringResource(Res.string.settings_ai_nano_status_idle)
+                                is NanoStatus.Failed -> stringResource(Res.string.settings_ai_nano_failed, nanoStatus.message)
                             },
                             color = color,
                         )
@@ -514,9 +582,9 @@ private fun AiProviderSection(
                             onModelChanged = onOpenAiModelChanged,
                             availableModels = openAiModels,
                             isLoadingModels = openAiModelsLoading,
-                            keyLabel = stringResource(R.string.settings_ai_openai_key),
-                            baseUrlLabel = stringResource(R.string.settings_ai_openai_base_url),
-                            modelLabel = stringResource(R.string.settings_ai_openai_model),
+                            keyLabel = stringResource(Res.string.settings_ai_openai_key),
+                            baseUrlLabel = stringResource(Res.string.settings_ai_openai_base_url),
+                            modelLabel = stringResource(Res.string.settings_ai_openai_model),
                         )
                     }
                     AiProvider.Anthropic -> {
@@ -527,8 +595,8 @@ private fun AiProviderSection(
                             onModelChanged = onAnthropicModelChanged,
                             availableModels = anthropicModels,
                             isLoadingModels = anthropicModelsLoading,
-                            keyLabel = stringResource(R.string.settings_ai_anthropic_key),
-                            modelLabel = stringResource(R.string.settings_ai_anthropic_model),
+                            keyLabel = stringResource(Res.string.settings_ai_anthropic_key),
+                            modelLabel = stringResource(Res.string.settings_ai_anthropic_model),
                         )
                     }
                     AiProvider.Gemini -> {
@@ -539,8 +607,8 @@ private fun AiProviderSection(
                             onModelChanged = onGeminiModelChanged,
                             availableModels = geminiModels,
                             isLoadingModels = geminiModelsLoading,
-                            keyLabel = stringResource(R.string.settings_ai_gemini_key),
-                            modelLabel = stringResource(R.string.settings_ai_gemini_model),
+                            keyLabel = stringResource(Res.string.settings_ai_gemini_key),
+                            modelLabel = stringResource(Res.string.settings_ai_gemini_model),
                         )
                     }
                     AiProvider.Nano -> { /* No settings for Nano */ }
@@ -614,7 +682,7 @@ private fun ModelSelector(
         onExpandedChange = { expanded = it },
     ) {
         androidx.compose.material3.OutlinedTextField(
-            value = if (isLoading) stringResource(R.string.settings_ai_models_loading) else selectedModel,
+            value = if (isLoading) stringResource(Res.string.settings_ai_models_loading) else selectedModel,
             onValueChange = onModelSelected,
             label = { Text(label) },
             trailingIcon = { androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -655,14 +723,14 @@ private fun EmbeddingIndexItem(
         workStatus?.state == WorkState.ENQUEUED
 
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_wardrobe_search_index)) },
+        headlineContent = { Text(stringResource(Res.string.settings_wardrobe_search_index)) },
         supportingContent = {
             if (isRunning) {
-                Text(stringResource(R.string.settings_wardrobe_search_index_rebuilding))
+                Text(stringResource(Res.string.settings_wardrobe_search_index_rebuilding))
             } else {
                 Text(
                     pluralStringResource(
-                        R.plurals.settings_wardrobe_search_index_summary,
+                        Res.plurals.settings_wardrobe_search_index_summary,
                         indexSize,
                         indexSize,
                     ),
@@ -677,7 +745,7 @@ private fun EmbeddingIndexItem(
                 )
             } else {
                 TextButton(onClick = onRebuild) {
-                    Text(stringResource(R.string.settings_wardrobe_search_index_rebuild))
+                    Text(stringResource(Res.string.settings_wardrobe_search_index_rebuild))
                 }
             }
         },
@@ -699,19 +767,19 @@ private fun BatchSegmentationItem(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_message)) },
+            title = { Text(stringResource(Res.string.settings_wardrobe_batch_confirm_title)) },
+            text = { Text(stringResource(Res.string.settings_wardrobe_batch_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showConfirmDialog = false
                     onStart()
                 }) {
-                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_ok))
+                    Text(stringResource(Res.string.settings_wardrobe_batch_confirm_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDialog = false }) {
-                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_cancel))
+                    Text(stringResource(Res.string.settings_wardrobe_batch_confirm_cancel))
                 }
             },
         )
@@ -722,13 +790,13 @@ private fun BatchSegmentationItem(
         val total = workStatus.total
         ListItem(
             headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_removing_backgrounds))
+                Text(stringResource(Res.string.settings_wardrobe_removing_backgrounds))
             },
             supportingContent = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         stringResource(
-                            R.string.settings_wardrobe_removing_backgrounds_progress,
+                            Res.string.settings_wardrobe_removing_backgrounds_progress,
                             done,
                             total,
                         ),
@@ -743,12 +811,12 @@ private fun BatchSegmentationItem(
     } else if (eligibleCount > 0) {
         ListItem(
             headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_remove_backgrounds))
+                Text(stringResource(Res.string.settings_wardrobe_remove_backgrounds))
             },
             supportingContent = {
                 Text(
                     pluralStringResource(
-                        R.plurals.settings_wardrobe_remove_backgrounds_summary,
+                        Res.plurals.settings_wardrobe_remove_backgrounds_summary,
                         eligibleCount,
                         eligibleCount,
                     ),
@@ -760,7 +828,7 @@ private fun BatchSegmentationItem(
         ListItem(
             headlineContent = {
                 Text(
-                    stringResource(R.string.settings_wardrobe_all_backgrounds_removed),
+                    stringResource(Res.string.settings_wardrobe_all_backgrounds_removed),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
@@ -781,19 +849,19 @@ private fun BatchCaptionItem(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_wardrobe_batch_confirm_message)) },
+            title = { Text(stringResource(Res.string.settings_wardrobe_batch_confirm_title)) },
+            text = { Text(stringResource(Res.string.settings_wardrobe_batch_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showConfirmDialog = false
                     onStart()
                 }) {
-                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_ok))
+                    Text(stringResource(Res.string.settings_wardrobe_batch_confirm_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showConfirmDialog = false }) {
-                    Text(stringResource(R.string.settings_wardrobe_batch_confirm_cancel))
+                    Text(stringResource(Res.string.settings_wardrobe_batch_confirm_cancel))
                 }
             },
         )
@@ -802,13 +870,13 @@ private fun BatchCaptionItem(
     if (progress != null) {
         ListItem(
             headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_enriching_descriptions))
+                Text(stringResource(Res.string.settings_wardrobe_enriching_descriptions))
             },
             supportingContent = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         stringResource(
-                            R.string.settings_wardrobe_enriching_descriptions_progress,
+                            Res.string.settings_wardrobe_enriching_descriptions_progress,
                             progress.done,
                             progress.total,
                         ),
@@ -823,12 +891,12 @@ private fun BatchCaptionItem(
     } else if (eligibleCount > 0) {
         ListItem(
             headlineContent = {
-                Text(stringResource(R.string.settings_wardrobe_enrich_descriptions))
+                Text(stringResource(Res.string.settings_wardrobe_enrich_descriptions))
             },
             supportingContent = {
                 Text(
                     pluralStringResource(
-                        R.plurals.settings_wardrobe_enrich_descriptions_summary,
+                        Res.plurals.settings_wardrobe_enrich_descriptions_summary,
                         eligibleCount,
                         eligibleCount,
                     ),
@@ -840,7 +908,7 @@ private fun BatchCaptionItem(
         ListItem(
             headlineContent = {
                 Text(
-                    stringResource(R.string.settings_wardrobe_descriptions_up_to_date),
+                    stringResource(Res.string.settings_wardrobe_descriptions_up_to_date),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
@@ -853,12 +921,12 @@ private fun BatchCaptionItem(
 @Composable
 private fun StorageUsedItem(storageUsedBytes: Long) {
     val summary = if (storageUsedBytes < 0) {
-        stringResource(R.string.settings_image_storage_used_computing)
+        stringResource(Res.string.settings_image_storage_used_computing)
     } else {
-        stringResource(R.string.settings_image_storage_used_summary, formatBytes(storageUsedBytes))
+        stringResource(Res.string.settings_image_storage_used_summary, formatBytes(storageUsedBytes))
     }
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_image_storage_used)) },
+        headlineContent = { Text(stringResource(Res.string.settings_image_storage_used)) },
         supportingContent = { Text(summary) },
     )
 }
@@ -875,10 +943,10 @@ private fun CompressImagesItem(
         val done = workStatus!!.done
         val total = workStatus.total
         ListItem(
-            headlineContent = { Text(stringResource(R.string.settings_image_compress_running)) },
+            headlineContent = { Text(stringResource(Res.string.settings_image_compress_running)) },
             supportingContent = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.settings_image_compress_progress, done, total))
+                    Text(stringResource(Res.string.settings_image_compress_progress, done, total))
                     LinearProgressIndicator(
                         progress = { if (total > 0) done.toFloat() / total else 0f },
                         modifier = Modifier.fillMaxWidth(),
@@ -888,11 +956,11 @@ private fun CompressImagesItem(
         )
     } else {
         ListItem(
-            headlineContent = { Text(stringResource(R.string.settings_image_compress)) },
-            supportingContent = { Text(stringResource(R.string.settings_image_compress_summary)) },
+            headlineContent = { Text(stringResource(Res.string.settings_image_compress)) },
+            supportingContent = { Text(stringResource(Res.string.settings_image_compress_summary)) },
             trailingContent = {
                 androidx.compose.material3.TextButton(onClick = onStart) {
-                    Text(stringResource(R.string.settings_image_compress_run))
+                    Text(stringResource(Res.string.settings_image_compress_run))
                 }
             },
         )
@@ -910,15 +978,15 @@ private fun NanoNotSupportedDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_ai_nano_not_supported_dialog_title)) },
+        title = { Text(stringResource(Res.string.settings_ai_nano_not_supported_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.settings_ai_nano_not_supported_dialog_message))
+                Text(stringResource(Res.string.settings_ai_nano_not_supported_dialog_message))
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
-                    text = stringResource(R.string.settings_ai_nano_not_supported_alternatives),
+                    text = stringResource(Res.string.settings_ai_nano_not_supported_alternatives),
                     style = MaterialTheme.typography.labelLarge,
                 )
 
@@ -930,7 +998,7 @@ private fun NanoNotSupportedDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Start,
                     ) {
-                        Text(stringResource(R.string.settings_ai_nano_not_supported_use_openai))
+                        Text(stringResource(Res.string.settings_ai_nano_not_supported_use_openai))
                     }
                 }
                 TextButton(
@@ -941,7 +1009,7 @@ private fun NanoNotSupportedDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Start,
                     ) {
-                        Text(stringResource(R.string.settings_ai_nano_not_supported_use_anthropic))
+                        Text(stringResource(Res.string.settings_ai_nano_not_supported_use_anthropic))
                     }
                 }
                 TextButton(
@@ -952,56 +1020,15 @@ private fun NanoNotSupportedDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Start,
                     ) {
-                        Text(stringResource(R.string.settings_ai_nano_not_supported_use_gemini))
+                        Text(stringResource(Res.string.settings_ai_nano_not_supported_use_gemini))
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.settings_ai_nano_not_supported_dismiss))
+                Text(stringResource(Res.string.settings_ai_nano_not_supported_dismiss))
             }
         },
     )
-}
-
-// ── Previews ───────────────────────────────────────────────────────────────────
-
-@Preview(showBackground = true, name = "AI off — Dark", uiMode = Configuration.UI_MODE_NIGHT_YES)
-@Composable
-private fun AiSettingsOffPreview() {
-    ClosetTheme {
-        AiSettingsContent(
-            aiEnabled = false,
-            onAiToggled = {},
-            styleVibe = StyleVibe.SmartCasual,
-            onStyleVibeSelected = {},
-            selectedAiProvider = AiProvider.Gemini,
-            onAiProviderSelected = {},
-            nanoStatus = NanoStatus.Idle,
-            openAiKey = "", openAiBaseUrl = "", openAiModel = "",
-            onOpenAiKeyChanged = {}, onOpenAiBaseUrlChanged = {}, onOpenAiModelChanged = {},
-            anthropicKey = "", anthropicModel = "",
-            onAnthropicKeyChanged = {}, onAnthropicModelChanged = {},
-            geminiKey = "", geminiModel = "",
-            onGeminiKeyChanged = {}, onGeminiModelChanged = {},
-            openAiModels = emptyList(), openAiModelsLoading = false,
-            anthropicModels = emptyList(), anthropicModelsLoading = false,
-            geminiModels = emptyList(), geminiModelsLoading = false,
-            storageUsedBytes = 24_800_000L, compressionWorkStatus = null,
-            onCompressImages = {},
-            embeddingIndexSize = 0, embeddingWorkStatus = null,
-            onRebuildEmbeddingIndex = {},
-            segmentationSupported = true,
-            segmentationEligibleCount = 0,
-            batchSegWorkStatus = null,
-            onStartBatchSegmentation = {},
-            captionSupported = true,
-            captionEligibleCount = 0,
-            batchCaptionProgress = null,
-            onStartBatchCaption = {},
-            onNavigateUp = {},
-            snackbarHostState = SnackbarHostState(),
-        )
-    }
 }

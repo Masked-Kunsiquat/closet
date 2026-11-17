@@ -90,8 +90,6 @@ kotlin {
 
             implementation(project.dependencies.platform(libs.androidx.compose.bom))
             implementation(libs.androidx.ui.tooling.preview)
-            // Temporary: Task 3 moves the screens to common resources/icons and removes this.
-            implementation(libs.androidx.compose.material.icons.extended)
         }
         jvmTest.dependencies {
             implementation(libs.mockk)
@@ -115,6 +113,11 @@ kotlin {
 dependencies {
     "androidRuntimeClasspath"(platform(libs.androidx.compose.bom))
     "androidRuntimeClasspath"(libs.androidx.ui.tooling)
+}
+
+compose.resources {
+    packageOfResClass = "com.closet.features.settings.resources"
+    generateResClass = always
 }
 
 // KMP creates no `test` task here, so the root `./gradlew test` would skip features/settings.

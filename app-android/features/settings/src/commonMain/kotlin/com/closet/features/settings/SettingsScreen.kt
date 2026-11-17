@@ -1,21 +1,11 @@
 package com.closet.features.settings
 
-import android.Manifest
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
-import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,9 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,25 +42,63 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 import com.closet.core.data.model.TemperatureUnit
 import com.closet.core.data.model.WeatherService
+import com.closet.core.ui.resources.ic_symbol_arrow_back
+import com.closet.core.ui.resources.ic_symbol_chevron_right
 import com.closet.core.ui.theme.ClosetAccent
-import com.closet.core.ui.theme.ClosetTheme
+import com.closet.core.ui.theme.supportsDynamicColor
+import com.closet.features.settings.resources.settings_accent_amber
+import com.closet.features.settings.resources.settings_accent_color
+import com.closet.features.settings.resources.settings_accent_coral
+import com.closet.features.settings.resources.settings_accent_lavender
+import com.closet.features.settings.resources.settings_accent_rose
+import com.closet.features.settings.resources.settings_accent_sage
+import com.closet.features.settings.resources.settings_accent_selected
+import com.closet.features.settings.resources.settings_accent_sky
+import com.closet.features.settings.resources.settings_accent_unselected
+import com.closet.features.settings.resources.settings_ai_tools_navigate
+import com.closet.features.settings.resources.settings_ai_tools_summary
+import com.closet.features.settings.resources.settings_backup_navigate
+import com.closet.features.settings.resources.settings_backup_summary
+import com.closet.features.settings.resources.settings_clear_cache
+import com.closet.features.settings.resources.settings_clear_cache_summary
+import com.closet.features.settings.resources.settings_dynamic_color
+import com.closet.features.settings.resources.settings_dynamic_color_summary
+import com.closet.features.settings.resources.settings_location_dialog_cancel
+import com.closet.features.settings.resources.settings_location_dialog_message
+import com.closet.features.settings.resources.settings_location_dialog_open_settings
+import com.closet.features.settings.resources.settings_location_dialog_title
+import com.closet.features.settings.resources.settings_location_snackbar
+import com.closet.features.settings.resources.settings_navigate_up
+import com.closet.features.settings.resources.settings_section_ai_tools
+import com.closet.features.settings.resources.settings_section_appearance
+import com.closet.features.settings.resources.settings_section_backup
+import com.closet.features.settings.resources.settings_section_wardrobe
+import com.closet.features.settings.resources.settings_section_weather
+import com.closet.features.settings.resources.settings_temperature_unit
+import com.closet.features.settings.resources.settings_title
+import com.closet.features.settings.resources.settings_wardrobe_laundry_day
+import com.closet.features.settings.resources.settings_wardrobe_laundry_day_summary
+import com.closet.features.settings.resources.settings_weather_api_key
+import com.closet.features.settings.resources.settings_weather_api_key_placeholder
+import com.closet.features.settings.resources.settings_weather_enabled
+import com.closet.features.settings.resources.settings_weather_enabled_summary
+import com.closet.features.settings.resources.settings_weather_service
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.settings.resources.Res
 
 /**
  * Settings screen entry point.
@@ -99,58 +124,30 @@ fun SettingsScreen(
     val googleApiKey = uiState.googleApiKey
     val temperatureUnit = uiState.temperatureUnit
 
-    val context = LocalContext.current
-    val activity = LocalActivity.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showRationaleDialog by remember { mutableStateOf(false) }
 
-    val deniedMessage = stringResource(R.string.settings_location_snackbar)
+    val deniedMessage = stringResource(Res.string.settings_location_snackbar)
+    val openAppSettings = rememberOpenAppSettings()
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
-            viewModel.setWeatherEnabled(true)
-        } else {
-            val shouldShow = activity?.let {
-                ActivityCompat.shouldShowRequestPermissionRationale(
-                    it,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                )
-            } ?: false
-            if (shouldShow) {
-                coroutineScope.launch { snackbarHostState.showSnackbar(deniedMessage) }
-            } else {
-                showRationaleDialog = true
-            }
-        }
-    }
+    val enableWeather = rememberWeatherEnabler(
+        onEnabled = { viewModel.setWeatherEnabled(true) },
+        onDeniedCanAskAgain = {
+            coroutineScope.launch { snackbarHostState.showSnackbar(deniedMessage) }
+        },
+        onDeniedPermanently = { showRationaleDialog = true },
+    )
 
     val onWeatherToggle: (Boolean) -> Unit = { enabled ->
-        if (!enabled) {
-            viewModel.setWeatherEnabled(false)
-        } else {
-            val granted = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-            ) == PackageManager.PERMISSION_GRANTED
-            if (granted) {
-                viewModel.setWeatherEnabled(true)
-            } else {
-                permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-            }
-        }
+        if (!enabled) viewModel.setWeatherEnabled(false) else enableWeather()
     }
 
     if (showRationaleDialog) {
         PermissionRationaleDialog(
             onOpenSettings = {
                 showRationaleDialog = false
-                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", context.packageName, null)
-                }
-                context.startActivity(intent)
+                openAppSettings()
             },
             onDismiss = { showRationaleDialog = false },
         )
@@ -216,12 +213,12 @@ internal fun SettingsContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { Text(stringResource(Res.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.settings_navigate_up),
+                            painter = painterResource(CoreRes.drawable.ic_symbol_arrow_back),
+                            contentDescription = stringResource(Res.string.settings_navigate_up),
                         )
                     }
                 },
@@ -235,9 +232,9 @@ internal fun SettingsContent(
         ) {
             // ── Appearance ────────────────────────────────────────────────────
             item {
-                SettingsSectionHeader(stringResource(R.string.settings_section_appearance))
+                SettingsSectionHeader(stringResource(Res.string.settings_section_appearance))
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (supportsDynamicColor) {
                 item {
                     DynamicColorItem(
                         enabled = dynamicColor,
@@ -255,7 +252,7 @@ internal fun SettingsContent(
 
             // ── Weather ───────────────────────────────────────────────────────
             item {
-                SettingsSectionHeader(stringResource(R.string.settings_section_weather))
+                SettingsSectionHeader(stringResource(Res.string.settings_section_weather))
             }
             item {
                 WeatherToggleItem(
@@ -291,7 +288,7 @@ internal fun SettingsContent(
 
             // ── Backup & Restore ──────────────────────────────────────────────
             item {
-                SettingsSectionHeader(stringResource(R.string.settings_section_backup))
+                SettingsSectionHeader(stringResource(Res.string.settings_section_backup))
             }
             item {
                 BackupNavItem(onClick = onNavigateToBackup)
@@ -299,7 +296,7 @@ internal fun SettingsContent(
 
             // ── Wardrobe ──────────────────────────────────────────────────────
             item {
-                SettingsSectionHeader(stringResource(R.string.settings_section_wardrobe))
+                SettingsSectionHeader(stringResource(Res.string.settings_section_wardrobe))
             }
             item {
                 LaundryDayItem(onClick = onNavigateToBulkWash)
@@ -307,7 +304,7 @@ internal fun SettingsContent(
 
             // ── AI & Image Tools ──────────────────────────────────────────────
             item {
-                SettingsSectionHeader(stringResource(R.string.settings_section_ai_tools))
+                SettingsSectionHeader(stringResource(Res.string.settings_section_ai_tools))
             }
             item {
                 AiToolsNavItem(onClick = onNavigateToAiSettings)
@@ -336,8 +333,8 @@ private fun DynamicColorItem(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_dynamic_color)) },
-        supportingContent = { Text(stringResource(R.string.settings_dynamic_color_summary)) },
+        headlineContent = { Text(stringResource(Res.string.settings_dynamic_color)) },
+        supportingContent = { Text(stringResource(Res.string.settings_dynamic_color_summary)) },
         trailingContent = {
             Switch(
                 checked = enabled,
@@ -357,7 +354,7 @@ private fun AccentColorItem(
     ListItem(
         modifier = Modifier.alpha(alpha),
         headlineContent = {
-            Text(stringResource(R.string.settings_accent_color))
+            Text(stringResource(Res.string.settings_accent_color))
         },
         supportingContent = {
             Row(
@@ -389,9 +386,9 @@ private fun AccentSwatch(
 ) {
     val accentLabel = accentLabel(accent)
     val cd = if (selected) {
-        stringResource(R.string.settings_accent_selected, accentLabel)
+        stringResource(Res.string.settings_accent_selected, accentLabel)
     } else {
-        stringResource(R.string.settings_accent_unselected, accentLabel)
+        stringResource(Res.string.settings_accent_unselected, accentLabel)
     }
 
     Box(
@@ -421,12 +418,12 @@ private fun AccentSwatch(
 
 @Composable
 private fun accentLabel(accent: ClosetAccent): String = when (accent) {
-    ClosetAccent.Amber -> stringResource(R.string.settings_accent_amber)
-    ClosetAccent.Coral -> stringResource(R.string.settings_accent_coral)
-    ClosetAccent.Sage -> stringResource(R.string.settings_accent_sage)
-    ClosetAccent.Sky -> stringResource(R.string.settings_accent_sky)
-    ClosetAccent.Lavender -> stringResource(R.string.settings_accent_lavender)
-    ClosetAccent.Rose -> stringResource(R.string.settings_accent_rose)
+    ClosetAccent.Amber -> stringResource(Res.string.settings_accent_amber)
+    ClosetAccent.Coral -> stringResource(Res.string.settings_accent_coral)
+    ClosetAccent.Sage -> stringResource(Res.string.settings_accent_sage)
+    ClosetAccent.Sky -> stringResource(Res.string.settings_accent_sky)
+    ClosetAccent.Lavender -> stringResource(Res.string.settings_accent_lavender)
+    ClosetAccent.Rose -> stringResource(Res.string.settings_accent_rose)
 }
 
 // ── Weather items ─────────────────────────────────────────────────────────────
@@ -437,8 +434,8 @@ private fun WeatherToggleItem(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_weather_enabled)) },
-        supportingContent = { Text(stringResource(R.string.settings_weather_enabled_summary)) },
+        headlineContent = { Text(stringResource(Res.string.settings_weather_enabled)) },
+        supportingContent = { Text(stringResource(Res.string.settings_weather_enabled_summary)) },
         trailingContent = {
             Switch(
                 checked = enabled,
@@ -459,7 +456,7 @@ private fun WeatherServiceItem(
 ) {
     val services = WeatherService.entries
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_weather_service)) },
+        headlineContent = { Text(stringResource(Res.string.settings_weather_service)) },
         supportingContent = {
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier
@@ -493,8 +490,8 @@ private fun ApiKeyItem(
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = onApiKeyChange,
-                label = { Text(stringResource(R.string.settings_weather_api_key)) },
-                placeholder = { Text(stringResource(R.string.settings_weather_api_key_placeholder)) },
+                label = { Text(stringResource(Res.string.settings_weather_api_key)) },
+                placeholder = { Text(stringResource(Res.string.settings_weather_api_key_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -517,7 +514,7 @@ private fun TemperatureUnitItem(
 ) {
     val units = TemperatureUnit.entries
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_temperature_unit)) },
+        headlineContent = { Text(stringResource(Res.string.settings_temperature_unit)) },
         supportingContent = {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.padding(top = 8.dp)) {
                 units.forEachIndexed { index, unit ->
@@ -537,8 +534,8 @@ private fun TemperatureUnitItem(
 @Composable
 private fun ClearCacheItem(onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_clear_cache)) },
-        supportingContent = { Text(stringResource(R.string.settings_clear_cache_summary)) },
+        headlineContent = { Text(stringResource(Res.string.settings_clear_cache)) },
+        supportingContent = { Text(stringResource(Res.string.settings_clear_cache_summary)) },
         modifier = Modifier.clickable(onClick = onClick),
     )
 }
@@ -548,11 +545,11 @@ private fun ClearCacheItem(onClick: () -> Unit) {
 @Composable
 private fun LaundryDayItem(onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_wardrobe_laundry_day)) },
-        supportingContent = { Text(stringResource(R.string.settings_wardrobe_laundry_day_summary)) },
+        headlineContent = { Text(stringResource(Res.string.settings_wardrobe_laundry_day)) },
+        supportingContent = { Text(stringResource(Res.string.settings_wardrobe_laundry_day_summary)) },
         trailingContent = {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                painter = painterResource(CoreRes.drawable.ic_symbol_chevron_right),
                 contentDescription = null,
             )
         },
@@ -563,12 +560,12 @@ private fun LaundryDayItem(onClick: () -> Unit) {
 @Composable
 private fun BackupNavItem(onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_section_backup)) },
-        supportingContent = { Text(stringResource(R.string.settings_backup_summary)) },
+        headlineContent = { Text(stringResource(Res.string.settings_section_backup)) },
+        supportingContent = { Text(stringResource(Res.string.settings_backup_summary)) },
         trailingContent = {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.settings_backup_navigate),
+                painter = painterResource(CoreRes.drawable.ic_symbol_chevron_right),
+                contentDescription = stringResource(Res.string.settings_backup_navigate),
             )
         },
         modifier = Modifier.clickable(onClick = onClick),
@@ -578,12 +575,12 @@ private fun BackupNavItem(onClick: () -> Unit) {
 @Composable
 private fun AiToolsNavItem(onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_section_ai_tools)) },
-        supportingContent = { Text(stringResource(R.string.settings_ai_tools_summary)) },
+        headlineContent = { Text(stringResource(Res.string.settings_section_ai_tools)) },
+        supportingContent = { Text(stringResource(Res.string.settings_ai_tools_summary)) },
         trailingContent = {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.settings_ai_tools_navigate),
+                painter = painterResource(CoreRes.drawable.ic_symbol_chevron_right),
+                contentDescription = stringResource(Res.string.settings_ai_tools_navigate),
             )
         },
         modifier = Modifier.clickable(onClick = onClick),
@@ -604,97 +601,17 @@ private fun PermissionRationaleDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_location_dialog_title)) },
-        text = { Text(stringResource(R.string.settings_location_dialog_message)) },
+        title = { Text(stringResource(Res.string.settings_location_dialog_title)) },
+        text = { Text(stringResource(Res.string.settings_location_dialog_message)) },
         confirmButton = {
             TextButton(onClick = onOpenSettings) {
-                Text(stringResource(R.string.settings_location_dialog_open_settings))
+                Text(stringResource(Res.string.settings_location_dialog_open_settings))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.settings_location_dialog_cancel))
+                Text(stringResource(Res.string.settings_location_dialog_cancel))
             }
         },
     )
-}
-
-// ── Previews ──────────────────────────────────────────────────────────────────
-
-@Preview(showBackground = true, name = "Default — Dark")
-@Composable
-private fun SettingsContentDefaultPreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Amber,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = false,
-            weatherService = WeatherService.OpenMeteo,
-            googleApiKey = "",
-            temperatureUnit = TemperatureUnit.Celsius,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            onNavigateToAiSettings = {},
-            onNavigateToBackup = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Weather on / Open-Meteo — Dark")
-@Composable
-private fun SettingsContentWeatherOpenMeteoPreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Sky,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = true,
-            weatherService = WeatherService.OpenMeteo,
-            googleApiKey = "",
-            temperatureUnit = TemperatureUnit.Celsius,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            onNavigateToAiSettings = {},
-            onNavigateToBackup = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Weather on / Google + API key — Dark")
-@Composable
-private fun SettingsContentWeatherGooglePreview() {
-    ClosetTheme {
-        SettingsContent(
-            currentAccent = ClosetAccent.Coral,
-            dynamicColor = false,
-            onSetAccent = {},
-            onSetDynamicColor = {},
-            weatherEnabled = true,
-            weatherService = WeatherService.Google,
-            googleApiKey = "AIzaSy\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
-            temperatureUnit = TemperatureUnit.Fahrenheit,
-            onWeatherEnabledChange = {},
-            onWeatherServiceChange = {},
-            onGoogleApiKeyChange = {},
-            onTemperatureUnitChange = {},
-            onClearCache = {},
-            onNavigateToAiSettings = {},
-            onNavigateToBackup = {},
-            snackbarHostState = remember { SnackbarHostState() },
-            onNavigateUp = {},
-        )
-    }
 }

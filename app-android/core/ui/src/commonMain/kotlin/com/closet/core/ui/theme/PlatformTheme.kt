@@ -17,3 +17,6 @@ internal expect fun rememberContrastLevel(): Float
 /** Aligns the system bars' icon appearance with [darkTheme]. A no-op where there are no system bars. */
 @Composable
 internal expect fun SystemBarAppearance(darkTheme: Boolean)
+
+/** Whether [platformDynamicColorScheme] can return a scheme here (Android 12+); `false` elsewhere. */
+expect val supportsDynamicColor: Boolean

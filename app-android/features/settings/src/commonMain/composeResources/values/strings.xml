@@ -19,12 +19,12 @@
     <string name="settings_accent_sky">Sky</string>
     <string name="settings_accent_lavender">Lavender</string>
     <string name="settings_accent_rose">Rose</string>
-    <string name="settings_accent_selected">%s, selected</string>
-    <string name="settings_accent_unselected">%s</string>
+    <string name="settings_accent_selected">%1$s, selected</string>
+    <string name="settings_accent_unselected">%1$s</string>
 
     <!-- Weather preferences -->
     <string name="settings_weather_enabled">Show weather forecast</string>
-    <string name="settings_weather_enabled_summary">Fetch today\'s forecast using your location</string>
+    <string name="settings_weather_enabled_summary">Fetch today's forecast using your location</string>
     <string name="settings_weather_service">Weather service</string>
     <string name="settings_weather_api_key">Google API key</string>
     <string name="settings_weather_api_key_placeholder">Paste your API key here</string>
@@ -40,10 +40,7 @@
     <string name="settings_location_dialog_cancel">Cancel</string>
 
     <!-- AI suggestions section -->
-    <string name="settings_section_ai">AI suggestions</string>
     <string name="settings_ai_style_vibe">Style vibe</string>
-    <string name="settings_ai_enabled">AI coherence scoring</string>
-    <string name="settings_ai_enabled_summary">Use AI to re-rank outfit suggestions for style coherence</string>
     <string name="settings_ai_provider">AI provider</string>
 
     <!-- AI provider segment labels -->
@@ -53,43 +50,27 @@
     <string name="settings_ai_provider_gemini">Gemini</string>
 
     <!-- Nano status messages -->
-    <string name="settings_ai_nano_checking">Checking device compatibility…</string>
-    <string name="settings_ai_nano_downloading">Downloading model (%d%%)…</string>
-    <string name="settings_ai_nano_ready">Model ready</string>
-    <string name="settings_ai_nano_not_supported">Not supported on this device</string>
+    <string name="settings_ai_nano_downloading">Downloading model (%1$d%)…</string>
     <string name="settings_ai_nano_not_supported_dialog_title">On-Device AI not available</string>
-    <string name="settings_ai_nano_not_supported_dialog_message">On-device AI isn\'t supported on this phone. Choose another provider to use AI features.</string>
+    <string name="settings_ai_nano_not_supported_dialog_message">On-device AI isn't supported on this phone. Choose another provider to use AI features.</string>
     <string name="settings_ai_nano_not_supported_use_openai">Use OpenAI</string>
     <string name="settings_ai_nano_not_supported_use_anthropic">Use Anthropic</string>
     <string name="settings_ai_nano_not_supported_use_gemini">Use Gemini</string>
     <string name="settings_ai_nano_not_supported_dismiss">Dismiss</string>
-    <string name="settings_ai_nano_failed">Setup failed: %s</string>
+    <string name="settings_ai_nano_failed">Setup failed: %1$s</string>
 
     <!-- OpenAI-compatible fields -->
     <string name="settings_ai_openai_key">API key</string>
-    <string name="settings_ai_openai_key_placeholder">Paste your API key here</string>
     <string name="settings_ai_openai_base_url">Base URL</string>
-    <string name="settings_ai_openai_base_url_placeholder">Leave blank for OpenAI default</string>
     <string name="settings_ai_openai_model">Model</string>
-    <string name="settings_ai_openai_model_placeholder">Leave blank for gpt-4o-mini default</string>
-    <string name="settings_ai_openai_show_key">Show API key</string>
-    <string name="settings_ai_openai_hide_key">Hide API key</string>
 
     <!-- Anthropic provider config -->
-    <string name="settings_ai_anthropic_show_key">Show API key</string>
-    <string name="settings_ai_anthropic_hide_key">Hide API key</string>
     <string name="settings_ai_anthropic_key">API key</string>
-    <string name="settings_ai_anthropic_key_placeholder">Paste your sk-ant-… key here</string>
     <string name="settings_ai_anthropic_model">Model</string>
-    <string name="settings_ai_anthropic_model_placeholder">Leave blank for Haiku default</string>
 
     <!-- Gemini provider config -->
-    <string name="settings_ai_gemini_show_key">Show API key</string>
-    <string name="settings_ai_gemini_hide_key">Hide API key</string>
     <string name="settings_ai_gemini_key">API key</string>
-    <string name="settings_ai_gemini_key_placeholder">Paste your Gemini API key here</string>
     <string name="settings_ai_gemini_model">Model</string>
-    <string name="settings_ai_gemini_model_placeholder">Leave blank for gemini-2.0-flash-lite default</string>
 
     <!-- AI & Image Tools nav row (main settings screen) -->
     <string name="settings_section_ai_tools">AI &amp; Image Tools</string>
@@ -97,12 +78,11 @@
     <string name="settings_ai_tools_navigate">Open AI &amp; Image Tools settings</string>
 
     <!-- AI settings sub-screen -->
-    <string name="settings_ai_screen_title">AI &amp; Image Tools</string>
     <string name="settings_ai_title">AI &amp; Image Tools</string>
     <string name="settings_ai_enable">AI features</string>
     <string name="settings_ai_enable_summary">Enable AI-powered outfit scoring and wardrobe tools</string>
     <string name="settings_wardrobe_management">Wardrobe management</string>
-    <string name="settings_ai_nano_status_not_supported">On-device AI isn\'t supported on this phone. Choose another provider below.</string>
+    <string name="settings_ai_nano_status_not_supported">On-device AI isn't supported on this phone. Choose another provider below.</string>
     <string name="settings_ai_nano_status_loading">Checking device compatibility…</string>
     <string name="settings_ai_nano_status_ready">Model ready</string>
     <string name="settings_ai_nano_status_idle">Not initialized</string>
@@ -112,10 +92,6 @@
     <string name="settings_wardrobe_search_index_rebuild">Rebuild</string>
     <string name="settings_wardrobe_all_backgrounds_removed">All backgrounds already removed</string>
     <string name="settings_ai_nano_not_supported_alternatives">Switch to a cloud provider</string>
-    <string name="settings_ai_subsection_assistant">Assistant</string>
-    <string name="settings_ai_subsection_provider">Provider</string>
-    <string name="settings_ai_subsection_index">Wardrobe Index</string>
-    <string name="settings_ai_subsection_enrichment">Image Enrichment</string>
 
     <!-- Style vibe options -->
     <string name="settings_style_vibe_smart_casual">Smart Casual</string>
@@ -132,18 +108,9 @@
     <string name="settings_style_vibe_formal_desc">Elevated occasions — suits, dresses, and refined details</string>
 
     <!-- Wardrobe Index items -->
-    <string name="settings_ai_index_title">Wardrobe search index</string>
-    <string name="settings_ai_index_empty">Not yet indexed — tap Rebuild to start</string>
-    <string name="settings_ai_index_rebuild">Rebuild</string>
-    <string name="settings_ai_index_building">Building search index\u2026</string>
-    <string name="settings_ai_index_progress">%1$d of %2$d items</string>
-    <plurals name="settings_ai_index_size">
-        <item quantity="one">%d item indexed</item>
-        <item quantity="other">%d items indexed</item>
-    </plurals>
     <plurals name="settings_wardrobe_search_index_summary">
-        <item quantity="one">%d item indexed</item>
-        <item quantity="other">%d items indexed</item>
+        <item quantity="one">%1$d item indexed</item>
+        <item quantity="other">%1$d items indexed</item>
     </plurals>
 
     <!-- Backup & Restore section -->
@@ -158,7 +125,6 @@
     <string name="settings_wardrobe_remove_backgrounds">Remove backgrounds</string>
     <string name="settings_wardrobe_removing_backgrounds">Removing backgrounds…</string>
     <string name="settings_wardrobe_removing_backgrounds_progress">%1$d of %2$d items</string>
-    <string name="settings_wardrobe_all_done">All backgrounds already removed</string>
     <string name="settings_wardrobe_batch_confirm_title">Remove backgrounds?</string>
     <string name="settings_wardrobe_batch_confirm_message">Original photos will be replaced with background-removed versions. This cannot be undone.</string>
     <string name="settings_wardrobe_batch_confirm_ok">Remove</string>
@@ -170,8 +136,8 @@
 
     <!-- Plural strings for item counts -->
     <plurals name="settings_wardrobe_remove_backgrounds_summary">
-        <item quantity="one">%d item can be processed</item>
-        <item quantity="other">%d items can be processed</item>
+        <item quantity="one">%1$d item can be processed</item>
+        <item quantity="other">%1$d items can be processed</item>
     </plurals>
     <plurals name="settings_wardrobe_batch_result">
         <item quantity="one">%1$d item updated</item>
@@ -182,8 +148,8 @@
         <item quantity="other">%1$d items updated, %2$d skipped</item>
     </plurals>
     <plurals name="settings_wardrobe_enrich_descriptions_summary">
-        <item quantity="one">%d item can be enriched</item>
-        <item quantity="other">%d items can be enriched</item>
+        <item quantity="one">%1$d item can be enriched</item>
+        <item quantity="other">%1$d items can be enriched</item>
     </plurals>
     <plurals name="settings_wardrobe_caption_result">
         <item quantity="one">%1$d item enriched</item>
@@ -198,7 +164,7 @@
     <string name="settings_image_storage">Image storage</string>
     <string name="settings_image_storage_used">Storage used</string>
     <string name="settings_image_storage_used_computing">Computing…</string>
-    <string name="settings_image_storage_used_summary">%s used by wardrobe images</string>
+    <string name="settings_image_storage_used_summary">%1$s used by wardrobe images</string>
     <string name="settings_image_compress">Compress existing images</string>
     <string name="settings_image_compress_summary">Re-encode large photos to save space</string>
     <string name="settings_image_compress_run">Run now</string>
