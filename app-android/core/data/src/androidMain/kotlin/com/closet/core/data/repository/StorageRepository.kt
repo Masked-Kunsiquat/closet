@@ -18,7 +18,7 @@ import java.util.UUID
  */
 class StorageRepository(
     private val context: Context
-) : ImagePathResolver {
+) : ImagePathResolver, ImageStorageStats {
     companion object {
         const val MAX_DIMENSION = 1600
         const val JPEG_QUALITY = 85
@@ -117,6 +117,13 @@ class StorageRepository(
     }
 
     override fun absolutePath(relativePath: String): String = getFile(relativePath).absolutePath
+
+    override suspend fun usedBytes(): Long = withContext(Dispatchers.IO) {
+        File(context.filesDir, IMAGES_DIR_NAME)
+            .walkTopDown()
+            .filter { it.isFile }
+            .sumOf { it.length() }
+    }
 
     /**
      * Checks if a file exists for a given relative path.

@@ -36,7 +36,7 @@ Run all Gradle commands from the `app-android/` directory.
 `core/data` is a Kotlin Multiplatform module (targets `android`, `jvm`, `iosArm64`, `iosSimulatorArm64`). Its source sets are `commonMain`, `androidMain`, `jvmMain`, `iosMain`, `commonTest`, `jvmTest`, `androidHostTest` and `androidDeviceTest`; it has no `BuildConfig` (the debug flag is `BuildFlags`, bound in `appModule`).
 
 - **`commonMain`:** Room (database, entities, DAOs), the repositories, `ai/*`, the Ktor clients and weather, preferences, `EmbeddingIndex`, the work constants, and the platform interfaces. Nothing platform-specific: no `android.*`, `java.*` or WorkManager imports (`compileCommonMainKotlinMetadata` catches leaks).
-- **`androidMain`:** the platform implementations (`EncryptedKeyStore`, `AndroidLocationProvider`, `OnnxEmbeddingEncoder`, the WorkManager schedulers in `androidDataModule`, `WorkInfo.toWorkStatus()`), the workers, the Android database/DataStore builders, and code still built on `Uri`/`Bitmap`/`Context` (`StorageRepository`, `CaptionEnrichmentProvider`, `BitmapUtils`, `PaletteUtil`, `ColorMatcher`, `WordPieceTokenizer`, `BatchCaptionResult`).
+- **`androidMain`:** the platform implementations (`EncryptedKeyStore`, `AndroidLocationProvider`, `OnnxEmbeddingEncoder`, the WorkManager schedulers in `androidDataModule`, `WorkInfo.toWorkStatus()`), the workers, the Android database/DataStore builders, and code still built on `Uri`/`Bitmap`/`Context` (`StorageRepository`, `CaptionEnrichmentProvider`, `BitmapUtils`, `PaletteUtil`, `ColorMatcher`, `WordPieceTokenizer`).
 - **Platform interfaces** (common; Android binds the real one, `jvmDataModule`/`iosDataModule` bind honest stubs): `SecretStore` (`InMemorySecretStore`), `LocationProvider` (`NoLocationProvider`), `EmbeddingEncoder` (`UnavailableEmbeddingEncoder`; `modelVersion` is the stored `model_version`), and `EmbeddingScheduler` / `ImageCompressionScheduler` / `BatchSegmentationScheduler` (`NoOp*Scheduler`). Schedulers expose `workStatus: Flow<WorkStatus?>` — never `WorkInfo` — so feature code reads `WorkStatus`/`WorkState`. Android's `BatchSegmentationScheduler` is bound by `wardrobeModule`.
 - **Logging:** `core/data` logs with Kermit (`Logger.withTag(...)`), not Timber.
 
@@ -49,7 +49,7 @@ Run all Gradle commands from the `app-android/` directory.
 Full verification before a PR:
 
 ```bash
-./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
+./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata :features:settings:jvmTest :features:settings:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
 CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources) on macOS. Instrumented tests don't run in CI; run them on a device.
@@ -68,7 +68,7 @@ features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash,
 features/outfits/      — Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet
 features/stats/        — KMP module: Stats screen, StatsViewModel, breakdown sections (commonMain UI + ViewModel; androidMain navigation, previews, Koin module)
 features/recommendations/ — Outfit recommendations, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms)
-features/settings/     — Settings screen, AI settings sub-screen, model picker, key management
+features/settings/     — KMP module: Settings screen, AI settings sub-screen, SettingsViewModel (commonMain UI, ViewModel and Koin; androidMain navigation, previews and the permission / keep-screen-on actuals)
 features/chat/         — Wardrobe chat (tool-calling or RAG): ChatScreen, ChatViewModel, ChatRepository, provider impls
 platform/gms/          — GMS/ML Kit implementations of feature capability interfaces (full flavor only)
 ```
@@ -101,6 +101,7 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 - **Workers** are registered with `workerOf(::X)`; their constructors are plain `(context: Context, params: WorkerParameters, …)`. `workManagerFactory()` supplies the factory, so the manifest removes `androidx.work.WorkManagerInitializer` — keep that removal.
 - **Scope.** DAOs, repositories and providers are `single`.
 - **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(engine, ...)` in `commonMain/.../di/HttpClients.kt` (the engine is bound per platform: OkHttp on Android and JVM, Darwin on iOS); add any new secret-bearing header to its `SENSITIVE_HEADERS`.
+- **Feature modules in KMP.** A KMP feature module declares its Koin module in commonMain (`features/settings` `settingsModule`) and verifies it with a jvmTest graph `verify()`. `BatchCaptioner` is the common batch half of `CaptionEnrichmentProvider`; JVM and iOS bind `UnavailableNanoInitializer` and `NoOpBatchCaptioner`.
 - **Verification.** Every module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
 
 ### Database (Room)
@@ -127,7 +128,7 @@ Type-safe Compose Navigation (2.9.7+). Destinations are `@Serializable` data cla
 
 Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose. Dynamic color (Material You) enabled on Android 12+. All color/theme tokens live in `core/ui/src/commonMain/.../theme/`; dynamic color is Android-only, in `PlatformTheme.android.kt`. Never hardcode colors; use the theme.
 
-**Resources.** Shared drawables and strings live in `core/ui/src/commonMain/composeResources/` and are referenced through the generated `com.closet.core.ui.resources.Res` (e.g. `Res.drawable.ic_icon_sun`, `Res.string.error_unexpected`; import each accessor from `com.closet.core.ui.resources`). Use `org.jetbrains.compose.resources.painterResource`/`stringResource`/`getString` for them; string placeholders are positional (`%1$s`). `core/ui` exposes `components-resources` as `api`. A feature's own strings live in its `composeResources` with an internal generated `Res` (`com.closet.features.<name>.resources`; `features/stats` is the first). Shared icons are Material Symbols named `ic_symbol_*` in `core/ui` (e.g. `Res.drawable.ic_symbol_checkroom`); other feature modules keep their own Android `R` until Phase 5. JVM tests that call Compose resources (`getString`) need a Skiko native runtime: declare it by catalog coordinates (`skiko-awt-runtime-*`, selected per host OS in `features/stats/build.gradle.kts`), never the `compose.*` accessors. Launcher shortcut icons are copies in `app/` and `features/wardrobe` `res/drawable/` (the shortcut XMLs reference `@drawable/...`).
+**Resources.** Shared drawables and strings live in `core/ui/src/commonMain/composeResources/` and are referenced through the generated `com.closet.core.ui.resources.Res` (e.g. `Res.drawable.ic_icon_sun`, `Res.string.error_unexpected`; import each accessor from `com.closet.core.ui.resources`). Use `org.jetbrains.compose.resources.painterResource`/`stringResource`/`getString` for them; string placeholders are positional (`%1$s`). `core/ui` exposes `components-resources` as `api`. A feature's own strings live in its `composeResources` with an internal generated `Res` (`com.closet.features.<name>.resources`; `features/stats` and `features/settings`). Shared icons are Material Symbols named `ic_symbol_*` in `core/ui` (e.g. `Res.drawable.ic_symbol_checkroom`); the not-yet-migrated feature modules keep their own Android `R` until they move (stats and settings use Compose resources). JVM tests that call Compose resources (`getString`) need a Skiko native runtime: declare it by catalog coordinates (`skiko-awt-runtime-*`, selected per host OS in `features/stats/build.gradle.kts`), never the `compose.*` accessors. Launcher shortcut icons are copies in `app/` and `features/wardrobe` `res/drawable/` (the shortcut XMLs reference `@drawable/...`).
 
 ### Image handling
 
@@ -139,7 +140,7 @@ Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/` (`commonMa
 
 ### Logging
 
-Timber in `app` and the features. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only. `core/data` uses Kermit (multiplatform).
+Timber in `app` and the non-KMP features. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only. `core/data` and the KMP features (`features/stats`, `features/settings`) use Kermit (multiplatform).
 
 ### Destructive actions
 

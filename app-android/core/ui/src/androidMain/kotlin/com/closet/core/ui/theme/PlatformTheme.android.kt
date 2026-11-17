@@ -60,3 +60,6 @@ internal actual fun rememberContrastLevel(): Float {
     }
     return contrastState.value
 }
+
+actual val supportsDynamicColor: Boolean
+    get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S

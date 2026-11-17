@@ -16,6 +16,7 @@ import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.repository.AI_PREFS_NAME
 import com.closet.core.data.repository.EncryptedKeyStore
 import com.closet.core.data.repository.ImagePathResolver
+import com.closet.core.data.repository.ImageStorageStats
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.repository.WEATHER_PREFS_NAME
@@ -137,7 +138,10 @@ val androidDataModule = module {
     }
     single<SecretStore> { EncryptedKeyStore(androidContext()) }
     single<LocationProvider> { AndroidLocationProvider(androidContext()) }
-    singleOf(::StorageRepository) { bind<ImagePathResolver>() }
+    singleOf(::StorageRepository) {
+        bind<ImagePathResolver>()
+        bind<ImageStorageStats>()
+    }
     single<EmbeddingEncoder> { OnnxEmbeddingEncoder(androidContext()) }
 
     workerOf(::EmbeddingWorker)
