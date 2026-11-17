@@ -9,6 +9,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 ## [Unreleased]
 
 ### Changed
+- **Outfit recommendations are Kotlin Multiplatform** (KMP Phase 5): shared engine, AI providers and UI, Compose resources, Material Symbols icons.
 - **Outfits and journal are Kotlin Multiplatform** (KMP Phase 5): shared UI and view models, Compose resources, Material Symbols icons.
 - **Settings screens are Kotlin Multiplatform** (KMP Phase 5): shared UI, view model and DI, Compose resources, Material Symbols icons.
 - **Stats screen is Kotlin Multiplatform** (KMP Phase 5): shared UI and logic, Compose resources, Material Symbols icons.

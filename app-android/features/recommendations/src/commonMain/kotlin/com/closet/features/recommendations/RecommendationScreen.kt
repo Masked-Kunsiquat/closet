@@ -1,6 +1,5 @@
 package com.closet.features.recommendations
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,11 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,21 +32,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.closet.core.ui.theme.ClosetTheme
-import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.ui.OccasionSheet
 import com.closet.features.recommendations.ui.OutfitComboCard
 import com.closet.features.recommendations.ui.WeatherSheet
 import org.koin.compose.viewmodel.koinViewModel
-import java.io.File
+import org.jetbrains.compose.resources.stringResource
+import com.closet.features.recommendations.resources.Res
+import com.closet.features.recommendations.resources.recs_error_title
+import com.closet.features.recommendations.resources.recs_get_suggestions
+import com.closet.features.recommendations.resources.recs_no_results_body
+import com.closet.features.recommendations.resources.recs_no_results_title
+import com.closet.features.recommendations.resources.recs_page_indicator_description
+import com.closet.features.recommendations.resources.recs_retry
+import com.closet.features.recommendations.resources.recs_saved_confirmation
+import com.closet.features.recommendations.resources.recs_style_vibe_change
+import com.closet.features.recommendations.resources.recs_style_vibe_label
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_auto_awesome
+import org.jetbrains.compose.resources.painterResource
 
 /**
  * Root composable for the outfit recommendations flow.
@@ -92,7 +97,7 @@ fun RecommendationScreen(
     }
 
     // ── One-shot: "Save for later" result — show snackbar ────────────────────
-    val savedMessage = stringResource(R.string.recs_saved_confirmation)
+    val savedMessage = stringResource(Res.string.recs_saved_confirmation)
     LaunchedEffect(viewModel) {
         viewModel.saveResult.collect { result ->
             val message = when (result) {
@@ -195,7 +200,7 @@ fun RecommendationScreen(
  * plus a style-vibe shortcut row when AI is enabled.
  */
 @Composable
-private fun IdleContent(
+internal fun IdleContent(
     onGetSuggestions: () -> Unit,
     aiEnabled: Boolean,
     styleVibeLabel: String,
@@ -208,7 +213,7 @@ private fun IdleContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Button(onClick = onGetSuggestions) {
-            Text(stringResource(R.string.recs_get_suggestions))
+            Text(stringResource(Res.string.recs_get_suggestions))
         }
         if (aiEnabled && onNavigateToSettings != null) {
             Spacer(modifier = Modifier.height(12.dp))
@@ -242,7 +247,7 @@ private fun LoadingContent(
  * dot indicators below, plus a style-vibe shortcut row when AI is enabled.
  */
 @Composable
-private fun ResultsContent(
+internal fun ResultsContent(
     combos: List<OutfitCombo>,
     resolveImage: (String?) -> String?,
     logItEnabled: Boolean,
@@ -316,14 +321,14 @@ private fun NoResultsContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = stringResource(R.string.recs_no_results_title),
+            text = stringResource(Res.string.recs_no_results_title),
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = stringResource(R.string.recs_no_results_body),
+            text = stringResource(Res.string.recs_no_results_body),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -331,7 +336,7 @@ private fun NoResultsContent(
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(onClick = onRegenerate) {
-            Text(stringResource(R.string.recs_retry))
+            Text(stringResource(Res.string.recs_retry))
         }
     }
 }
@@ -340,7 +345,7 @@ private fun NoResultsContent(
  * Shown in [RecommendationUiState.Error]. Centered error message and retry button.
  */
 @Composable
-private fun ErrorContent(
+internal fun ErrorContent(
     message: String,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
@@ -351,7 +356,7 @@ private fun ErrorContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = stringResource(R.string.recs_error_title),
+            text = stringResource(Res.string.recs_error_title),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
@@ -370,7 +375,7 @@ private fun ErrorContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = onRetry) {
-            Text(stringResource(R.string.recs_retry))
+            Text(stringResource(Res.string.recs_retry))
         }
     }
 }
@@ -396,20 +401,20 @@ private fun StyleVibeShortcutRow(
         horizontalArrangement = Arrangement.Center,
     ) {
         Icon(
-            imageVector = Icons.Filled.AutoAwesome,
+            painter = painterResource(CoreRes.drawable.ic_symbol_auto_awesome),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(16.dp),
         )
         Spacer(modifier = Modifier.size(6.dp))
         Text(
-            text = stringResource(R.string.recs_style_vibe_label, styleVibeLabel),
+            text = stringResource(Res.string.recs_style_vibe_label, styleVibeLabel),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         TextButton(onClick = onNavigateToSettings) {
             Text(
-                text = stringResource(R.string.recs_style_vibe_change),
+                text = stringResource(Res.string.recs_style_vibe_change),
                 style = MaterialTheme.typography.labelMedium,
             )
         }
@@ -429,7 +434,7 @@ private fun PagerIndicator(
     currentPage: Int,
     modifier: Modifier = Modifier,
 ) {
-    val description = stringResource(R.string.recs_page_indicator_description, currentPage + 1, pageCount)
+    val description = stringResource(Res.string.recs_page_indicator_description, currentPage + 1, pageCount)
     Row(
         modifier = modifier.semantics { contentDescription = description },
         horizontalArrangement = Arrangement.Center,
@@ -448,106 +453,6 @@ private fun PagerIndicator(
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                         }
                     ),
-            )
-        }
-    }
-}
-
-// ─── Previews ─────────────────────────────────────────────────────────────────
-
-private val previewItems = listOf(
-    EngineItem(
-        id = 1L,
-        name = "White Oxford Shirt",
-        imagePath = null,
-        categoryId = 1L,
-        subcategoryId = null,
-        outfitRole = "Top",
-        warmthLayer = "Base",
-        colorFamilies = setOf("Neutral"),
-        isPatternSolid = true,
-    ),
-    EngineItem(
-        id = 2L,
-        name = "Slim Chinos",
-        imagePath = null,
-        categoryId = 2L,
-        subcategoryId = null,
-        outfitRole = "Bottom",
-        warmthLayer = "None",
-        colorFamilies = setOf("Earth"),
-        isPatternSolid = true,
-    ),
-    EngineItem(
-        id = 3L,
-        name = "White Sneakers",
-        imagePath = null,
-        categoryId = 6L,
-        subcategoryId = null,
-        outfitRole = "Footwear",
-        warmthLayer = "None",
-        colorFamilies = setOf("Neutral"),
-        isPatternSolid = true,
-    ),
-)
-
-private val previewCombos = listOf(
-    OutfitCombo(items = previewItems, score = 0.87),
-    OutfitCombo(items = previewItems.take(2), score = 0.75),
-    OutfitCombo(items = previewItems, score = 0.65),
-)
-
-@Preview(showBackground = true, name = "Results - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "Results - Dark",
-)
-@Composable
-private fun ResultsContentPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ResultsContent(
-                combos = previewCombos,
-                resolveImage = { null },
-                logItEnabled = false,
-                onLogIt = {},
-                onSaveForLater = {},
-                onRegenerate = {},
-                aiEnabled = false,
-                styleVibeLabel = "Smart Casual",
-                onNavigateToSettings = null,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Idle - Light")
-@Composable
-private fun IdleContentPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            IdleContent(
-                onGetSuggestions = {},
-                aiEnabled = false,
-                styleVibeLabel = "Smart Casual",
-                onNavigateToSettings = null,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Error - Light")
-@Composable
-private fun ErrorContentPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ErrorContent(
-                message = "Unable to reach the database. Check your device storage.",
-                onRetry = {},
-                modifier = Modifier.fillMaxSize(),
             )
         }
     }

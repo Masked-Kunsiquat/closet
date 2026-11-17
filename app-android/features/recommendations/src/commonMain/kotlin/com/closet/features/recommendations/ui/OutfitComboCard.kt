@@ -1,6 +1,5 @@
 package com.closet.features.recommendations.ui
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,15 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.animation.AnimatedVisibility
@@ -39,17 +35,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.closet.core.ui.theme.ClosetTheme
-import com.closet.features.recommendations.R
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitCombo
-import java.io.File
+import org.jetbrains.compose.resources.stringResource
+import com.closet.features.recommendations.resources.Res
+import com.closet.features.recommendations.resources.recs_action_log_it
+import com.closet.features.recommendations.resources.recs_action_regenerate
+import com.closet.features.recommendations.resources.recs_action_save_for_later
+import com.closet.features.recommendations.resources.recs_ai_pick_badge
+import com.closet.features.recommendations.resources.recs_ai_pick_collapse
+import com.closet.features.recommendations.resources.recs_combo_item_image_description
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_checkroom
+import org.jetbrains.compose.resources.painterResource
 
 /**
  * A card representing one recommended outfit combination in the carousel.
@@ -138,9 +140,9 @@ fun OutfitComboCard(
                     ) {
                         Text(
                             text = if (reasonExpanded) {
-                                stringResource(R.string.recs_ai_pick_collapse)
+                                stringResource(Res.string.recs_ai_pick_collapse)
                             } else {
-                                stringResource(R.string.recs_ai_pick_badge)
+                                stringResource(Res.string.recs_ai_pick_badge)
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
@@ -165,14 +167,14 @@ fun OutfitComboCard(
                 enabled = logItEnabled,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.recs_action_log_it))
+                Text(stringResource(Res.string.recs_action_log_it))
             }
 
             OutlinedButton(
                 onClick = onSaveForLater,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.recs_action_save_for_later))
+                Text(stringResource(Res.string.recs_action_save_for_later))
             }
 
             Row(
@@ -180,7 +182,7 @@ fun OutfitComboCard(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 TextButton(onClick = onRegenerate) {
-                    Text(stringResource(R.string.recs_action_regenerate))
+                    Text(stringResource(Res.string.recs_action_regenerate))
                 }
             }
         }
@@ -190,8 +192,8 @@ fun OutfitComboCard(
 /**
  * 2-column grid of item images for an outfit combo.
  *
- * Each cell is square. When an item has no image path or the file cannot be
- * resolved, a placeholder icon is shown instead.
+ * Each cell is square. When an item has no image path (the resolver returned
+ * null), a placeholder icon is shown instead.
  */
 @Composable
 private fun ItemImageGrid(
@@ -229,7 +231,7 @@ private fun ItemImageGrid(
 
 /**
  * A single square image cell. Shows the item image when available, or a
- * placeholder [Icon] when the image path is null/blank or unresolvable.
+ * placeholder [Icon] when [resolveImage] returns a null path.
  */
 @Composable
 private fun ItemImageCell(
@@ -237,7 +239,7 @@ private fun ItemImageCell(
     resolveImage: (String?) -> String?,
     modifier: Modifier = Modifier,
 ) {
-    val imageFile = resolveImage(item.imagePath)
+    val imagePath = resolveImage(item.imagePath)
 
     Box(
         modifier = modifier
@@ -246,11 +248,11 @@ private fun ItemImageCell(
             .background(MaterialTheme.colorScheme.surface),
         contentAlignment = Alignment.Center,
     ) {
-        if (imageFile != null) {
+        if (imagePath != null) {
             AsyncImage(
-                model = imageFile,
+                model = imagePath,
                 contentDescription = stringResource(
-                    R.string.recs_combo_item_image_description,
+                    Res.string.recs_combo_item_image_description,
                     item.name,
                 ),
                 contentScale = ContentScale.Crop,
@@ -258,104 +260,10 @@ private fun ItemImageCell(
             )
         } else {
             Icon(
-                imageVector = Icons.Default.Checkroom,
+                painter = painterResource(CoreRes.drawable.ic_symbol_checkroom),
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            )
-        }
-    }
-}
-
-// ─── Previews ─────────────────────────────────────────────────────────────────
-
-private val previewItems = listOf(
-    EngineItem(
-        id = 1L,
-        name = "White Oxford Shirt",
-        imagePath = null,
-        categoryId = 1L,
-        subcategoryId = null,
-        outfitRole = "Top",
-        warmthLayer = "Base",
-        colorFamilies = setOf("Neutral"),
-        isPatternSolid = true,
-    ),
-    EngineItem(
-        id = 2L,
-        name = "Slim Chinos",
-        imagePath = null,
-        categoryId = 2L,
-        subcategoryId = null,
-        outfitRole = "Bottom",
-        warmthLayer = "None",
-        colorFamilies = setOf("Earth"),
-        isPatternSolid = true,
-    ),
-    EngineItem(
-        id = 3L,
-        name = "White Sneakers",
-        imagePath = null,
-        categoryId = 6L,
-        subcategoryId = null,
-        outfitRole = "Footwear",
-        warmthLayer = "None",
-        colorFamilies = setOf("Neutral"),
-        isPatternSolid = true,
-    ),
-)
-
-private val previewCombo = OutfitCombo(
-    items = previewItems,
-    score = 0.87,
-)
-
-private val previewAiCombo = OutfitCombo(
-    items = previewItems,
-    score = 0.91,
-    isAiSelected = true,
-    reason = "Neutral tones and a single earth accent create a clean, cohesive look suited to today's mild conditions.",
-)
-
-@Preview(showBackground = true, name = "OutfitComboCard - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "OutfitComboCard - Dark",
-)
-@Composable
-private fun OutfitComboCardPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            OutfitComboCard(
-                combo = previewCombo,
-                resolveImage = { null },
-                onLogIt = {},
-                onSaveForLater = {},
-                onRegenerate = {},
-                modifier = Modifier.padding(16.dp),
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "OutfitComboCard - AI pick (Light)")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "OutfitComboCard - AI pick (Dark)",
-)
-@Composable
-private fun OutfitComboCardAiPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            OutfitComboCard(
-                combo = previewAiCombo,
-                resolveImage = { null },
-                onLogIt = {},
-                onSaveForLater = {},
-                onRegenerate = {},
-                modifier = Modifier.padding(16.dp),
             )
         }
     }

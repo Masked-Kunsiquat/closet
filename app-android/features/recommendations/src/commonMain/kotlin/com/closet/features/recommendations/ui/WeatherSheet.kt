@@ -1,6 +1,5 @@
 package com.closet.features.recommendations.ui
 
-import android.content.res.Configuration
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +24,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,15 +36,31 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.closet.core.ui.theme.ClosetTheme
-import com.closet.features.recommendations.R
 import com.closet.features.recommendations.model.WeatherConditions
+import org.jetbrains.compose.resources.stringResource
+import com.closet.features.recommendations.resources.Res
+import com.closet.features.recommendations.resources.recs_sheet_skip
+import com.closet.features.recommendations.resources.recs_weather_autofill_chip
+import com.closet.features.recommendations.resources.recs_weather_condition_cloudy
+import com.closet.features.recommendations.resources.recs_weather_condition_rainy
+import com.closet.features.recommendations.resources.recs_weather_condition_snowy
+import com.closet.features.recommendations.resources.recs_weather_condition_sunny
+import com.closet.features.recommendations.resources.recs_weather_condition_windy
+import com.closet.features.recommendations.resources.recs_weather_confirm
+import com.closet.features.recommendations.resources.recs_weather_section_condition
+import com.closet.features.recommendations.resources.recs_weather_section_conditions
+import com.closet.features.recommendations.resources.recs_weather_section_temperature
+import com.closet.features.recommendations.resources.recs_weather_sheet_title
+import com.closet.features.recommendations.resources.recs_weather_temp_high
+import com.closet.features.recommendations.resources.recs_weather_temp_low
+import com.closet.features.recommendations.resources.recs_weather_temp_unit
+import com.closet.features.recommendations.resources.recs_weather_toggle_raining
+import com.closet.features.recommendations.resources.recs_weather_toggle_windy
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Conditions available in the condition picker row. Each carries the string
@@ -60,12 +74,12 @@ import com.closet.features.recommendations.model.WeatherConditions
 // currently has no separate signal for these conditions.
 // TODO: add isSnowing (and optionally isSunny) to WeatherConditions + EngineWeather
 //  when the engine gains temperature-band logic that distinguishes snow from clear days.
-private enum class WeatherConditionOption(val labelRes: Int) {
-    Sunny(R.string.recs_weather_condition_sunny),
-    Cloudy(R.string.recs_weather_condition_cloudy),
-    Rainy(R.string.recs_weather_condition_rainy),
-    Snowy(R.string.recs_weather_condition_snowy),
-    Windy(R.string.recs_weather_condition_windy),
+private enum class WeatherConditionOption(val labelRes: StringResource) {
+    Sunny(Res.string.recs_weather_condition_sunny),
+    Cloudy(Res.string.recs_weather_condition_cloudy),
+    Rainy(Res.string.recs_weather_condition_rainy),
+    Snowy(Res.string.recs_weather_condition_snowy),
+    Windy(Res.string.recs_weather_condition_windy),
 }
 
 /**
@@ -166,7 +180,7 @@ internal fun WeatherSheetContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.recs_weather_sheet_title),
+                text = stringResource(Res.string.recs_weather_sheet_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -176,7 +190,7 @@ internal fun WeatherSheetContent(
         if (didApplyPrefill) {
             AssistChip(
                 onClick = {},
-                label = { Text(stringResource(R.string.recs_weather_autofill_chip)) },
+                label = { Text(stringResource(Res.string.recs_weather_autofill_chip)) },
                 colors = AssistChipDefaults.assistChipColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -189,7 +203,7 @@ internal fun WeatherSheetContent(
 
         // ── Temp range inputs ─────────────────────────────────────────────────
         Text(
-            text = stringResource(R.string.recs_weather_section_temperature),
+            text = stringResource(Res.string.recs_weather_section_temperature),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
         )
@@ -203,8 +217,8 @@ internal fun WeatherSheetContent(
             OutlinedTextField(
                 value = tempLowText,
                 onValueChange = { v -> if (v.matches(Regex("""^-?\d*(\.\d*)?$"""))) tempLowText = v },
-                label = { Text(stringResource(R.string.recs_weather_temp_low)) },
-                suffix = { Text(stringResource(R.string.recs_weather_temp_unit)) },
+                label = { Text(stringResource(Res.string.recs_weather_temp_low)) },
+                suffix = { Text(stringResource(Res.string.recs_weather_temp_unit)) },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Next,
@@ -216,8 +230,8 @@ internal fun WeatherSheetContent(
             OutlinedTextField(
                 value = tempHighText,
                 onValueChange = { v -> if (v.matches(Regex("""^-?\d*(\.\d*)?$"""))) tempHighText = v },
-                label = { Text(stringResource(R.string.recs_weather_temp_high)) },
-                suffix = { Text(stringResource(R.string.recs_weather_temp_unit)) },
+                label = { Text(stringResource(Res.string.recs_weather_temp_high)) },
+                suffix = { Text(stringResource(Res.string.recs_weather_temp_unit)) },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
                     imeAction = ImeAction.Done,
@@ -229,7 +243,7 @@ internal fun WeatherSheetContent(
 
         // ── Condition picker ──────────────────────────────────────────────────
         Text(
-            text = stringResource(R.string.recs_weather_section_condition),
+            text = stringResource(Res.string.recs_weather_section_condition),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
         )
@@ -258,7 +272,7 @@ internal fun WeatherSheetContent(
 
         // ── Precipitation and wind toggles ────────────────────────────────────
         Text(
-            text = stringResource(R.string.recs_weather_section_conditions),
+            text = stringResource(Res.string.recs_weather_section_conditions),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
         )
@@ -271,7 +285,7 @@ internal fun WeatherSheetContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.recs_weather_toggle_raining),
+                text = stringResource(Res.string.recs_weather_toggle_raining),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Switch(
@@ -296,7 +310,7 @@ internal fun WeatherSheetContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.recs_weather_toggle_windy),
+                text = stringResource(Res.string.recs_weather_toggle_windy),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Switch(
@@ -324,7 +338,7 @@ internal fun WeatherSheetContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onSkip) {
-                Text(stringResource(R.string.recs_sheet_skip))
+                Text(stringResource(Res.string.recs_sheet_skip))
             }
 
             Spacer(Modifier.width(8.dp))
@@ -342,7 +356,7 @@ internal fun WeatherSheetContent(
                 },
                 modifier = Modifier.weight(1f, fill = false),
             ) {
-                Text(stringResource(R.string.recs_weather_confirm))
+                Text(stringResource(Res.string.recs_weather_confirm))
             }
         }
 
@@ -356,43 +370,3 @@ internal fun WeatherSheetContent(
  */
 private fun formatTemp(value: Double): String =
     if (value == kotlin.math.floor(value)) value.toInt().toString() else value.toString()
-
-// ─── Previews ─────────────────────────────────────────────────────────────────
-
-@Preview(showBackground = true, name = "Weather Sheet - Empty - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "Weather Sheet - Empty - Dark",
-)
-@Composable
-private fun WeatherSheetEmptyPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            WeatherSheetContent(
-                prefill = null,
-                onConfirm = {},
-                onSkip = {},
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Weather Sheet - Autofilled - Light")
-@Composable
-private fun WeatherSheetAutofilledPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            WeatherSheetContent(
-                prefill = WeatherConditions(
-                    tempLowC = 12.0,
-                    tempHighC = 19.0,
-                    isRaining = false,
-                    isWindy = true,
-                ),
-                onConfirm = {},
-                onSkip = {},
-            )
-        }
-    }
-}

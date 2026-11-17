@@ -77,9 +77,8 @@ kotlin {
             // Navigation
             implementation(libs.androidx.navigation.compose)
 
-            // Temporary: Task 2 moves the UI to commonMain and drops material-icons-extended.
+            // @Preview annotation for RecommendationPreviews.kt
             implementation(project.dependencies.platform(libs.androidx.compose.bom))
-            implementation(libs.androidx.compose.material.icons.extended)
             implementation(libs.androidx.ui.tooling.preview)
         }
         jvmTest.dependencies {
@@ -100,6 +99,11 @@ kotlin {
 }
 
 apply(from = rootProject.file("gradle/skiko-jvm-test-runtime.gradle.kts"))
+
+compose.resources {
+    packageOfResClass = "com.closet.features.recommendations.resources"
+    generateResClass = always
+}
 
 // Runtime-only (KMP Android library has no debugImplementation): lets Android Studio render @Preview.
 dependencies {

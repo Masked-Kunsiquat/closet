@@ -50,7 +50,7 @@ Run all Gradle commands from the `app-android/` directory.
 Full verification before a PR:
 
 ```bash
-./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata :features:settings:jvmTest :features:settings:compileCommonMainKotlinMetadata :features:outfits:jvmTest :features:outfits:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
+./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata :features:settings:jvmTest :features:settings:compileCommonMainKotlinMetadata :features:outfits:jvmTest :features:outfits:compileCommonMainKotlinMetadata :features:recommendations:jvmTest :features:recommendations:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
 CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources) on macOS. Instrumented tests don't run in CI; run them on a device.
@@ -68,7 +68,7 @@ core/ui/               — KMP/CMP module: Material 3 theme, shared Composable c
 features/wardrobe/     — Closet screen, item detail, add/edit form, bulk wash, brand management
 features/outfits/      — KMP module: Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet (commonMain UI, ViewModels, routes and Koin; androidMain navigation and the `toRoute` actual)
 features/stats/        — KMP module: Stats screen, StatsViewModel, breakdown sections (commonMain UI + ViewModel; androidMain navigation, previews, Koin module)
-features/recommendations/ — Outfit recommendations, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms)
+features/recommendations/ — KMP module: outfit recommendations (commonMain engine, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms), UI, ViewModel and Koin; androidMain navigation and previews)
 features/settings/     — KMP module: Settings screen, AI settings sub-screen, SettingsViewModel (commonMain UI, ViewModel and Koin; androidMain navigation, previews and the permission / keep-screen-on actuals)
 features/chat/         — Wardrobe chat (tool-calling or RAG): ChatScreen, ChatViewModel, ChatRepository, provider impls
 platform/gms/          — GMS/ML Kit implementations of feature capability interfaces (full flavor only)
@@ -129,7 +129,7 @@ Type-safe Compose Navigation (2.9.7+). Destinations are `@Serializable` data cla
 
 Material 3 with a dark-first palette. Accent palettes: Amber (default), Coral, Sage, Sky, Lavender, Rose. Dynamic color (Material You) enabled on Android 12+. All color/theme tokens live in `core/ui/src/commonMain/.../theme/`; dynamic color is Android-only, in `PlatformTheme.android.kt`. Never hardcode colors; use the theme.
 
-**Resources.** Shared drawables and strings live in `core/ui/src/commonMain/composeResources/` and are referenced through the generated `com.closet.core.ui.resources.Res` (e.g. `Res.drawable.ic_icon_sun`, `Res.string.error_unexpected`; import each accessor from `com.closet.core.ui.resources`). Use `org.jetbrains.compose.resources.painterResource`/`stringResource`/`getString` for them; string placeholders are positional (`%1$s`). `core/ui` exposes `components-resources` as `api`. A feature's own strings live in its `composeResources` with an internal generated `Res` (`com.closet.features.<name>.resources`; `features/stats`, `features/settings` and `features/outfits`). Shared icons are Material Symbols named `ic_symbol_*` in `core/ui` (e.g. `Res.drawable.ic_symbol_checkroom`); the not-yet-migrated feature modules keep their own Android `R` until they move (stats, settings and outfits use Compose resources). JVM tests that call Compose resources (`getString`) need a Skiko native runtime: apply `gradle/skiko-jvm-test-runtime.gradle.kts` after the `kotlin { }` block (it adds the host's catalog `skiko-awt-runtime-*` to `jvmTestImplementation`), never the `compose.*` accessors. Launcher shortcut icons are copies in `app/` and `features/wardrobe` `res/drawable/` (the shortcut XMLs reference `@drawable/...`).
+**Resources.** Shared drawables and strings live in `core/ui/src/commonMain/composeResources/` and are referenced through the generated `com.closet.core.ui.resources.Res` (e.g. `Res.drawable.ic_icon_sun`, `Res.string.error_unexpected`; import each accessor from `com.closet.core.ui.resources`). Use `org.jetbrains.compose.resources.painterResource`/`stringResource`/`getString` for them; string placeholders are positional (`%1$s`). `core/ui` exposes `components-resources` as `api`. A feature's own strings live in its `composeResources` with an internal generated `Res` (`com.closet.features.<name>.resources`; `features/stats`, `features/settings`, `features/outfits` and `features/recommendations`). Shared icons are Material Symbols named `ic_symbol_*` in `core/ui` (e.g. `Res.drawable.ic_symbol_checkroom`); the not-yet-migrated feature modules keep their own Android `R` until they move (stats, settings, outfits and recommendations use Compose resources). JVM tests that call Compose resources (`getString`) need a Skiko native runtime: apply `gradle/skiko-jvm-test-runtime.gradle.kts` after the `kotlin { }` block (it adds the host's catalog `skiko-awt-runtime-*` to `jvmTestImplementation`), never the `compose.*` accessors. Launcher shortcut icons are copies in `app/` and `features/wardrobe` `res/drawable/` (the shortcut XMLs reference `@drawable/...`).
 
 ### Image handling
 
@@ -141,7 +141,7 @@ Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/` (`commonMa
 
 ### Logging
 
-Timber in `app` and the non-KMP features. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only. `core/data` and the KMP features (`features/stats`, `features/settings`, `features/outfits`) use Kermit (multiplatform).
+Timber in `app` and the non-KMP features. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only. `core/data` and the KMP features (`features/stats`, `features/settings`, `features/outfits`, `features/recommendations`) use Kermit (multiplatform).
 
 ### Destructive actions
 

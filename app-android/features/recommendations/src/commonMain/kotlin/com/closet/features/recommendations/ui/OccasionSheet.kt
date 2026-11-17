@@ -1,6 +1,5 @@
 package com.closet.features.recommendations.ui
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -19,20 +18,21 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.OccasionEntity
-import com.closet.core.ui.theme.ClosetTheme
-import com.closet.features.recommendations.R
+import org.jetbrains.compose.resources.stringResource
+import com.closet.features.recommendations.resources.Res
+import com.closet.features.recommendations.resources.recs_occasion_sheet_empty
+import com.closet.features.recommendations.resources.recs_occasion_sheet_prompt
+import com.closet.features.recommendations.resources.recs_occasion_sheet_title
+import com.closet.features.recommendations.resources.recs_sheet_skip
 
 /**
  * Single-select bottom sheet that asks the user to pick an occasion for the
@@ -96,7 +96,7 @@ internal fun OccasionSheetContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.recs_occasion_sheet_title),
+                text = stringResource(Res.string.recs_occasion_sheet_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -107,7 +107,7 @@ internal fun OccasionSheetContent(
         // ── Occasion chips ────────────────────────────────────────────────────
         if (occasions.isNotEmpty()) {
             Text(
-                text = stringResource(R.string.recs_occasion_sheet_prompt),
+                text = stringResource(Res.string.recs_occasion_sheet_prompt),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(
@@ -134,7 +134,7 @@ internal fun OccasionSheetContent(
             }
         } else {
             Text(
-                text = stringResource(R.string.recs_occasion_sheet_empty),
+                text = stringResource(Res.string.recs_occasion_sheet_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
@@ -149,54 +149,10 @@ internal fun OccasionSheetContent(
             horizontalArrangement = Arrangement.End,
         ) {
             TextButton(onClick = onSkip) {
-                Text(stringResource(R.string.recs_sheet_skip))
+                Text(stringResource(Res.string.recs_sheet_skip))
             }
         }
 
         Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-    }
-}
-
-// ─── Previews ─────────────────────────────────────────────────────────────────
-
-private val previewOccasions = listOf(
-    OccasionEntity(1L, "Casual"),
-    OccasionEntity(2L, "Work"),
-    OccasionEntity(3L, "Evening"),
-    OccasionEntity(4L, "Sport"),
-    OccasionEntity(5L, "Beach"),
-    OccasionEntity(6L, "Formal"),
-)
-
-@Preview(showBackground = true, name = "Occasion Sheet - Light")
-@Preview(
-    showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
-    name = "Occasion Sheet - Dark",
-)
-@Composable
-private fun OccasionSheetPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            OccasionSheetContent(
-                occasions = previewOccasions,
-                onSelected = {},
-                onSkip = {},
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Occasion Sheet - Empty")
-@Composable
-private fun OccasionSheetEmptyPreview() {
-    ClosetTheme {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            OccasionSheetContent(
-                occasions = emptyList(),
-                onSelected = {},
-                onSkip = {},
-            )
-        }
     }
 }
