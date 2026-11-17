@@ -64,8 +64,10 @@ import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toKotlinLocalDate
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneOffset
 
 // ─── DropdownSelector ────────────────────────────────────────────────────────
@@ -270,6 +272,7 @@ internal fun DatePickerField(
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = selectedDate
+                ?.toJavaLocalDate()
                 ?.atStartOfDay(ZoneOffset.UTC)
                 ?.toInstant()
                 ?.toEpochMilli()
@@ -282,6 +285,7 @@ internal fun DatePickerField(
                         val date = Instant.ofEpochMilli(it)
                             .atZone(ZoneOffset.UTC)
                             .toLocalDate()
+                            .toKotlinLocalDate()
                         onDateChange(date)
                     }
                     showDatePicker = false

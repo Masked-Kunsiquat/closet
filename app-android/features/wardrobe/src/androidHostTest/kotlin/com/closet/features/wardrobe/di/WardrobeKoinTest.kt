@@ -38,6 +38,8 @@ class WardrobeKoinTest {
                 WorkerParameters::class,
                 HttpClientEngine::class,
                 HttpClientConfig::class,
+                // Bound by the app module from BuildConfig.DEBUG; this module can't depend on app.
+                BuildFlags::class,
             )
         )
     }

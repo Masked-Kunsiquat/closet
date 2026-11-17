@@ -54,8 +54,6 @@ import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.closet.core.data.BuildFlags
-import org.koin.compose.koinInject
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
 import com.closet.core.ui.resources.Res as CoreRes
@@ -367,7 +365,7 @@ fun ClothingDetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        if (koinInject<BuildFlags>().isDebug) {
+                        if (viewModel.showDebugCard) {
                             SemanticDebugCard(
                                 semanticDescription = detail.item.semanticDescription,
                                 imageCaption = detail.item.imageCaption,

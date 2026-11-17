@@ -47,7 +47,6 @@ import com.closet.core.data.model.*
 import com.closet.core.ui.components.ClothingItemCard
 import com.closet.core.ui.theme.ClosetTheme
 import org.koin.compose.viewmodel.koinViewModel
-import java.io.File
 
 /**
  * The main screen for browsing the wardrobe (Closet).
@@ -136,7 +135,7 @@ internal fun ClosetContent(
     onToggleSizeSystem: (Long) -> Unit,
     onClearAdvancedFilters: () -> Unit,
     onClearAllFilters: () -> Unit,
-    resolveImagePath: (String?) -> File?,
+    resolveImagePath: (String?) -> String?,
     onPinCategory: (Long, String) -> Unit = { _, _ -> },
     onAddItemClick: () -> Unit,
     onItemClick: (Long) -> Unit,
@@ -361,7 +360,7 @@ private fun CategoryFilterRow(
 private fun ClosetGrid(
     items: List<ClothingItemDetail>,
     onItemClick: (Long) -> Unit,
-    resolveImagePath: (String?) -> File?,
+    resolveImagePath: (String?) -> String?,
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(

@@ -1,14 +1,13 @@
 package com.closet.features.wardrobe
 
-import android.content.Context
-import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.model.ClothingItemWithMeta
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.ImagePathResolver
+import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.DataResult
-import com.closet.core.data.repository.StorageRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +19,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import java.io.File
 
 sealed interface BulkWashUiState {
     data object Loading : BulkWashUiState
@@ -40,9 +38,9 @@ sealed interface BulkWashUiState {
  * "Laundry Day" app shortcut or the Settings screen.
  */
 class BulkWashViewModel(
-    private val appContext: Context,
     private val clothingRepository: ClothingRepository,
-    private val storageRepository: StorageRepository,
+    private val imagePathResolver: ImagePathResolver,
+    private val shortcutUsageReporter: ShortcutUsageReporter,
 ) : ViewModel() {
 
     private val _selectedIds  = MutableStateFlow<Set<Long>>(emptySet())
@@ -94,7 +92,7 @@ class BulkWashViewModel(
                 if (results.any { it is DataResult.Error }) {
                     _applyError.value = true
                 } else {
-                    ShortcutManagerCompat.reportShortcutUsed(appContext, "laundry_day")
+                    shortcutUsageReporter.reportUsed("laundry_day")
                     clearSelection()
                 }
             } finally {
@@ -108,6 +106,6 @@ class BulkWashViewModel(
         _applyError.value = false
     }
 
-    /** Resolves a relative image path to an absolute [File] for display with Coil. */
-    fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
+    /** Resolves a relative image path to an absolute path for display with Coil. */
+    fun resolveImagePath(path: String?): String? = path?.let { imagePathResolver.absolutePath(it) }
 }

@@ -88,7 +88,7 @@ private fun BulkWashContent(
     onMarkClean: () -> Unit,
     onMarkDirty: () -> Unit,
     onDismissApplyError: () -> Unit,
-    resolveImage: (String?) -> java.io.File?,
+    resolveImage: (String?) -> String?,
 ) {
     val successState = uiState as? BulkWashUiState.Success
     val selectedCount = successState?.selectedIds?.size ?: 0
@@ -235,7 +235,7 @@ private fun BulkWashItemRow(
     item: com.closet.core.data.model.ClothingItemWithMeta,
     isSelected: Boolean,
     onToggle: () -> Unit,
-    resolveImage: (String?) -> java.io.File?,
+    resolveImage: (String?) -> String?,
 ) {
     Row(
         modifier = Modifier

@@ -3,21 +3,21 @@ package com.closet.features.wardrobe
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
+import com.closet.core.data.BuildFlags
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.LookupRepository
-import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
+import com.closet.features.wardrobe.photo.ItemPhotoProcessor
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.io.File
 
 /**
  * ViewModel for the Clothing Detail screen.
@@ -28,12 +28,16 @@ class ClothingDetailViewModel(
     private val clothingRepository: ClothingRepository,
     private val lookupRepository: LookupRepository,
     private val logRepository: LogRepository,
-    private val storageRepository: StorageRepository
+    private val photoProcessor: ItemPhotoProcessor,
+    private val imagePathResolver: ImagePathResolver,
+    buildFlags: BuildFlags,
 ) : ViewModel() {
 
-    private val destination = savedStateHandle.toRoute<ClothingDetailDestination>()
     /** The ID of the item being displayed, extracted from the navigation destination. */
-    val itemId = destination.itemId
+    val itemId: Long = savedStateHandle.detailItemId()
+
+    /** Whether to show the semantic debug card; debug builds only. */
+    val showDebugCard: Boolean = buildFlags.isDebug
 
     private val itemDetailFlow = clothingRepository.getItemDetail(itemId)
 
@@ -147,7 +151,7 @@ class ClothingDetailViewModel(
         viewModelScope.launch {
             val currentState = uiState.value
             if (currentState is ClothingDetailUiState.Success) {
-                currentState.item.item.imagePath?.let { storageRepository.deleteImage(it) }
+                currentState.item.item.imagePath?.let { photoProcessor.deleteImage(it) }
             }
 
             clothingRepository.deleteItem(itemId).fold(
@@ -230,8 +234,8 @@ class ClothingDetailViewModel(
         }
     }
 
-    /** Resolves a stored relative image [path] to a [File], or null if [path] is null. */
-    fun resolveImagePath(path: String?): File? = path?.let { storageRepository.getFile(it) }
+    /** Resolves a stored relative image [path] to an absolute path, or null if [path] is null. */
+    fun resolveImagePath(path: String?): String? = path?.let { imagePathResolver.absolutePath(it) }
 
     private fun handleActionError(throwable: Throwable) {
         val error = throwable as? AppError ?: AppError.Unexpected(throwable)

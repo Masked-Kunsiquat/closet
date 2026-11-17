@@ -1,5 +1,6 @@
 package com.closet.features.wardrobe
 
+import co.touchlab.kermit.Logger
 import com.closet.core.ui.resources.error_database_query
 import com.closet.core.ui.resources.error_unexpected
 import com.closet.core.ui.resources.Res as CoreRes
@@ -7,14 +8,9 @@ import com.closet.features.wardrobe.resources.Res
 import org.jetbrains.compose.resources.StringResource
 import com.closet.features.wardrobe.resources.wardrobe_model_download_error
 import com.closet.features.wardrobe.resources.wardrobe_segmentation_error
-import android.content.Context
-import android.net.Uri
-import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
-import androidx.palette.graphics.Palette
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
@@ -28,17 +24,13 @@ import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
-import android.graphics.Bitmap
-import com.closet.core.data.util.BitmapUtils
 import com.closet.core.data.repository.BrandRepository
-import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LookupRepository
-import com.closet.core.data.repository.StorageRepository
-import com.closet.features.wardrobe.repository.SubjectSegmenter
-import java.util.UUID
-import com.closet.core.data.util.ColorMatcher
+import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.DataResult
+import com.closet.features.wardrobe.photo.ItemPhotoProcessor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -48,11 +40,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
+import kotlinx.datetime.LocalDate
 import kotlin.time.Clock
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import timber.log.Timber
 
 /**
  * UI state for the Clothing Form (Add/Edit).
@@ -70,11 +59,13 @@ data class ClothingFormUiState(
     val purchaseLocation: String = "",
     val notes: String = "",
     val imagePath: String? = null,
-    val imageFile: File? = null,
+    /** Absolute path of [imagePath], for image loaders. */
+    val resolvedImagePath: String? = null,
     val isSegmenting: Boolean = false,
     val isDownloadingModel: Boolean = false,
     val hasSegmentedImage: Boolean = false,
-    val originalImageFile: File? = null,
+    /** Absolute path of the pre-segmentation image while "Undo" is available. */
+    val resolvedOriginalImagePath: String? = null,
     val isSegmentationSupported: Boolean = true,
     val isCaptioning: Boolean = false,         // spinner hint for future UI polish
     val imageCaption: String? = null,          // surfaced for debug/review if needed
@@ -139,23 +130,18 @@ private data class FormState(
  * ViewModel for managing the state of the Clothing form (Add or Edit).
  */
 class ClothingFormViewModel(
-    private val appContext: Context,
     savedStateHandle: SavedStateHandle,
     private val lookupRepository: LookupRepository,
     private val brandRepository: BrandRepository,
-    private val storageRepository: StorageRepository,
     private val clothingRepository: ClothingRepository,
-    private val segmentationRepository: SubjectSegmenter,
-    private val imageCaptionRepository: CaptionEnrichmentProvider,
+    private val photoProcessor: ItemPhotoProcessor,
+    private val imagePathResolver: ImagePathResolver,
+    private val shortcutUsageReporter: ShortcutUsageReporter,
 ) : ViewModel() {
 
-    private val editDestination = try {
-        savedStateHandle.toRoute<EditClothingDestination>()
-    } catch (_: Exception) {
-        null
-    }
+    private val log = Logger.withTag("ClothingFormViewModel")
 
-    private val itemId: Long? = editDestination?.itemId
+    private val itemId: Long? = savedStateHandle.editItemId()
     private val isEditMode = itemId != null
 
     private val _form = MutableStateFlow(FormState(isLoading = isEditMode))
@@ -258,12 +244,12 @@ class ClothingFormViewModel(
             purchaseLocation = form.purchaseLocation,
             notes = form.notes,
             imagePath = form.imagePath,
-            imageFile = form.imagePath?.let { storageRepository.getFile(it) },
+            resolvedImagePath = form.imagePath?.let { imagePathResolver.absolutePath(it) },
             isSegmenting = form.isSegmenting,
             isDownloadingModel = form.isDownloadingModel,
             hasSegmentedImage = form.hasSegmentedImage,
-            originalImageFile = form.originalSegmentationImagePath?.let { storageRepository.getFile(it) },
-            isSegmentationSupported = segmentationRepository.isSupported,
+            resolvedOriginalImagePath = form.originalSegmentationImagePath?.let { imagePathResolver.absolutePath(it) },
+            isSegmentationSupported = photoProcessor.isSegmentationSupported,
             isCaptioning = form.isCaptioning,
             imageCaption = form.imageCaption,
             selectedColors = form.selectedColors,
@@ -298,17 +284,13 @@ class ClothingFormViewModel(
         initialValue = ClothingFormUiState(isEditMode = isEditMode, isLoading = isEditMode)
     )
 
-    private val addDestination = try {
-        savedStateHandle.toRoute<AddClothingDestination>()
-    } catch (_: Exception) {
-        null
-    }
+    private val openCamera: Boolean = savedStateHandle.addOpenCamera()
 
     init {
         if (isEditMode && itemId != null) {
             loadItemForEditing(itemId)
         }
-        if (addDestination?.openCamera == true) {
+        if (openCamera) {
             viewModelScope.launch { _events.send(ClothingFormEvent.OpenImagePicker) }
         }
     }
@@ -324,7 +306,7 @@ class ClothingFormViewModel(
         val colorsChanged = form.selectedColors.size != originalColors.size ||
                 !form.selectedColors.containsAll(originalColors)
         
-        val formDateString = form.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val formDateString = form.purchaseDate?.toString() // ISO yyyy-MM-dd
         
         return form.name != original.name ||
                 form.selectedBrandId != original.brandId ||
@@ -478,8 +460,9 @@ class ClothingFormViewModel(
         _form.update { it.copy(notes = notes) }
     }
 
-    fun onImageSelected(uri: Uri?) {
-        if (uri == null) return
+    /** [source] is the picked image's platform URI string (on Android, a content URI). */
+    fun onImageSelected(source: String?) {
+        if (source == null) return
         // Don't allow a new image to be swapped in while the segmentation coroutine
         // is in flight — it may be actively reading the current imagePath from disk.
         // The photo-picker button is disabled in the UI during these states, but guard
@@ -492,7 +475,7 @@ class ClothingFormViewModel(
             try {
                 val previousPath = _form.value.imagePath
                 val segOrigPath = _form.value.originalSegmentationImagePath
-                val path = storageRepository.saveImage(uri)
+                val path = photoProcessor.importPhoto(source)
                 // Point the UI at the new file before any cleanup so the form always
                 // references a valid path even if a subsequent deletion fails.
                 // Reset caption fields so a stale result from a prior image can't bleed through.
@@ -507,23 +490,22 @@ class ClothingFormViewModel(
                 ) }
                 // Best-effort cleanup — failures must not block the form update above.
                 if (previousPath != null && previousPath != originalImagePath) {
-                    runCatching { withContext(NonCancellable) { storageRepository.deleteImage(previousPath) } }
-                        .onFailure { Timber.e(it, "onImageSelected: failed to delete previous $previousPath") }
+                    runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(previousPath) } }
+                        .onFailure { log.e(it) { "onImageSelected: failed to delete previous $previousPath" } }
                 }
                 // Clean up the pre-segmentation intermediate file if the user picks a new image
                 if (segOrigPath != null && segOrigPath != originalImagePath && segOrigPath != previousPath) {
-                    runCatching { withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) } }
-                        .onFailure { Timber.e(it, "onImageSelected: failed to delete seg original $segOrigPath") }
+                    runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(segOrigPath) } }
+                        .onFailure { log.e(it) { "onImageSelected: failed to delete seg original $segOrigPath" } }
                 }
-                val file = storageRepository.getFile(path)
-                extractColorsFromFile(file)
+                extractColors(path)
 
                 // At-capture captioning — best-effort, never blocks save.
-                if (imageCaptionRepository.isSupported) {
-                    launchCaptionJob(path, file)
+                if (photoProcessor.isCaptionSupported) {
+                    launchCaptionJob(path)
                 }
             } catch (e: Exception) {
-                Timber.e(e, "image selection failed")
+                log.e(e) { "image selection failed" }
                 _form.update { it.copy(isLoading = false, errorMessage = CoreRes.string.error_unexpected) }
             }
         }
@@ -531,21 +513,22 @@ class ClothingFormViewModel(
 
     fun removeBackground() {
         val currentForm = _form.value
-        if (!segmentationRepository.isSupported || currentForm.imagePath == null ||
+        if (!photoProcessor.isSegmentationSupported || currentForm.imagePath == null ||
             currentForm.isSegmenting || currentForm.isDownloadingModel) return
 
-        viewModelScope.launch(Dispatchers.IO) {
-            // Always call ensureModelDownloaded() — isModelDownloaded() returns true
-            // optimistically (no public Play Services status API), so using it as a gate
-            // would permanently skip this block and hide first-run delivery failures.
+        // The processor moves its blocking work (model delivery, decode, segmentation, save) to IO.
+        viewModelScope.launch {
+            // Always ensure the model rather than gating on a "downloaded" check: that status is
+            // optimistic (no public Play Services status API), so a gate would permanently skip
+            // this step and hide first-run delivery failures.
             _form.update { it.copy(isDownloadingModel = true) }
             try {
-                segmentationRepository.ensureModelDownloaded()
+                photoProcessor.ensureSegmentationModel()
             } catch (e: CancellationException) {
                 _form.update { it.copy(isDownloadingModel = false) }
                 throw e
             } catch (e: Exception) {
-                Timber.e(e, "removeBackground: model download failed")
+                log.e(e) { "removeBackground: model download failed" }
                 _form.update { it.copy(
                     isDownloadingModel = false,
                     errorMessage = Res.string.wardrobe_model_download_error,
@@ -561,14 +544,8 @@ class ClothingFormViewModel(
             ) }
             try {
                 val path = _form.value.imagePath ?: return@launch
-                val file = storageRepository.getFile(path)
-                // Decode at reduced resolution so the full-res bitmap never hits memory.
-                // The repo's own downsample() becomes a no-op when the bitmap is already ≤1024px.
-                val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
-                    ?: throw IllegalStateException("Could not decode image file: $path")
-                val masked = segmentationRepository.removeBackground(bitmap)
-                val savedPath = storageRepository.saveBitmap(masked, UUID.randomUUID().toString())
-                val segmentedFile = storageRepository.getFile(savedPath)
+                // Decodes at ≤1024 px, segments, and saves the result as a new PNG.
+                val savedPath = photoProcessor.removeBackground(path)
                 _form.update { it.copy(
                     imagePath = savedPath,
                     hasSegmentedImage = true,
@@ -576,17 +553,17 @@ class ClothingFormViewModel(
                     imageCaption = null,                      // old caption was for the un-segmented image
                     originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
-                // Re-extract colours from the segmented PNG. The Palette API filters out
-                // transparent pixels, so only subject colours are sampled — not the background.
-                extractColorsFromFile(segmentedFile)
+                // Re-extract colours from the segmented PNG. Transparent pixels are ignored,
+                // so only subject colours are sampled — not the background.
+                extractColors(savedPath)
                 // Re-caption the segmented image on Main (Image Description API requirement).
-                if (imageCaptionRepository.isSupported) {
-                    launchCaptionJob(savedPath, segmentedFile)
+                if (photoProcessor.isCaptionSupported) {
+                    launchCaptionJob(savedPath)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.e(e, "removeBackground failed")
+                log.e(e) { "removeBackground failed" }
                 _form.update { it.copy(
                     imagePath = it.originalSegmentationImagePath,
                     originalSegmentationImagePath = null,
@@ -617,9 +594,9 @@ class ClothingFormViewModel(
         if (currentPath != null && currentPath != originalPath) {
             viewModelScope.launch {
                 try {
-                    storageRepository.deleteImage(currentPath)
+                    photoProcessor.deleteImage(currentPath)
                 } catch (e: Exception) {
-                    Timber.d(e, "revertSegmentation: failed to delete segmented PNG $currentPath")
+                    log.d(e) { "revertSegmentation: failed to delete segmented PNG $currentPath" }
                 }
             }
         }
@@ -630,7 +607,7 @@ class ClothingFormViewModel(
     }
 
     /**
-     * Cancels any in-flight caption job and launches a new one for [path]/[file].
+     * Cancels any in-flight caption job and launches a new one for [path].
      *
      * Captures [path] as the "owning" path for this request. All state mutations are
      * guarded by a check that the form's current [FormState.imagePath] still equals
@@ -639,21 +616,18 @@ class ClothingFormViewModel(
      *
      * Must be called from a coroutine context that can reach Main (i.e. viewModelScope).
      */
-    private fun launchCaptionJob(path: String, file: File) {
+    private fun launchCaptionJob(path: String) {
         captionJob?.cancel()
         captionJob = viewModelScope.launch(Dispatchers.Main) {
             if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = true) }
-            // Decode on IO — file read + BitmapFactory is synchronous CPU/IO work.
-            val bitmap = withContext(Dispatchers.IO) {
-                BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
-            }
-            if (bitmap == null) {
-                if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
-                return@launch
-            }
             try {
-                // describe() must stay on Main — Image Description API requirement.
-                val caption = imageCaptionRepository.describe(bitmap)
+                // The processor decodes on IO and calls the captioner on Main (Image
+                // Description API requirement); null means the image could not be decoded.
+                val caption = photoProcessor.describe(path)
+                if (caption == null) {
+                    if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
+                    return@launch
+                }
                 if (_form.value.imagePath == path) {
                     _form.update { it.copy(imageCaption = caption, isCaptioning = false) }
                 }
@@ -661,42 +635,17 @@ class ClothingFormViewModel(
                 if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
                 throw e
             } catch (e: Exception) {
-                Timber.d(e, "at-capture caption failed — ignored")
+                log.d(e) { "at-capture caption failed — ignored" }
                 if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = false) }
-            } finally {
-                if (!bitmap.isRecycled) bitmap.recycle()
             }
         }
     }
 
-    private suspend fun extractColorsFromFile(file: File) {
-        withContext(Dispatchers.Default) {
-            try {
-                val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
-                if (bitmap != null) {
-                    val palette = Palette.from(bitmap).generate()
-                    val extracted = listOfNotNull(
-                        palette.dominantSwatch?.rgb,
-                        palette.vibrantSwatch?.rgb,
-                        palette.mutedSwatch?.rgb
-                    ).distinct()
-
-                    if (extracted.isNotEmpty()) {
-                        val availableColors = allColors.value
-                        val matched = extracted.map { ColorMatcher.findNearestColor(it, availableColors) }.distinct()
-                        if (matched.isNotEmpty()) {
-                            Timber.d("extractColors: ${file.name} → ${matched.joinToString { it.name }}")
-                            _form.update { it.copy(selectedColors = matched) }
-                        }
-                    } else {
-                        Timber.d("extractColors: ${file.name} → no swatches extracted")
-                    }
-                } else {
-                    Timber.d("extractColors: ${file.name} → bitmap decode returned null")
-                }
-            } catch (e: Exception) {
-                Timber.d(e, "color extraction failed")
-            }
+    /** Replaces the selected colors with those matched from [path]; leaves them if none match. */
+    private suspend fun extractColors(path: String) {
+        val matched = photoProcessor.extractColors(path, allColors.value)
+        if (matched.isNotEmpty()) {
+            _form.update { it.copy(selectedColors = matched) }
         }
     }
 
@@ -760,7 +709,7 @@ class ClothingFormViewModel(
                     categoryId = state.category?.id,
                     subcategoryId = state.subcategory?.id,
                     purchasePrice = state.price.toDoubleOrNull(),
-                    purchaseDate = state.purchaseDate?.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    purchaseDate = state.purchaseDate?.toString(), // ISO yyyy-MM-dd
                     purchaseLocation = state.purchaseLocation.ifBlank { null },
                     notes = state.notes.ifBlank { null },
                     imagePath = state.imagePath,
@@ -801,25 +750,25 @@ class ClothingFormViewModel(
                     // Report Quick Add shortcut usage only when the flow originated from it.
                     // Doing this at save (not at background removal) ensures the signal is only
                     // sent when the user actually completes the add, not on every segmentation.
-                    if (addDestination?.openCamera == true) {
-                        ShortcutManagerCompat.reportShortcutUsed(appContext, "quick_add")
+                    if (openCamera) {
+                        shortcutUsageReporter.reportUsed("quick_add")
                     }
                     // Best-effort cleanup — failures must not block navigation or show a save error
                     if (isEditMode && originalImagePath != null && originalImagePath != state.imagePath) {
-                        runCatching { withContext(NonCancellable) { storageRepository.deleteImage(originalImagePath!!) } }
-                            .onFailure { Timber.e(it, "save: failed to delete old image $originalImagePath") }
+                        runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(originalImagePath!!) } }
+                            .onFailure { log.e(it) { "save: failed to delete old image $originalImagePath" } }
                     }
                     val segOrigPath = state.originalSegmentationImagePath
                     if (segOrigPath != null && segOrigPath != originalImagePath) {
-                        runCatching { withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) } }
-                            .onFailure { Timber.e(it, "save: failed to delete seg original $segOrigPath") }
+                        runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(segOrigPath) } }
+                            .onFailure { log.e(it) { "save: failed to delete seg original $segOrigPath" } }
                     }
                     _events.send(ClothingFormEvent.NavigateBack)
                 } else {
                     _form.update { it.copy(isSaving = false, errorMessage = CoreRes.string.error_database_query) }
                 }
             } catch (e: Exception) {
-                Timber.e(e, "save clothing item failed")
+                log.e(e) { "save clothing item failed" }
                 _form.update { it.copy(isSaving = false, errorMessage = CoreRes.string.error_database_query) }
             }
         }
@@ -830,13 +779,13 @@ class ClothingFormViewModel(
         val segOrigPath = _form.value.originalSegmentationImagePath
         viewModelScope.launch {
             if (currentPath != null && currentPath != originalImagePath) {
-                runCatching { withContext(NonCancellable) { storageRepository.deleteImage(currentPath) } }
-                    .onFailure { Timber.e(it, "cancel: failed to delete staged image $currentPath") }
+                runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(currentPath) } }
+                    .onFailure { log.e(it) { "cancel: failed to delete staged image $currentPath" } }
             }
             // Also clean up the pre-segmentation file if it wasn't the persisted original
             if (segOrigPath != null && segOrigPath != originalImagePath && segOrigPath != currentPath) {
-                runCatching { withContext(NonCancellable) { storageRepository.deleteImage(segOrigPath) } }
-                    .onFailure { Timber.e(it, "cancel: failed to delete seg original $segOrigPath") }
+                runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(segOrigPath) } }
+                    .onFailure { log.e(it) { "cancel: failed to delete seg original $segOrigPath" } }
             }
             _events.send(ClothingFormEvent.NavigateBack)
         }

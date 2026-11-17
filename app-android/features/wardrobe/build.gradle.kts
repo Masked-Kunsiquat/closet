@@ -89,7 +89,7 @@ kotlin {
             implementation(libs.androidx.ui.tooling.preview)
             implementation(libs.androidx.compose.material.icons.extended)
 
-            // Logging (converted to Kermit in Task 3)
+            // Logging: only BatchSegmentationWorker still uses Timber; common code uses Kermit
             implementation(libs.timber)
         }
         jvmTest.dependencies {

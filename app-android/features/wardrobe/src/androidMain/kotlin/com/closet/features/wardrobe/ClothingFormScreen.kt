@@ -91,7 +91,7 @@ import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
 import org.koin.compose.viewmodel.koinViewModel
-import java.time.LocalDate
+import kotlinx.datetime.LocalDate
 
 /**
  * Unified screen for adding or editing a clothing item.
@@ -109,7 +109,7 @@ fun ClothingFormScreen(
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> viewModel.onImageSelected(uri) }
+        onResult = { uri -> viewModel.onImageSelected(uri?.toString()) }
     )
 
     LaunchedEffect(Unit) {
@@ -294,7 +294,7 @@ internal fun ClothingFormContent(
                 ) {
                     if (uiState.imagePath != null) {
                         AsyncImage(
-                            model = uiState.imageFile ?: uiState.imagePath,
+                            model = uiState.resolvedImagePath ?: uiState.imagePath,
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
@@ -332,7 +332,7 @@ internal fun ClothingFormContent(
                     }
                 }
 
-                if (uiState.isSegmentationSupported && uiState.imageFile != null && !uiState.isSegmenting && !uiState.isDownloadingModel && !uiState.hasSegmentedImage) {
+                if (uiState.isSegmentationSupported && uiState.resolvedImagePath != null && !uiState.isSegmenting && !uiState.isDownloadingModel && !uiState.hasSegmentedImage) {
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = onRemoveBackground,
@@ -342,7 +342,7 @@ internal fun ClothingFormContent(
                     }
                 }
 
-                if (uiState.hasSegmentedImage && !uiState.isSegmenting && uiState.originalImageFile != null) {
+                if (uiState.hasSegmentedImage && !uiState.isSegmenting && uiState.resolvedOriginalImagePath != null) {
                     TextButton(
                         onClick = onRevertSegmentation,
                         modifier = Modifier.fillMaxWidth()
