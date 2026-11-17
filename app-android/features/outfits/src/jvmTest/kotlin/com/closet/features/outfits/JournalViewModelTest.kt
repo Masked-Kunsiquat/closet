@@ -32,7 +32,7 @@ import kotlin.test.assertEquals
 
 /**
  * Forecast lookups in [JournalViewModel] match core/data's kotlinx [DailyForecast.date]
- * against the feature's java.time dates. These pin that the two are compared in one type.
+ * against the feature's dates. Both sides are kotlinx [LocalDate]; these pin that they are compared in one type.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class JournalViewModelTest {

@@ -23,6 +23,7 @@ private fun format(pattern: String, year: Int, month: Int, day: Int): String {
         ?: error("No Gregorian date for $year-$month-$day")
     val formatter = NSDateFormatter()
     formatter.locale = NSLocale.currentLocale
+    formatter.calendar = gregorian
     formatter.dateFormat = pattern
     return formatter.stringFromDate(date)
 }
@@ -42,6 +43,7 @@ actual fun formatWeekdayDay(date: LocalDate): String =
 actual fun weekdayNarrow(day: DayOfWeek): String {
     val formatter = NSDateFormatter()
     formatter.locale = NSLocale.currentLocale
+    formatter.calendar = NSCalendar(calendarIdentifier = NSCalendarIdentifierGregorian)
     // veryShortStandaloneWeekdaySymbols is Sunday-first; DayOfWeek.ordinal is Monday-first.
     val symbols = formatter.veryShortStandaloneWeekdaySymbols
     return symbols[(day.ordinal + 1) % 7] as String

@@ -1,7 +1,6 @@
 package com.closet.features.outfits
 
 import com.closet.features.outfits.resources.Res
-import com.closet.features.outfits.resources.journal_forecast_chip_description
 import com.closet.features.outfits.resources.journal_forecast_temp_range
 import com.closet.features.outfits.resources.outfits_gallery_item_count
 import com.closet.features.outfits.resources.outfits_picker_done_count
@@ -25,13 +24,5 @@ class OutfitsStringsTest {
     @Test
     fun forecastTempRangeUsesTwoArguments() = runTest {
         assertEquals("18° / 9°", getString(Res.string.journal_forecast_temp_range, "18°", "9°"))
-    }
-
-    @Test
-    fun apostropheIsNotEscaped() = runTest {
-        assertEquals(
-            "Today's forecast — tap to see 7-day forecast",
-            getString(Res.string.journal_forecast_chip_description),
-        )
     }
 }

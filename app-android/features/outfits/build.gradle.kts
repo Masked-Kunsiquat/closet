@@ -69,21 +69,11 @@ kotlin {
             implementation(libs.turbine)
         }
         androidMain.dependencies {
-            implementation(project.dependencies.platform(libs.koin.bom))
-            implementation(libs.koin.android)
-
             // Navigation
             implementation(libs.androidx.navigation.compose)
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.androidx.core.ktx)
-
-            implementation(project.dependencies.platform(libs.androidx.compose.bom))
-            implementation(libs.androidx.ui.tooling.preview)
         }
         jvmTest.dependencies {
             implementation(libs.mockk)
-            implementation(libs.turbine)
-            implementation(libs.kotlinx.coroutines.test)
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.test)
             implementation(libs.ktor.client.okhttp)
@@ -99,12 +89,6 @@ kotlin {
 }
 
 apply(from = rootProject.file("gradle/skiko-jvm-test-runtime.gradle.kts"))
-
-// Runtime-only (KMP Android library has no debugImplementation): lets Android Studio render @Preview.
-dependencies {
-    "androidRuntimeClasspath"(platform(libs.androidx.compose.bom))
-    "androidRuntimeClasspath"(libs.androidx.ui.tooling)
-}
 
 compose.resources {
     packageOfResClass = "com.closet.features.outfits.resources"

@@ -2,9 +2,7 @@ package com.closet.features.outfits
 
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.YearMonth
 import kotlinx.datetime.todayIn
-import kotlinx.datetime.yearMonth
 import kotlin.time.Clock
 
 /** Today's date in the device's time zone. */
@@ -17,6 +15,3 @@ internal fun parseIsoDateOrNull(s: String): LocalDate? =
     } catch (_: IllegalArgumentException) {
         null
     }
-
-/** True when this month is later than the month containing [today]. */
-internal fun YearMonth.isAfterCurrent(today: LocalDate): Boolean = this > today.yearMonth

@@ -1,7 +1,6 @@
 package com.closet.features.outfits
 
 import org.jetbrains.compose.resources.painterResource
-import com.closet.core.ui.resources.Res as CoreRes
 import com.closet.features.outfits.resources.Res
 import com.closet.features.outfits.resources.journal_forecast_empty
 import com.closet.features.outfits.resources.journal_forecast_sheet_title
