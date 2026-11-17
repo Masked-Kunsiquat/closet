@@ -7,10 +7,11 @@ import platform.Foundation.NSCalendar
 import platform.Foundation.NSCalendarIdentifierGregorian
 import platform.Foundation.NSDateComponents
 import platform.Foundation.NSDateFormatter
+import platform.Foundation.NSDateFormatterLongStyle
 import platform.Foundation.NSLocale
 import platform.Foundation.currentLocale
 
-private fun format(pattern: String, year: Int, month: Int, day: Int): String {
+private fun format(year: Int, month: Int, day: Int, configure: NSDateFormatter.() -> Unit): String {
     // kotlinx dates are proleptic Gregorian; currentCalendar may be Buddhist/Japanese/Islamic.
     val gregorian = NSCalendar(calendarIdentifier = NSCalendarIdentifierGregorian)
     val components = NSDateComponents().apply {
@@ -24,21 +25,24 @@ private fun format(pattern: String, year: Int, month: Int, day: Int): String {
     val formatter = NSDateFormatter()
     formatter.locale = NSLocale.currentLocale
     formatter.calendar = gregorian
-    formatter.dateFormat = pattern
+    formatter.configure()
     return formatter.stringFromDate(date)
 }
 
 actual fun formatDayMonthLong(date: LocalDate): String =
-    format("EEEE, MMMM d", date.year, date.month.ordinal + 1, date.day)
+    format(date.year, date.month.ordinal + 1, date.day) { dateFormat = "EEEE, MMMM d" }
+
+actual fun formatDateLong(date: LocalDate): String =
+    format(date.year, date.month.ordinal + 1, date.day) { dateStyle = NSDateFormatterLongStyle }
 
 actual fun formatMonthDay(date: LocalDate): String =
-    format("MMMM d", date.year, date.month.ordinal + 1, date.day)
+    format(date.year, date.month.ordinal + 1, date.day) { dateFormat = "MMMM d" }
 
 actual fun formatMonthYear(yearMonth: YearMonth): String =
-    format("MMMM yyyy", yearMonth.year, yearMonth.month.ordinal + 1, 1)
+    format(yearMonth.year, yearMonth.month.ordinal + 1, 1) { dateFormat = "MMMM yyyy" }
 
 actual fun formatWeekdayDay(date: LocalDate): String =
-    format("EEE d", date.year, date.month.ordinal + 1, date.day)
+    format(date.year, date.month.ordinal + 1, date.day) { dateFormat = "EEE d" }
 
 actual fun weekdayNarrow(day: DayOfWeek): String {
     val formatter = NSDateFormatter()

@@ -37,6 +37,7 @@ import com.closet.core.data.dao.BreakdownRow
 import com.closet.core.data.dao.CategorySubcategoryRow
 import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.model.WashStatus
+import com.closet.core.ui.format.parseHexColor
 
 // ─── Wash status ──────────────────────────────────────────────────────────────
 

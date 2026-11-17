@@ -7,6 +7,9 @@ import kotlinx.datetime.YearMonth
 /** `EEEE, MMMM d` in the current locale, e.g. "Sunday, March 15". */
 expect fun formatDayMonthLong(date: LocalDate): String
 
+/** The localized long date with year in the current locale, e.g. "April 4, 2026". */
+expect fun formatDateLong(date: LocalDate): String
+
 /** `MMMM d` in the current locale, e.g. "March 15". */
 expect fun formatMonthDay(date: LocalDate): String
 

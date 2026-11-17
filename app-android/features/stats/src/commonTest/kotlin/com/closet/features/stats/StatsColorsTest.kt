@@ -20,30 +20,6 @@ class StatsColorsTest {
         assertTrue(abs(expected.alpha - actual.alpha) <= tolerance, "alpha: expected $expected, was $actual")
     }
 
-    // ─── parseHexColor ────────────────────────────────────────────────────────
-
-    @Test
-    fun parseHexColorParsesUppercaseRrggbb() {
-        assertColorClose(Color(0xFFFF0000), parseHexColor("#FF0000"))
-    }
-
-    @Test
-    fun parseHexColorParsesLowercaseRrggbb() {
-        assertColorClose(Color(0xFFF5F5DC), parseHexColor("#f5f5dc"))
-    }
-
-    @Test
-    fun parseHexColorParsesAarrggbb() {
-        assertColorClose(Color(0x80000080), parseHexColor("#80000080"))
-    }
-
-    @Test
-    fun parseHexColorReturnsNullForInvalidInput() {
-        listOf(null, "", "FF0000", "#FFF", "#GG0000", "#FF00000").forEach { input ->
-            assertNull(parseHexColor(input), "expected null for \"$input\"")
-        }
-    }
-
     // ─── subcategoryColors ────────────────────────────────────────────────────
 
     @Test

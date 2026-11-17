@@ -6,12 +6,16 @@ import kotlinx.datetime.YearMonth
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaYearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
 
 // Duplicated in DateLabels.jvm.kt: android and jvm share no intermediate source set.
 actual fun formatDayMonthLong(date: LocalDate): String =
     DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()).format(date.toJavaLocalDate())
+
+actual fun formatDateLong(date: LocalDate): String =
+    DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(Locale.getDefault()).format(date.toJavaLocalDate())
 
 actual fun formatMonthDay(date: LocalDate): String =
     DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()).format(date.toJavaLocalDate())
