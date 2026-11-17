@@ -4,20 +4,23 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.YearMonth
 import platform.Foundation.NSCalendar
-import platform.Foundation.NSDate
+import platform.Foundation.NSCalendarIdentifierGregorian
 import platform.Foundation.NSDateComponents
 import platform.Foundation.NSDateFormatter
 import platform.Foundation.NSLocale
 import platform.Foundation.currentLocale
 
 private fun format(pattern: String, year: Int, month: Int, day: Int): String {
+    // kotlinx dates are proleptic Gregorian; currentCalendar may be Buddhist/Japanese/Islamic.
+    val gregorian = NSCalendar(calendarIdentifier = NSCalendarIdentifierGregorian)
     val components = NSDateComponents().apply {
         this.year = year.toLong()
         this.month = month.toLong()
         this.day = day.toLong()
         this.hour = 12
     }
-    val date = NSCalendar.currentCalendar.dateFromComponents(components) ?: NSDate()
+    val date = gregorian.dateFromComponents(components)
+        ?: error("No Gregorian date for $year-$month-$day")
     val formatter = NSDateFormatter()
     formatter.locale = NSLocale.currentLocale
     formatter.dateFormat = pattern
