@@ -1,5 +1,16 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.bulk_wash_apply_error
+import com.closet.features.wardrobe.resources.bulk_wash_deselect_all
+import com.closet.features.wardrobe.resources.bulk_wash_mark_clean
+import com.closet.features.wardrobe.resources.bulk_wash_mark_dirty
+import com.closet.features.wardrobe.resources.bulk_wash_select_all
+import com.closet.features.wardrobe.resources.bulk_wash_selected_count
+import com.closet.features.wardrobe.resources.bulk_wash_title
+import com.closet.features.wardrobe.resources.wardrobe_back
+import com.closet.features.wardrobe.resources.wardrobe_empty_closet
+import com.closet.features.wardrobe.resources.wardrobe_error_load_failed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,8 +49,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,7 +96,7 @@ private fun BulkWashContent(
     val allSelected = allIds.isNotEmpty() && successState?.selectedIds?.containsAll(allIds) == true
 
     val snackbarHostState = remember { SnackbarHostState() }
-    val applyErrorMessage = stringResource(R.string.bulk_wash_apply_error)
+    val applyErrorMessage = stringResource(Res.string.bulk_wash_apply_error)
     LaunchedEffect(successState?.applyError) {
         if (successState?.applyError == true) {
             snackbarHostState.showSnackbar(applyErrorMessage)
@@ -99,10 +110,10 @@ private fun BulkWashContent(
             TopAppBar(
                 title = {
                     Column {
-                        Text(stringResource(R.string.bulk_wash_title))
+                        Text(stringResource(Res.string.bulk_wash_title))
                         if (selectedCount > 0) {
                             Text(
-                                text = pluralStringResource(R.plurals.bulk_wash_selected_count, selectedCount, selectedCount),
+                                text = pluralStringResource(Res.plurals.bulk_wash_selected_count, selectedCount, selectedCount),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -113,7 +124,7 @@ private fun BulkWashContent(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.wardrobe_back),
+                            contentDescription = stringResource(Res.string.wardrobe_back),
                         )
                     }
                 },
@@ -124,8 +135,8 @@ private fun BulkWashContent(
                         }
                     ) {
                         Text(
-                            if (allSelected) stringResource(R.string.bulk_wash_deselect_all)
-                            else stringResource(R.string.bulk_wash_select_all)
+                            if (allSelected) stringResource(Res.string.bulk_wash_deselect_all)
+                            else stringResource(Res.string.bulk_wash_select_all)
                         )
                     }
                 },
@@ -144,13 +155,13 @@ private fun BulkWashContent(
                             onClick = onMarkClean,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text(stringResource(R.string.bulk_wash_mark_clean))
+                            Text(stringResource(Res.string.bulk_wash_mark_clean))
                         }
                         Button(
                             onClick = onMarkDirty,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text(stringResource(R.string.bulk_wash_mark_dirty))
+                            Text(stringResource(Res.string.bulk_wash_mark_dirty))
                         }
                     }
                 }
@@ -177,7 +188,7 @@ private fun BulkWashContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = stringResource(R.string.wardrobe_error_load_failed),
+                        text = stringResource(Res.string.wardrobe_error_load_failed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -193,7 +204,7 @@ private fun BulkWashContent(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = stringResource(R.string.wardrobe_empty_closet),
+                            text = stringResource(Res.string.wardrobe_empty_closet),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
  * Tapping opens a [ModalBottomSheet] where both fields are shown as read-only text with
  * a Copy button. Intended for data-quality inspection during Phase 1 iteration.
  *
- * **Only rendered when [BuildConfig.DEBUG] is true — never shown in release builds.**
+ * **Only rendered when `BuildFlags.isDebug` is true — never shown in release builds.**
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

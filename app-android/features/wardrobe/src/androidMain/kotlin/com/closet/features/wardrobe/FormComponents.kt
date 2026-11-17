@@ -1,5 +1,14 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_brand_add
+import com.closet.features.wardrobe.resources.wardrobe_date_cancel
+import com.closet.features.wardrobe.resources.wardrobe_date_clear
+import com.closet.features.wardrobe.resources.wardrobe_date_confirm
+import com.closet.features.wardrobe.resources.wardrobe_field_brand
+import com.closet.features.wardrobe.resources.wardrobe_field_none
+import com.closet.features.wardrobe.resources.wardrobe_field_purchase_date
+import com.closet.features.wardrobe.resources.wardrobe_field_size_system
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,7 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -115,7 +124,7 @@ internal fun <T> DropdownSelector(
             modifier = Modifier.fillMaxWidth(0.9f)
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.wardrobe_field_none)) },
+                text = { Text(stringResource(Res.string.wardrobe_field_none)) },
                 onClick = {
                     onItemSelect(null)
                     expanded = false
@@ -215,7 +224,7 @@ internal fun SizeSection(
             selectedItem = sizeSystems.find { it.id == selectedSizeSystemId },
             items = sizeSystems,
             onItemSelect = { onSizeSystemSelected(it?.id) },
-            label = stringResource(R.string.wardrobe_field_size_system),
+            label = stringResource(Res.string.wardrobe_field_size_system),
             itemLabel = { it.name }
         )
         if (selectedSizeSystemId != null && sizeValues.isNotEmpty()) {
@@ -249,7 +258,7 @@ internal fun DatePickerField(
         value = selectedDate?.toString() ?: "",
         onValueChange = {},
         readOnly = true,
-        label = { Text(stringResource(R.string.wardrobe_field_purchase_date)) },
+        label = { Text(stringResource(Res.string.wardrobe_field_purchase_date)) },
         modifier = Modifier.fillMaxWidth(),
         trailingIcon = {
             IconButton(onClick = { showDatePicker = true }) {
@@ -277,7 +286,7 @@ internal fun DatePickerField(
                     }
                     showDatePicker = false
                 }) {
-                    Text(stringResource(R.string.wardrobe_date_confirm))
+                    Text(stringResource(Res.string.wardrobe_date_confirm))
                 }
             },
             dismissButton = {
@@ -286,10 +295,10 @@ internal fun DatePickerField(
                         onDateChange(null)
                         showDatePicker = false
                     }) {
-                        Text(stringResource(R.string.wardrobe_date_clear))
+                        Text(stringResource(Res.string.wardrobe_date_clear))
                     }
                     TextButton(onClick = { showDatePicker = false }) {
-                        Text(stringResource(R.string.wardrobe_date_cancel))
+                        Text(stringResource(Res.string.wardrobe_date_cancel))
                     }
                 }
             }
@@ -323,7 +332,7 @@ internal fun BrandAutocompleteField(
         OutlinedTextField(
             value = query,
             onValueChange = { onQueryChange(it); expanded = true },
-            label = { Text(stringResource(R.string.wardrobe_field_brand)) },
+            label = { Text(stringResource(Res.string.wardrobe_field_brand)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             singleLine = true,
             modifier = Modifier
@@ -344,7 +353,7 @@ internal fun BrandAutocompleteField(
             if (showAddOption) {
                 HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.wardrobe_brand_add, query)) },
+                    text = { Text(stringResource(Res.string.wardrobe_brand_add, query)) },
                     leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                     onClick = { onAddNewBrand(query); expanded = false }
                 )

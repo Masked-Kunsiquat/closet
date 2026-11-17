@@ -1,5 +1,12 @@
 package com.closet.features.wardrobe
 
+import com.closet.core.ui.resources.error_database_query
+import com.closet.core.ui.resources.error_unexpected
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.features.wardrobe.resources.Res
+import org.jetbrains.compose.resources.StringResource
+import com.closet.features.wardrobe.resources.wardrobe_model_download_error
+import com.closet.features.wardrobe.resources.wardrobe_segmentation_error
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.pm.ShortcutManagerCompat
@@ -23,7 +30,6 @@ import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.model.WashStatus
 import android.graphics.Bitmap
 import com.closet.core.data.util.BitmapUtils
-import com.closet.features.wardrobe.R
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.ClothingRepository
@@ -79,7 +85,7 @@ data class ClothingFormUiState(
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
-    val errorMessage: Int? = null,
+    val errorMessage: StringResource? = null,
     val canSave: Boolean = false,
     val isDirty: Boolean = false,
     val sizeSystems: List<SizeSystemEntity> = emptyList(),
@@ -119,7 +125,7 @@ private data class FormState(
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
-    val errorMessage: Int? = null,
+    val errorMessage: StringResource? = null,
     val selectedSizeSystemId: Long? = null,
     val selectedSizeValueId: Long? = null,
     val status: ClothingStatus = ClothingStatus.Active,
@@ -415,7 +421,7 @@ class ClothingFormViewModel(
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                _form.update { it.copy(isLoading = false, errorMessage = R.string.error_database_query) }
+                _form.update { it.copy(isLoading = false, errorMessage = CoreRes.string.error_database_query) }
             }
         }
     }
@@ -518,7 +524,7 @@ class ClothingFormViewModel(
                 }
             } catch (e: Exception) {
                 Timber.e(e, "image selection failed")
-                _form.update { it.copy(isLoading = false, errorMessage = R.string.error_unexpected) }
+                _form.update { it.copy(isLoading = false, errorMessage = CoreRes.string.error_unexpected) }
             }
         }
     }
@@ -542,7 +548,7 @@ class ClothingFormViewModel(
                 Timber.e(e, "removeBackground: model download failed")
                 _form.update { it.copy(
                     isDownloadingModel = false,
-                    errorMessage = R.string.wardrobe_model_download_error,
+                    errorMessage = Res.string.wardrobe_model_download_error,
                 ) }
                 return@launch
             }
@@ -587,7 +593,7 @@ class ClothingFormViewModel(
                     imageCaption = it.originalSegmentationImageCaption,
                     originalSegmentationImageCaption = null,
                     isSegmenting = false,
-                    errorMessage = R.string.wardrobe_segmentation_error,
+                    errorMessage = Res.string.wardrobe_segmentation_error,
                 ) }
             }
         }
@@ -810,11 +816,11 @@ class ClothingFormViewModel(
                     }
                     _events.send(ClothingFormEvent.NavigateBack)
                 } else {
-                    _form.update { it.copy(isSaving = false, errorMessage = R.string.error_database_query) }
+                    _form.update { it.copy(isSaving = false, errorMessage = CoreRes.string.error_database_query) }
                 }
             } catch (e: Exception) {
                 Timber.e(e, "save clothing item failed")
-                _form.update { it.copy(isSaving = false, errorMessage = R.string.error_database_query) }
+                _form.update { it.copy(isSaving = false, errorMessage = CoreRes.string.error_database_query) }
             }
         }
     }

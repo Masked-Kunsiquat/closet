@@ -1,5 +1,7 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_save
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,7 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -73,7 +75,7 @@ fun <T> MultiSelectSheet(
                     fontWeight = FontWeight.Bold
                 )
                 TextButton(onClick = { onConfirm(currentSelection.toList()) }) {
-                    Text(stringResource(R.string.wardrobe_save))
+                    Text(stringResource(Res.string.wardrobe_save))
                 }
             }
 

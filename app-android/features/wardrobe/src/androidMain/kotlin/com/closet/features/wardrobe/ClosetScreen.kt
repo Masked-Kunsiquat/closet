@@ -1,5 +1,25 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_add_item
+import com.closet.features.wardrobe.resources.wardrobe_all_items
+import com.closet.features.wardrobe.resources.wardrobe_cd_open_filters
+import com.closet.features.wardrobe.resources.wardrobe_cd_open_settings
+import com.closet.features.wardrobe.resources.wardrobe_cd_sort
+import com.closet.features.wardrobe.resources.wardrobe_empty_closet
+import com.closet.features.wardrobe.resources.wardrobe_filter_clear_filters
+import com.closet.features.wardrobe.resources.wardrobe_filter_empty_results
+import com.closet.features.wardrobe.resources.wardrobe_filter_favorites
+import com.closet.features.wardrobe.resources.wardrobe_filter_show_archived
+import com.closet.features.wardrobe.resources.wardrobe_my_closet
+import com.closet.features.wardrobe.resources.wardrobe_pin_category
+import com.closet.features.wardrobe.resources.wardrobe_sort_least_worn
+import com.closet.features.wardrobe.resources.wardrobe_sort_most_worn
+import com.closet.features.wardrobe.resources.wardrobe_sort_name_az
+import com.closet.features.wardrobe.resources.wardrobe_sort_name_za
+import com.closet.features.wardrobe.resources.wardrobe_sort_newest
+import com.closet.features.wardrobe.resources.wardrobe_sort_oldest
+import com.closet.features.wardrobe.resources.wardrobe_worn_times
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -18,8 +38,8 @@ import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -149,7 +169,7 @@ internal fun ClosetContent(
         modifier = modifier.fillMaxSize(),
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(stringResource(R.string.wardrobe_my_closet)) },
+                title = { Text(stringResource(Res.string.wardrobe_my_closet)) },
                 actions = {
                     IconButton(onClick = { showFilterPanel = true }) {
                         BadgedBox(
@@ -161,7 +181,7 @@ internal fun ClosetContent(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.FilterList,
-                                contentDescription = stringResource(R.string.wardrobe_cd_open_filters)
+                                contentDescription = stringResource(Res.string.wardrobe_cd_open_filters)
                             )
                         }
                     }
@@ -169,7 +189,7 @@ internal fun ClosetContent(
                         IconButton(onClick = { showSortMenu = true }) {
                             Icon(
                                 imageVector = Icons.Outlined.Sort,
-                                contentDescription = stringResource(R.string.wardrobe_cd_sort)
+                                contentDescription = stringResource(Res.string.wardrobe_cd_sort)
                             )
                         }
                         DropdownMenu(
@@ -180,12 +200,12 @@ internal fun ClosetContent(
                                 DropdownMenuItem(
                                     text = {
                                         Text(stringResource(when (order) {
-                                            SortOrder.NEWEST     -> R.string.wardrobe_sort_newest
-                                            SortOrder.OLDEST     -> R.string.wardrobe_sort_oldest
-                                            SortOrder.NAME_AZ    -> R.string.wardrobe_sort_name_az
-                                            SortOrder.NAME_ZA    -> R.string.wardrobe_sort_name_za
-                                            SortOrder.MOST_WORN  -> R.string.wardrobe_sort_most_worn
-                                            SortOrder.LEAST_WORN -> R.string.wardrobe_sort_least_worn
+                                            SortOrder.NEWEST     -> Res.string.wardrobe_sort_newest
+                                            SortOrder.OLDEST     -> Res.string.wardrobe_sort_oldest
+                                            SortOrder.NAME_AZ    -> Res.string.wardrobe_sort_name_az
+                                            SortOrder.NAME_ZA    -> Res.string.wardrobe_sort_name_za
+                                            SortOrder.MOST_WORN  -> Res.string.wardrobe_sort_most_worn
+                                            SortOrder.LEAST_WORN -> Res.string.wardrobe_sort_least_worn
                                         }))
                                     },
                                     onClick = {
@@ -202,7 +222,7 @@ internal fun ClosetContent(
                     IconButton(onClick = onSettingsClick) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = stringResource(R.string.wardrobe_cd_open_settings),
+                            contentDescription = stringResource(Res.string.wardrobe_cd_open_settings),
                         )
                     }
                 }
@@ -212,7 +232,7 @@ internal fun ClosetContent(
             FloatingActionButton(onClick = onAddItemClick) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.wardrobe_add_item)
+                    contentDescription = stringResource(Res.string.wardrobe_add_item)
                 )
             }
         }
@@ -282,7 +302,7 @@ private fun CategoryFilterRow(
             FilterChip(
                 selected = favoritesOnly,
                 onClick = onToggleFavorites,
-                label = { Text(stringResource(R.string.wardrobe_filter_favorites)) },
+                label = { Text(stringResource(Res.string.wardrobe_filter_favorites)) },
                 leadingIcon = {
                     Icon(
                         imageVector = if (favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -296,14 +316,14 @@ private fun CategoryFilterRow(
             FilterChip(
                 selected = selectedCategoryId == null,
                 onClick = { onCategorySelect(null) },
-                label = { Text(stringResource(R.string.wardrobe_all_items)) }
+                label = { Text(stringResource(Res.string.wardrobe_all_items)) }
             )
         }
         item(key = "show_archived") {
             FilterChip(
                 selected = showArchived,
                 onClick = onToggleShowArchived,
-                label = { Text(stringResource(R.string.wardrobe_filter_show_archived)) }
+                label = { Text(stringResource(Res.string.wardrobe_filter_show_archived)) }
             )
         }
         items(categories, key = { it.id }) { category ->
@@ -319,7 +339,7 @@ private fun CategoryFilterRow(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.PushPin,
-                        contentDescription = stringResource(R.string.wardrobe_pin_category, category.name),
+                        contentDescription = stringResource(Res.string.wardrobe_pin_category, category.name),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -356,7 +376,7 @@ private fun ClosetGrid(
                 name = itemDetail.item.name,
                 imageModel = resolveImagePath(itemDetail.item.imagePath),
                 subtitle = pluralStringResource(
-                    R.plurals.wardrobe_worn_times,
+                    Res.plurals.wardrobe_worn_times,
                     itemDetail.wearCount,
                     itemDetail.wearCount
                 ),
@@ -383,10 +403,10 @@ private fun EmptyClosetMessage(
         contentAlignment = androidx.compose.ui.Alignment.Center
     ) {
         Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.wardrobe_empty_closet))
+            Text(stringResource(Res.string.wardrobe_empty_closet))
             if (hiddenArchivedCount > 0) {
                 TextButton(onClick = onShowArchived) {
-                    Text(stringResource(R.string.wardrobe_filter_show_archived))
+                    Text(stringResource(Res.string.wardrobe_filter_show_archived))
                 }
             }
         }
@@ -408,12 +428,12 @@ private fun FilteredEmptyMessage(
     ) {
         Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
             Text(
-                text = stringResource(R.string.wardrobe_filter_empty_results),
+                text = stringResource(Res.string.wardrobe_filter_empty_results),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             TextButton(onClick = onClearFilters) {
-                Text(stringResource(R.string.wardrobe_filter_clear_filters))
+                Text(stringResource(Res.string.wardrobe_filter_clear_filters))
             }
         }
     }

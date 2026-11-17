@@ -1,5 +1,18 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.brand_management_add_brand
+import com.closet.features.wardrobe.resources.brand_management_confirm_delete
+import com.closet.features.wardrobe.resources.brand_management_delete_blocked_message
+import com.closet.features.wardrobe.resources.brand_management_delete_blocked_title
+import com.closet.features.wardrobe.resources.brand_management_delete_confirm_message
+import com.closet.features.wardrobe.resources.brand_management_delete_confirm_title
+import com.closet.features.wardrobe.resources.brand_management_edit_hint
+import com.closet.features.wardrobe.resources.brand_management_empty
+import com.closet.features.wardrobe.resources.brand_management_new_brand_hint
+import com.closet.features.wardrobe.resources.brand_management_title
+import com.closet.features.wardrobe.resources.wardrobe_back
+import com.closet.features.wardrobe.resources.wardrobe_cancel
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,8 +24,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,10 +94,10 @@ internal fun BrandManagementContent(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.brand_management_title)) },
+                title = { Text(stringResource(Res.string.brand_management_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.wardrobe_back))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.wardrobe_back))
                     }
                 }
             )
@@ -94,7 +107,7 @@ internal fun BrandManagementContent(
                 FloatingActionButton(onClick = {
                     editorState = BrandEditorState.Adding()
                 }) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.brand_management_add_brand))
+                    Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.brand_management_add_brand))
                 }
             }
         }
@@ -109,7 +122,7 @@ internal fun BrandManagementContent(
                 val addState = editorState as BrandEditorState.Adding
                 item {
                     BrandInputRow(
-                        label = stringResource(R.string.brand_management_new_brand_hint),
+                        label = stringResource(Res.string.brand_management_new_brand_hint),
                         text = addState.text,
                         onTextChange = { editorState = addState.copy(text = it) },
                         isSaving = addState.saving,
@@ -134,7 +147,7 @@ internal fun BrandManagementContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = stringResource(R.string.brand_management_empty),
+                            text = stringResource(Res.string.brand_management_empty),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -146,7 +159,7 @@ internal fun BrandManagementContent(
                 val editState = editorState as? BrandEditorState.Editing
                 if (editState != null && editState.brandId == brand.id) {
                     BrandInputRow(
-                        label = stringResource(R.string.brand_management_edit_hint),
+                        label = stringResource(Res.string.brand_management_edit_hint),
                         text = editState.text,
                         onTextChange = { editorState = editState.copy(text = it) },
                         isSaving = editState.saving,
@@ -176,21 +189,21 @@ internal fun BrandManagementContent(
         is BrandManagementDialog.ConfirmDelete -> {
             AlertDialog(
                 onDismissRequest = onDismissDialog,
-                title = { Text(stringResource(R.string.brand_management_delete_confirm_title)) },
+                title = { Text(stringResource(Res.string.brand_management_delete_confirm_title)) },
                 text = {
-                    Text(stringResource(R.string.brand_management_delete_confirm_message, dialog.brand.name))
+                    Text(stringResource(Res.string.brand_management_delete_confirm_message, dialog.brand.name))
                 },
                 confirmButton = {
                     TextButton(
                         onClick = { onConfirmDelete(dialog.brand.id) },
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text(stringResource(R.string.brand_management_confirm_delete))
+                        Text(stringResource(Res.string.brand_management_confirm_delete))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = onDismissDialog) {
-                        Text(stringResource(R.string.wardrobe_cancel))
+                        Text(stringResource(Res.string.wardrobe_cancel))
                     }
                 }
             )
@@ -198,11 +211,11 @@ internal fun BrandManagementContent(
         is BrandManagementDialog.BlockedDelete -> {
             AlertDialog(
                 onDismissRequest = onDismissDialog,
-                title = { Text(stringResource(R.string.brand_management_delete_blocked_title)) },
+                title = { Text(stringResource(Res.string.brand_management_delete_blocked_title)) },
                 text = {
                     Text(
                         pluralStringResource(
-                            R.plurals.brand_management_delete_blocked_message,
+                            Res.plurals.brand_management_delete_blocked_message,
                             dialog.itemCount,
                             dialog.brand.name,
                             dialog.itemCount
@@ -211,7 +224,7 @@ internal fun BrandManagementContent(
                 },
                 confirmButton = {
                     TextButton(onClick = onDismissDialog) {
-                        Text(stringResource(R.string.wardrobe_cancel))
+                        Text(stringResource(Res.string.wardrobe_cancel))
                     }
                 }
             )

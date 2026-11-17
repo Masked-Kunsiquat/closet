@@ -1,5 +1,10 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_cancel
+import com.closet.features.wardrobe.resources.wardrobe_delete
+import com.closet.features.wardrobe.resources.wardrobe_edit
+import com.closet.features.wardrobe.resources.wardrobe_save
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,7 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.BrandEntity
@@ -50,12 +55,12 @@ internal fun BrandRow(
         trailingContent = {
             Row {
                 IconButton(onClick = onEditClick) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.wardrobe_edit))
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(Res.string.wardrobe_edit))
                 }
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.wardrobe_delete),
+                        contentDescription = stringResource(Res.string.wardrobe_delete),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -97,10 +102,10 @@ internal fun BrandInputRow(
             keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank() && !isSaving) onConfirm() })
         )
         IconButton(onClick = onConfirm, enabled = text.isNotBlank() && !isSaving) {
-            Icon(Icons.Default.Check, contentDescription = stringResource(R.string.wardrobe_save))
+            Icon(Icons.Default.Check, contentDescription = stringResource(Res.string.wardrobe_save))
         }
         IconButton(onClick = onCancel, enabled = !isSaving) {
-            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.wardrobe_cancel))
+            Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.wardrobe_cancel))
         }
     }
 }

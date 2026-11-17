@@ -1,5 +1,14 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_colors
+import com.closet.features.wardrobe.resources.wardrobe_edit_with_section
+import com.closet.features.wardrobe.resources.wardrobe_materials
+import com.closet.features.wardrobe.resources.wardrobe_none_selected
+import com.closet.features.wardrobe.resources.wardrobe_occasions
+import com.closet.features.wardrobe.resources.wardrobe_patterns
+import com.closet.features.wardrobe.resources.wardrobe_seasons
+import com.closet.features.wardrobe.resources.wardrobe_size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.ClothingItemDetail
@@ -70,7 +79,7 @@ internal fun ClothingAttributes(
         // Size Attribute
         if (item.sizeValue != null) {
             AttributeSection(
-                title = stringResource(R.string.wardrobe_size),
+                title = stringResource(Res.string.wardrobe_size),
                 onEditClick = onEditSize
             ) {
                 val systemName = sizeSystems.find { it.id == item.sizeValue?.sizeSystemId }?.name
@@ -89,7 +98,7 @@ internal fun ClothingAttributes(
         }
 
         AttributeSection(
-            title = stringResource(R.string.wardrobe_seasons),
+            title = stringResource(Res.string.wardrobe_seasons),
             onEditClick = onEditSeasons
         ) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -108,7 +117,7 @@ internal fun ClothingAttributes(
         }
 
         AttributeSection(
-            title = stringResource(R.string.wardrobe_colors),
+            title = stringResource(Res.string.wardrobe_colors),
             onEditClick = onEditColors
         ) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -130,7 +139,7 @@ internal fun ClothingAttributes(
         }
 
         AttributeSection(
-            title = stringResource(R.string.wardrobe_materials),
+            title = stringResource(Res.string.wardrobe_materials),
             onEditClick = onEditMaterials
         ) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -145,7 +154,7 @@ internal fun ClothingAttributes(
         }
 
         AttributeSection(
-            title = stringResource(R.string.wardrobe_patterns),
+            title = stringResource(Res.string.wardrobe_patterns),
             onEditClick = onEditPatterns
         ) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -164,7 +173,7 @@ internal fun ClothingAttributes(
         }
 
         AttributeSection(
-            title = stringResource(R.string.wardrobe_occasions),
+            title = stringResource(Res.string.wardrobe_occasions),
             onEditClick = onEditOccasions
         ) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -215,7 +224,7 @@ internal fun AttributeSection(
             IconButton(onClick = onEditClick) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.wardrobe_edit_with_section, title),
+                    contentDescription = stringResource(Res.string.wardrobe_edit_with_section, title),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -292,7 +301,7 @@ internal fun AttributeChip(
 @Composable
 private fun AttributeEmptyHint() {
     Text(
-        text = stringResource(R.string.wardrobe_none_selected),
+        text = stringResource(Res.string.wardrobe_none_selected),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )

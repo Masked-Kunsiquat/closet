@@ -1,5 +1,12 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_field_size_system
+import com.closet.features.wardrobe.resources.wardrobe_filter_clear_all
+import com.closet.features.wardrobe.resources.wardrobe_filter_section_color
+import com.closet.features.wardrobe.resources.wardrobe_filter_section_occasion
+import com.closet.features.wardrobe.resources.wardrobe_filter_section_season
+import com.closet.features.wardrobe.resources.wardrobe_filter_title
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -107,12 +114,12 @@ internal fun FilterPanel(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.wardrobe_filter_title),
+                    text = stringResource(Res.string.wardrobe_filter_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 TextButton(onClick = onClearAll, enabled = anyActive) {
-                    Text(stringResource(R.string.wardrobe_filter_clear_all))
+                    Text(stringResource(Res.string.wardrobe_filter_clear_all))
                 }
             }
 
@@ -121,7 +128,7 @@ internal fun FilterPanel(
             // ── Scrollable sections ───────────────────────────────────────────
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 if (colors.isNotEmpty()) {
-                    FilterSection(title = stringResource(R.string.wardrobe_filter_section_color)) {
+                    FilterSection(title = stringResource(Res.string.wardrobe_filter_section_color)) {
                         colors.forEach { color ->
                             val fallback = MaterialTheme.colorScheme.outlineVariant
                             val swatchColor = remember(color.hex) {
@@ -148,7 +155,7 @@ internal fun FilterPanel(
                 }
 
                 if (sizeSystems.isNotEmpty()) {
-                    FilterSection(title = stringResource(R.string.wardrobe_field_size_system)) {
+                    FilterSection(title = stringResource(Res.string.wardrobe_field_size_system)) {
                         sizeSystems.forEach { system ->
                             FilterChip(
                                 selected = system.id in selectedSizeSystemIds,
@@ -167,7 +174,7 @@ internal fun FilterPanel(
                 }
 
                 if (seasons.isNotEmpty()) {
-                    FilterSection(title = stringResource(R.string.wardrobe_filter_section_season)) {
+                    FilterSection(title = stringResource(Res.string.wardrobe_filter_section_season)) {
                         seasons.forEach { season ->
                             FilterChip(
                                 selected = season.id in selectedSeasonIds,
@@ -179,7 +186,7 @@ internal fun FilterPanel(
                 }
 
                 if (occasions.isNotEmpty()) {
-                    FilterSection(title = stringResource(R.string.wardrobe_filter_section_occasion)) {
+                    FilterSection(title = stringResource(Res.string.wardrobe_filter_section_occasion)) {
                         occasions.forEach { occasion ->
                             FilterChip(
                                 selected = occasion.id in selectedOccasionIds,
@@ -287,16 +294,16 @@ private fun FilterPanelContentPreview(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.wardrobe_filter_title),
+                    text = stringResource(Res.string.wardrobe_filter_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 TextButton(onClick = {}, enabled = anyActive) {
-                    Text(stringResource(R.string.wardrobe_filter_clear_all))
+                    Text(stringResource(Res.string.wardrobe_filter_clear_all))
                 }
             }
             HorizontalDivider()
-            FilterSection(title = stringResource(R.string.wardrobe_filter_section_color)) {
+            FilterSection(title = stringResource(Res.string.wardrobe_filter_section_color)) {
                 filterPreviewColors.forEach { color ->
                     val fallback = MaterialTheme.colorScheme.outlineVariant
                     val swatchColor = remember(color.hex) {
@@ -319,7 +326,7 @@ private fun FilterPanelContentPreview(
                     )
                 }
             }
-            FilterSection(title = stringResource(R.string.wardrobe_field_size_system)) {
+            FilterSection(title = stringResource(Res.string.wardrobe_field_size_system)) {
                 previewSizeSystems.forEach { system ->
                     FilterChip(
                         selected = system.id in selectedSizeSystemIds,
@@ -335,7 +342,7 @@ private fun FilterPanelContentPreview(
                     )
                 }
             }
-            FilterSection(title = stringResource(R.string.wardrobe_filter_section_season)) {
+            FilterSection(title = stringResource(Res.string.wardrobe_filter_section_season)) {
                 previewSeasons.forEach { season ->
                     FilterChip(
                         selected = season.id in selectedSeasonIds,
@@ -344,7 +351,7 @@ private fun FilterPanelContentPreview(
                     )
                 }
             }
-            FilterSection(title = stringResource(R.string.wardrobe_filter_section_occasion)) {
+            FilterSection(title = stringResource(Res.string.wardrobe_filter_section_occasion)) {
                 previewOccasions.forEach { occasion ->
                     FilterChip(
                         selected = occasion.id in selectedOccasionIds,

@@ -1,5 +1,31 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_cancel
+import com.closet.features.wardrobe.resources.wardrobe_change_status
+import com.closet.features.wardrobe.resources.wardrobe_colors
+import com.closet.features.wardrobe.resources.wardrobe_delete
+import com.closet.features.wardrobe.resources.wardrobe_delete_item_confirmation
+import com.closet.features.wardrobe.resources.wardrobe_delete_item_title
+import com.closet.features.wardrobe.resources.wardrobe_detail_from
+import com.closet.features.wardrobe.resources.wardrobe_detail_purchased
+import com.closet.features.wardrobe.resources.wardrobe_error_load_failed
+import com.closet.features.wardrobe.resources.wardrobe_log_wear
+import com.closet.features.wardrobe.resources.wardrobe_log_wear_success
+import com.closet.features.wardrobe.resources.wardrobe_materials
+import com.closet.features.wardrobe.resources.wardrobe_notes
+import com.closet.features.wardrobe.resources.wardrobe_occasions
+import com.closet.features.wardrobe.resources.wardrobe_patterns
+import com.closet.features.wardrobe.resources.wardrobe_seasons
+import com.closet.features.wardrobe.resources.wardrobe_stat_cpw
+import com.closet.features.wardrobe.resources.wardrobe_stat_cpw_na
+import com.closet.features.wardrobe.resources.wardrobe_stat_price
+import com.closet.features.wardrobe.resources.wardrobe_stat_wash
+import com.closet.features.wardrobe.resources.wardrobe_stat_wears
+import com.closet.features.wardrobe.resources.wardrobe_wear_history
+import com.closet.features.wardrobe.resources.wardrobe_wear_history_empty
+import com.closet.features.wardrobe.resources.wardrobe_wear_history_ootd
+import com.closet.features.wardrobe.resources.wardrobe_wear_history_untitled
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,8 +42,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import org.jetbrains.compose.resources.painterResource
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import org.koin.compose.viewmodel.koinViewModel
@@ -28,10 +54,11 @@ import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.closet.features.wardrobe.BuildConfig
+import com.closet.core.data.BuildFlags
+import org.koin.compose.koinInject
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
-import com.closet.core.ui.resources.Res
+import com.closet.core.ui.resources.Res as CoreRes
 import com.closet.core.ui.resources.ic_icon_washing_machine
 import com.closet.core.ui.components.UserMessageSnackbarEffect
 import com.closet.core.ui.util.IconMapper
@@ -63,7 +90,7 @@ fun ClothingDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     UserMessageSnackbarEffect(viewModel.actionError, snackbarHostState)
 
-    val logWearSuccessMessage = stringResource(R.string.wardrobe_log_wear_success)
+    val logWearSuccessMessage = stringResource(Res.string.wardrobe_log_wear_success)
     LaunchedEffect(viewModel.logWearSuccess) {
         viewModel.logWearSuccess.collect {
             snackbarHostState.showSnackbar(logWearSuccessMessage)
@@ -78,7 +105,7 @@ fun ClothingDetailScreen(
         val currentStatus = (uiState as? ClothingDetailUiState.Success)?.item?.item?.status
         AlertDialog(
             onDismissRequest = { showStatusDialog = false },
-            title = { Text(stringResource(R.string.wardrobe_change_status)) },
+            title = { Text(stringResource(Res.string.wardrobe_change_status)) },
             text = {
                 Column {
                     ClothingStatus.entries.forEach { status ->
@@ -108,7 +135,7 @@ fun ClothingDetailScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showStatusDialog = false }) {
-                    Text(stringResource(R.string.wardrobe_cancel))
+                    Text(stringResource(Res.string.wardrobe_cancel))
                 }
             },
         )
@@ -117,19 +144,19 @@ fun ClothingDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.wardrobe_delete_item_title)) },
-            text = { Text(stringResource(R.string.wardrobe_delete_item_confirmation)) },
+            title = { Text(stringResource(Res.string.wardrobe_delete_item_title)) },
+            text = { Text(stringResource(Res.string.wardrobe_delete_item_confirmation)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     viewModel.deleteItem(onBack)
                 }) {
-                    Text(stringResource(R.string.wardrobe_delete))
+                    Text(stringResource(Res.string.wardrobe_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(stringResource(R.string.wardrobe_cancel))
+                    Text(stringResource(Res.string.wardrobe_cancel))
                 }
             },
         )
@@ -177,7 +204,7 @@ fun ClothingDetailScreen(
                         .fillMaxSize()
                         .padding(padding), contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.wardrobe_error_load_failed))
+                    Text(stringResource(Res.string.wardrobe_error_load_failed))
                 }
             }
             is ClothingDetailUiState.Success -> {
@@ -288,7 +315,7 @@ fun ClothingDetailScreen(
                                 modifier = Modifier.size(18.dp),
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(stringResource(R.string.wardrobe_log_wear))
+                            Text(stringResource(Res.string.wardrobe_log_wear))
                         }
 
                         // Purchase metadata — only rendered when at least one field is set
@@ -319,7 +346,7 @@ fun ClothingDetailScreen(
                             if (notes.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(24.dp))
                                 Text(
-                                    text = stringResource(R.string.wardrobe_notes),
+                                    text = stringResource(Res.string.wardrobe_notes),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -340,7 +367,7 @@ fun ClothingDetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        if (BuildConfig.DEBUG) {
+                        if (koinInject<BuildFlags>().isDebug) {
                             SemanticDebugCard(
                                 semanticDescription = detail.item.semanticDescription,
                                 imageCaption = detail.item.imageCaption,
@@ -357,11 +384,11 @@ fun ClothingDetailScreen(
         val successState = uiState as? ClothingDetailUiState.Success
         val successItem = successState?.item
         val title = stringResource(when (picker) {
-            AttributePicker.SEASONS   -> R.string.wardrobe_seasons
-            AttributePicker.OCCASIONS -> R.string.wardrobe_occasions
-            AttributePicker.COLORS    -> R.string.wardrobe_colors
-            AttributePicker.MATERIALS -> R.string.wardrobe_materials
-            AttributePicker.PATTERNS  -> R.string.wardrobe_patterns
+            AttributePicker.SEASONS   -> Res.string.wardrobe_seasons
+            AttributePicker.OCCASIONS -> Res.string.wardrobe_occasions
+            AttributePicker.COLORS    -> Res.string.wardrobe_colors
+            AttributePicker.MATERIALS -> Res.string.wardrobe_materials
+            AttributePicker.PATTERNS  -> Res.string.wardrobe_patterns
         })
         val items = when (picker) {
             AttributePicker.SEASONS   -> successState?.seasons.orEmpty().map { MultiSelectItem(it.id, it.name, it, icon = IconMapper.getIconResource(it.icon)) }
@@ -415,7 +442,7 @@ internal fun DetailStatRow(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val currencyFormat = NumberFormat.getCurrencyInstance(locale)
-    val naText = stringResource(R.string.wardrobe_stat_cpw_na)
+    val naText = stringResource(Res.string.wardrobe_stat_cpw_na)
     val priceText = if (purchasePrice != null) currencyFormat.format(purchasePrice) else naText
     val cpwText = if (purchasePrice != null && wearCount > 0)
         currencyFormat.format(purchasePrice / wearCount)
@@ -433,13 +460,13 @@ internal fun DetailStatRow(
             StatPillCard(
                 icon = {
                     Icon(
-                        painter = painterResource(Res.drawable.ic_icon_washing_machine),
+                        painter = painterResource(CoreRes.drawable.ic_icon_washing_machine),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
-                label = stringResource(R.string.wardrobe_stat_wash),
+                label = stringResource(Res.string.wardrobe_stat_wash),
                 value = washStatus.label,
                 valueColor = if (washStatus == WashStatus.Dirty)
                     MaterialTheme.colorScheme.error
@@ -457,7 +484,7 @@ internal fun DetailStatRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
-                label = stringResource(R.string.wardrobe_stat_wears),
+                label = stringResource(Res.string.wardrobe_stat_wears),
                 value = wearCount.toString(),
                 modifier = Modifier.weight(1f).height(56.dp),
             )
@@ -475,7 +502,7 @@ internal fun DetailStatRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
-                label = stringResource(R.string.wardrobe_stat_price),
+                label = stringResource(Res.string.wardrobe_stat_price),
                 value = priceText,
                 modifier = Modifier.weight(1f).height(56.dp),
             )
@@ -488,7 +515,7 @@ internal fun DetailStatRow(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
-                label = stringResource(R.string.wardrobe_stat_cpw),
+                label = stringResource(Res.string.wardrobe_stat_cpw),
                 value = cpwText,
                 modifier = Modifier.weight(1f).height(56.dp),
             )
@@ -566,7 +593,7 @@ private fun PurchaseMetaRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = stringResource(R.string.wardrobe_detail_purchased),
+                    text = stringResource(Res.string.wardrobe_detail_purchased),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -580,7 +607,7 @@ private fun PurchaseMetaRow(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = stringResource(R.string.wardrobe_detail_from),
+                        text = stringResource(Res.string.wardrobe_detail_from),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -606,14 +633,14 @@ private fun WearHistorySection(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(R.string.wardrobe_wear_history),
+            text = stringResource(Res.string.wardrobe_wear_history),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         Spacer(modifier = Modifier.height(8.dp))
         if (history.isEmpty()) {
             Text(
-                text = stringResource(R.string.wardrobe_wear_history_empty),
+                text = stringResource(Res.string.wardrobe_wear_history_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -663,7 +690,7 @@ private fun WearHistoryRow(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = if (log.outfitName.isNullOrBlank()) stringResource(R.string.wardrobe_wear_history_untitled) else log.outfitName!!,
+                text = if (log.outfitName.isNullOrBlank()) stringResource(Res.string.wardrobe_wear_history_untitled) else log.outfitName!!,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -671,7 +698,7 @@ private fun WearHistoryRow(
         if (log.isOotd == 1) {
             Icon(
                 imageVector = Icons.Filled.Star,
-                contentDescription = stringResource(R.string.wardrobe_wear_history_ootd),
+                contentDescription = stringResource(Res.string.wardrobe_wear_history_ootd),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(16.dp),
             )

@@ -1,5 +1,31 @@
 package com.closet.features.wardrobe
 
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.brand_management_manage_brands
+import com.closet.features.wardrobe.resources.wardrobe_add_item
+import com.closet.features.wardrobe.resources.wardrobe_add_photo
+import com.closet.features.wardrobe.resources.wardrobe_back
+import com.closet.features.wardrobe.resources.wardrobe_discard_cancel
+import com.closet.features.wardrobe.resources.wardrobe_discard_confirm
+import com.closet.features.wardrobe.resources.wardrobe_discard_message
+import com.closet.features.wardrobe.resources.wardrobe_discard_title
+import com.closet.features.wardrobe.resources.wardrobe_downloading_model
+import com.closet.features.wardrobe.resources.wardrobe_edit_item
+import com.closet.features.wardrobe.resources.wardrobe_field_category
+import com.closet.features.wardrobe.resources.wardrobe_field_location
+import com.closet.features.wardrobe.resources.wardrobe_field_name
+import com.closet.features.wardrobe.resources.wardrobe_field_notes
+import com.closet.features.wardrobe.resources.wardrobe_field_price
+import com.closet.features.wardrobe.resources.wardrobe_field_status
+import com.closet.features.wardrobe.resources.wardrobe_field_subcategory
+import com.closet.features.wardrobe.resources.wardrobe_materials
+import com.closet.features.wardrobe.resources.wardrobe_occasions
+import com.closet.features.wardrobe.resources.wardrobe_patterns
+import com.closet.features.wardrobe.resources.wardrobe_remove_background
+import com.closet.features.wardrobe.resources.wardrobe_revert_segmentation
+import com.closet.features.wardrobe.resources.wardrobe_save
+import com.closet.features.wardrobe.resources.wardrobe_seasons
+import com.closet.features.wardrobe.resources.wardrobe_section_colors
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -52,7 +78,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -116,16 +142,16 @@ fun ClothingFormScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text(stringResource(R.string.wardrobe_discard_title)) },
-            text = { Text(stringResource(R.string.wardrobe_discard_message)) },
+            title = { Text(stringResource(Res.string.wardrobe_discard_title)) },
+            text = { Text(stringResource(Res.string.wardrobe_discard_message)) },
             confirmButton = {
                 TextButton(onClick = viewModel::cancel) {
-                    Text(stringResource(R.string.wardrobe_discard_confirm))
+                    Text(stringResource(Res.string.wardrobe_discard_confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) {
-                    Text(stringResource(R.string.wardrobe_discard_cancel))
+                    Text(stringResource(Res.string.wardrobe_discard_cancel))
                 }
             }
         )
@@ -196,15 +222,15 @@ internal fun ClothingFormTopBar(
     TopAppBar(
         title = {
             Text(
-                if (isEditMode) stringResource(R.string.wardrobe_edit_item)
-                else stringResource(R.string.wardrobe_add_item)
+                if (isEditMode) stringResource(Res.string.wardrobe_edit_item)
+                else stringResource(Res.string.wardrobe_add_item)
             )
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.wardrobe_back)
+                    contentDescription = stringResource(Res.string.wardrobe_back)
                 )
             }
         },
@@ -215,7 +241,7 @@ internal fun ClothingFormTopBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = stringResource(R.string.wardrobe_save)
+                    contentDescription = stringResource(Res.string.wardrobe_save)
                 )
             }
         }
@@ -285,7 +311,7 @@ internal fun ClothingFormContent(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = stringResource(R.string.wardrobe_add_photo),
+                                text = stringResource(Res.string.wardrobe_add_photo),
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -297,7 +323,7 @@ internal fun ClothingFormContent(
                             if (uiState.isDownloadingModel) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = stringResource(R.string.wardrobe_downloading_model),
+                                    text = stringResource(Res.string.wardrobe_downloading_model),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -312,7 +338,7 @@ internal fun ClothingFormContent(
                         onClick = onRemoveBackground,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.wardrobe_remove_background))
+                        Text(stringResource(Res.string.wardrobe_remove_background))
                     }
                 }
 
@@ -321,7 +347,7 @@ internal fun ClothingFormContent(
                         onClick = onRevertSegmentation,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.wardrobe_revert_segmentation))
+                        Text(stringResource(Res.string.wardrobe_revert_segmentation))
                     }
                 }
             }
@@ -332,7 +358,7 @@ internal fun ClothingFormContent(
             OutlinedTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
-                label = { Text(stringResource(R.string.wardrobe_field_name)) },
+                label = { Text(stringResource(Res.string.wardrobe_field_name)) },
                 modifier = Modifier.fillMaxWidth(),
                 isError = uiState.isNameError,
                 singleLine = true,
@@ -357,7 +383,7 @@ internal fun ClothingFormContent(
                 IconButton(onClick = onManageBrands) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = stringResource(R.string.brand_management_manage_brands),
+                        contentDescription = stringResource(Res.string.brand_management_manage_brands),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -370,7 +396,7 @@ internal fun ClothingFormContent(
                 selectedItem = uiState.category,
                 items = uiState.categories,
                 onItemSelect = onCategorySelect,
-                label = stringResource(R.string.wardrobe_field_category),
+                label = stringResource(Res.string.wardrobe_field_category),
                 itemLabel = { it.name }
             )
         }
@@ -380,7 +406,7 @@ internal fun ClothingFormContent(
                 selectedItem = uiState.subcategory,
                 items = uiState.subcategories,
                 onItemSelect = onSubcategorySelect,
-                label = stringResource(R.string.wardrobe_field_subcategory),
+                label = stringResource(Res.string.wardrobe_field_subcategory),
                 itemLabel = { it.name },
                 enabled = uiState.category != null
             )
@@ -409,7 +435,7 @@ internal fun ClothingFormContent(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = stringResource(R.string.wardrobe_section_colors),
+                        text = stringResource(Res.string.wardrobe_section_colors),
                         style = MaterialTheme.typography.titleSmall
                     )
                 }
@@ -424,7 +450,7 @@ internal fun ClothingFormContent(
 
         item {
             AttributeChipRow(
-                label = stringResource(R.string.wardrobe_seasons),
+                label = stringResource(Res.string.wardrobe_seasons),
                 items = uiState.allSeasons.map { it.id to it.name },
                 selectedIds = uiState.selectedSeasonIds,
                 onToggle = onSeasonToggle,
@@ -433,7 +459,7 @@ internal fun ClothingFormContent(
 
         item {
             AttributeChipRow(
-                label = stringResource(R.string.wardrobe_occasions),
+                label = stringResource(Res.string.wardrobe_occasions),
                 items = uiState.allOccasions.map { it.id to it.name },
                 selectedIds = uiState.selectedOccasionIds,
                 onToggle = onOccasionToggle,
@@ -442,7 +468,7 @@ internal fun ClothingFormContent(
 
         item {
             AttributeChipRow(
-                label = stringResource(R.string.wardrobe_materials),
+                label = stringResource(Res.string.wardrobe_materials),
                 items = uiState.allMaterials.map { it.id to it.name },
                 selectedIds = uiState.selectedMaterialIds,
                 onToggle = onMaterialToggle,
@@ -451,7 +477,7 @@ internal fun ClothingFormContent(
 
         item {
             AttributeChipRow(
-                label = stringResource(R.string.wardrobe_patterns),
+                label = stringResource(Res.string.wardrobe_patterns),
                 items = uiState.allPatterns.map { it.id to it.name },
                 selectedIds = uiState.selectedPatternIds,
                 onToggle = onPatternToggle,
@@ -465,7 +491,7 @@ internal fun ClothingFormContent(
             OutlinedTextField(
                 value = uiState.price,
                 onValueChange = onPriceChange,
-                label = { Text(stringResource(R.string.wardrobe_field_price)) },
+                label = { Text(stringResource(Res.string.wardrobe_field_price)) },
                 modifier = Modifier.fillMaxWidth(),
                 prefix = { Text("$") },
                 keyboardOptions = KeyboardOptions(
@@ -486,7 +512,7 @@ internal fun ClothingFormContent(
             OutlinedTextField(
                 value = uiState.purchaseLocation,
                 onValueChange = onLocationChange,
-                label = { Text(stringResource(R.string.wardrobe_field_location)) },
+                label = { Text(stringResource(Res.string.wardrobe_field_location)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -498,7 +524,7 @@ internal fun ClothingFormContent(
             OutlinedTextField(
                 value = uiState.notes,
                 onValueChange = onNotesChange,
-                label = { Text(stringResource(R.string.wardrobe_field_notes)) },
+                label = { Text(stringResource(Res.string.wardrobe_field_notes)) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
@@ -512,7 +538,7 @@ internal fun ClothingFormContent(
                     selectedItem = uiState.status,
                     items = ClothingStatus.entries,
                     onItemSelect = { it?.let(onStatusSelected) },
-                    label = stringResource(R.string.wardrobe_field_status),
+                    label = stringResource(Res.string.wardrobe_field_status),
                     itemLabel = { it.label },
                 )
             }
