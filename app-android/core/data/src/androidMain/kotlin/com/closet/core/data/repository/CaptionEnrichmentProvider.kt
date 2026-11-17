@@ -3,8 +3,9 @@ package com.closet.core.data.repository
 import android.graphics.Bitmap
 
 /**
- * Abstraction over the ML Kit GenAI Image Description API exposed to modules that
- * cannot directly depend on `features/wardrobe` (e.g. `features/settings`).
+ * Abstraction over the ML Kit GenAI Image Description API. Common code (e.g. `features/settings`)
+ * uses the batch half, [BatchCaptioner]; this Android interface adds the bitmap-level calls used
+ * by `features/wardrobe`.
  *
  * The full-flavor implementation is `com.closet.platform.gms.wardrobe.MlKitImageCaptioner`.
  * The FOSS-flavor stub (`UnsupportedImageCaptioner` in `features/wardrobe`) sets [isSupported] = `false` and throws on [describe].

@@ -177,6 +177,8 @@ class SettingsViewModelTest {
         every { nanoInitializer.initNanoFlow() } returns flowOf(NanoInitResult.Success(tokenLimit = 4096))
         coEvery { aiPrefs.setNanoAvailability(any()) } throws IllegalStateException("disk")
         val vm = started(buildViewModel())
+        coVerify { aiPrefs.setNanoAvailability(any()) }
+        coVerify(exactly = 0) { aiPrefs.setTokenLimit(any()) }
         assertEquals(NanoStatus.Ready, vm.uiState.value.nanoStatus)
     }
 

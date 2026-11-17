@@ -10,10 +10,15 @@ import io.ktor.client.engine.HttpClientEngine
 import org.koin.dsl.module
 import org.koin.test.verify.verify
 import java.nio.file.Files
+import kotlin.test.AfterTest
 import kotlin.test.Test
 
 class SettingsJvmKoinGraphTest {
     private val tmp = Files.createTempDirectory("settings-jvm").toFile()
+
+    @AfterTest fun tearDown() {
+        tmp.deleteRecursively()
+    }
 
     // No NanoInitializer / BatchCaptioner whitelist: the JVM stubs in jvmDataModule must provide them.
     @OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)

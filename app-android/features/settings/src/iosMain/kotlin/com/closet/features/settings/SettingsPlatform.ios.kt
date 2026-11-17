@@ -10,11 +10,11 @@ internal actual fun rememberWeatherEnabler(
     onDeniedPermanently: () -> Unit,
 ): () -> Unit = onEnabled
 
-/** There is no per-app system settings page on iOS, so this does nothing. */
+/** Not implemented on iOS yet (TODO: `UIApplicationOpenSettingsURLString`). */
 @Composable
 internal actual fun rememberOpenAppSettings(): () -> Unit = {}
 
-/** iOS has no screen-wake control, so this does nothing. */
+/** Not implemented on iOS yet (TODO: `UIApplication.idleTimerDisabled`). */
 @Composable
 internal actual fun KeepScreenOn(enabled: Boolean) {
 }

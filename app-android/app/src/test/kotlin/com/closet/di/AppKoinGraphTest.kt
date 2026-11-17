@@ -2,17 +2,17 @@ package com.closet.di
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
 import com.closet.core.data.BuildFlags
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.repository.BatchCaptioner
 import com.closet.core.data.repository.CaptionEnrichmentProvider
-import io.mockk.mockk
-import org.junit.Assert.assertSame
 import com.closet.core.data.repository.SecretStore
-import androidx.work.WorkManager
-import androidx.work.WorkerParameters
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
+import io.mockk.mockk
+import org.junit.Assert.assertSame
 import org.junit.Test
 import org.koin.dsl.koinApplication
 import org.koin.dsl.module
