@@ -12,6 +12,8 @@ import com.closet.core.data.repository.AI_PREFS_NAME
 import com.closet.core.data.repository.BatchCaptioner
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.ImageStorageStats
+import com.closet.core.data.shortcuts.NoOpShortcutUsageReporter
+import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.repository.InMemorySecretStore
 import com.closet.core.data.repository.IosImagePathResolver
 import com.closet.core.data.repository.IosImageStorageStats
@@ -56,6 +58,7 @@ val iosDataModule = module {
     single<ImageStorageStats> { IosImageStorageStats() }
     single<NanoInitializer> { UnavailableNanoInitializer }
     single<BatchCaptioner> { NoOpBatchCaptioner }
+    single<ShortcutUsageReporter> { NoOpShortcutUsageReporter }
     single<LocationProvider> { NoLocationProvider }
     single<EmbeddingEncoder> { UnavailableEmbeddingEncoder }
     single<EmbeddingScheduler> { NoOpEmbeddingScheduler }

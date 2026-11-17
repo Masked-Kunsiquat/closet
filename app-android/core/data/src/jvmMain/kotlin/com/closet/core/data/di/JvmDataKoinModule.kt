@@ -13,6 +13,8 @@ import com.closet.core.data.repository.BatchCaptioner
 import com.closet.core.data.repository.IMAGES_DIR_NAME
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.ImageStorageStats
+import com.closet.core.data.shortcuts.NoOpShortcutUsageReporter
+import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.repository.InMemorySecretStore
 import com.closet.core.data.repository.JvmImagePathResolver
 import com.closet.core.data.repository.JvmImageStorageStats
@@ -59,6 +61,7 @@ fun jvmDataModule(dataDirectory: File): Module = module {
     single<ImageStorageStats> { JvmImageStorageStats(File(dataDirectory, IMAGES_DIR_NAME)) }
     single<NanoInitializer> { UnavailableNanoInitializer }
     single<BatchCaptioner> { NoOpBatchCaptioner }
+    single<ShortcutUsageReporter> { NoOpShortcutUsageReporter }
     single<LocationProvider> { NoLocationProvider }
     single<EmbeddingEncoder> { UnavailableEmbeddingEncoder }
     single<EmbeddingScheduler> { NoOpEmbeddingScheduler }
