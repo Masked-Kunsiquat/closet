@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Wardrobe Picker -->
+    <string name="outfits_picker_title">Add Items</string>
+    <string name="outfits_picker_done">Done</string>
+    <string name="outfits_picker_done_count">Done (%1$d)</string>
+    <string name="outfits_picker_all_categories">All</string>
+    <string name="outfits_picker_all_seasons">All seasons</string>
+    <string name="outfits_picker_empty">No items in your wardrobe</string>
+    <string name="outfits_picker_selected">Selected</string>
+    <string name="outfits_picker_back">Back</string>
+
+    <!-- Wear Tracking -->
+    <string name="outfits_wear_today">Wear today</string>
+    <string name="outfits_wear_success">Outfit logged — wear count updated!</string>
+    <string name="outfits_wear_error">Failed to log outfit. Please try again.</string>
+
+    <!-- Outfit Gallery -->
+    <string name="outfits_gallery_title">Outfits</string>
+    <string name="outfits_gallery_create">Create Outfit</string>
+    <string name="outfits_gallery_empty">No outfits yet. Create your first one!</string>
+    <string name="outfits_gallery_untitled">Untitled outfit</string>
+    <string name="outfits_gallery_item_count">%1$d items</string>
+
+    <!-- Gallery FAB -->
+    <string name="outfits_fab_expand">More actions</string>
+    <string name="outfits_fab_collapse">Close menu</string>
+    <string name="outfits_fab_add_outfit">Add outfit</string>
+    <string name="outfits_fab_get_suggestions">Get suggestions</string>
+
+    <!-- Journal -->
+    <string name="journal_title">Journal</string>
+    <string name="journal_prev_month">Previous month</string>
+    <string name="journal_next_month">Next month</string>
+    <string name="journal_empty_month">Wear an outfit to start your journal</string>
+    <string name="journal_day_no_logs">No outfits logged for this day</string>
+    <string name="journal_ootd_set">Set as outfit of the day</string>
+    <string name="journal_ootd_unset">Remove outfit of the day</string>
+    <string name="journal_delete_log">Delete log entry</string>
+    <string name="journal_delete_log_confirm_title">Delete log entry?</string>
+    <string name="journal_delete_log_confirm_message">This will permanently remove this outfit log and its wear count.</string>
+    <string name="journal_log_outfit">Log outfit</string>
+    <string name="journal_picker_title">Log an outfit</string>
+    <string name="journal_picker_back">Back to day detail</string>
+    <string name="journal_picker_empty">No outfits yet — create one from the Outfits tab</string>
+    <string name="journal_edit_title">Edit log</string>
+    <string name="journal_edit_notes_label">Notes</string>
+    <string name="journal_edit_notes_hint">How did this outfit make you feel?</string>
+    <string name="journal_edit_weather_label">Weather</string>
+    <string name="journal_edit_save">Save</string>
+    <string name="journal_edit_cancel">Cancel</string>
+    <string name="journal_forecast_sheet_title">7-Day Forecast</string>
+    <string name="journal_forecast_today">Today</string>
+    <string name="journal_forecast_tomorrow">Tomorrow</string>
+    <string name="journal_forecast_empty">Forecast unavailable</string>
+    <string name="journal_forecast_temp_range">%1$s / %2$s</string>
+
+    <!-- Outfit Actions Sheet -->
+    <string name="outfits_actions_open">Open outfit actions</string>
+    <string name="outfits_actions_edit">Edit outfit</string>
+    <string name="outfits_actions_delete">Delete outfit</string>
+    <string name="outfits_actions_delete_confirm_title">Delete outfit?</string>
+    <string name="outfits_actions_delete_confirm_message">This will permanently delete the outfit.</string>
+    <string name="outfits_actions_cancel">Cancel</string>
+    <string name="outfits_actions_confirm_delete">Delete</string>
+    <string name="outfits_delete_success">Outfit deleted</string>
+    <string name="outfits_delete_error">Failed to delete outfit. Please try again.</string>
+
+    <!-- Outfit Builder -->
+    <string name="outfits_builder_title">New Outfit</string>
+    <string name="outfits_builder_title_edit">Edit Outfit</string>
+    <string name="outfits_builder_save">Save</string>
+    <string name="outfits_builder_update">Update</string>
+    <string name="outfits_builder_back">Back</string>
+    <string name="outfits_builder_add_items">Add Items</string>
+    <string name="outfits_builder_name_hint">Outfit name (optional)</string>
+    <string name="outfits_builder_empty_hint">Tap "Add Items" to start building your outfit</string>
+    <string name="outfits_builder_remove_item">Remove item</string>
+    <string name="outfits_builder_save_error">Failed to save outfit. Please try again.</string>
+    <string name="outfits_builder_update_error">Failed to update outfit. Please try again.</string>
+</resources>

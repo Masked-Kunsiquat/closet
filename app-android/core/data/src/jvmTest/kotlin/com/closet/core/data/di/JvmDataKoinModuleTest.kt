@@ -7,6 +7,8 @@ import com.closet.core.data.repository.InMemorySecretStore
 import com.closet.core.data.repository.ModelDiscoveryRepository
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.WeatherRepository
+import com.closet.core.data.shortcuts.NoOpShortcutUsageReporter
+import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.util.UnavailableEmbeddingEncoder
@@ -57,6 +59,7 @@ class JvmDataKoinModuleTest {
         assertSame(UnavailableEmbeddingEncoder, koin.get<EmbeddingEncoder>())
         assertSame(koin.get<EmbeddingIndex>(), koin.get<EmbeddingIndex>())
 
+        assertSame(NoOpShortcutUsageReporter, koin.get<ShortcutUsageReporter>())
         assertSame(NoOpEmbeddingScheduler, koin.get<EmbeddingScheduler>())
         assertSame(NoOpImageCompressionScheduler, koin.get<ImageCompressionScheduler>())
         val segmentation = koin.get<BatchSegmentationScheduler>()

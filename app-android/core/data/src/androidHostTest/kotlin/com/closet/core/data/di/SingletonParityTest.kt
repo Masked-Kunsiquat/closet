@@ -10,6 +10,8 @@ import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.ImageStorageStats
 import com.closet.core.data.repository.SecretStore
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.shortcuts.AndroidShortcutUsageReporter
+import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import io.ktor.client.HttpClient
@@ -64,6 +66,10 @@ class SingletonParityTest {
     @Test fun imageStorageStatsIsTheStorageRepository() {
         val koin = KoinPlatform.getKoin()
         assertSame(koin.get<StorageRepository>(), koin.get<ImageStorageStats>())
+    }
+
+    @Test fun shortcutUsageReporterIsAndroid() {
+        org.junit.Assert.assertTrue(KoinPlatform.getKoin().get<ShortcutUsageReporter>() is AndroidShortcutUsageReporter)
     }
 
     @Test fun aiHttpClientIsDistinct() {
