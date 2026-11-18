@@ -50,13 +50,13 @@ class EnginePairScoringTest {
                 9L to ItemLastWorn(9, "2026-03-20"),
             ),
         )
-        val noHistory = engine.recommend(base, topN = 25, candidatesPerSlot = 3)
+        val noHistory = engine.recommend(base, topN = 25)
         assertTrue(noHistory.size > 5)
         val emptyStats = CoWearStats(pairCounts = emptyMap(), itemCounts = emptyMap(), total = 0.0)
-        assertEquals(noHistory, engine.recommend(base.copy(coWear = emptyStats), topN = 25, candidatesPerSlot = 3))
+        assertEquals(noHistory, engine.recommend(base.copy(coWear = emptyStats), topN = 25))
         // Logs exist but none involve these items: still no evidence for any pair.
         val unrelated = CoWearStats(pairCounts = emptyMap(), itemCounts = emptyMap(), total = 40.0)
-        assertEquals(noHistory, engine.recommend(base.copy(coWear = unrelated), topN = 25, candidatesPerSlot = 3))
+        assertEquals(noHistory, engine.recommend(base.copy(coWear = unrelated), topN = 25))
     }
 
     // =========================================================================

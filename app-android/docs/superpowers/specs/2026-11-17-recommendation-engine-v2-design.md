@@ -129,7 +129,9 @@ Cost: cores ≤ tops×bottoms (e.g. 60×40 = 2 400 pair scores, cheap), then `CO
    - **First**, the offline replay check (see Testing), run against the *current* engine to record a baseline.
    - **Then** the DAO queries (co-wear, saved-outfit co-membership, formality levels, hex) and `PairScorer` (pure, `commonMain`) with hist + prior, wired into the *existing* assembly as the outfit score.
    - Ships value immediately, with a measured before/after.
+   - **Done in this PR (#96)**, together with item 2.
 2. **Beam assembly.** Replace the per-slot cap + cartesian product + widening with the per-core stochastic beam. The ±3% jitter goes too. Pure engine change, measured with the replay check.
+   - **Done in this PR (#96).** Replay hit-rate@10: 0.05 before → 0.15 after (3 of 20). `CORE_BEAM = 30`, `BEAM_PER_CORE = 4`, widening to 120 / 12; `T` tuned from 0.15 to 0.01: at higher `T` a clearly stronger habit pair often missed the first page (~24% at 0.15) and an unseeded Regenerate could skip every core without the dominant items (~6% at 0.05, ~0.2% at 0.02; 0 of 120,000 at 0.01). Exploration now rotates near-ties (within a few %), about the old jitter's scale; the replay check is deterministic and does not depend on `T`.
 3. **Embedding backoff.** Neighbour-based history generalisation (the old "PR 2" slot).
 4. **Feedback** (optional, needs the migration).
 

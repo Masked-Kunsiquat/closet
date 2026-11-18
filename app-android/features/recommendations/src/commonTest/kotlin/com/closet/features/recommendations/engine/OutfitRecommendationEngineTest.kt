@@ -318,8 +318,7 @@ class OutfitRecommendationEngineTest {
             item(id = 4, role = "Bottom")
         )
         val result = engine.recommend(engineInput(candidates = items))
-        // Per-category cap is 2, so 2 tops × 2 bottoms = 4 core combos
-        // But per-slot cap limits each slot to 2 candidates → still up to 4 combos
+        // 2 tops × 2 bottoms = 4 cores, so up to 4 combos before TOP_N
         assertTrue(result.size >= 2, "Multiple tops + bottoms produce multiple combos")
         assertTrue(result.size <= 3, "At most TOP_N (3) results returned")
     }
@@ -574,7 +573,7 @@ class OutfitRecommendationEngineTest {
 
     @Test
     fun `at most 3 combos returned`() {
-        // 2 tops × 2 bottoms = 4 cores, but per-slot cap is 2 → at most 4 combos before TOP_N
+        // 2 tops × 2 bottoms = 4 cores → 4 combos before TOP_N
         val items = listOf(
             item(id = 1, role = "Top"),
             item(id = 2, role = "Top"),

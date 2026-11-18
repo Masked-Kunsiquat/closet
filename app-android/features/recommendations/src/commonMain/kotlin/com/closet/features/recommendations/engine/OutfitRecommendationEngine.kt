@@ -15,23 +15,32 @@ import kotlin.random.Random
  * the constructor directly in tests.
  *
  * Takes pre-fetched data as [EngineInput] and returns the top-N ranked [OutfitCombo]s
- * (or fewer if the wardrobe cannot form that many valid combos). The pool size is
- * controlled by the [recommend] parameters — defaults are [TOP_N] / [CANDIDATES_PER_SLOT].
+ * (or fewer if the wardrobe cannot form that many valid combos). The page size defaults to
+ * [TOP_N]; the ViewModel asks for 25 when AI curation is on.
  *
- * ### Pipeline
+ * ### Pipeline (engine v2, #96: a per-core stochastic beam)
  * 1. Hard filter — redundant safety check: Active + Clean (DAO already filtered, but
  *    the engine applies it again as a defensive guard).
  * 2. Per-item suitability scoring — multiplicative multipliers from weather signals
  *    (signals with < 5 logs are skipped: sparse-data guard) and wear recency (only when
  *    [EngineInput.today] is set: worn ≤ 3 days ago × 0.90, ≥ 30 days ago × 1.05).
- * 3. Per-category cap — keep top 1–2 scored candidates per outfit-role slot. When `exclude`
- *    is non-empty, items that appear in any excluded combo are ranked after the unshown ones
- *    (ranking only — their scores are unchanged), so Regenerate rotates new clothes into the
- *    capped pool instead of re-pairing the same few.
- * 4. Color deduplication — one item per (color+subcategory) combo within each slot.
- * 5. Category completeness — build valid combos: (Top + Bottom) OR (OnePiece),
- *    optional Outerwear / Footwear / Accessory.
- * 6. Outfit-level scoring — `meanItem × [W·H + (1 − W)·R] × layering × footwear`:
+ * 3. Candidates — group by outfit role, order each role by item score (items already shown
+ *    this session after unshown ones) and drop near-identical items: one per (color +
+ *    subcategory) within a role. There is no per-role cap.
+ * 4. Cores — every Top × Bottom pair and every OnePiece, each scored with the outfit formula
+ *    (step 7) on its own items, without the layering and footwear terms. [selectTopK] picks
+ *    [CORE_BEAM] of them; cores of already-shown (excluded) combos rank after unshown ones.
+ * 5. Per-core extension — each picked core goes through outerwear → footwear → accessory
+ *    separately. Every slot offers "none" plus every candidate of that role; each partial
+ *    outfit is scored with the same outfit formula on the items chosen so far, and
+ *    [selectTopK] keeps [BEAM_PER_CORE] partials per core after each slot. The layering-vs-
+ *    weather multiplier applies from the outerwear step, the missing-footwear penalty from
+ *    the footwear step (once that slot has been decided). Holding the beam per core keeps one
+ *    dominant core from crowding the others out of the search.
+ * 6. Exclusion inside the search — at the last slot, outfits whose [key] is in `exclude`
+ *    (already shown this session) are dropped *before* the selection, so shown outfits never
+ *    take a beam place.
+ * 7. Outfit-level score — `meanItem × [W·H + (1 − W)·R] × layering × footwear`:
  *    - `R`, the taste rules: color harmony (the geometric mean over non-Neutral item pairs of
  *      the hue rule when both items have a chromatic hex of their dominant family — analogous
  *      ≤ 30° or complementary 150°–210° × 1.05, an 80°–100° clash × 0.90 — otherwise the
@@ -44,17 +53,19 @@ import kotlin.random.Random
  *    - `W`, the mean over all item pairs of `min(0.7, n / (n + 5))`, `n = max(c, E)`. With no
  *      history `W = 0` and the score equals the rules-only score exactly; with heavy history
  *      habit can outvote the rules, which keep at least 30%.
- *    - Layering for the weather and × 0.85 for a shoe-less outfit (when the capped pool has
+ *    - Layering for the weather and × 0.85 for a shoe-less outfit (when the wardrobe has
  *      footwear) are situational and stay outside the blend.
- * 7. Exclusion — drop combos whose [key] is in `exclude` (already shown this session).
- * 8. Sort + tie-break — descending score (or score × (1 ± 0.03) when a `jitter` [Random]
- *    is given; [OutfitCombo.score] stays un-jittered); ties broken by oldest last-worn date.
- *    With jitter, exact ties are rare, so the last-worn tie-break effectively applies only
- *    to un-jittered runs; the recency multiplier covers wear history either way.
- * 9. Diversity — take combos greedily, skipping any whose core (Top + Bottom, or
- *    OnePiece) is already picked or was in an excluded combo; fill remaining slots from the
- *    skipped combos in order.
- * 10. Return the top N (default 3).
+ * 8. Final pick — [selectTopK] orders all complete outfits; then diversity: take outfits
+ *    greedily, skipping any whose core (Top + Bottom, or OnePiece) is already picked or was in
+ *    an excluded combo, and fill the remaining slots from the skipped ones in order.
+ * 9. Widening — when exclusion leaves fewer than `topN`, [CORE_BEAM] and [BEAM_PER_CORE]
+ *    double, up to [MAX_WIDENED_CORE_BEAM] and [MAX_WIDENED_BEAM_PER_CORE].
+ *
+ * **Selection.** With no `jitter` [Random], every "select" is a strict top-k by score, ties
+ * broken by the oldest last-worn date (then build order), so the result is deterministic.
+ * With one, it is seeded Gumbel-top-k at [TEMPERATURE]: sampling without replacement in
+ * proportion to `score^(1/T)`, so runner-ups get a chance and weak outfits almost never do.
+ * [OutfitCombo.score] is always the un-noised outfit score.
  */
 class OutfitRecommendationEngine {
 
@@ -102,21 +113,30 @@ class OutfitRecommendationEngine {
         private const val MULTIPLIER_WORN_RECENTLY = 0.90
         private const val BONUS_NOT_WORN_LATELY = 1.05
 
-        // --- Ranking jitter (sort key only) ---
-        private const val JITTER_AMPLITUDE = 0.03
-
         // --- Sparse data guard ---
         private const val MIN_LOGS_FOR_SIGNAL = 5
-
-        // --- Per-category slot cap ---
-        private const val CANDIDATES_PER_SLOT = 2
 
         // --- Top N result (the default page size; the ViewModel shows this many) ---
         internal const val TOP_N = 3
 
-        // --- Exclusion widening: the largest per-slot cap tried when exclusion leaves less
-        //     than a page. 5 per slot builds at most 30 cores × 6³ optional choices = 6,480 combos.
-        private const val MAX_WIDENED_CANDIDATES_PER_SLOT = 5
+        // --- Beam assembly (engine v2, #96) ---
+        /** Cores picked for extension. */
+        internal const val CORE_BEAM = 30
+        /** Partial outfits kept per core after each optional slot. */
+        internal const val BEAM_PER_CORE = 4
+        /**
+         * Gumbel-top-k temperature: selection weight ∝ `score^(1/T)`, so at 0.01 a 1% better
+         * outfit is ~2.7× likelier and a 10% better one ~20,000× — near-ties rotate between
+         * runs, clear winners stay. Tuned down from the spec's starting 0.15 by the session
+         * tests (echo-chamber guard, 1,000s of seeds): at 0.15 a co-worn pair 21% above the
+         * rest led the first page only ~34% of the time and missed it ~24%, and an unseeded
+         * Regenerate skipped every core without the dominant items ~6% of the time at 0.05 and
+         * ~0.2% at 0.02; at 0.01, 0 of 120,000.
+         */
+        internal const val TEMPERATURE = 0.01
+        /** Bounds for the beams when exclusion leaves fewer than a page (each step doubles). */
+        internal const val MAX_WIDENED_CORE_BEAM = 120
+        internal const val MAX_WIDENED_BEAM_PER_CORE = 12
 
         // --- Outfit roles ---
         private const val ROLE_TOP = "Top"
@@ -145,34 +165,56 @@ class OutfitRecommendationEngine {
     /**
      * Run the full recommendation pipeline and return the top-N combos.
      *
-     * @param input             Pre-fetched engine input (no I/O performed inside this call).
-     * @param topN              Maximum number of combos to return. Defaults to [TOP_N] (3).
-     *                          Pass a larger value (e.g. 25) when AI is enabled so the
-     *                          coherence scorer has a wider pool to curate from.
-     * @param candidatesPerSlot Maximum candidates kept per outfit-role slot after scoring
-     *                          and deduplication. Defaults to [CANDIDATES_PER_SLOT] (2).
-     *                          Increase to 3 when AI is enabled to broaden variety. With a
-     *                          non-empty [exclude] that leaves fewer than [topN] combos, the cap
-     *                          widens one step at a time up to [MAX_WIDENED_CANDIDATES_PER_SLOT].
-     * @param exclude           Combo keys ([OutfitCombo.key]) to drop before ranking — the
-     *                          combos already shown in the current session. Empty by default.
-     * @param jitter            Optional randomness for the ranking only: each combo's sort key
-     *                          becomes `score × (1 + u)`, `u` uniform in [-0.03, 0.03].
-     *                          [OutfitCombo.score] keeps the un-jittered value. Null (default)
-     *                          gives the deterministic order.
-     * @return Up to [topN] [OutfitCombo]s ranked highest-first, preferring distinct cores.
+     * @param input   Pre-fetched engine input (no I/O performed inside this call).
+     * @param topN    Maximum number of combos to return. Defaults to [TOP_N] (3).
+     *                Pass a larger value (e.g. 25) when AI is enabled so the
+     *                coherence scorer has a wider pool to curate from.
+     * @param exclude Combo keys ([OutfitCombo.key]) never to return — the combos already shown
+     *                in the current session. Empty by default. When it leaves fewer than [topN]
+     *                outfits, the beams widen (bounded) before giving up.
+     * @param jitter  Optional randomness for every selection step: seeded Gumbel-top-k at
+     *                [TEMPERATURE] (see the class KDoc). [OutfitCombo.score] keeps the un-noised
+     *                value. Null (default) gives the deterministic strict top-k.
+     * @return Up to [topN] [OutfitCombo]s, best first, preferring distinct cores.
      *         Empty if the wardrobe cannot form any valid, non-excluded outfit combination
-     *         within the widened cap.
+     *         within the widened beams.
      */
     fun recommend(
         input: EngineInput,
         topN: Int = TOP_N,
-        candidatesPerSlot: Int = CANDIDATES_PER_SLOT,
         exclude: Set<Set<Long>> = emptySet(),
         jitter: Random? = null,
     ): List<OutfitCombo> {
         require(topN >= 0) { "topN must be >= 0, was $topN" }
-        require(candidatesPerSlot >= 0) { "candidatesPerSlot must be >= 0, was $candidatesPerSlot" }
+        var coreBeam = CORE_BEAM
+        var beamPerCore = BEAM_PER_CORE
+        var result = assemble(input, topN, exclude, jitter, coreBeam, beamPerCore)
+        // Widening: only exclusion can leave a page short of outfits the wardrobe still has.
+        while (
+            exclude.isNotEmpty() && result.size < topN &&
+            (coreBeam < MAX_WIDENED_CORE_BEAM || beamPerCore < MAX_WIDENED_BEAM_PER_CORE)
+        ) {
+            coreBeam = minOf(coreBeam * 2, MAX_WIDENED_CORE_BEAM)
+            beamPerCore = minOf(beamPerCore * 2, MAX_WIDENED_BEAM_PER_CORE)
+            result = assemble(input, topN, exclude, jitter, coreBeam, beamPerCore)
+        }
+        return result
+    }
+
+    /**
+     * Steps 1–8 at fixed beam sizes (no widening): prepare the candidates, pick [coreBeam] cores,
+     * extend each one separately through the optional slots keeping [beamPerCore] partials,
+     * then pick the page. Internal so tests can run the search without widening.
+     */
+    internal fun assemble(
+        input: EngineInput,
+        topN: Int,
+        exclude: Set<Set<Long>>,
+        random: Random?,
+        coreBeam: Int,
+        beamPerCore: Int,
+    ): List<OutfitCombo> {
+        if (topN == 0) return emptyList()
         // 1. Hard filter — redundant safety guard on top of DAO filter
         val safeItems = input.candidates.filter { isActiveAndClean(it) }
         if (safeItems.isEmpty()) return emptyList()
@@ -183,70 +225,81 @@ class OutfitRecommendationEngine {
             valueTransform = { item -> itemScore(item, input) }
         )
 
-        // 3–6. Cap per slot, build and score combos, drop the excluded ones. When exclusion
-        //      leaves less than a page, widen the per-slot cap (bounded) so unseen combos that
-        //      need lower-ranked items are still reachable before the caller restarts the cycle.
+        // 3. Candidates per role: score order, shown items after unshown (so the dedupe keeps
+        //    the unshown twin), near-identical items dropped. Both sorts are stable.
         val shownItemIds: Set<Long> = exclude.flatMapTo(mutableSetOf()) { it }
-        val byRole = safeItems.groupBy { it.outfitRole ?: "Other" }
-        val widestSlot = byRole.values.maxOf { it.size }
-        val maxCap = if (exclude.isEmpty()) candidatesPerSlot else maxOf(candidatesPerSlot, MAX_WIDENED_CANDIDATES_PER_SLOT)
-        var cap = candidatesPerSlot
-        var remaining = unexcludedCombos(byRole, itemScores, shownItemIds, cap, exclude, input)
-        while (remaining.size < topN && cap < maxCap && cap < widestSlot) {
-            cap++
-            remaining = unexcludedCombos(byRole, itemScores, shownItemIds, cap, exclude, input)
-        }
-        if (remaining.isEmpty()) return emptyList()
-
-        // 7. Sort: descending (optionally jittered) score, tie-break by oldest last-worn.
-        // Jittered keys are drawn once per combo, in build order, so a seed is reproducible.
-        val sortKeys: List<Double>? = jitter?.let { random ->
-            remaining.map { it.score * (1.0 + random.nextDouble(-JITTER_AMPLITUDE, JITTER_AMPLITUDE)) }
-        }
-        val sorted = remaining.indices
-            .sortedWith(
-                compareByDescending<Int> { i -> sortKeys?.get(i) ?: remaining[i].score }
-                    .thenBy { i -> comboTieBreakKey(remaining[i], input) }
-            )
-            .map { remaining[it] }
-
-        // 8. Diversity: distinct cores first (cores already shown count as taken), then fill
-        //    from the skipped combos
-        return selectDiverse(sorted, topN, shownCores = excludedCores(exclude, input))
-    }
-
-    /**
-     * Steps 3–6 at one per-slot [cap]: group by role and cap each slot (items already shown,
-     * in [shownItemIds], rank after unshown ones within their slot — ranking only, scores
-     * unchanged; both sorts are stable, so with nothing shown the order is exactly
-     * score-descending), build every valid combo, score it, and drop the [exclude]d keys.
-     */
-    private fun unexcludedCombos(
-        byRole: Map<String, List<EngineItem>>,
-        itemScores: Map<Long, Double>,
-        shownItemIds: Set<Long>,
-        cap: Int,
-        exclude: Set<Set<Long>>,
-        input: EngineInput,
-    ): List<OutfitCombo> {
-        val cappedByRole: Map<String, List<EngineItem>> = byRole.mapValues { (_, items) ->
-            items
-                .sortedByDescending { itemScores[it.id] ?: 1.0 }
-                .let { sorted -> if (shownItemIds.isEmpty()) sorted else sorted.sortedBy { it.id in shownItemIds } }
-                .deduplicateByColorAndSubcategory()
-                .take(cap)
-        }
-        val combos = buildCombos(cappedByRole)
-        val hasFootwearInPool = cappedByRole[ROLE_FOOTWEAR].orEmpty().isNotEmpty()
-        return combos
-            .map { comboItems ->
-                OutfitCombo(
-                    items = comboItems,
-                    score = scoreCombo(comboItems, itemScores, input.weather, hasFootwearInPool, input.coWear),
-                )
+        val byRole: Map<String, List<EngineItem>> = safeItems
+            .groupBy { it.outfitRole ?: "Other" }
+            .mapValues { (_, items) ->
+                items
+                    .sortedByDescending { itemScores[it.id] ?: 1.0 }
+                    .let { sorted ->
+                        if (shownItemIds.isEmpty()) sorted else sorted.sortedBy { it.id in shownItemIds }
+                    }
+                    .deduplicateByColorAndSubcategory()
             }
-            .let { scored -> if (exclude.isEmpty()) scored else scored.filter { it.key() !in exclude } }
+        val hasFootwear = byRole[ROLE_FOOTWEAR].orEmpty().isNotEmpty()
+        val score = { items: List<EngineItem>, slotsDecided: Int ->
+            scoreCombo(
+                items, itemScores,
+                weather = if (slotsDecided >= 1) input.weather else null,
+                hasFootwearInPool = slotsDecided >= 2 && hasFootwear,
+                coWear = input.coWear,
+            )
+        }
+        val tieBreak = compareBy<Scored> { tieBreakKey(it.items, input) }
+        fun select(candidates: List<Scored>, k: Int): List<Scored> =
+            selectTopK(candidates, { it.score }, k, random, TEMPERATURE, tieBreak)
+
+        // 4. Cores: Top × Bottom pairs, then OnePieces; shown cores rank after unshown ones.
+        val cores = mutableListOf<Scored>()
+        for (top in byRole[ROLE_TOP].orEmpty()) {
+            for (bottom in byRole[ROLE_BOTTOM].orEmpty()) {
+                val items = listOf(top, bottom)
+                cores.add(Scored(items, score(items, 0)))
+            }
+        }
+        for (piece in byRole[ROLE_ONEPIECE].orEmpty()) {
+            cores.add(Scored(listOf(piece), score(listOf(piece), 0)))
+        }
+        if (cores.isEmpty()) return emptyList()
+        val shownCores = excludedCores(exclude, input)
+        val (unshownCores, seenCores) = cores.partition { it.items.idSet() !in shownCores }
+        val pickedCores = select(unshownCores, coreBeam).let { picked ->
+            if (picked.size >= coreBeam) picked else picked + select(seenCores, coreBeam - picked.size)
+        }
+
+        // 5–6. Extend each core on its own beam; drop excluded keys before the last selection.
+        val optionalSlots = listOf(ROLE_OUTERWEAR, ROLE_FOOTWEAR, ROLE_ACCESSORY)
+        val complete = mutableListOf<Scored>()
+        for (core in pickedCores) {
+            var partials = listOf(core)
+            optionalSlots.forEachIndexed { index, role ->
+                val options: List<EngineItem?> = listOf(null) + byRole[role].orEmpty()
+                val isLast = index == optionalSlots.lastIndex
+                val extended = ArrayList<Scored>(partials.size * options.size)
+                for (partial in partials) {
+                    for (option in options) {
+                        val items = if (option == null) partial.items else partial.items + option
+                        if (isLast && exclude.isNotEmpty() && items.idSet() in exclude) continue
+                        extended.add(Scored(items, score(items, index + 1)))
+                    }
+                }
+                partials = select(extended, beamPerCore)
+            }
+            complete.addAll(partials)
+        }
+        if (complete.isEmpty()) return emptyList()
+
+        // 8. Final pick: order every complete outfit, then diversity by core + fill.
+        val ordered = select(complete, complete.size).map { OutfitCombo(items = it.items, score = it.score) }
+        return selectDiverse(ordered, topN, shownCores = shownCores)
     }
+
+    /** A (partial) outfit and its un-noised outfit score. */
+    private class Scored(val items: List<EngineItem>, val score: Double)
+
+    private fun List<EngineItem>.idSet(): Set<Long> = mapTo(HashSet(size)) { it.id }
 
     /** The cores of the excluded combos, resolving each key's item IDs to their input roles. */
     private fun excludedCores(exclude: Set<Set<Long>>, input: EngineInput): Set<Set<Long>> {
@@ -373,7 +426,7 @@ class OutfitRecommendationEngine {
     }
 
     // -------------------------------------------------------------------------
-    // Step 3b — Color deduplication per slot
+    // Step 3 — Color deduplication per role
     // -------------------------------------------------------------------------
 
     /**
@@ -397,60 +450,7 @@ class OutfitRecommendationEngine {
     }
 
     // -------------------------------------------------------------------------
-    // Step 4 — Category completeness: build valid combos
-    // -------------------------------------------------------------------------
-
-    /**
-     * Builds all valid outfit combinations from the capped, deduplicated candidates.
-     *
-     * Valid combo = (exactly 1 Top + exactly 1 Bottom) OR (exactly 1 OnePiece),
-     * with optional 0–1 of: Outerwear, Footwear, Accessory.
-     */
-    private fun buildCombos(byRole: Map<String, List<EngineItem>>): List<List<EngineItem>> {
-        val tops = byRole[ROLE_TOP] ?: emptyList()
-        val bottoms = byRole[ROLE_BOTTOM] ?: emptyList()
-        val onePieces = byRole[ROLE_ONEPIECE] ?: emptyList()
-        val outerwear = byRole[ROLE_OUTERWEAR] ?: emptyList()
-        val footwear = byRole[ROLE_FOOTWEAR] ?: emptyList()
-        val accessories = byRole[ROLE_ACCESSORY] ?: emptyList()
-
-        // Build cores: Top+Bottom pairs or OnePiece singles
-        val cores = mutableListOf<List<EngineItem>>()
-        for (top in tops) {
-            for (bottom in bottoms) {
-                cores.add(listOf(top, bottom))
-            }
-        }
-        for (piece in onePieces) {
-            cores.add(listOf(piece))
-        }
-
-        if (cores.isEmpty()) return emptyList()
-
-        // Optional slots — include the "no item" choice (null) for each
-        val outerOptions: List<EngineItem?> = listOf(null) + outerwear
-        val footwearOptions: List<EngineItem?> = listOf(null) + footwear
-        val accessoryOptions: List<EngineItem?> = listOf(null) + accessories
-
-        val result = mutableListOf<List<EngineItem>>()
-        for (core in cores) {
-            for (outer in outerOptions) {
-                for (shoe in footwearOptions) {
-                    for (acc in accessoryOptions) {
-                        val combo = core +
-                            listOfNotNull(outer) +
-                            listOfNotNull(shoe) +
-                            listOfNotNull(acc)
-                        result.add(combo)
-                    }
-                }
-            }
-        }
-        return result
-    }
-
-    // -------------------------------------------------------------------------
-    // Step 6 — Outfit-level score
+    // Step 7 — Outfit-level score
     // -------------------------------------------------------------------------
 
     /**
@@ -608,14 +608,14 @@ class OutfitRecommendationEngine {
     // -------------------------------------------------------------------------
 
     /**
-     * Returns a tie-break key for a combo used for ascending sort (smallest key wins).
+     * Returns a tie-break key for a (partial) outfit used for ascending sort (smallest key wins).
      *
      * Rule: among tied combos, the one whose *most-recently-worn item* is the oldest
      * (i.e. least recently worn overall) wins — favouring combos that haven't been
      * worn in a while.
      *
-     * With a `jitter` [Random], exact score ties are rare, so this tie-break effectively
-     * applies only to un-jittered runs; the recency multiplier covers wear history then.
+     * It orders strict (no-[Random]) selections; Gumbel-top-k selection has no exact ties to
+     * break, and the recency multiplier covers wear history there.
      *
      * Implementation:
      * 1. Map each item to its last-worn date string, or [NEVER_WORN_SENTINEL] ("") if
@@ -631,8 +631,8 @@ class OutfitRecommendationEngine {
      * items are never-worn. Mixed combos (some worn, some not) correctly rank by the
      * worn item's date.
      */
-    private fun comboTieBreakKey(combo: OutfitCombo, input: EngineInput): String {
-        val dates = combo.items.map { item ->
+    private fun tieBreakKey(items: List<EngineItem>, input: EngineInput): String {
+        val dates = items.map { item ->
             input.lastWornDates[item.id]?.lastWornDate ?: NEVER_WORN_SENTINEL
         }
         return dates.maxOrNull() ?: NEVER_WORN_SENTINEL

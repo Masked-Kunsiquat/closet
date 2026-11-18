@@ -6,11 +6,15 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.measureTimedValue
 
-/** Smoke guard (not a benchmark): pair scoring keeps one large recommend well under a second. */
+/**
+ * Smoke guard (not a benchmark): one large seeded recommend stays well under a second. The beam
+ * extends every core with the full candidate list of each optional role (no per-slot cap).
+ */
 class EnginePerformanceTest {
 
     @Test
@@ -61,9 +65,12 @@ class EnginePerformanceTest {
         )
 
         val (result, elapsed) = measureTimedValue {
-            OutfitRecommendationEngine().recommend(input, topN = 25, candidatesPerSlot = 3)
+            OutfitRecommendationEngine().recommend(input, topN = 25, jitter = Random(11))
         }
-        assertTrue(result.isNotEmpty())
+        assertEquals(25, result.size)
+        assertEquals(25, result.map { it.core() }.toSet().size, "the page has distinct cores")
+        // The old per-slot cap of 3 allowed at most 3 tops; the beam draws on the whole wardrobe.
+        assertTrue(result.flatMap { c -> c.items.filter { it.outfitRole == "Top" } }.toSet().size > 3)
         assertTrue(elapsed < 1.seconds, "recommend took $elapsed")
     }
 }

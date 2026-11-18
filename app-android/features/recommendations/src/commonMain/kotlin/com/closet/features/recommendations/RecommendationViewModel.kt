@@ -488,17 +488,15 @@ class RecommendationViewModel(
 
         // 6. Run the pure engine — expand the pool when AI is ready so the scorer
         //    has more combos to curate from. Regenerate excludes combos already shown
-        //    this session. Only the session's first run seeds the jitter with the date (the
-        //    day's first pick is stable within a day but varies between days); Regenerate
-        //    uses an unseeded Random.
+        //    this session. Only the session's first run seeds the engine's selection with the
+        //    date (the day's first pick is stable within a day but varies between days);
+        //    Regenerate uses an unseeded Random.
         val aiReady = isAiReady()
         val runEngineOnce = { exclude: Set<Set<Long>> ->
             // First pick of a session is seeded by the date; Regenerate is unseeded.
             val jitter = if (firstOfSession) Random(today.toEpochDays()) else Random(Random.nextLong())
             if (aiReady) {
-                engine.recommend(
-                    input, topN = 25, candidatesPerSlot = 3, exclude = exclude, jitter = jitter
-                )
+                engine.recommend(input, topN = 25, exclude = exclude, jitter = jitter)
             } else {
                 engine.recommend(input, exclude = exclude, jitter = jitter)
             }

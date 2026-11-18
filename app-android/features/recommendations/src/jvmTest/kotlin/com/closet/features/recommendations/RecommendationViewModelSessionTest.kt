@@ -127,7 +127,7 @@ class RecommendationViewModelSessionTest {
         val repo = mockk<RecommendationRepository>()
         val engine = mockk<OutfitRecommendationEngine>()
         val captured = slot<EngineInput>()
-        every { engine.recommend(capture(captured), any(), any(), any(), any()) } returns emptyList()
+        every { engine.recommend(capture(captured), any(), any(), any()) } returns emptyList()
         val vm = buildViewModel(aiReady = false, repo = repo, engine = engine)
         coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(listOf(ItemPair(1, 3, 4)))
         coEvery { repo.getItemLogCounts(any()) } returns

@@ -24,7 +24,6 @@ internal fun hitRateAt10(
         val result = engine.recommend(
             input = replayInput(fixture, earlier, log),
             topN = 10,
-            candidatesPerSlot = 3,
         )
         if (result.any { it.core() == log.coreIds }) hits++
     }
