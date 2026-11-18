@@ -53,7 +53,7 @@ Full verification before a PR:
 ./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata :features:settings:jvmTest :features:settings:compileCommonMainKotlinMetadata :features:outfits:jvmTest :features:outfits:compileCommonMainKotlinMetadata :features:recommendations:jvmTest :features:recommendations:compileCommonMainKotlinMetadata :features:chat:jvmTest :features:chat:compileCommonMainKotlinMetadata :features:wardrobe:jvmTest :features:wardrobe:compileCommonMainKotlinMetadata :shared:jvmTest :shared:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
-CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources) on macOS. Instrumented tests don't run in CI; run them on a device.
+CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources, klib cross-compilation, no linking) on Ubuntu. `ios-link.yml` is a manual-only macOS job that links the `:shared` framework (`:shared:linkDebugFrameworkIosSimulatorArm64`); trigger it from the Actions tab when the iOS export changes. Instrumented tests don't run in CI; run them on a device.
 
 Unit and instrumented tests exist for the stats feature. Room tests (`FreshInstallSchemaTest`, `StatsDaoTest`, the repository tests) live in `core/data/src/jvmTest/` and run on the JVM against the bundled SQLite driver with `./gradlew :core:data:jvmTest` (no device needed); run them before any PR that touches the schema. `core/data/src/androidDeviceTest/` keeps only the Android-only checks (`DatabasePathTest`, `ExistingInstallUpgradeTest`); run `./gradlew :core:data:connectedAndroidDeviceTest` when changing the database builder or driver.
 
@@ -104,7 +104,7 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 - **Scope.** DAOs, repositories and providers are `single`.
 - **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(engine, ...)` in `commonMain/.../di/HttpClients.kt` (the engine is bound per platform: OkHttp on Android and JVM, Darwin on iOS); add any new secret-bearing header to its `SENSITIVE_HEADERS`.
 - **Feature modules in KMP.** A KMP feature module declares its Koin module in commonMain (`features/settings` `settingsModule`) and verifies it with a jvmTest graph `verify()`. `BatchCaptioner` is the common batch half of `CaptionEnrichmentProvider`; JVM and iOS bind `UnavailableNanoInitializer` and `NoOpBatchCaptioner`.
-- **Verification.** Every module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
+- **Verification.** Every module that declares a Koin module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
 
 ### Database (Room)
 
@@ -120,7 +120,7 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 
 ### Navigation
 
-Type-safe navigation on JetBrains `navigation-compose` (`libs.jetbrains.navigation.compose`, which resolves to androidx 2.9.7 on Android). Destinations are `@Serializable` data classes/objects in each feature's commonMain, registered via extension functions in its `*Navigation.kt`. The root `NavHost`, bottom bar and theme live in `shared` (`App()`); `app` supplies Android-only destinations (backup) and launcher-shortcut intents through `App`'s parameters.
+Type-safe navigation on JetBrains `navigation-compose` (`libs.jetbrains.navigation.compose`, which resolves to androidx 2.9.7 on Android). Destinations are `@Serializable` data classes/objects in each feature's commonMain (backup's are in `app`), registered via extension functions in its `*Navigation.kt`. The root `NavHost`, bottom bar and theme live in `shared` (`App()`); `app` supplies Android-only destinations (backup) and launcher-shortcut intents through `App`'s parameters.
 
 ### Error handling
 

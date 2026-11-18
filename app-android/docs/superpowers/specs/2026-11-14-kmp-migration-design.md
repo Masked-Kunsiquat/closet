@@ -1,7 +1,7 @@
 # hangr → Kotlin Multiplatform + Compose Multiplatform — Design
 
 **Date:** 2026-11-14
-**Status:** Phases 0–6 complete (Android runs on the shared code); iOS and desktop apps deferred per this spec
+**Status:** Phases 0–6 complete (Android runs on the shared code); iOS and desktop apps deferred per this spec. The `:shared` iOS framework is declared, and CI cross-compiles it on Linux; linking it needs macOS and runs only through the manual `ios-link.yml` workflow
 **Starting point:** `main` @ `866f5be` (v0.7.1)
 
 ## Intent
