@@ -8,24 +8,26 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ## [Unreleased]
 
+---
+
+## [0.9.0] — 2026-11-18
+
+This release brings the complete **Recommendation Engine v2**: piece-by-piece assembly (stochastic beam search), learned pairwise compatibility from your actual wear history, formality and hue-based color harmony, and embedding backoff for new or rarely worn clothes. Under the hood, the **Kotlin Multiplatform migration is now complete across all feature modules and root navigation (Phases 4–6)**, time access is unified through an injectable `AppClock`, and the app targets Android 16 (API 36) with predictive back gestures enabled.
+
 ### Added
-- **Embedding backoff and history generalization in recommendation engine v2** (issue #96) — for new or rarely worn clothes with thin direct co-wear history, the engine generalizes wear history using 384-dimensional item embeddings (Level 1 nearest neighbors) and wardrobe-wide subcategory co-wear patterns (Level 2 fallback) before defaulting to rule priors.
+- **Recommendation Engine v2** (issues #94, #96):
+  - **Learned pairwise compatibility & history backoff**: scores pairs from observed co-wear history. For new or rarely worn clothes, wear history is generalized using 384-dimensional ONNX item embeddings (nearest cosine neighbors) and wardrobe-wide subcategory co-wear patterns.
+  - **Step-by-step assembly (stochastic beam search)**: builds outfits piece by piece around what goes together, replacing the old combinatorial search.
+  - **Formality & hue harmony**: guards against mixing disparate formalities (e.g. sneakers with suits) and scores color harmony from measured hex values.
+  - **Smarter regeneration & variety**: Regenerate explores new combinations without repeating, diversity is held inside the beam per core, and clothes you haven't worn in a while rotate in.
+- **Injectable `AppClock`** (issue #112) — time access across data repositories, features, and background workers is abstracted through a common `AppClock` with CI enforcement against direct system clock reads.
+- **Richer demo wardrobe** (issue #102) — seeded with realistic prices, brands, materials, patterns, favorites, and 120 wear logs over 180 days for dev and entry testing.
 
 ### Changed
-- **Smarter outfit suggestions** — the engine now builds outfits piece by piece around what goes together, learns which clothes you wear together, avoids mixing very dressy and very casual pieces, and uses hue-based color harmony. Regenerate explores more varied outfits.
-- **The app's navigation and root screen are Kotlin Multiplatform** (KMP Phase 6): a shared `App()` with the bottom bar and navigation graph. The Kotlin Multiplatform migration is complete; Android behaviour is unchanged.
-- **Wardrobe is Kotlin Multiplatform** (KMP Phase 5): shared closet, item detail, add/edit form, bulk wash and brand screens, Compose resources, Material Symbols icons. Every feature is now multiplatform.
-- **Better outfit suggestions** — Regenerate shows new outfits instead of repeating, results no longer repeat the same top and bottom, outfits with shoes are preferred, and clothes you haven't worn in a while get a nudge.
-- **Wardrobe chat is Kotlin Multiplatform** (KMP Phase 5): shared chat pipeline, AI providers and UI, Compose resources, Material Symbols icons.
-- **Outfit recommendations are Kotlin Multiplatform** (KMP Phase 5): shared engine, AI providers and UI, Compose resources, Material Symbols icons.
-- **Outfits and journal are Kotlin Multiplatform** (KMP Phase 5): shared UI and view models, Compose resources, Material Symbols icons.
-- **Settings screens are Kotlin Multiplatform** (KMP Phase 5): shared UI, view model and DI, Compose resources, Material Symbols icons.
-- **Stats screen is Kotlin Multiplatform** (KMP Phase 5): shared UI and logic, Compose resources, Material Symbols icons.
-- **targetSdk 35 → 36** — predictive back (the back-to-home preview) is on by
-  default on Android 14+.
-- **`core/ui` is Kotlin Multiplatform / Compose Multiplatform** (KMP Phase 4):
-  the theme, shared components and preferences are in common code, and icons and
-  strings use Compose resources. Dynamic color stays Android-only.
+- **The app's navigation and root screen are Kotlin Multiplatform** (KMP Phase 6): a shared `App()` in `:shared` with the bottom bar, navigation graph, and iOS framework export. The multiplatform migration is complete; Android behaviour is unchanged.
+- **All feature modules are Kotlin Multiplatform** (KMP Phase 5): wardrobe, outfits, journal, recommendations, chat, settings, and stats screens are in `commonMain` using Compose resources and Material Symbols icons.
+- **targetSdk 35 → 36** — predictive back (the back-to-home preview) is on by default on Android 14+.
+- **`core/ui` is Kotlin Multiplatform / Compose Multiplatform** (KMP Phase 4): theme, shared components and preferences are in common code, and icons and strings use Compose resources. Dynamic color stays Android-only.
 
 ### Fixed
 - **Fall clothes left out of suggestions in September–November**: the recommendation season filter looked for "Autumn", but the season is named "Fall".
