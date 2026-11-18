@@ -226,7 +226,7 @@ These are dynamic — created at runtime from DB data.
   `R.drawable.ic_shortcut_category` from the wardrobe module.
 
 - [x] **§6.3 — Add `ic_shortcut_category.xml`**
-  Created `features/wardrobe/src/main/res/drawable/ic_shortcut_category.xml` — adaptive icon
+  Created `features/wardrobe/src/androidMain/res/drawable/ic_shortcut_category.xml` — adaptive icon
   (amber background + `ic_icon_dresser` foreground + monochrome layer). Placed in
   `features/wardrobe` so `ClosetViewModel` can reference it without a reverse module dep.
   Also created `features/wardrobe/src/main/res/values/colors.xml` with `shortcut_icon_bg`
@@ -248,9 +248,10 @@ Shortcuts must be disabled when the content they reference no longer exists.
 
 - [x] **§7.1 — Disable category shortcuts on category deletion**
   Added `ClosetViewModel.disableCategoryShortcut(categoryId: Long, reason: String)` which
-  calls `ShortcutManagerCompat.disableShortcuts`. Categories are not yet deletable in the
-  UI — this is a ready hook for when that feature lands. The call site is wherever the
-  category delete ViewModel action is implemented.
+  called `ShortcutManagerCompat.disableShortcuts`. Categories are not yet deletable in the
+  UI, so it had no call sites; it was removed as unused in KMP Phase 5 (wardrobe), when
+  `ClosetViewModel` moved to commonMain behind the `CategoryShortcutPinner` seam, which
+  only has `pin`. Re-add a `disable` method there when category deletion lands.
 
 - [x] **§7.2 — Keep dynamic shortcut count ≤ 4 total (static + dynamic)**
   Added `ShortcutActions.STATIC_SHORTCUT_COUNT = 3` and
@@ -272,12 +273,12 @@ Shortcuts must be disabled when the content they reference no longer exists.
 | ✅ Done | `app/src/main/AndroidManifest.xml` | Register shortcuts.xml meta-data |
 | ✅ Done | `app/src/main/res/values/strings.xml` | Shortcut label strings |
 | ✅ Done | `app/src/main/res/drawable/ic_shortcut_*.xml` | Adaptive icons (amber bg + monochrome) |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../WardrobeNavigation.kt` | `BulkWashDestination`, `AddClothingDestination(openCamera)`, `ClosetDestination(initialCategoryId)` |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../BulkWashViewModel.kt` | Bulk status ViewModel + `reportShortcutUsed` |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../BulkWashScreen.kt` | Laundry Day UI |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClothingFormViewModel.kt` | `openCamera` + `OpenImagePicker` event + `reportShortcutUsed` |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClothingFormScreen.kt` | Consume `OpenImagePicker` event |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClosetViewModel.kt` | `pinCategoryShortcut()`, `disableCategoryShortcut()`, `initialCategoryId` filter |
-| ✅ Done | `features/wardrobe/src/main/kotlin/.../ClosetScreen.kt` | Pin button on category chips |
-| ✅ Done | `features/wardrobe/src/main/res/drawable/ic_shortcut_category.xml` | Adaptive icon for pinned category shortcuts |
+| ✅ Done | `features/wardrobe/src/androidMain/kotlin/.../WardrobeNavigation.kt` | `BulkWashDestination`, `AddClothingDestination(openCamera)`, `ClosetDestination(initialCategoryId)` |
+| ✅ Done | `features/wardrobe/src/commonMain/kotlin/.../BulkWashViewModel.kt` | Bulk status ViewModel + `reportShortcutUsed` |
+| ✅ Done | `features/wardrobe/src/commonMain/kotlin/.../BulkWashScreen.kt` | Laundry Day UI |
+| ✅ Done | `features/wardrobe/src/commonMain/kotlin/.../ClothingFormViewModel.kt` | `openCamera` + `OpenImagePicker` event + `reportShortcutUsed` |
+| ✅ Done | `features/wardrobe/src/commonMain/kotlin/.../ClothingFormScreen.kt` | Consume `OpenImagePicker` event |
+| ✅ Done | `features/wardrobe/src/commonMain/kotlin/.../ClosetViewModel.kt` | `pinCategoryShortcut()`, `initialCategoryId` filter (`disableCategoryShortcut()` was removed as unused; see §7.1) |
+| ✅ Done | `features/wardrobe/src/commonMain/kotlin/.../ClosetScreen.kt` | Pin button on category chips |
+| ✅ Done | `features/wardrobe/src/androidMain/res/drawable/ic_shortcut_category.xml` | Adaptive icon for pinned category shortcuts |
 | ✅ Done | `features/outfits/src/main/kotlin/.../JournalViewModel.kt` | `reportShortcutUsed("log_fit")` |

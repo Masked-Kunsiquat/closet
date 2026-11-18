@@ -85,6 +85,8 @@ class GmsKoinTest {
                 WorkerParameters::class,
                 HttpClientEngine::class,
                 HttpClientConfig::class,
+                // Bound by the app module from BuildConfig.DEBUG; platform/gms can't depend on app.
+                BuildFlags::class,
             )
         )
     }

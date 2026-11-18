@@ -1,0 +1,155 @@
+package com.closet.features.wardrobe
+
+import org.jetbrains.compose.resources.painterResource
+import com.closet.core.ui.resources.Res as CoreRes
+import com.closet.core.ui.resources.ic_symbol_content_copy
+import com.closet.core.ui.resources.ic_symbol_keyboard_arrow_right
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+
+/**
+ * Debug-only card that surfaces `semantic_description` and `image_caption` for a clothing item.
+ *
+ * Tapping opens a [ModalBottomSheet] where both fields are shown as read-only text with
+ * a Copy button. Intended for data-quality inspection during Phase 1 iteration.
+ *
+ * **Only rendered when `BuildFlags.isDebug` is true — never shown in release builds.**
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SemanticDebugCard(
+    semanticDescription: String?,
+    imageCaption: String?,
+) {
+    var showSheet by remember { mutableStateOf(false) }
+
+    OutlinedCard(
+        onClick = { showSheet = true },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Badge { Text("DEV") }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Semantic data",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            Icon(
+                painter = painterResource(CoreRes.drawable.ic_symbol_keyboard_arrow_right),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    if (showSheet) {
+        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
+            SemanticDebugSheetContent(
+                semanticDescription = semanticDescription,
+                imageCaption = imageCaption,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SemanticDebugSheetContent(
+    semanticDescription: String?,
+    imageCaption: String?,
+) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val copy: (String?) -> Unit = { text ->
+        scope.launch { clipboard.setClipEntry(plainTextClipEntry(text ?: "")) }
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Text(
+            text = "Semantic data inspector",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(vertical = 12.dp),
+        )
+        DebugTextField(
+            label = "Semantic description",
+            value = semanticDescription,
+            onCopy = { copy(semanticDescription) },
+            copyContentDescription = "Copy semantic description",
+        )
+        Spacer(Modifier.height(12.dp))
+        DebugTextField(
+            label = "Image caption",
+            value = imageCaption,
+            onCopy = { copy(imageCaption) },
+            copyContentDescription = "Copy image caption",
+        )
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun DebugTextField(
+    label: String,
+    value: String?,
+    onCopy: () -> Unit,
+    copyContentDescription: String,
+) {
+    OutlinedTextField(
+        value = value ?: "Not yet generated",
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        textStyle = LocalTextStyle.current.copy(
+            color = if (value == null) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+        ),
+        trailingIcon = {
+            if (value != null) {
+                IconButton(onClick = onCopy) {
+                    Icon(painterResource(CoreRes.drawable.ic_symbol_content_copy), contentDescription = copyContentDescription)
+                }
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+        minLines = 3,
+    )
+}
