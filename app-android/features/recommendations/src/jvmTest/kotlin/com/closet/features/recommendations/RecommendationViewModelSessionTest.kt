@@ -93,6 +93,12 @@ class RecommendationViewModelSessionTest {
         coEvery { repo.getSavedOutfitCount() } returns DataResult.Success(0)
         coEvery { repo.getItemOccasionNames(any()) } returns DataResult.Success(emptyList())
         coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getItemEmbeddings(any(), any()) } returns DataResult.Success(emptyMap())
+        coEvery { repo.getItemEmbeddings(any()) } returns DataResult.Success(emptyMap())
+        coEvery { repo.getSubcategoryCoWearPairs() } returns DataResult.Success(emptyList())
+        coEvery { repo.getSubcategorySavedOutfitPairs() } returns DataResult.Success(emptyList())
+        coEvery { repo.getSubcategoryLogCounts() } returns DataResult.Success(emptyList())
+        coEvery { repo.getSubcategorySavedItemCounts() } returns DataResult.Success(emptyList())
         return RecommendationViewModel(
             recommendationRepository = repo,
             engine = engine,
@@ -143,6 +149,13 @@ class RecommendationViewModelSessionTest {
             )
         )
         coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233", "Cool")))
+        val v1 = floatArrayOf(1.0f, 0.0f, 0.0f)
+        val v2 = floatArrayOf(0.9f, 0.43588989f, 0.0f)
+        coEvery { repo.getItemEmbeddings(any()) } returns DataResult.Success(mapOf(1L to v1, 2L to v2))
+        coEvery { repo.getSubcategoryCoWearPairs() } returns DataResult.Success(listOf(ItemPair(10, 20, 3)))
+        coEvery { repo.getSubcategorySavedOutfitPairs() } returns DataResult.Success(listOf(ItemPair(10, 20, 2)))
+        coEvery { repo.getSubcategoryLogCounts() } returns DataResult.Success(listOf(ItemCount(10, 3)))
+        coEvery { repo.getSubcategorySavedItemCounts() } returns DataResult.Success(listOf(ItemCount(10, 2)))
 
         vm.onWeatherConfirmed(weather)
 
@@ -160,6 +173,16 @@ class RecommendationViewModelSessionTest {
         assertEquals(null, items.getValue(2).formalityLevel)
         assertEquals(listOf(ColorHex("#112233", "Cool")), items.getValue(3).colorHexes)
         assertEquals(emptyList(), items.getValue(1).colorHexes)
+        assertEquals(1, input.itemNeighbors[1L]?.size)
+        assertEquals(2L, input.itemNeighbors[1L]?.first()?.itemId)
+        assertEquals(
+            CoWearStats(
+                pairCounts = mapOf((10L to 20L) to 4.0),
+                itemCounts = mapOf(10L to 4.0),
+                total = 12.0,
+            ),
+            input.subcategoryCoWear,
+        )
     }
 
     @Test fun calendarSeasonComesFromTheClockMonth() {

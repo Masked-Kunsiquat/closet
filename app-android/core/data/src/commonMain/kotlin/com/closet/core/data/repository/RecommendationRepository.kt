@@ -14,6 +14,8 @@ import com.closet.core.data.dao.ItemWindSuitability
 import com.closet.core.data.dao.RecommendationDao
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
+import com.closet.core.data.util.toFloatArrayLE
+import com.closet.core.data.worker.EmbeddingWork
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -302,6 +304,31 @@ class RecommendationRepository(
             recommendationDao.getItemColorHexes(itemIds)
         }.toDataResult("getItemColorHexes")
     }
+
+    // History generalization (engine v2, Delivery 3, #96): embeddings and subcategory co-wears.
+
+    suspend fun getItemEmbeddings(
+        itemIds: List<Long>,
+        modelVersion: String = EmbeddingWork.MODEL_VERSION,
+    ): DataResult<Map<Long, FloatArray>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyMap())
+        return runCatching {
+            recommendationDao.getItemEmbeddings(itemIds, modelVersion)
+                .associate { it.itemId to it.embeddingBlob.toFloatArrayLE() }
+        }.toDataResult("getItemEmbeddings")
+    }
+
+    suspend fun getSubcategoryCoWearPairs(): DataResult<List<ItemPair>> =
+        runCatching { recommendationDao.getSubcategoryCoWearPairs() }.toDataResult("getSubcategoryCoWearPairs")
+
+    suspend fun getSubcategorySavedOutfitPairs(): DataResult<List<ItemPair>> =
+        runCatching { recommendationDao.getSubcategorySavedOutfitPairs() }.toDataResult("getSubcategorySavedOutfitPairs")
+
+    suspend fun getSubcategoryLogCounts(): DataResult<List<ItemCount>> =
+        runCatching { recommendationDao.getSubcategoryLogCounts() }.toDataResult("getSubcategoryLogCounts")
+
+    suspend fun getSubcategorySavedItemCounts(): DataResult<List<ItemCount>> =
+        runCatching { recommendationDao.getSubcategorySavedItemCounts() }.toDataResult("getSubcategorySavedItemCounts")
 
     // ---------------------------------------------------------------------------
     // Helpers

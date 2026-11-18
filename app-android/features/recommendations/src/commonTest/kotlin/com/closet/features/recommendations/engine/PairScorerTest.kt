@@ -63,6 +63,147 @@ class PairScorerTest {
     }
 
     // =========================================================================
+    // History Generalization & Embedding Backoff (Delivery 3)
+    // =========================================================================
+
+    @Test
+    fun `Level 1 neighbor generalization lifts pair with zero direct history`() {
+        val item1 = item(id = 1, subcategoryId = 10)
+        val item2 = item(id = 2, subcategoryId = 20)
+        // Neighbors: 1 ~ 10 (sim 0.9), 2 ~ 20 (sim 0.8)
+        val neighbors = mapOf(
+            1L to listOf(ItemNeighbor(10L, 0.9)),
+            2L to listOf(ItemNeighbor(20L, 0.8)),
+        )
+        // Co-wear between neighbor 10 and neighbor 20: c = 4, E = 3 -> lift = 1.25, n = 4.0
+        val coWear = CoWearStats(
+            pairCounts = mapOf((10L to 20L) to 4.0),
+            itemCounts = mapOf(10L to 6.0, 20L to 6.0),
+            total = 12.0,
+        )
+        val result = PairScorer.history(item1, item2, coWear, itemNeighbors = neighbors)
+        // lift = 1.25
+        assertEquals(1.25, result.lift, 1e-9)
+        // sim = 0.9 * 0.8 = 0.72, n_neighbors = 0.72 * 4.0 = 2.88
+        // n_eff = 0.6 * 2.88 = 1.728
+        val expectedWeight = 1.728 / (1.728 + 5.0)
+        assertEquals(expectedWeight, result.weight, 1e-9)
+    }
+
+    @Test
+    fun `Level 1 neighbor generalization includes direct item paired with neighbor`() {
+        // Item 1 itself was worn with neighbor 20 of Item 2
+        val item1 = item(id = 1)
+        val item2 = item(id = 2)
+        val neighbors = mapOf(
+            2L to listOf(ItemNeighbor(20L, 0.8)),
+        )
+        // Pair (1, 20) has co-wear: c = 4, E = 3 -> lift = 1.25, n = 4.0
+        val coWear = CoWearStats(
+            pairCounts = mapOf((1L to 20L) to 4.0),
+            itemCounts = mapOf(1L to 6.0, 20L to 6.0),
+            total = 12.0,
+        )
+        val result = PairScorer.history(item1, item2, coWear, itemNeighbors = neighbors)
+        assertEquals(1.25, result.lift, 1e-9)
+        // sim = 1.0 * 0.8 = 0.8, n_neighbors = 0.8 * 4.0 = 3.2, n_eff = 0.6 * 3.2 = 1.92
+        val expectedWeight = 1.92 / (1.92 + 5.0)
+        assertEquals(expectedWeight, result.weight, 1e-9)
+    }
+
+    @Test
+    fun `Level 2 subcategory fallback provides coarse baseline when items and neighbors unseen`() {
+        val item1 = item(id = 1, subcategoryId = 100)
+        val item2 = item(id = 2, subcategoryId = 200)
+        val subCoWear = CoWearStats(
+            pairCounts = mapOf((100L to 200L) to 8.0),
+            itemCounts = mapOf(100L to 10.0, 200L to 8.0),
+            total = 40.0,
+        )
+        // E_sub = 10 * 8 / 40 = 2.0. c = 8.0. lift = (8+1)/(2+1) = 3.0 -> clamped to 1.3
+        // n_sub = 8.0, n_eff = min(5.0, 0.25 * 8.0) = 2.0
+        val result = PairScorer.history(item1, item2, CoWearStats.EMPTY, subcategoryCoWear = subCoWear)
+        assertEquals(1.3, result.lift, 1e-9)
+        val expectedWeight = 2.0 / (2.0 + 5.0)
+        assertEquals(expectedWeight, result.weight, 1e-9)
+    }
+
+    @Test
+    fun `sufficient direct history bypasses backoff`() {
+        val item1 = item(id = 1, subcategoryId = 100)
+        val item2 = item(id = 2, subcategoryId = 200)
+        // Direct evidence n = 6.0 >= K (5.0): c = 6, E = 3 -> lift = (6+1)/(3+1) = 1.75 -> clamped to 1.3
+        val directCoWear = CoWearStats(
+            pairCounts = mapOf((1L to 2L) to 6.0),
+            itemCounts = mapOf(1L to 10.0, 2L to 12.0),
+            total = 40.0,
+        )
+        // Subcategory co-wear has a different lift (e.g. low lift = 0.8)
+        val subCoWear = CoWearStats(
+            pairCounts = mapOf((100L to 200L) to 0.0),
+            itemCounts = mapOf(100L to 10.0, 200L to 10.0),
+            total = 20.0,
+        )
+        val result = PairScorer.history(item1, item2, directCoWear, subcategoryCoWear = subCoWear)
+        // Direct lift is 1.3, weight = 6 / (6 + 5) = 6/11
+        assertEquals(1.3, result.lift, 1e-9)
+        assertEquals(6.0 / 11.0, result.weight, 1e-9)
+    }
+
+    @Test
+    fun `direct and neighbor evidence blend smoothly when direct is sparse`() {
+        val item1 = item(id = 1)
+        val item2 = item(id = 2)
+        val neighbors = mapOf(
+            1L to listOf(ItemNeighbor(10L, 1.0)),
+        )
+        // Direct: c = 1, E = 1 -> n0 = 1.0, lift0 = (1+1)/(1+1) = 1.0
+        // Neighbor (10, 2): c = 4, E = 1 -> lift = (4+1)/(1+1) = 2.5 -> clamped 1.3, n = 4.0
+        val coWear = CoWearStats(
+            pairCounts = mapOf((1L to 2L) to 1.0, (2L to 10L) to 4.0),
+            itemCounts = mapOf(1L to 2.0, 2L to 5.0, 10L to 2.0),
+            total = 10.0,
+        )
+        val result = PairScorer.history(item1, item2, coWear, itemNeighbors = neighbors)
+        // n0 = 1.0, lift0 = 1.0
+        // n1 = 0.6 * (1.0 * 4.0) = 2.4, lift1 = 1.3
+        // n_eff = 1.0 + 2.4 = 3.4
+        // combinedLift = (1.0 * 1.0 + 2.4 * 1.3) / 3.4 = 4.12 / 3.4 = 1.2117647...
+        val expectedLift = (1.0 * 1.0 + 2.4 * 1.3) / 3.4
+        assertEquals(expectedLift, result.lift, 1e-9)
+        val expectedWeight = 3.4 / (3.4 + 5.0)
+        assertEquals(expectedWeight, result.weight, 1e-9)
+    }
+
+    @Test
+    fun `buildItemNeighbors finds similar items above threshold and limits to topK`() {
+        // Unit vectors in 3D:
+        // vec1 = [1, 0, 0]
+        // vec2 = [0.9, sqrt(1 - 0.81), 0] -> dot with vec1 = 0.9 (>= 0.75, keep)
+        // vec3 = [0.8, sqrt(1 - 0.64), 0] -> dot with vec1 = 0.8 (>= 0.75, keep)
+        // vec4 = [0.5, sqrt(1 - 0.25), 0] -> dot with vec1 = 0.5 (< 0.75, drop)
+        val v1 = floatArrayOf(1.0f, 0.0f, 0.0f)
+        val v2 = floatArrayOf(0.9f, 0.43588989f, 0.0f)
+        val v3 = floatArrayOf(0.8f, 0.6f, 0.0f)
+        val v4 = floatArrayOf(0.5f, 0.8660254f, 0.0f)
+
+        val embeddings = mapOf(1L to v1, 2L to v2, 3L to v3, 4L to v4)
+        val neighbors = buildItemNeighbors(embeddings, topK = 5, minSimilarity = 0.75)
+
+        val neighbors1 = neighbors[1L].orEmpty()
+        assertEquals(2, neighbors1.size)
+        assertEquals(2L, neighbors1[0].itemId)
+        assertEquals(0.9, neighbors1[0].similarity, 1e-5)
+        assertEquals(3L, neighbors1[1].itemId)
+        assertEquals(0.8, neighbors1[1].similarity, 1e-5)
+
+        // Item 4 has no neighbors >= 0.75 with item 1
+        assertTrue(neighbors1.none { it.itemId == 4L })
+        // Item is not its own neighbor
+        assertTrue(neighbors1.none { it.itemId == 1L })
+    }
+
+    // =========================================================================
     // Formality
     // =========================================================================
 

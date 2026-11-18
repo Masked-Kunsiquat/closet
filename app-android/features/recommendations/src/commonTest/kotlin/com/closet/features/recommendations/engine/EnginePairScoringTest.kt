@@ -105,6 +105,60 @@ class EnginePairScoringTest {
         assertEquals(1.0, result.scoreOf(1, 3), 1e-9)
     }
 
+    @Test
+    fun `similar items supply pair signal when direct co-wear history is sparse`() {
+        // Items 1 (Top) and 2 (Bottom) are brand new (zero direct wear logs).
+        // Items 1 and 3 (Bottom) have equal rules compatibility (both 1.0).
+        // Item 1 is very similar to Top 10 (ItemNeighbor with sim = 0.9).
+        // Item 2 is very similar to Bottom 20 (ItemNeighbor with sim = 0.85).
+        // Top 10 and Bottom 20 have heavy co-wear history.
+        val items = listOf(
+            item(id = 1, role = "Top"),
+            item(id = 2, role = "Bottom"),
+            item(id = 3, role = "Bottom"),
+        )
+        val neighbors = mapOf(
+            1L to listOf(ItemNeighbor(10L, 0.9)),
+            2L to listOf(ItemNeighbor(20L, 0.85)),
+        )
+        val coWear = CoWearStats(
+            pairCounts = mapOf((10L to 20L) to 20.0),
+            itemCounts = mapOf(10L to 20.0, 20L to 20.0),
+            total = 50.0,
+        )
+        val input = engineInput(
+            candidates = items,
+            coWear = coWear,
+            itemNeighbors = neighbors,
+        )
+        val result = engine.recommend(input)
+        assertEquals(setOf(1L, 2L), result.first().key(), "neighbor wear history lifts unseen core (1, 2) above (1, 3)")
+        assertTrue(result.scoreOf(1, 2) > result.scoreOf(1, 3))
+    }
+
+    @Test
+    fun `subcategory co-wear supplies pair signal when direct and neighbor history are absent`() {
+        // Items 1 (Top, subcat 101) and 2 (Bottom, subcat 202) have zero direct logs and no neighbors.
+        // Item 3 (Bottom, subcat 303) has zero direct logs and no subcat co-wear.
+        val items = listOf(
+            item(id = 1, role = "Top", subcategoryId = 101),
+            item(id = 2, role = "Bottom", subcategoryId = 202),
+            item(id = 3, role = "Bottom", subcategoryId = 303),
+        )
+        val subCoWear = CoWearStats(
+            pairCounts = mapOf((101L to 202L) to 15.0),
+            itemCounts = mapOf(101L to 20.0, 202L to 20.0),
+            total = 50.0,
+        )
+        val input = engineInput(
+            candidates = items,
+            subcategoryCoWear = subCoWear,
+        )
+        val result = engine.recommend(input)
+        assertEquals(setOf(1L, 2L), result.first().key(), "subcategory co-wear lifts core (1, 2) above (1, 3)")
+        assertTrue(result.scoreOf(1, 2) > result.scoreOf(1, 3))
+    }
+
     // =========================================================================
     // Formality
     // =========================================================================

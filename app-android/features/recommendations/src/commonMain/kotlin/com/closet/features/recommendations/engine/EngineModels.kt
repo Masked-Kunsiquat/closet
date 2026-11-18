@@ -77,6 +77,8 @@ data class ColorHex(val hex: String, val family: String)
  * @property today            Today's date, for the wear-recency multiplier. Null (the default)
  *                            disables recency scoring. Passed in so the engine never reads a clock.
  * @property coWear           Co-wear and saved-outfit statistics: the habit term of the outfit score.
+ * @property itemNeighbors    Top-k cosine neighbors per item for Level 1 history generalization.
+ * @property subcategoryCoWear Aggregate subcategory-pair co-wear stats for Level 2 fallback.
  */
 data class EngineInput(
     val candidates: List<EngineItem>,
@@ -87,7 +89,17 @@ data class EngineInput(
     val weather: EngineWeather?,
     val today: LocalDate? = null,
     val coWear: CoWearStats = CoWearStats.EMPTY,
+    val itemNeighbors: Map<Long, List<ItemNeighbor>> = emptyMap(),
+    val subcategoryCoWear: CoWearStats = CoWearStats.EMPTY,
 )
+
+/**
+ * A cosine neighbor of an item with its cosine similarity in [-1.0, 1.0].
+ *
+ * @property itemId     Candidate clothing item primary key.
+ * @property similarity Cosine similarity to the target item (typically >= 0.75).
+ */
+data class ItemNeighbor(val itemId: Long, val similarity: Double)
 
 /**
  * Weather conditions passed into the engine.
