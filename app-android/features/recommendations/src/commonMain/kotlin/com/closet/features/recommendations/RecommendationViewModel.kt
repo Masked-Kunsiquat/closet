@@ -19,10 +19,13 @@ import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.WeatherRepository
 import com.closet.core.data.util.DataResult
+import com.closet.features.recommendations.engine.ColorHex
+import com.closet.features.recommendations.engine.CoWearStats
 import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.OutfitCombo
+import com.closet.features.recommendations.engine.formalityLevel
 import com.closet.features.recommendations.engine.key
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
@@ -381,6 +384,30 @@ class RecommendationViewModel(
         val patternNamesDeferred = async {
             recommendationRepository.getItemPatternNames(itemIds).unwrapOrThrow("getItemPatternNames")
         }
+        val logPairsDeferred = async {
+            recommendationRepository.getCoWearPairs(itemIds).unwrapOrThrow("getCoWearPairs")
+        }
+        val logItemCountsDeferred = async {
+            recommendationRepository.getItemLogCounts(itemIds).unwrapOrThrow("getItemLogCounts")
+        }
+        val logTotalDeferred = async {
+            recommendationRepository.getTotalLogCount().unwrapOrThrow("getTotalLogCount")
+        }
+        val savedPairsDeferred = async {
+            recommendationRepository.getSavedOutfitPairs(itemIds).unwrapOrThrow("getSavedOutfitPairs")
+        }
+        val savedItemCountsDeferred = async {
+            recommendationRepository.getSavedItemCounts(itemIds).unwrapOrThrow("getSavedItemCounts")
+        }
+        val savedTotalDeferred = async {
+            recommendationRepository.getSavedOutfitCount().unwrapOrThrow("getSavedOutfitCount")
+        }
+        val occasionNamesDeferred = async {
+            recommendationRepository.getItemOccasionNames(itemIds).unwrapOrThrow("getItemOccasionNames")
+        }
+        val colorHexesDeferred = async {
+            recommendationRepository.getItemColorHexes(itemIds).unwrapOrThrow("getItemColorHexes")
+        }
 
         val tempPercentiles: List<ItemTempPercentiles> = tempPercentilesDeferred.await()
         val rain: List<ItemRainSuitability> = rainDeferred.await()
@@ -388,6 +415,23 @@ class RecommendationViewModel(
         val lastWorn: List<ItemLastWorn> = lastWornDeferred.await()
         val colorFamilyRows: List<ItemColorFamily> = colorFamiliesDeferred.await()
         val patternNameRows: List<ItemPatternName> = patternNamesDeferred.await()
+        val occasionNamesMap: Map<Long, List<String>> = occasionNamesDeferred.await()
+            .groupBy({ it.clothingItemId }, { it.occasionName })
+        val colorHexesMap: Map<Long, List<ColorHex>> = colorHexesDeferred.await()
+            .groupBy({ it.clothingItemId }, { ColorHex(it.hex, it.colorFamily) })
+
+        val saved = CoWearStats.SAVED_OUTFIT_WEIGHT
+        val pairCounts = HashMap<Pair<Long, Long>, Double>()
+        logPairsDeferred.await().forEach { pairCounts.addTo(it.aId to it.bId, it.count.toDouble()) }
+        savedPairsDeferred.await().forEach { pairCounts.addTo(it.aId to it.bId, it.count * saved) }
+        val itemCounts = HashMap<Long, Double>()
+        logItemCountsDeferred.await().forEach { itemCounts.addTo(it.clothingItemId, it.count.toDouble()) }
+        savedItemCountsDeferred.await().forEach { itemCounts.addTo(it.clothingItemId, it.count * saved) }
+        val coWear = CoWearStats(
+            pairCounts = pairCounts,
+            itemCounts = itemCounts,
+            total = logTotalDeferred.await() + saved * savedTotalDeferred.await(),
+        )
 
         // 3. Index score results by item ID for O(1) lookup
         val tempMap: Map<Long, ItemTempPercentiles> =
@@ -423,7 +467,9 @@ class RecommendationViewModel(
                 outfitRole = item.outfitRole,
                 warmthLayer = item.warmthLayer,
                 colorFamilies = colorFamilyMap[item.id] ?: emptySet(),
-                isPatternSolid = patternNames.isEmpty() || patternNames.all { it == "Solid" }
+                isPatternSolid = patternNames.isEmpty() || patternNames.all { it == "Solid" },
+                colorHexes = colorHexesMap[item.id] ?: emptyList(),
+                formalityLevel = formalityLevel(occasionNamesMap[item.id] ?: emptyList()),
             )
         }
 
@@ -436,22 +482,21 @@ class RecommendationViewModel(
             windSuitability = windMap,
             lastWornDates = lastWornMap,
             weather = engineWeather,
-            today = today
+            today = today,
+            coWear = coWear
         )
 
         // 6. Run the pure engine — expand the pool when AI is ready so the scorer
         //    has more combos to curate from. Regenerate excludes combos already shown
-        //    this session. Only the session's first run seeds the jitter with the date (the
-        //    day's first pick is stable within a day but varies between days); Regenerate
-        //    uses an unseeded Random.
+        //    this session. Only the session's first run seeds the engine's selection with the
+        //    date (the day's first pick is stable within a day but varies between days);
+        //    Regenerate uses an unseeded Random.
         val aiReady = isAiReady()
         val runEngineOnce = { exclude: Set<Set<Long>> ->
             // First pick of a session is seeded by the date; Regenerate is unseeded.
             val jitter = if (firstOfSession) Random(today.toEpochDays()) else Random(Random.nextLong())
             if (aiReady) {
-                engine.recommend(
-                    input, topN = 25, candidatesPerSlot = 3, exclude = exclude, jitter = jitter
-                )
+                engine.recommend(input, topN = 25, exclude = exclude, jitter = jitter)
             } else {
                 engine.recommend(input, exclude = exclude, jitter = jitter)
             }
@@ -572,4 +617,8 @@ sealed interface SaveResult {
 
     /** The save failed. [message] is a human-readable description. */
     data class Failed(val message: String) : SaveResult
+}
+
+private fun <K> MutableMap<K, Double>.addTo(key: K, amount: Double) {
+    this[key] = (this[key] ?: 0.0) + amount
 }

@@ -29,6 +29,9 @@ import kotlinx.datetime.LocalDate
  *                          Empty when no colors are tagged; engine treats as Neutral.
  * @property isPatternSolid True when the item's pattern junction is empty OR every
  *                          tagged pattern name is "Solid". False = patterned.
+ * @property colorHexes     The item's tagged colors that have a hex, each with its color family,
+ *                          in color-id order.
+ * @property formalityLevel Median formality (1 to 5) of the item's occasions, or null if unknown.
  */
 data class EngineItem(
     val id: Long,
@@ -39,8 +42,13 @@ data class EngineItem(
     val outfitRole: String?,
     val warmthLayer: String?,
     val colorFamilies: Set<String>,
-    val isPatternSolid: Boolean
+    val isPatternSolid: Boolean,
+    val colorHexes: List<ColorHex> = emptyList(),
+    val formalityLevel: Double? = null,
 )
+
+/** One tagged color's hex code and its `color_family` (Neutral / Earth / Cool / Warm / Bright). */
+data class ColorHex(val hex: String, val family: String)
 
 // ---------------------------------------------------------------------------
 // Engine input — all pre-fetched signals
@@ -68,6 +76,7 @@ data class EngineItem(
  *                            and layering validation are skipped.
  * @property today            Today's date, for the wear-recency multiplier. Null (the default)
  *                            disables recency scoring. Passed in so the engine never reads a clock.
+ * @property coWear           Co-wear and saved-outfit statistics: the habit term of the outfit score.
  */
 data class EngineInput(
     val candidates: List<EngineItem>,
@@ -76,7 +85,8 @@ data class EngineInput(
     val windSuitability: Map<Long, ItemWindSuitability>,
     val lastWornDates: Map<Long, ItemLastWorn>,
     val weather: EngineWeather?,
-    val today: LocalDate? = null
+    val today: LocalDate? = null,
+    val coWear: CoWearStats = CoWearStats.EMPTY,
 )
 
 /**
@@ -130,3 +140,29 @@ data class OutfitCombo(
  * ([OutfitRecommendationEngine.recommend]'s `exclude`) and by the ViewModel's session tracking.
  */
 fun OutfitCombo.key(): Set<Long> = items.map { it.id }.toSet()
+
+// ---------------------------------------------------------------------------
+// Co-wear statistics
+// ---------------------------------------------------------------------------
+
+/**
+ * Weighted co-occurrence counts over candidate items: wear logs count 1 each, saved outfits
+ * [SAVED_OUTFIT_WEIGHT] each.
+ *
+ * @property pairCounts Weighted count of logs/outfits containing both items; keys are
+ *                      `(smallerId, largerId)`.
+ * @property itemCounts Weighted count of logs/outfits containing the item.
+ * @property total      Number of logs + [SAVED_OUTFIT_WEIGHT] x number of saved outfits.
+ */
+data class CoWearStats(
+    val pairCounts: Map<Pair<Long, Long>, Double>,
+    val itemCounts: Map<Long, Double>,
+    val total: Double,
+) {
+    companion object {
+        /** Weight of one saved outfit relative to one wear log. */
+        const val SAVED_OUTFIT_WEIGHT = 0.5
+
+        val EMPTY = CoWearStats(emptyMap(), emptyMap(), 0.0)
+    }
+}

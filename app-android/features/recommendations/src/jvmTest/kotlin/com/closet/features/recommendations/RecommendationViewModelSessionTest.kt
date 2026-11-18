@@ -1,6 +1,10 @@
 package com.closet.features.recommendations
 
 import com.closet.core.data.dao.CandidateItem
+import com.closet.core.data.dao.ItemColorHex
+import com.closet.core.data.dao.ItemCount
+import com.closet.core.data.dao.ItemOccasionName
+import com.closet.core.data.dao.ItemPair
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.repository.ImagePathResolver
@@ -9,6 +13,10 @@ import com.closet.core.data.time.AppClock
 import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.util.DataResult
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
+import com.closet.features.recommendations.engine.CoWearStats
+import com.closet.features.recommendations.engine.ColorHex
+import com.closet.features.recommendations.engine.core
+import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.key
@@ -17,6 +25,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -65,6 +74,7 @@ class RecommendationViewModelSessionTest {
         aiReady: Boolean,
         clock: AppClock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
         repo: RecommendationRepository = mockk<RecommendationRepository>(),
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
     ): RecommendationViewModel {
         coEvery { repo.getCandidates(any(), any(), any(), any()) } returns DataResult.Success(
             listOf(candidate(1, "Top"), candidate(2, "Top"), candidate(3, "Bottom"), candidate(4, "Bottom"))
@@ -75,9 +85,17 @@ class RecommendationViewModelSessionTest {
         coEvery { repo.getLastWornDates(any()) } returns DataResult.Success(emptyList())
         coEvery { repo.getItemColorFamilies(any()) } returns DataResult.Success(emptyList())
         coEvery { repo.getItemPatternNames(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getItemLogCounts(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getTotalLogCount() } returns DataResult.Success(0)
+        coEvery { repo.getSavedOutfitPairs(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getSavedItemCounts(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getSavedOutfitCount() } returns DataResult.Success(0)
+        coEvery { repo.getItemOccasionNames(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(emptyList())
         return RecommendationViewModel(
             recommendationRepository = repo,
-            engine = OutfitRecommendationEngine(),
+            engine = engine,
             scorer = scorer,
             weatherRepository = mockk(relaxed = true),
             outfitRepository = mockk(relaxed = true),
@@ -104,6 +122,45 @@ class RecommendationViewModelSessionTest {
     }
 
     private fun keys(combos: List<OutfitCombo>) = combos.map { it.key() }
+
+    @Test fun compatibilitySignalsReachEngineInput() {
+        val repo = mockk<RecommendationRepository>()
+        val engine = mockk<OutfitRecommendationEngine>()
+        val captured = slot<EngineInput>()
+        every { engine.recommend(capture(captured), any(), any(), any()) } returns emptyList()
+        val vm = buildViewModel(aiReady = false, repo = repo, engine = engine)
+        coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(listOf(ItemPair(1, 3, 4)))
+        coEvery { repo.getItemLogCounts(any()) } returns
+            DataResult.Success(listOf(ItemCount(1, 4), ItemCount(3, 5)))
+        coEvery { repo.getTotalLogCount() } returns DataResult.Success(10)
+        coEvery { repo.getSavedOutfitPairs(any()) } returns DataResult.Success(listOf(ItemPair(1, 3, 2)))
+        coEvery { repo.getSavedItemCounts(any()) } returns DataResult.Success(listOf(ItemCount(1, 2)))
+        coEvery { repo.getSavedOutfitCount() } returns DataResult.Success(4)
+        coEvery { repo.getItemOccasionNames(any()) } returns DataResult.Success(
+            listOf(
+                ItemOccasionName(1, "Formal"), ItemOccasionName(1, "Casual"),
+                ItemOccasionName(1, "My Gala"), ItemOccasionName(2, "My Gala"),
+            )
+        )
+        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233", "Cool")))
+
+        vm.onWeatherConfirmed(weather)
+
+        val input = captured.captured
+        assertEquals(
+            CoWearStats(
+                pairCounts = mapOf((1L to 3L) to 5.0),
+                itemCounts = mapOf(1L to 5.0, 3L to 5.0),
+                total = 12.0,
+            ),
+            input.coWear,
+        )
+        val items = input.candidates.associateBy { it.id }
+        assertEquals(3.5, items.getValue(1).formalityLevel)
+        assertEquals(null, items.getValue(2).formalityLevel)
+        assertEquals(listOf(ColorHex("#112233", "Cool")), items.getValue(3).colorHexes)
+        assertEquals(emptyList(), items.getValue(1).colorHexes)
+    }
 
     @Test fun calendarSeasonComesFromTheClockMonth() {
         val januaryRepo = mockk<RecommendationRepository>()
@@ -140,6 +197,51 @@ class RecommendationViewModelSessionTest {
         // Every combo has now been shown; the cycle restarts instead of NoResults.
         viewModel.onRegenerate()
         assertTrue(results().isNotEmpty())
+    }
+
+    /**
+     * Echo-chamber guard (Review Focus 3) on 3 tops (1-3) x 3 bottoms (4-6). Of 40 logs, Top 1 +
+     * Bottom 4 were worn together 20 times; Top 2 and Bottom 5 were each worn 6 times, never with
+     * each other or with 1 or 4. (The date seed alone leads with 2 + 5.)
+     */
+    private fun echoChamberViewModel(withHistory: Boolean): RecommendationViewModel {
+        val repo = mockk<RecommendationRepository>()
+        val vm = buildViewModel(aiReady = false, repo = repo)
+        coEvery { repo.getCandidates(any(), any(), any(), any()) } returns DataResult.Success(
+            listOf(1L, 2L, 3L).map { candidate(it, "Top") } + listOf(4L, 5L, 6L).map { candidate(it, "Bottom") }
+        )
+        if (withHistory) {
+            coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(listOf(ItemPair(1, 4, 20)))
+            coEvery { repo.getItemLogCounts(any()) } returns DataResult.Success(
+                listOf(ItemCount(1, 20), ItemCount(2, 6), ItemCount(4, 20), ItemCount(5, 6))
+            )
+            coEvery { repo.getTotalLogCount() } returns DataResult.Success(40)
+        }
+        return vm
+    }
+
+    @Test fun dominantCoWornPairDoesNotCrowdOutOtherCores() {
+        val dominant = setOf(1L, 4L)
+        fun usesNeither(combo: OutfitCombo) = combo.core().none { it in dominant }
+
+        // Habit: the same date seed without history leads with a different core.
+        val cold = echoChamberViewModel(withHistory = false)
+        cold.onWeatherConfirmed(weather)
+        assertNotEquals(dominant, results(cold).first().core(), "without history the seed leads elsewhere")
+
+        val vm = echoChamberViewModel(withHistory = true)
+        vm.onWeatherConfirmed(weather)
+        val first = results(vm)
+        assertEquals(dominant, first.first().core(), "habit ranks the dominant pair first")
+        assertEquals(3, first.map { it.core() }.toSet().size, "the page has three distinct cores")
+        assertTrue(first.any(::usesNeither), "the first page has a core with neither dominant item")
+
+        vm.onRegenerate()
+        val second = results(vm)
+        assertTrue(second.isNotEmpty())
+        assertTrue(second.none { it.core() == dominant }, "Regenerate does not repeat the dominant pair")
+        assertTrue(second.any(::usesNeither), "Regenerate surfaces a core with neither dominant item")
+        assertTrue(keys(second).none { it in keys(first) }, "Regenerate shows only unseen combos")
     }
 
     @Test fun freshSessionRepeatsTheFirstRun() {

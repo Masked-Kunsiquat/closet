@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 /**
  * Ranking behaviour added in #94: harmony geometric mean, the footwear penalty, wear recency,
- * exclusion of already-shown combos, ranking-only jitter and diverse cores.
+ * exclusion of already-shown combos, ranking-only randomness and diverse cores.
  */
 class EngineRankingTest {
 
@@ -191,15 +191,13 @@ class EngineRankingTest {
     }
 
     @Test
-    fun `excluding a whole page rotates a new top into the capped pool`() {
+    fun `excluding a whole page rotates a new top into the next page`() {
         val items = (1L..5L).map { item(id = it, role = "Top") } +
             listOf(item(id = 6, role = "Bottom"), item(id = 7, role = "Bottom"))
         val input = engineInput(candidates = items)
-        val first = engine.recommend(input, topN = 3, candidatesPerSlot = 2)
+        val first = engine.recommend(input, topN = 3)
         assertEquals(3, first.size)
-        val second = engine.recommend(
-            input, topN = 3, candidatesPerSlot = 2, exclude = first.map { it.key() }.toSet()
-        )
+        val second = engine.recommend(input, topN = 3, exclude = first.map { it.key() }.toSet())
         val firstTops = first.flatMap { topIds(it) }.toSet()
         assertTrue(
             second.flatMap { topIds(it) }.any { it !in firstTops },
@@ -208,9 +206,9 @@ class EngineRankingTest {
     }
 
     @Test
-    fun `an unseen combo beyond the per-slot cap is still reachable`() {
-        // Every item has been shown, so the capped pool is tops 1-2 x bottoms 4-5, all
-        // excluded. Top 3 + bottom 5 is the only unseen combo, outside the cap of 2.
+    fun `the only unseen combo is reachable when every item has been shown`() {
+        // Every item has been shown and five of the six cores are excluded. Top 3 + bottom 5,
+        // which the old per-slot cap of 2 left out of the pool, is the only unseen combo.
         val items = listOf(
             item(id = 1, role = "Top"), item(id = 2, role = "Top"), item(id = 3, role = "Top"),
             item(id = 4, role = "Bottom"), item(id = 5, role = "Bottom")
@@ -219,7 +217,7 @@ class EngineRankingTest {
         val exclude = setOf(
             setOf(1L, 4L), setOf(1L, 5L), setOf(2L, 4L), setOf(2L, 5L), setOf(3L, 4L)
         )
-        val result = engine.recommend(input, topN = 1, candidatesPerSlot = 2, exclude = exclude)
+        val result = engine.recommend(input, topN = 1, exclude = exclude)
         assertEquals(listOf(setOf(3L, 5L)), result.map { it.key() })
     }
 
@@ -278,11 +276,11 @@ class EngineRankingTest {
     }
 
     // =========================================================================
-    // Jitter — ordering only
+    // Selection randomness — ordering only
     // =========================================================================
 
     @Test
-    fun `jitter keeps the un-jittered scores`() {
+    fun `a seeded run keeps the un-noised scores`() {
         val input = engineInput(candidates = diversityItems)
         val plain = engine.recommend(input, topN = 6).associate { it.key() to it.score }
         val jittered = engine.recommend(input, topN = 6, jitter = Random(42))
@@ -292,7 +290,7 @@ class EngineRankingTest {
     }
 
     @Test
-    fun `same jitter seed gives the identical order`() {
+    fun `the same seed gives the identical order`() {
         val input = engineInput(candidates = diversityItems)
         val first = engine.recommend(input, topN = 6, jitter = Random(42)).map { it.key() }
         val second = engine.recommend(input, topN = 6, jitter = Random(42)).map { it.key() }

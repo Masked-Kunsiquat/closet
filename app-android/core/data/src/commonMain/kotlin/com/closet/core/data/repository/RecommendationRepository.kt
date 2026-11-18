@@ -2,6 +2,10 @@ package com.closet.core.data.repository
 
 import com.closet.core.data.dao.CandidateItem
 import com.closet.core.data.dao.ItemColorFamily
+import com.closet.core.data.dao.ItemColorHex
+import com.closet.core.data.dao.ItemCount
+import com.closet.core.data.dao.ItemOccasionName
+import com.closet.core.data.dao.ItemPair
 import com.closet.core.data.dao.ItemLastWorn
 import com.closet.core.data.dao.ItemPatternName
 import com.closet.core.data.dao.ItemRainSuitability
@@ -235,6 +239,68 @@ class RecommendationRepository(
             Logger.withTag("RecommendationRepository").e(e) { "RecommendationRepository.getAiContextHints failed" }
             DataResult.Error(AppError.DatabaseError.QueryError(e))
         }
+    }
+
+    // Compatibility signals (engine v2): co-wear, saved outfits, occasions, hex.
+
+    suspend fun getCoWearPairs(
+        itemIds: List<Long>
+    ): DataResult<List<ItemPair>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getCoWearPairs(itemIds)
+        }.toDataResult("getCoWearPairs")
+    }
+
+    suspend fun getItemLogCounts(
+        itemIds: List<Long>
+    ): DataResult<List<ItemCount>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getItemLogCounts(itemIds)
+        }.toDataResult("getItemLogCounts")
+    }
+
+    suspend fun getTotalLogCount(): DataResult<Int> =
+        runCatching { recommendationDao.getTotalLogCount() }.toDataResult("getTotalLogCount")
+
+    suspend fun getSavedOutfitPairs(
+        itemIds: List<Long>
+    ): DataResult<List<ItemPair>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getSavedOutfitPairs(itemIds)
+        }.toDataResult("getSavedOutfitPairs")
+    }
+
+    suspend fun getSavedItemCounts(
+        itemIds: List<Long>
+    ): DataResult<List<ItemCount>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getSavedItemCounts(itemIds)
+        }.toDataResult("getSavedItemCounts")
+    }
+
+    suspend fun getSavedOutfitCount(): DataResult<Int> =
+        runCatching { recommendationDao.getSavedOutfitCount() }.toDataResult("getSavedOutfitCount")
+
+    suspend fun getItemOccasionNames(
+        itemIds: List<Long>
+    ): DataResult<List<ItemOccasionName>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getItemOccasionNames(itemIds)
+        }.toDataResult("getItemOccasionNames")
+    }
+
+    suspend fun getItemColorHexes(
+        itemIds: List<Long>
+    ): DataResult<List<ItemColorHex>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyList())
+        return runCatching {
+            recommendationDao.getItemColorHexes(itemIds)
+        }.toDataResult("getItemColorHexes")
     }
 
     // ---------------------------------------------------------------------------

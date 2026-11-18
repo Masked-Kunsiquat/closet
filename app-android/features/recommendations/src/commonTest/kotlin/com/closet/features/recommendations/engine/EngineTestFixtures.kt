@@ -46,7 +46,8 @@ internal fun engineInput(
     windSuitability: Map<Long, ItemWindSuitability> = emptyMap(),
     lastWornDates: Map<Long, ItemLastWorn> = emptyMap(),
     weather: EngineWeather? = null,
-    today: LocalDate? = null
+    today: LocalDate? = null,
+    coWear: CoWearStats = CoWearStats.EMPTY
 ) = EngineInput(
     candidates = candidates,
     tempPercentiles = tempPercentiles,
@@ -54,5 +55,6 @@ internal fun engineInput(
     windSuitability = windSuitability,
     lastWornDates = lastWornDates,
     weather = weather,
-    today = today
+    today = today,
+    coWear = coWear
 )
