@@ -1,6 +1,10 @@
 package com.closet.features.recommendations
 
 import com.closet.core.data.dao.CandidateItem
+import com.closet.core.data.dao.ItemColorHex
+import com.closet.core.data.dao.ItemCount
+import com.closet.core.data.dao.ItemOccasionName
+import com.closet.core.data.dao.ItemPair
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.repository.ImagePathResolver
@@ -9,6 +13,8 @@ import com.closet.core.data.time.AppClock
 import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.util.DataResult
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
+import com.closet.features.recommendations.engine.CoWearStats
+import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.key
@@ -17,6 +23,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -65,6 +72,7 @@ class RecommendationViewModelSessionTest {
         aiReady: Boolean,
         clock: AppClock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
         repo: RecommendationRepository = mockk<RecommendationRepository>(),
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
     ): RecommendationViewModel {
         coEvery { repo.getCandidates(any(), any(), any(), any()) } returns DataResult.Success(
             listOf(candidate(1, "Top"), candidate(2, "Top"), candidate(3, "Bottom"), candidate(4, "Bottom"))
@@ -75,9 +83,17 @@ class RecommendationViewModelSessionTest {
         coEvery { repo.getLastWornDates(any()) } returns DataResult.Success(emptyList())
         coEvery { repo.getItemColorFamilies(any()) } returns DataResult.Success(emptyList())
         coEvery { repo.getItemPatternNames(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getItemLogCounts(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getTotalLogCount() } returns DataResult.Success(0)
+        coEvery { repo.getSavedOutfitPairs(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getSavedItemCounts(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getSavedOutfitCount() } returns DataResult.Success(0)
+        coEvery { repo.getItemOccasionNames(any()) } returns DataResult.Success(emptyList())
+        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(emptyList())
         return RecommendationViewModel(
             recommendationRepository = repo,
-            engine = OutfitRecommendationEngine(),
+            engine = engine,
             scorer = scorer,
             weatherRepository = mockk(relaxed = true),
             outfitRepository = mockk(relaxed = true),
@@ -104,6 +120,45 @@ class RecommendationViewModelSessionTest {
     }
 
     private fun keys(combos: List<OutfitCombo>) = combos.map { it.key() }
+
+    @Test fun compatibilitySignalsReachEngineInput() {
+        val repo = mockk<RecommendationRepository>()
+        val engine = mockk<OutfitRecommendationEngine>()
+        val captured = slot<EngineInput>()
+        every { engine.recommend(capture(captured), any(), any(), any(), any()) } returns emptyList()
+        val vm = buildViewModel(aiReady = false, repo = repo, engine = engine)
+        coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(listOf(ItemPair(1, 3, 4)))
+        coEvery { repo.getItemLogCounts(any()) } returns
+            DataResult.Success(listOf(ItemCount(1, 4), ItemCount(3, 5)))
+        coEvery { repo.getTotalLogCount() } returns DataResult.Success(10)
+        coEvery { repo.getSavedOutfitPairs(any()) } returns DataResult.Success(listOf(ItemPair(1, 3, 2)))
+        coEvery { repo.getSavedItemCounts(any()) } returns DataResult.Success(listOf(ItemCount(1, 2)))
+        coEvery { repo.getSavedOutfitCount() } returns DataResult.Success(4)
+        coEvery { repo.getItemOccasionNames(any()) } returns DataResult.Success(
+            listOf(
+                ItemOccasionName(1, "Formal"), ItemOccasionName(1, "Casual"),
+                ItemOccasionName(1, "My Gala"), ItemOccasionName(2, "My Gala"),
+            )
+        )
+        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233")))
+
+        vm.onWeatherConfirmed(weather)
+
+        val input = captured.captured
+        assertEquals(
+            CoWearStats(
+                pairCounts = mapOf((1L to 3L) to 5.0),
+                itemCounts = mapOf(1L to 5.0, 3L to 5.0),
+                total = 12.0,
+            ),
+            input.coWear,
+        )
+        val items = input.candidates.associateBy { it.id }
+        assertEquals(3.5, items.getValue(1).formalityLevel)
+        assertEquals(null, items.getValue(2).formalityLevel)
+        assertEquals(listOf("#112233"), items.getValue(3).colorHexes)
+        assertEquals(emptyList(), items.getValue(1).colorHexes)
+    }
 
     @Test fun calendarSeasonComesFromTheClockMonth() {
         val januaryRepo = mockk<RecommendationRepository>()

@@ -172,6 +172,33 @@ data class ItemMaterialHint(
 // DAO
 // ---------------------------------------------------------------------------
 
+
+/** An unordered item pair ([aId] < [bId]) with the number of distinct logs or saved outfits containing both. */
+data class ItemPair(
+    @ColumnInfo(name = "a_id") val aId: Long,
+    @ColumnInfo(name = "b_id") val bId: Long,
+    @ColumnInfo(name = "pair_count") val count: Int
+)
+
+/** Number of distinct logs or saved outfits an item appears in. */
+data class ItemCount(
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "item_count") val count: Int
+)
+
+/** One occasion name tagged on an item. */
+data class ItemOccasionName(
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "occasion_name") val occasionName: String
+)
+
+/** One non-null color hex tagged on an item. */
+data class ItemColorHex(
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+    @ColumnInfo(name = "hex") val hex: String
+)
+
+
 /**
  * DAO for the outfit recommendation pipeline.
  *
@@ -420,4 +447,72 @@ interface RecommendationDao {
         ORDER BY cim.clothing_item_id ASC
     """)
     suspend fun getItemMaterialHints(itemIds: List<Long>): List<ItemMaterialHint>
+
+    /** Pairs of [itemIds] worn together; each log counts once per pair; a < b. */
+    @Query("""
+        SELECT a.clothing_item_id AS a_id, b.clothing_item_id AS b_id,
+               COUNT(DISTINCT a.outfit_log_id) AS pair_count
+        FROM outfit_log_items a
+        JOIN outfit_log_items b
+          ON a.outfit_log_id = b.outfit_log_id AND a.clothing_item_id < b.clothing_item_id
+        WHERE a.clothing_item_id IN (:itemIds) AND b.clothing_item_id IN (:itemIds)
+        GROUP BY a.clothing_item_id, b.clothing_item_id
+    """)
+    suspend fun getCoWearPairs(itemIds: List<Long>): List<ItemPair>
+
+    /** Distinct logs each of [itemIds] appears in. */
+    @Query("""
+        SELECT clothing_item_id, COUNT(DISTINCT outfit_log_id) AS item_count
+        FROM outfit_log_items
+        WHERE clothing_item_id IN (:itemIds)
+        GROUP BY clothing_item_id
+    """)
+    suspend fun getItemLogCounts(itemIds: List<Long>): List<ItemCount>
+
+    @Query("SELECT COUNT(*) FROM outfit_logs")
+    suspend fun getTotalLogCount(): Int
+
+    /** Pairs of [itemIds] saved together in an outfit; each outfit counts once per pair; a < b. */
+    @Query("""
+        SELECT a.clothing_item_id AS a_id, b.clothing_item_id AS b_id,
+               COUNT(DISTINCT a.outfit_id) AS pair_count
+        FROM outfit_items a
+        JOIN outfit_items b
+          ON a.outfit_id = b.outfit_id AND a.clothing_item_id < b.clothing_item_id
+        WHERE a.clothing_item_id IN (:itemIds) AND b.clothing_item_id IN (:itemIds)
+        GROUP BY a.clothing_item_id, b.clothing_item_id
+    """)
+    suspend fun getSavedOutfitPairs(itemIds: List<Long>): List<ItemPair>
+
+    /** Saved outfits each of [itemIds] belongs to. */
+    @Query("""
+        SELECT clothing_item_id, COUNT(DISTINCT outfit_id) AS item_count
+        FROM outfit_items
+        WHERE clothing_item_id IN (:itemIds)
+        GROUP BY clothing_item_id
+    """)
+    suspend fun getSavedItemCounts(itemIds: List<Long>): List<ItemCount>
+
+    @Query("SELECT COUNT(*) FROM outfits")
+    suspend fun getSavedOutfitCount(): Int
+
+    /** Occasion names tagged on [itemIds] (used to derive formality). */
+    @Query("""
+        SELECT cio.clothing_item_id, o.name AS occasion_name
+        FROM clothing_item_occasions cio
+        JOIN occasions o ON cio.occasion_id = o.id
+        WHERE cio.clothing_item_id IN (:itemIds)
+        ORDER BY cio.clothing_item_id ASC
+    """)
+    suspend fun getItemOccasionNames(itemIds: List<Long>): List<ItemOccasionName>
+
+    /** Non-null color hexes tagged on [itemIds]. */
+    @Query("""
+        SELECT cic.clothing_item_id, co.hex AS hex
+        FROM clothing_item_colors cic
+        JOIN colors co ON cic.color_id = co.id
+        WHERE cic.clothing_item_id IN (:itemIds) AND co.hex IS NOT NULL
+        ORDER BY cic.clothing_item_id ASC
+    """)
+    suspend fun getItemColorHexes(itemIds: List<Long>): List<ItemColorHex>
 }
