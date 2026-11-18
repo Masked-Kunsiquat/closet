@@ -52,10 +52,15 @@ import kotlin.random.Random
  *      two levels differ by 2 or more, 1.0 when either is unknown).
  *    - `H`, the habit: the geometric mean over all item pairs of the co-wear lift
  *      `clamp((c + 1) / (E + 1), 0.7, 1.3)`, `c` the weighted co-wear count and
- *      `E = nA·nB / N` its chance expectation ([EngineInput.coWear]).
- *    - `W`, the mean over all item pairs of `min(0.7, n / (n + 5))`, `n = max(c, E)`. With no
- *      history `W = 0` and the score equals the rules-only score exactly; with heavy history
- *      habit can outvote the rules, which keep at least 30%.
+ *      `E = nA·nB / N` its chance expectation ([EngineInput.coWear]). When direct wear evidence
+ *      is sparse (n < 5.0), two-level backoff generalizes history:
+ *      Level 1: cosine nearest neighbors (from 384-dim ONNX embeddings) contribute similarity-weighted
+ *      lift discounted by [ALPHA_NEIGHBORS] (0.6).
+ *      Level 2: aggregate subcategory-pair co-wears across the wardrobe contribute coarse baseline lift
+ *      discounted by [BETA_SUBCATEGORY] (0.25).
+ *    - `W`, the mean over all item pairs of `min(0.7, n / (n + 5))`, `n = max(c, E)` (or `n_eff`
+ *      under backoff). With no history `W = 0` and the score equals the rules-only score exactly;
+ *      with heavy history habit can outvote the rules, which keep at least 30%.
  *    - Layering for the weather and × 0.85 for a shoe-less outfit (when the wardrobe has
  *      footwear) are situational and stay outside the blend.
  * 8. Final pick — [selectTopK] orders all complete outfits; then diversity: take outfits
@@ -109,6 +114,16 @@ class OutfitRecommendationEngine {
         internal const val PAIR_MAX = 1.3
         /** Applied per item pair whose formality levels differ by 2 or more. */
         internal const val FORMALITY_GAP_PENALTY = 0.85
+
+        // --- History generalization / embedding backoff (engine v2, Delivery 3, #96) ---
+        /** Discount factor for Level 1 neighbor co-wear evidence. */
+        internal const val ALPHA_NEIGHBORS = 0.6
+        /** Discount factor for Level 2 subcategory co-wear evidence. */
+        internal const val BETA_SUBCATEGORY = 0.25
+        /** Minimum cosine similarity for an item to count as a neighbor. */
+        internal const val MIN_NEIGHBOR_SIMILARITY = 0.75
+        /** Maximum number of nearest neighbors per item. */
+        internal const val TOP_K_NEIGHBORS = 5
 
         // --- Wear recency ---
         private const val RECENT_WEAR_DAYS = 3
@@ -255,6 +270,8 @@ class OutfitRecommendationEngine {
                 weather = if (ROLE_OUTERWEAR in decided || ROLE_OUTERWEAR !in optionalSlots) input.weather else null,
                 hasFootwearInPool = hasFootwear && ROLE_FOOTWEAR in decided,
                 coWear = input.coWear,
+                itemNeighbors = input.itemNeighbors,
+                subcategoryCoWear = input.subcategoryCoWear,
             )
         }
         val tieBreak = compareBy<Scored> { tieBreakKey(it.items, input) }
@@ -480,6 +497,8 @@ class OutfitRecommendationEngine {
         weather: EngineWeather?,
         hasFootwearInPool: Boolean,
         coWear: CoWearStats,
+        itemNeighbors: Map<Long, List<ItemNeighbor>> = emptyMap(),
+        subcategoryCoWear: CoWearStats = CoWearStats.EMPTY,
     ): Double {
         // Mean of individual item scores
         val meanScore = items.map { itemScores[it.id] ?: 1.0 }.average()
@@ -508,7 +527,13 @@ class OutfitRecommendationEngine {
         var pairCount = 0
         for (i in items.indices) {
             for (j in i + 1 until items.size) {
-                val history = PairScorer.history(items[i].id, items[j].id, coWear)
+                val history = PairScorer.history(
+                    items[i],
+                    items[j],
+                    coWear,
+                    itemNeighbors,
+                    subcategoryCoWear
+                )
                 habitWeightSum += history.weight
                 logLiftSum += ln(history.lift)
                 formalityProduct *= PairScorer.formalityTerm(items[i], items[j])

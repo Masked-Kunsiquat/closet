@@ -199,6 +199,27 @@ data class ItemColorHex(
     @ColumnInfo(name = "color_family") val colorFamily: String,
 )
 
+/** Pre-computed item embedding blob from `item_embeddings`. */
+data class ItemEmbeddingBlob(
+    @ColumnInfo(name = "item_id") val itemId: Long,
+    @ColumnInfo(name = "embedding_blob") val embeddingBlob: ByteArray,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as ItemEmbeddingBlob
+        if (itemId != other.itemId) return false
+        if (!embeddingBlob.contentEquals(other.embeddingBlob)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = itemId.hashCode()
+        result = 31 * result + embeddingBlob.contentHashCode()
+        return result
+    }
+}
+
 
 /**
  * DAO for the outfit recommendation pipeline.
@@ -516,4 +537,64 @@ interface RecommendationDao {
         ORDER BY cic.clothing_item_id ASC, cic.color_id ASC
     """)
     suspend fun getItemColorHexes(itemIds: List<Long>): List<ItemColorHex>
+
+    /** Embeddings for [itemIds] produced by [modelVersion]. */
+    @Query("""
+        SELECT item_id, embedding_blob
+        FROM item_embeddings
+        WHERE item_id IN (:itemIds) AND model_version = :modelVersion
+    """)
+    suspend fun getItemEmbeddings(itemIds: List<Long>, modelVersion: String): List<ItemEmbeddingBlob>
+
+    /** Pairs of subcategories worn together in outfit logs; each log counts once per pair; a < b. */
+    @Query("""
+        SELECT ca.subcategory_id AS a_id, cb.subcategory_id AS b_id,
+               COUNT(DISTINCT a.outfit_log_id) AS pair_count
+        FROM outfit_log_items a
+        JOIN clothing_items ca ON a.clothing_item_id = ca.id
+        JOIN outfit_log_items b
+          ON a.outfit_log_id = b.outfit_log_id
+        JOIN clothing_items cb ON b.clothing_item_id = cb.id
+        WHERE ca.subcategory_id IS NOT NULL
+          AND cb.subcategory_id IS NOT NULL
+          AND ca.subcategory_id < cb.subcategory_id
+        GROUP BY ca.subcategory_id, cb.subcategory_id
+    """)
+    suspend fun getSubcategoryCoWearPairs(): List<ItemPair>
+
+    /** Pairs of subcategories saved together in outfits; each outfit counts once per pair; a < b. */
+    @Query("""
+        SELECT ca.subcategory_id AS a_id, cb.subcategory_id AS b_id,
+               COUNT(DISTINCT a.outfit_id) AS pair_count
+        FROM outfit_items a
+        JOIN clothing_items ca ON a.clothing_item_id = ca.id
+        JOIN outfit_items b
+          ON a.outfit_id = b.outfit_id
+        JOIN clothing_items cb ON b.clothing_item_id = cb.id
+        WHERE ca.subcategory_id IS NOT NULL
+          AND cb.subcategory_id IS NOT NULL
+          AND ca.subcategory_id < cb.subcategory_id
+        GROUP BY ca.subcategory_id, cb.subcategory_id
+    """)
+    suspend fun getSubcategorySavedOutfitPairs(): List<ItemPair>
+
+    /** Distinct logs each subcategory appears in. */
+    @Query("""
+        SELECT ci.subcategory_id AS clothing_item_id, COUNT(DISTINCT oli.outfit_log_id) AS item_count
+        FROM outfit_log_items oli
+        JOIN clothing_items ci ON oli.clothing_item_id = ci.id
+        WHERE ci.subcategory_id IS NOT NULL
+        GROUP BY ci.subcategory_id
+    """)
+    suspend fun getSubcategoryLogCounts(): List<ItemCount>
+
+    /** Distinct saved outfits each subcategory appears in. */
+    @Query("""
+        SELECT ci.subcategory_id AS clothing_item_id, COUNT(DISTINCT oi.outfit_id) AS item_count
+        FROM outfit_items oi
+        JOIN clothing_items ci ON oi.clothing_item_id = ci.id
+        WHERE ci.subcategory_id IS NOT NULL
+        GROUP BY ci.subcategory_id
+    """)
+    suspend fun getSubcategorySavedItemCounts(): List<ItemCount>
 }

@@ -47,7 +47,9 @@ internal fun engineInput(
     lastWornDates: Map<Long, ItemLastWorn> = emptyMap(),
     weather: EngineWeather? = null,
     today: LocalDate? = null,
-    coWear: CoWearStats = CoWearStats.EMPTY
+    coWear: CoWearStats = CoWearStats.EMPTY,
+    itemNeighbors: Map<Long, List<ItemNeighbor>> = emptyMap(),
+    subcategoryCoWear: CoWearStats = CoWearStats.EMPTY
 ) = EngineInput(
     candidates = candidates,
     tempPercentiles = tempPercentiles,
@@ -56,5 +58,7 @@ internal fun engineInput(
     lastWornDates = lastWornDates,
     weather = weather,
     today = today,
-    coWear = coWear
+    coWear = coWear,
+    itemNeighbors = itemNeighbors,
+    subcategoryCoWear = subcategoryCoWear
 )

@@ -6,7 +6,7 @@ import com.closet.features.recommendations.ai.OpenAiProvider
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import org.koin.core.module.dsl.singleOf
-import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 /**
@@ -19,5 +19,17 @@ val recommendationsModule = module {
     singleOf(::AnthropicProvider)
     singleOf(::OpenAiProvider)
     singleOf(::OutfitCoherenceScorer)
-    viewModelOf(::RecommendationViewModel)
+    viewModel {
+        RecommendationViewModel(
+            recommendationRepository = get(),
+            engine = get(),
+            scorer = get(),
+            weatherRepository = get(),
+            outfitRepository = get(),
+            lookupRepository = get(),
+            imagePathResolver = get(),
+            aiPrefsRepo = get(),
+            clock = get(),
+        )
+    }
 }

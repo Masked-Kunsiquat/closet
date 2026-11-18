@@ -1,5 +1,6 @@
 package com.closet.core.data.dao
 
+import androidx.room.useReaderConnection
 import androidx.room.useWriterConnection
 import androidx.sqlite.SQLiteStatement
 import com.closet.core.data.ClothingDatabase
@@ -8,6 +9,9 @@ import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.OutfitEntity
 import com.closet.core.data.model.OutfitItemEntity
 import com.closet.core.data.model.OutfitLogEntity
+import com.closet.core.data.util.toByteArrayLE
+import com.closet.core.data.util.toFloatArrayLE
+import com.closet.core.data.worker.EmbeddingWork
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -179,5 +183,110 @@ class RecommendationDaoCoWearTest {
             ),
             dao.getItemColorHexes(listOf(b, a)),
         )
+    }
+
+    // --- embeddings and subcategories (Delivery 3) ---
+
+    @Test
+    fun getItemEmbeddingsReturnsMatchingModelVersionAndDecodesCorrectly() = runBlocking {
+        val a = insertItem("a")
+        val b = insertItem("b")
+        val c = insertItem("c")
+        val vecA = floatArrayOf(0.1f, 0.2f, 0.3f).toByteArrayLE()
+        val vecB = floatArrayOf(0.4f, 0.5f, 0.6f).toByteArrayLE()
+        val vecC = floatArrayOf(0.7f, 0.8f, 0.9f).toByteArrayLE()
+
+        exec("INSERT INTO item_embeddings (item_id, embedding_blob, model_version, embedded_at) VALUES (?, ?, ?, 1000)") {
+            it.bindLong(1, a); it.bindBlob(2, vecA); it.bindText(3, EmbeddingWork.MODEL_VERSION)
+        }
+        exec("INSERT INTO item_embeddings (item_id, embedding_blob, model_version, embedded_at) VALUES (?, ?, ?, 1000)") {
+            it.bindLong(1, b); it.bindBlob(2, vecB); it.bindText(3, "old-model-version")
+        }
+        exec("INSERT INTO item_embeddings (item_id, embedding_blob, model_version, embedded_at) VALUES (?, ?, ?, 1000)") {
+            it.bindLong(1, c); it.bindBlob(2, vecC); it.bindText(3, EmbeddingWork.MODEL_VERSION)
+        }
+
+        val rows = dao.getItemEmbeddings(listOf(a, b, c), EmbeddingWork.MODEL_VERSION)
+        assertEquals(2, rows.size)
+        val map = rows.associate { it.itemId to it.embeddingBlob.toFloatArrayLE() }
+        assertTrue(a in map)
+        assertTrue(c in map)
+        assertTrue(b !in map) // skipped because model_version != current
+        assertEquals(0.1f, map[a]!![0], 1e-5f)
+        assertEquals(0.2f, map[a]!![1], 1e-5f)
+        assertEquals(0.3f, map[a]!![2], 1e-5f)
+    }
+
+    @Test
+    fun subcategoryCoWearPairsAndCountsAggregateAcrossWardrobe() = runBlocking {
+        // Look up seeded subcategories
+        val (subA, catA) = db.useReaderConnection { c ->
+            c.usePrepared("SELECT id, category_id FROM subcategories ORDER BY id LIMIT 1") { s ->
+                s.step(); s.getLong(0) to s.getLong(1)
+            }
+        }
+        val (subB, catB) = db.useReaderConnection { c ->
+            c.usePrepared("SELECT id, category_id FROM subcategories ORDER BY id LIMIT 1 OFFSET 1") { s ->
+                s.step(); s.getLong(0) to s.getLong(1)
+            }
+        }
+
+        val a1 = db.clothingDao().insertClothingItem(
+            ClothingItemEntity(name = "a1", categoryId = catA, subcategoryId = subA, createdAt = Clock.System.now(), updatedAt = Clock.System.now())
+        )
+        val a2 = db.clothingDao().insertClothingItem(
+            ClothingItemEntity(name = "a2", categoryId = catA, subcategoryId = subA, createdAt = Clock.System.now(), updatedAt = Clock.System.now())
+        )
+        val b1 = db.clothingDao().insertClothingItem(
+            ClothingItemEntity(name = "b1", categoryId = catB, subcategoryId = subB, createdAt = Clock.System.now(), updatedAt = Clock.System.now())
+        )
+
+        // Log 1: a1 + b1
+        logWear("2026-01-01", a1, b1)
+        // Log 2: a2 + b1
+        logWear("2026-01-02", a2, b1)
+
+        val smallerSub = minOf(subA, subB)
+        val largerSub = maxOf(subA, subB)
+
+        val pairs = dao.getSubcategoryCoWearPairs().associate { (it.aId to it.bId) to it.count }
+        assertEquals(2, pairs[smallerSub to largerSub])
+
+        val counts = dao.getSubcategoryLogCounts().associate { it.clothingItemId to it.count }
+        assertEquals(2, counts[subA])
+        assertEquals(2, counts[subB])
+    }
+
+    @Test
+    fun subcategorySavedOutfitPairsAndCountsAggregateAcrossWardrobe() = runBlocking {
+        val (subA, catA) = db.useReaderConnection { c ->
+            c.usePrepared("SELECT id, category_id FROM subcategories ORDER BY id LIMIT 1") { s ->
+                s.step(); s.getLong(0) to s.getLong(1)
+            }
+        }
+        val (subB, catB) = db.useReaderConnection { c ->
+            c.usePrepared("SELECT id, category_id FROM subcategories ORDER BY id LIMIT 1 OFFSET 1") { s ->
+                s.step(); s.getLong(0) to s.getLong(1)
+            }
+        }
+
+        val a1 = db.clothingDao().insertClothingItem(
+            ClothingItemEntity(name = "a1", categoryId = catA, subcategoryId = subA, createdAt = Clock.System.now(), updatedAt = Clock.System.now())
+        )
+        val b1 = db.clothingDao().insertClothingItem(
+            ClothingItemEntity(name = "b1", categoryId = catB, subcategoryId = subB, createdAt = Clock.System.now(), updatedAt = Clock.System.now())
+        )
+
+        insertOutfit(a1, b1)
+
+        val smallerSub = minOf(subA, subB)
+        val largerSub = maxOf(subA, subB)
+
+        val pairs = dao.getSubcategorySavedOutfitPairs().associate { (it.aId to it.bId) to it.count }
+        assertEquals(1, pairs[smallerSub to largerSub])
+
+        val counts = dao.getSubcategorySavedItemCounts().associate { it.clothingItemId to it.count }
+        assertEquals(1, counts[subA])
+        assertEquals(1, counts[subB])
     }
 }

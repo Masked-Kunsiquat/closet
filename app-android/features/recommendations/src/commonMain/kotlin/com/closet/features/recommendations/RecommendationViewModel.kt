@@ -25,15 +25,19 @@ import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.OutfitCombo
+import com.closet.features.recommendations.engine.buildItemNeighbors
 import com.closet.features.recommendations.engine.formalityLevel
 import com.closet.features.recommendations.engine.key
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.model.WeatherConditions
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -81,6 +85,7 @@ class RecommendationViewModel(
     private val imagePathResolver: ImagePathResolver,
     private val aiPrefsRepo: AiPreferencesRepository,
     private val clock: AppClock,
+    private val computationDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     // -------------------------------------------------------------------------
@@ -408,6 +413,21 @@ class RecommendationViewModel(
         val colorHexesDeferred = async {
             recommendationRepository.getItemColorHexes(itemIds).unwrapOrThrow("getItemColorHexes")
         }
+        val embeddingsDeferred = async {
+            recommendationRepository.getItemEmbeddings(itemIds).unwrapOrThrow("getItemEmbeddings")
+        }
+        val subcategoryLogPairsDeferred = async {
+            recommendationRepository.getSubcategoryCoWearPairs().unwrapOrThrow("getSubcategoryCoWearPairs")
+        }
+        val subcategorySavedPairsDeferred = async {
+            recommendationRepository.getSubcategorySavedOutfitPairs().unwrapOrThrow("getSubcategorySavedOutfitPairs")
+        }
+        val subcategoryLogCountsDeferred = async {
+            recommendationRepository.getSubcategoryLogCounts().unwrapOrThrow("getSubcategoryLogCounts")
+        }
+        val subcategorySavedCountsDeferred = async {
+            recommendationRepository.getSubcategorySavedItemCounts().unwrapOrThrow("getSubcategorySavedItemCounts")
+        }
 
         val tempPercentiles: List<ItemTempPercentiles> = tempPercentilesDeferred.await()
         val rain: List<ItemRainSuitability> = rainDeferred.await()
@@ -427,10 +447,28 @@ class RecommendationViewModel(
         val itemCounts = HashMap<Long, Double>()
         logItemCountsDeferred.await().forEach { itemCounts.addTo(it.clothingItemId, it.count.toDouble()) }
         savedItemCountsDeferred.await().forEach { itemCounts.addTo(it.clothingItemId, it.count * saved) }
+        val totalHistory = logTotalDeferred.await() + saved * savedTotalDeferred.await()
         val coWear = CoWearStats(
             pairCounts = pairCounts,
             itemCounts = itemCounts,
-            total = logTotalDeferred.await() + saved * savedTotalDeferred.await(),
+            total = totalHistory,
+        )
+
+        val embeddingsMap = embeddingsDeferred.await()
+        val itemNeighbors = withContext(computationDispatcher) {
+            buildItemNeighbors(embeddingsMap)
+        }
+
+        val subcategoryPairCounts = HashMap<Pair<Long, Long>, Double>()
+        subcategoryLogPairsDeferred.await().forEach { subcategoryPairCounts.addTo(it.aId to it.bId, it.count.toDouble()) }
+        subcategorySavedPairsDeferred.await().forEach { subcategoryPairCounts.addTo(it.aId to it.bId, it.count * saved) }
+        val subcategoryItemCounts = HashMap<Long, Double>()
+        subcategoryLogCountsDeferred.await().forEach { subcategoryItemCounts.addTo(it.clothingItemId, it.count.toDouble()) }
+        subcategorySavedCountsDeferred.await().forEach { subcategoryItemCounts.addTo(it.clothingItemId, it.count * saved) }
+        val subcategoryCoWear = CoWearStats(
+            pairCounts = subcategoryPairCounts,
+            itemCounts = subcategoryItemCounts,
+            total = totalHistory,
         )
 
         // 3. Index score results by item ID for O(1) lookup
@@ -483,7 +521,9 @@ class RecommendationViewModel(
             lastWornDates = lastWornMap,
             weather = engineWeather,
             today = today,
-            coWear = coWear
+            coWear = coWear,
+            itemNeighbors = itemNeighbors,
+            subcategoryCoWear = subcategoryCoWear,
         )
 
         // 6. Run the pure engine — expand the pool when AI is ready so the scorer

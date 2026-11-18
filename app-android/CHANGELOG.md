@@ -8,6 +8,9 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ## [Unreleased]
 
+### Added
+- **Embedding backoff and history generalization in recommendation engine v2** (issue #96) — for new or rarely worn clothes with thin direct co-wear history, the engine generalizes wear history using 384-dimensional item embeddings (Level 1 nearest neighbors) and wardrobe-wide subcategory co-wear patterns (Level 2 fallback) before defaulting to rule priors.
+
 ### Changed
 - **Smarter outfit suggestions** — the engine now builds outfits piece by piece around what goes together, learns which clothes you wear together, avoids mixing very dressy and very casual pieces, and uses hue-based color harmony. Regenerate explores more varied outfits.
 - **The app's navigation and root screen are Kotlin Multiplatform** (KMP Phase 6): a shared `App()` with the bottom bar and navigation graph. The Kotlin Multiplatform migration is complete; Android behaviour is unchanged.
