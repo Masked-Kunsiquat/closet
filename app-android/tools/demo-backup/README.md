@@ -39,9 +39,20 @@ Use absolute paths; Gradle runs the tool from `tools/demo-backup/`. On Windows, 
 | `--no-history` | Skip the demo outfits and wear logs |
 
 Items are sampled per category (at least 10 per category where available), then filled in
-proportion to the pool. With history on, you also get about 15 outfits and about 60 wear logs
-over the last 90 days, at most one outfit-of-the-day per date. Boys and Girls rows, article types
+proportion to the pool. With history on, you also get about 25 outfits and about 120 wear logs
+over the last 180 days, at most one outfit-of-the-day per date. Boys and Girls rows, article types
 with no matching app category, and rows without a photo are skipped; the summary lists each count.
+
+About 65% of items also get details, so price, cost-per-wear, brand and filter screens have data:
+
+- a price ending in .99, in a per-category range;
+- a purchase date 180 days to 2 years back, so it falls before the wear history;
+- one of 10 invented brands (about 80% of those items), so some brands can't be deleted;
+- one or two category-appropriate materials (jeans are always denim);
+- a pattern taken from the product name ("Check" → Checkered) or mostly Solid;
+- some favorites (about 12%), some dirty (about 15%), and a few retired: Donated or Sold.
+
+The other ~35% stay bare, so the add/edit form still has empty fields to fill in by hand.
 
 ## Restore it in the app
 

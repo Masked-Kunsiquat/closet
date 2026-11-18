@@ -14,6 +14,8 @@ internal class Lookups private constructor(
     private val colors: Map<String, ColorEntity>,
     private val seasons: Map<String, Long>,
     private val occasions: Map<String, Long>,
+    private val materials: Map<String, Long>,
+    private val patterns: Map<String, Long>,
 ) {
     fun subcategory(category: String, name: String): SubcategoryEntity =
         subcategories[category to name] ?: error("No seeded subcategory '$name' in '$category'")
@@ -23,6 +25,14 @@ internal class Lookups private constructor(
     fun season(name: String): Long = seasons[name] ?: error("No seeded season '$name'")
 
     fun occasion(name: String): Long = occasions[name] ?: error("No seeded occasion '$name'")
+
+    fun material(name: String): Long = materials[name] ?: error("No seeded material '$name'")
+
+    fun pattern(name: String): Long = patterns[name] ?: error("No seeded pattern '$name'")
+
+    /** Seeded names, for checking the enrichment vocabulary. */
+    val materialNames: Set<String> get() = materials.keys
+    val patternNames: Set<String> get() = patterns.keys
 
     companion object {
         suspend fun load(db: ClothingDatabase): Lookups {
@@ -37,6 +47,8 @@ internal class Lookups private constructor(
                 colors = dao.getAllColors().associateBy { it.name },
                 seasons = dao.getSeasons().first().associate { it.name to it.id },
                 occasions = dao.getOccasions().first().associate { it.name to it.id },
+                materials = dao.getMaterials().first().associate { it.name to it.id },
+                patterns = dao.getPatterns().first().associate { it.name to it.id },
             )
         }
     }
