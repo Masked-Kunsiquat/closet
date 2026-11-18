@@ -9,6 +9,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 ## [Unreleased]
 
 ### Changed
+- **The app's navigation and root screen are Kotlin Multiplatform** (KMP Phase 6): a shared `App()` with the bottom bar and navigation graph. The Kotlin Multiplatform migration is complete; Android behaviour is unchanged.
 - **Wardrobe is Kotlin Multiplatform** (KMP Phase 5): shared closet, item detail, add/edit form, bulk wash and brand screens, Compose resources, Material Symbols icons. Every feature is now multiplatform.
 - **Better outfit suggestions** — Regenerate shows new outfits instead of repeating, results no longer repeat the same top and bottom, outfits with shoes are preferred, and clothes you haven't worn in a while get a nudge.
 - **Wardrobe chat is Kotlin Multiplatform** (KMP Phase 5): shared chat pipeline, AI providers and UI, Compose resources, Material Symbols icons.

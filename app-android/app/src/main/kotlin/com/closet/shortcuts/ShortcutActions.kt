@@ -9,7 +9,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
  * These constants are shared between:
  * - `shortcuts.xml` (static shortcut declarations)
  * - [com.closet.MainActivity] (intent dispatch on cold-start and re-launch)
- * - [com.closet.navigation.ClosetNavGraph] (destination routing)
+ * - [com.closet.shortcuts.toAppShortcut] (intent -> AppShortcut mapping)
  * - [com.closet.features.wardrobe.ClosetViewModel] (pinned category shortcut builder)
  *
  * **Slot budget**: launchers surface at most 4 shortcuts (static + dynamic combined).

@@ -1,7 +1,7 @@
 # hangr → Kotlin Multiplatform + Compose Multiplatform — Design
 
 **Date:** 2026-11-14
-**Status:** Draft, awaiting approval
+**Status:** Phases 0–6 complete (Android runs on the shared code); iOS and desktop apps deferred per this spec
 **Starting point:** `main` @ `866f5be` (v0.7.1)
 
 ## Intent
