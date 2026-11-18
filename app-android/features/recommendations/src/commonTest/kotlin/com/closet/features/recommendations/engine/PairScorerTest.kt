@@ -136,6 +136,7 @@ class PairScorerTest {
         assertNull(PairScorer.hueTerm(h("#FF0000"), h("#8C7F80")))  // muted, saturation under 0_15
         assertNull(PairScorer.hueTerm(h("#FF0000"), h()))           // no hex
         assertNull(PairScorer.hueTerm(h("#FF0000"), h("not a hex")))
+        assertNull(PairScorer.hueTerm(h("#FF0000"), h("#ZZ00FFFF"))) // malformed alpha in 8-digit hex
     }
 
     @Test

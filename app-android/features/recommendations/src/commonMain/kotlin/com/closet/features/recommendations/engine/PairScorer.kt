@@ -125,12 +125,9 @@ internal object PairScorer {
     /** `#RRGGBB` or `#AARRGGBB` (alpha ignored) to a 24-bit RGB int, or null if malformed. */
     private fun parseRgb(hex: String): Int? {
         val digits = hex.trim().removePrefix("#")
-        val rgb = when (digits.length) {
-            6 -> digits
-            8 -> digits.substring(2)
-            else -> return null
-        }
-        if (!rgb.all { it in '0'..'9' || it.lowercaseChar() in 'a'..'f' }) return null
+        if (digits.length != 6 && digits.length != 8) return null
+        if (!digits.all { it in '0'..'9' || it.lowercaseChar() in 'a'..'f' }) return null
+        val rgb = if (digits.length == 8) digits.substring(2) else digits
         return rgb.toInt(16)
     }
 }

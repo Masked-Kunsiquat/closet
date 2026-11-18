@@ -25,7 +25,7 @@
 - `H` is the geometric mean over all item pairs of the pair's history lift `hist_ab`, which is 1.0 with no evidence.
 - `W` is the mean over all item pairs of the pair weight `w_ab`, each ≤ `W_MAX`.
 - **The outfit score:** `meanItem × [W·H + (1 − W)·R] × situational`. The situational multipliers (layering for the weather, the missing-footwear penalty) stay outside the blend, because they aren't taste.
-- **With no history:** `W = 0`, so the result is exactly today's (cold-start parity, and the existing engine tests keep their values).
+- **With no history:** `W = 0`, producing the rules-only score `meanItem × R × situational` (which incorporates hue harmony and formality when present). Legacy parity applies when occasion and hex inputs are empty, where `R` matches the legacy rules.
 - **With heavy history:** `W` approaches `W_MAX = 0.7`, so a pairing you wear constantly is scored mostly by your habit and the rules keep 30%. Someone who loves clashing or very matchy outfits gets them suggested.
 
 **Tech Stack:** Kotlin 2.4.21, Room KMP, kotlinx-datetime, Koin. No new libraries.
@@ -58,7 +58,7 @@
   - anything else → 1.0.
 
   When either item lacks a hex, today's family rule applies to that pair. Thresholds are the builder's per the spec, and these starting values are this plan's call.
-- **Performance:** a jvmTest with a generated 500-item, 300-log wardrobe asserts that one `recommend(topN = 25, candidatesPerSlot = 3)` stays under a generous **1 s** on the JVM. It's a smoke guard, not a benchmark.
+- **Performance:** a jvmTest with a generated 500-item, 300-log wardrobe asserts that one `recommend(input, topN = 25)` stays under a generous **1 s** on the JVM. It's a smoke guard, not a benchmark.
 - **Test names:** Kotlin/Native rejects `()`, `.`, `:`, `;`, `/`, `<>`, `[]` and `\` in backtick test names.
 - **Gradle hygiene:**
   - Run from `app-android/`, one invocation at a time, in the foreground, with no `--rerun-tasks`.

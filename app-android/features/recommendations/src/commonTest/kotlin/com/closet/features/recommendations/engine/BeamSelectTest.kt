@@ -27,9 +27,9 @@ class BeamSelectTest {
 
     @Test
     fun `a null random breaks ties with the tie-break then input order`() {
-        val tied = listOf(Cand("x", 1.0, tie = 2), Cand("y", 1.0, tie = 1), Cand("z", 1.0, tie = 2))
+        val tied = listOf(Cand("z", 1.0, tie = 2), Cand("y", 1.0, tie = 1), Cand("x", 1.0, tie = 2))
         val result = selectTopK(tied, scoreOf, k = 3, random = null, temperature = T, tieBreak = tieBreak)
-        assertEquals(listOf("y", "x", "z"), result.map { it.name })
+        assertEquals(listOf("y", "z", "x"), result.map { it.name })
     }
 
     @Test

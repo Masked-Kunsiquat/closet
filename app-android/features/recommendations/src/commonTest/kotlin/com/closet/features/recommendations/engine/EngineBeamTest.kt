@@ -144,6 +144,15 @@ class EngineBeamTest {
     }
 
     @Test
+    fun `widening supplies more outfits than base beam without exclusions`() {
+        val base = assembleAtBase(distinctShoesInput, topN = 6, exclude = emptySet())
+        assertEquals(4, base.size)
+
+        val widened = engine.recommend(distinctShoesInput, topN = 6, exclude = emptySet())
+        assertEquals(6, widened.size)
+    }
+
+    @Test
     fun `excluding each core's best outfit still returns a full seeded page`() {
         val best = engine.recommend(manyShoesInput, topN = 2).map { it.key() }.toSet()
         repeat(20) { seed ->

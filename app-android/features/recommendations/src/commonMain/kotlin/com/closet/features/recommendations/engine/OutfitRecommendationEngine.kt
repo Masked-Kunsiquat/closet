@@ -192,9 +192,9 @@ class OutfitRecommendationEngine {
         var coreBeam = CORE_BEAM
         var beamPerCore = BEAM_PER_CORE
         var result = assemble(input, topN, exclude, jitter, coreBeam, beamPerCore)
-        // Widening: only exclusion can leave a page short of outfits the wardrobe still has.
+        // Widening: expands the beams if the result is short of topN (e.g. from exclusions or high topN).
         while (
-            exclude.isNotEmpty() && result.size < topN &&
+            result.size < topN &&
             (coreBeam < MAX_WIDENED_CORE_BEAM || beamPerCore < MAX_WIDENED_BEAM_PER_CORE)
         ) {
             coreBeam = minOf(coreBeam * 2, MAX_WIDENED_CORE_BEAM)

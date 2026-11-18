@@ -72,15 +72,21 @@ class RecommendationDaoCoWearTest {
     }
 
     @Test
-    fun coWearPairsCountEachLogOnceDespiteRepeatedSnapshotRows() = runBlocking {
+    fun coWearReflectsSnapshotEvenIfSavedOutfitChangesLater() = runBlocking {
         val a = insertItem("a")
         val b = insertItem("b")
-        val logId = logWear("2026-01-01", a, b)
-        // Counting rows instead of DISTINCT logs would see 2 for this pair if a second row existed.
-        exec("INSERT OR IGNORE INTO outfit_log_items (outfit_log_id, clothing_item_id, outfit_name) VALUES (?, ?, 'x')") {
-            it.bindLong(1, logId); it.bindLong(2, a)
-        }
-        assertEquals(1, dao.getCoWearPairs(listOf(a, b)).single().count)
+        val c = insertItem("c")
+        val outfitId = insertOutfit(a, b)
+        db.logDao().insertLogAndSnapshot(OutfitLogEntity(outfitId = outfitId, date = "2026-01-01"))
+
+        // Changing the live saved outfit membership to A and C must not alter historical co-wear
+        db.outfitDao().deleteItemsForOutfit(outfitId)
+        db.outfitDao().insertOutfitItems(
+            listOf(OutfitItemEntity(outfitId = outfitId, clothingItemId = a), OutfitItemEntity(outfitId = outfitId, clothingItemId = c))
+        )
+
+        val pairs = dao.getCoWearPairs(listOf(a, b, c)).associate { (it.aId to it.bId) to it.count }
+        assertEquals(mapOf((a to b) to 1), pairs)
     }
 
     @Test

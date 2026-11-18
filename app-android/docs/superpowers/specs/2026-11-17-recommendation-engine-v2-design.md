@@ -74,7 +74,13 @@ w = min(W_MAX, n / (n + K))                         n = evidence count for (a,b)
 - **`prior(a,b)`** — today's rules, pairwise: color harmony (hue-based when both have hex: neutral passes, analogous/complementary favoured, clashing hues penalised; else the existing family table), pattern clash, formality gap penalty (`|level_a − level_b| ≥ 2` → penalty).
 - Starting constants (tunable, in the companion like today): `K = 5`, `W_MAX = 0.7`, `PAIR_MIN = 0.7`, `PAIR_MAX = 1.3`, top-k neighbours = 5.
 
-**Outfit score** = mean item score (weather + recency, unchanged) × geometric mean of `pair` over all item pairs in the outfit × the existing outfit-level multipliers (layering vs weather, footwear). Geometric mean keeps outfit size from inflating the score (same reasoning as #95's harmony fix).
+**Outfit score (shipped implementation plan):** Rather than blending per-pair, the blend is applied at the outfit level:
+`outfitScore = meanItem × [W·H + (1 − W)·R] × situational`
+- `R` = color harmony × pattern mixing × geometric mean of pair formality terms
+- `H` = geometric mean of pair history lifts `hist_ab`
+- `W` = mean of pair weights `w_ab`
+- `situational` = weather layering × footwear penalty
+For example, for a three-item outfit with one history pair ($w_1 > 0$) and two zero-history pairs ($w_2 = w_3 = 0$), $W = (w_1 + 0 + 0) / 3$ and $H = (hist_1 \times 1.0 \times 1.0)^{1/3}$. When $W = 0$, the formula simplifies exactly to $meanItem \times R \times situational$. (The per-pair blend formula `pair(a, b)` above is superseded by this outfit-level formulation per the 2026-11-18 owner ruling).
 
 ### Formality mapping (from seeded occasions)
 
@@ -129,9 +135,9 @@ Cost: cores ≤ tops×bottoms (e.g. 60×40 = 2 400 pair scores, cheap), then `CO
    - **First**, the offline replay check (see Testing), run against the *current* engine to record a baseline.
    - **Then** the DAO queries (co-wear, saved-outfit co-membership, formality levels, hex) and `PairScorer` (pure, `commonMain`) with hist + prior, wired into the *existing* assembly as the outfit score.
    - Ships value immediately, with a measured before/after.
-   - **Done in this PR (#96)**, together with item 2.
+   - **Done in PR #115** (part of tracking issue #96), together with item 2.
 2. **Beam assembly.** Replace the per-slot cap + cartesian product + widening with the per-core stochastic beam. The ±3% jitter goes too. Pure engine change, measured with the replay check.
-   - **Done in this PR (#96).** Replay hit-rate@10: 0.05 before → 0.15 after (3 of 20). `CORE_BEAM = 30`, `BEAM_PER_CORE = 4`, widening to 120 / 12; `T` tuned from 0.15 to 0.01: at higher `T` a clearly stronger habit pair often missed the first page (~24% at 0.15) and an unseeded Regenerate could skip every core without the dominant items (~6% at 0.05, ~0.2% at 0.02; 0 of 120,000 at 0.01). Exploration now rotates near-ties (within a few %), about the old jitter's scale; the replay check is deterministic and does not depend on `T`.
+   - **Done in PR #115** (part of tracking issue #96). Replay hit-rate@10: 0.05 before → 0.15 after (3 of 20). `CORE_BEAM = 30`, `BEAM_PER_CORE = 4`, widening to 120 / 12; `T` tuned from 0.15 to 0.01: at higher `T` a clearly stronger habit pair often missed the first page (~24% at 0.15) and an unseeded Regenerate could skip every core without the dominant items (~6% at 0.05, ~0.2% at 0.02; 0 of 120,000 at 0.01). Exploration now rotates near-ties (within a few %), about the old jitter's scale; the replay check is deterministic and does not depend on `T`.
 3. **Embedding backoff.** Neighbour-based history generalisation (the old "PR 2" slot).
 4. **Feedback** (optional, needs the migration).
 
@@ -158,7 +164,7 @@ Order 1 → 2 → 3 → 4. Scheduled after Phase 5 chat + wardrobe, so it lands 
   - **Setup:** a jvmTest generates a synthetic wardrobe with planted taste (some top/bottom/shoe pairings worn far more often than chance) plus a log history. Hold out the last N logs (e.g. 20). For each held-out log, build `EngineInput` from only the logs before its date, with `today` = its date.
   - **Metric:** hit-rate@10 by core, meaning whether the held-out outfit's core appears among the cores of the top-10 results, with no exclusion and deterministic selection.
   - **Gate:** a PR may not lower it versus the recorded baseline. PR 1 must raise it on the planted-taste fixture.
-  - **Real data:** the same harness can also take a real restored database file (from the #102 demo wardrobe) via a system property, and is skipped when the property is absent, for a manual sanity check that is never committed.
+  - **Real data (pending):** the property-gated restored-database workflow is deferred and not implemented in this PR; the replay harness currently operates on the synthetic planted-taste fixture.
 - **Performance:** a jvmTest generating a 500-item wardrobe with 300 logs asserts the engine run is under a generous bound (smoke guard, not a benchmark).
 - Device check on the test phone with the demo wardrobe after each PR.
 
