@@ -7,6 +7,8 @@ import com.closet.core.data.dao.ColorBreakdownRow
 import com.closet.core.data.dao.StatsOverview
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.StatsRepository
+import com.closet.core.data.time.AppClock
+import com.closet.core.data.time.FixedAppClock
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -17,6 +19,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.time.Instant
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -26,6 +29,9 @@ import org.junit.Test
 class StatsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
+
+    // Pinned so period windows are exact: 30 days before 2031-06-15 is 2031-05-16.
+    private val fixedClock = FixedAppClock(Instant.parse("2031-06-15T12:00:00Z"))
 
     @Before
     fun setUp() {
@@ -56,8 +62,9 @@ class StatsViewModelTest {
 
     private fun buildViewModel(
         statsRepo: StatsRepository = stubStatsRepo(),
-        imagePathResolver: ImagePathResolver = ImagePathResolver { "/root/$it" }
-    ) = StatsViewModel(statsRepo, imagePathResolver)
+        imagePathResolver: ImagePathResolver = ImagePathResolver { "/root/$it" },
+        clock: AppClock = fixedClock,
+    ) = StatsViewModel(statsRepo, imagePathResolver, clock)
 
     // ─── Initial state ────────────────────────────────────────────────────────
 
@@ -137,10 +144,26 @@ class StatsViewModelTest {
             awaitItem()
             cancelAndIgnoreRemainingEvents()
         }
-        val expectedDate = StatPeriod.LAST_30.toFromDate()!!
+        val expectedDate = "2031-05-16"
         verify { repo.getStatsOverview(expectedDate) }
         verify { repo.getMostWornItems(expectedDate) }
         verify { repo.getTotalOutfitsLogged(expectedDate) }
+    }
+
+    @Test
+    fun `period windows come from the injected clock date`() = runTest {
+        val repo = stubStatsRepo()
+        val vm = buildViewModel(statsRepo = repo)
+        vm.uiState.test {
+            awaitItem()
+            vm.selectPeriod(StatPeriod.LAST_90)
+            awaitItem()
+            vm.selectPeriod(StatPeriod.THIS_YEAR)
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+        verify { repo.getStatsOverview("2031-03-17") }
+        verify { repo.getStatsOverview("2031-01-01") }
     }
 
     @Test

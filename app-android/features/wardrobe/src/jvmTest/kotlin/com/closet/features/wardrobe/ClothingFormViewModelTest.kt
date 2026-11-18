@@ -10,6 +10,7 @@ import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LookupRepository
+import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.DataResult
 import com.closet.features.wardrobe.resources.Res
@@ -93,6 +94,7 @@ class ClothingFormViewModelTest {
         photoProcessor = photos,
         imagePathResolver = imagePathResolver,
         shortcutUsageReporter = shortcutUsageReporter,
+        clock = FixedAppClock(kotlin.time.Instant.parse("2031-07-10T12:00:00Z")),
     )
 
     /** Keeps [ClothingFormViewModel.uiState] (and the lookup flows it combines) subscribed. */

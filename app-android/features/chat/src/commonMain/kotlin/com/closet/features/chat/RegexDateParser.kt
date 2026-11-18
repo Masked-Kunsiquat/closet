@@ -1,9 +1,6 @@
 package com.closet.features.chat
 
-import kotlin.time.Clock
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 
 /**
  * Regex-based date extraction that backs `RegexChatDateParser` and the regex fallback in `:platform:gms`'s `MlKitChatDateParser`.
@@ -16,9 +13,10 @@ import kotlinx.datetime.todayIn
  * Relative expressions ("yesterday", "last Monday") are intentionally not handled here —
  * those are the ML Kit Entity Extraction upgrade path in the full flavor.
  *
+ * @param today The current date per the injected clock; supplies the year when the text has none.
  * @return An ISO date string (`YYYY-MM-DD`) or `null` if no date can be parsed.
  */
-internal fun regexParseDate(text: String): String? {
+internal fun regexParseDate(text: String, today: LocalDate): String? {
     val lower = text.lowercase()
 
     // ISO date — fast path.
@@ -30,7 +28,7 @@ internal fun regexParseDate(text: String): String? {
     val dayStr    = match.groupValues[2].replace(ORDINAL_SUFFIX, "")
     val yearStr   = match.groupValues[3].trim().trimStart(',').trim()
 
-    val year     = yearStr.toIntOrNull() ?: Clock.System.todayIn(TimeZone.currentSystemDefault()).year
+    val year     = yearStr.toIntOrNull() ?: today.year
     val monthNum = MONTH_NAMES[monthStr.lowercase()] ?: return null
 
     return try {

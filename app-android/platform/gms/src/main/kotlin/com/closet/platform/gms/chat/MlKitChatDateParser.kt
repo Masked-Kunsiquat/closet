@@ -1,5 +1,6 @@
 package com.closet.platform.gms.chat
 
+import com.closet.core.data.time.AppClock
 import com.closet.features.chat.ChatDateParser
 import com.closet.features.chat.RegexChatDateParser
 import com.google.mlkit.nl.entityextraction.DateTimeEntity
@@ -23,9 +24,9 @@ import java.util.TimeZone
  * The English model (~5.6 MB) is downloaded via Play Services on first use. The download is
  * triggered lazily in [init] so it's typically ready by the time the user first queries a date.
  */
-class MlKitChatDateParser : ChatDateParser {
+class MlKitChatDateParser(clock: AppClock) : ChatDateParser {
 
-    private val regexFallback = RegexChatDateParser()
+    private val regexFallback = RegexChatDateParser(clock)
 
     private val extractor = EntityExtraction.getClient(
         EntityExtractorOptions.Builder(EntityExtractorOptions.ENGLISH).build()

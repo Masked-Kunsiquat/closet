@@ -57,6 +57,7 @@ private fun LocalDate.toForecastLabelComposable(today: LocalDate): String = when
 internal fun ForecastSheet(
     forecasts: List<DailyForecast>,
     temperatureUnit: TemperatureUnit,
+    today: LocalDate,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -79,7 +80,6 @@ internal fun ForecastSheet(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
-            val today = todayLocal()
             if (forecasts.isEmpty()) {
                 Text(
                     text = stringResource(Res.string.journal_forecast_empty),

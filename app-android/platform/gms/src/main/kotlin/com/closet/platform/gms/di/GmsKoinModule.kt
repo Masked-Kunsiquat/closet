@@ -29,9 +29,9 @@ import org.koin.dsl.module
 val gmsModule = module {
     // chat
     single<OnDeviceChatProvider> { NanoChatProvider(get()) }
-    single<ChatDateParser> { MlKitChatDateParser() }
+    single<ChatDateParser> { MlKitChatDateParser(get()) }
     single<LanguageDetector> { MlKitLanguageDetector() }
-    single<ChatRouter> { PatternChatRouter(get(), get(), get(), get()) }
+    single<ChatRouter> { PatternChatRouter(get(), get(), get(), get(), get()) }
 
     // recommendations: one NanoProvider instance, bound to both core interfaces
     single<OnDeviceRecommendationProvider> { NanoProvider(get()) } binds arrayOf(OutfitAiProvider::class, NanoInitializer::class)

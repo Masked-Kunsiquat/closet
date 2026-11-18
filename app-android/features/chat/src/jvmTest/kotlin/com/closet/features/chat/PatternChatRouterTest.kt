@@ -3,8 +3,10 @@ package com.closet.features.chat
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.dao.LogDao
+import com.closet.core.data.time.FixedAppClock
 import io.mockk.coEvery
 import io.mockk.confirmVerified
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlin.test.assertEquals
@@ -19,12 +21,13 @@ private class FakeLanguageDetector(private val english: Boolean) : LanguageDetec
 }
 
 class PatternChatRouterTest {
+    private val clock = FixedAppClock(kotlin.time.Instant.parse("2031-06-15T12:00:00Z"))
     private val clothingDao = mockk<ClothingDao>()
     private val logDao = mockk<LogDao>()
 
     @Test fun nonEnglishMessage_isUnrouted_andTouchesNoDao() = runTest {
         val detector = FakeLanguageDetector(english = false)
-        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(), detector)
+        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(clock), detector, clock)
         assertEquals(ChatRouter.RouterResult.Unrouted, router.route("¿Cuántas prendas tengo?"))
         assertEquals(listOf("¿Cuántas prendas tengo?"), detector.seen) // original text, not lowercased
         confirmVerified(clothingDao, logDao)
@@ -32,7 +35,7 @@ class PatternChatRouterTest {
 
     @Test fun nonEnglishDetector_blocksAMessageThatWouldOtherwiseRoute() = runTest {
         val detector = FakeLanguageDetector(english = false)
-        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(), detector)
+        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(clock), detector, clock)
         assertEquals(ChatRouter.RouterResult.Unrouted, router.route("How many items do I own?"))
         assertEquals(listOf("How many items do I own?"), detector.seen)
         confirmVerified(clothingDao, logDao)
@@ -40,7 +43,7 @@ class PatternChatRouterTest {
 
     @Test fun englishItemCount_isRoutedFromDao() = runTest {
         coEvery { clothingDao.getItemCount() } returns 3
-        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(), FakeLanguageDetector(english = true))
+        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(clock), FakeLanguageDetector(english = true), clock)
         val result = router.route("How many items do I own?") as ChatRouter.RouterResult.Routed
         val stat = result.response as ChatResponse.WithStat
         assertEquals("You have 3 items in your wardrobe.", stat.text)
@@ -49,7 +52,15 @@ class PatternChatRouterTest {
     }
 
     @Test fun englishUnmatchedMessage_isUnrouted() = runTest {
-        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(), FakeLanguageDetector(english = true))
+        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(clock), FakeLanguageDetector(english = true), clock)
         assertEquals(ChatRouter.RouterResult.Unrouted, router.route("Suggest something for a wedding"))
+    }
+
+    @Test fun notWornSince_usesTheClockDateForTheCutoff() = runTest {
+        coEvery { clothingDao.getItemsNotWornSince(any()) } returns emptyList()
+        val router = PatternChatRouter(clothingDao, logDao, RegexChatDateParser(clock), FakeLanguageDetector(english = true), clock)
+        router.route("Show clothes I haven't worn in 30 days")
+        // 30 days before 2031-06-15
+        coVerify { clothingDao.getItemsNotWornSince("2031-05-16") }
     }
 }

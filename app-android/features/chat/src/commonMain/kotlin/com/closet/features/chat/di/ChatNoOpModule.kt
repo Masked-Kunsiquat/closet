@@ -11,6 +11,6 @@ import org.koin.dsl.module
 /** No-op capability bindings for builds without Play Services. */
 val chatNoOpModule = module {
     single<OnDeviceChatProvider> { UnavailableOnDeviceChatProvider() }
-    single<ChatDateParser> { RegexChatDateParser() }
+    single<ChatDateParser> { RegexChatDateParser(get()) }
     single<ChatRouter> { UnroutedChatRouter() }
 }

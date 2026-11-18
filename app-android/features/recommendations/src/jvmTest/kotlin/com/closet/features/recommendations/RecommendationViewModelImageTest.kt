@@ -1,12 +1,14 @@
 package com.closet.features.recommendations
 
 import com.closet.core.data.repository.ImagePathResolver
+import com.closet.core.data.time.FixedAppClock
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlin.time.Instant
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -29,6 +31,7 @@ class RecommendationViewModelImageTest {
             lookupRepository = mockk(relaxed = true),
             imagePathResolver = ImagePathResolver { "/root/$it" },
             aiPrefsRepo = mockk(relaxed = true),
+            clock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
         )
     }
 
