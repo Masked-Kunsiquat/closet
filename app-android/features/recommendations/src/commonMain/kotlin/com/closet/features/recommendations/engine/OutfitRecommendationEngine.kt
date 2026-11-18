@@ -28,18 +28,20 @@ import kotlin.random.Random
  *    this session after unshown ones) and drop near-identical items: one per (color +
  *    subcategory) within a role. There is no per-role cap.
  * 4. Cores — every Top × Bottom pair and every OnePiece, each scored with the outfit formula
- *    (step 7) on its own items, without the layering and footwear terms. [selectTopK] picks
- *    [CORE_BEAM] of them; cores of already-shown (excluded) combos rank after unshown ones.
- * 5. Per-core extension — each picked core goes through outerwear → footwear → accessory
- *    separately. Every slot offers "none" plus every candidate of that role; each partial
- *    outfit is scored with the same outfit formula on the items chosen so far, and
- *    [selectTopK] keeps [BEAM_PER_CORE] partials per core after each slot. The layering-vs-
- *    weather multiplier applies from the outerwear step, the missing-footwear penalty from
- *    the footwear step (once that slot has been decided). Holding the beam per core keeps one
- *    dominant core from crowding the others out of the search.
- * 6. Exclusion inside the search — at the last slot, outfits whose [key] is in `exclude`
- *    (already shown this session) are dropped *before* the selection, so shown outfits never
- *    take a beam place.
+ *    (step 7) on its own items, without the situational terms still undecided (below).
+ *    [selectTopK] picks [CORE_BEAM] of them; cores of already-shown (excluded) combos rank
+ *    after unshown ones.
+ * 5. Per-core extension — each picked core goes separately through the optional slots in the
+ *    order outerwear → footwear → accessory, skipping roles with no candidates. Every slot
+ *    offers "none" plus every candidate of that role; each partial outfit is scored with the
+ *    same outfit formula on the items chosen so far, and [selectTopK] keeps [BEAM_PER_CORE]
+ *    partials per core after each slot. The layering-vs-weather multiplier applies once
+ *    outerwear is decided (from the start when the wardrobe has none), the missing-footwear
+ *    penalty once footwear is decided, so a complete outfit gets exactly the full formula.
+ *    Holding the beam per core keeps one dominant core from crowding the others out.
+ * 6. Exclusion inside the search — at the last non-empty slot (or on the cores themselves
+ *    when there is no optional slot), outfits whose [key] is in `exclude` (already shown this
+ *    session) are dropped *before* the selection, so shown outfits never take a beam place.
  * 7. Outfit-level score — `meanItem × [W·H + (1 − W)·R] × layering × footwear`:
  *    - `R`, the taste rules: color harmony (the geometric mean over non-Neutral item pairs of
  *      the hue rule when both items have a chromatic hex of their dominant family — analogous
@@ -238,12 +240,19 @@ class OutfitRecommendationEngine {
                     }
                     .deduplicateByColorAndSubcategory()
             }
-        val hasFootwear = byRole[ROLE_FOOTWEAR].orEmpty().isNotEmpty()
-        val score = { items: List<EngineItem>, slotsDecided: Int ->
+        // Only roles with candidates are slots, so the last selection (where exclusion applies)
+        // is the last slot that really decides something.
+        val optionalSlots = listOf(ROLE_OUTERWEAR, ROLE_FOOTWEAR, ROLE_ACCESSORY)
+            .filter { byRole[it].orEmpty().isNotEmpty() }
+        val hasFootwear = ROLE_FOOTWEAR in optionalSlots
+        // Situational terms by role: layering once Outerwear is decided (or there is none to
+        // decide), the shoe-less penalty once Footwear is decided. With every slot decided this
+        // is exactly the full outfit formula.
+        val score = { items: List<EngineItem>, decided: Set<String> ->
             scoreCombo(
                 items, itemScores,
-                weather = if (slotsDecided >= 1) input.weather else null,
-                hasFootwearInPool = slotsDecided >= 2 && hasFootwear,
+                weather = if (ROLE_OUTERWEAR in decided || ROLE_OUTERWEAR !in optionalSlots) input.weather else null,
+                hasFootwearInPool = hasFootwear && ROLE_FOOTWEAR in decided,
                 coWear = input.coWear,
             )
         }
@@ -252,15 +261,20 @@ class OutfitRecommendationEngine {
             selectTopK(candidates, { it.score }, k, random, TEMPERATURE, tieBreak)
 
         // 4. Cores: Top × Bottom pairs, then OnePieces; shown cores rank after unshown ones.
+        //    With no optional slot a core is a complete outfit, so exclusion applies here.
+        val excludeCores = optionalSlots.isEmpty() && exclude.isNotEmpty()
         val cores = mutableListOf<Scored>()
         for (top in byRole[ROLE_TOP].orEmpty()) {
             for (bottom in byRole[ROLE_BOTTOM].orEmpty()) {
                 val items = listOf(top, bottom)
-                cores.add(Scored(items, score(items, 0)))
+                if (excludeCores && items.idSet() in exclude) continue
+                cores.add(Scored(items, score(items, emptySet())))
             }
         }
         for (piece in byRole[ROLE_ONEPIECE].orEmpty()) {
-            cores.add(Scored(listOf(piece), score(listOf(piece), 0)))
+            val items = listOf(piece)
+            if (excludeCores && items.idSet() in exclude) continue
+            cores.add(Scored(items, score(items, emptySet())))
         }
         if (cores.isEmpty()) return emptyList()
         val shownCores = excludedCores(exclude, input)
@@ -269,20 +283,21 @@ class OutfitRecommendationEngine {
             if (picked.size >= coreBeam) picked else picked + select(seenCores, coreBeam - picked.size)
         }
 
-        // 5–6. Extend each core on its own beam; drop excluded keys before the last selection.
-        val optionalSlots = listOf(ROLE_OUTERWEAR, ROLE_FOOTWEAR, ROLE_ACCESSORY)
+        // 5–6. Extend each core on its own beam through the non-empty optional slots; drop
+        //      excluded keys before the last slot's selection.
         val complete = mutableListOf<Scored>()
         for (core in pickedCores) {
             var partials = listOf(core)
             optionalSlots.forEachIndexed { index, role ->
                 val options: List<EngineItem?> = listOf(null) + byRole[role].orEmpty()
                 val isLast = index == optionalSlots.lastIndex
+                val decided = optionalSlots.subList(0, index + 1).toSet()
                 val extended = ArrayList<Scored>(partials.size * options.size)
                 for (partial in partials) {
                     for (option in options) {
                         val items = if (option == null) partial.items else partial.items + option
                         if (isLast && exclude.isNotEmpty() && items.idSet() in exclude) continue
-                        extended.add(Scored(items, score(items, index + 1)))
+                        extended.add(Scored(items, score(items, decided)))
                     }
                 }
                 partials = select(extended, beamPerCore)
@@ -614,8 +629,9 @@ class OutfitRecommendationEngine {
      * (i.e. least recently worn overall) wins — favouring combos that haven't been
      * worn in a while.
      *
-     * It orders strict (no-[Random]) selections; Gumbel-top-k selection has no exact ties to
-     * break, and the recency multiplier covers wear history there.
+     * It orders strict (no-[Random]) selections. Exact score ties are common (at cold start
+     * most outfits score the same); in a seeded Gumbel-top-k selection their draws break such
+     * ties uniformly at random instead, and the recency multiplier covers wear history there.
      *
      * Implementation:
      * 1. Map each item to its last-worn date string, or [NEVER_WORN_SENTINEL] ("") if

@@ -75,6 +75,74 @@ class EngineBeamTest {
         assertEquals(2, result.map { it.core() }.toSet().size)
     }
 
+    /**
+     * One core (1 + 2), eight shoes and no accessories. Shoes 3-6 were last worn 40 days ago
+     * (x 1.05), shoes 7-10 ten days ago (x 1.0), so the core's footwear beam is exactly shoes 3-6.
+     */
+    private val staleShoesInput = engineInput(
+        candidates = listOf(item(id = 1, role = "Top"), item(id = 2, role = "Bottom")) +
+            (3L..10L).map { item(id = it, role = "Footwear") },
+        lastWornDates = (3L..6L).associateWith { ItemLastWorn(it, "2026-02-19") } +
+            (7L..10L).associateWith { ItemLastWorn(it, "2026-03-21") },
+        today = today,
+    )
+
+    private fun assembleAtBase(input: EngineInput, topN: Int, exclude: Set<Set<Long>>) =
+        engine.assemble(
+            input, topN = topN, exclude = exclude, random = null,
+            coreBeam = OutfitRecommendationEngine.CORE_BEAM,
+            beamPerCore = OutfitRecommendationEngine.BEAM_PER_CORE,
+        )
+
+    @Test
+    fun `with no accessories exclusion applies at the footwear step`() {
+        val beam = assembleAtBase(staleShoesInput, topN = 10, exclude = emptySet()).map { it.key() }
+        assertEquals((3L..6L).map { setOf(1L, 2L, it) }.toSet(), beam.toSet(), "the footwear beam is shoes 3-6")
+
+        // The four best outfits are shown: they must not take the beam's places.
+        val result = assembleAtBase(staleShoesInput, topN = 1, exclude = beam.toSet())
+        assertEquals(1, result.size, "the base beam still finds an unseen outfit")
+        val shoe = result.single().items.single { it.outfitRole == "Footwear" }.id
+        assertTrue(shoe in 7L..10L, "expected an unshown shoe, got ${result.single().key()}")
+    }
+
+    @Test
+    fun `with no optional items at all exclusion applies to the cores`() {
+        val input = engineInput(
+            candidates = listOf(item(id = 1, role = "Top"), item(id = 2, role = "Top"), item(id = 3, role = "Bottom")),
+        )
+        val result = assembleAtBase(input, topN = 2, exclude = setOf(setOf(1L, 3L)))
+        assertEquals(listOf(setOf(2L, 3L)), result.map { it.key() })
+    }
+
+    /** One core (1 + 2), six shoes whose co-wear with the top differs, so every score is distinct. */
+    private val distinctShoesInput = engineInput(
+        candidates = listOf(item(id = 1, role = "Top"), item(id = 2, role = "Bottom")) +
+            (3L..8L).map { item(id = it, role = "Footwear") },
+        coWear = CoWearStats(
+            pairCounts = (3L..8L).associate { (1L to it) to it.toDouble() },
+            itemCounts = mapOf(1L to 45.0) + (3L..8L).associateWith { it.toDouble() },
+            total = 60.0,
+        ),
+    )
+
+    @Test
+    fun `widening rescues a page the base beam leaves short`() {
+        val ranked = assembleAtBase(distinctShoesInput, topN = 10, exclude = emptySet())
+        assertEquals(ranked.size, ranked.map { it.score }.toSet().size, "scores are distinct")
+        val shown = ranked.take(2).map { it.key() }.toSet()
+
+        // 7 outfits (none + 6 shoes) minus 2 shown leaves 5, but one core's base beam holds 4.
+        val base = assembleAtBase(distinctShoesInput, topN = 5, exclude = shown)
+        assertEquals(4, base.size, "the base beam is short")
+
+        val widened = engine.recommend(distinctShoesInput, topN = 5, exclude = shown)
+        assertEquals(5, widened.size)
+        assertTrue(widened.none { it.key() in shown })
+        val rescued = widened.map { it.key() } - base.map { it.key() }.toSet()
+        assertEquals(1, rescued.size, "widening adds the one unseen outfit the base beam dropped")
+    }
+
     @Test
     fun `excluding each core's best outfit still returns a full seeded page`() {
         val best = engine.recommend(manyShoesInput, topN = 2).map { it.key() }.toSet()
@@ -101,6 +169,46 @@ class EngineBeamTest {
         val input = engineInput(candidates = layeringItems, weather = weather(tempLow = -2.0, tempHigh = 3.0))
         val top = engine.recommend(input).first()
         assertTrue(top.items.any { it.outfitRole == "Outerwear" }, "top was ${top.key()}")
+    }
+
+    /**
+     * More jackets (5) and shoes (4) than the beam (4) holds, so the outerwear and footwear
+     * steps decide whether a jacket survives, and an accessory slot comes after them. If
+     * layering waited for the complete outfit, the jacket-less partials with shoes would fill
+     * the beam (cold) or the flattering jackets would (warm).
+     */
+    private fun layeringPlacementItems(topFamily: String, jacketFamily: String) =
+        listOf(
+            item(id = 1, role = "Top", warmthLayer = "Base", colorFamilies = setOf(topFamily), subcategoryId = 1),
+            item(id = 2, role = "Bottom", warmthLayer = "Base", colorFamilies = setOf("Neutral"), subcategoryId = 2),
+        ) + (3L..7L).map {
+            item(id = it, role = "Outerwear", warmthLayer = "Outer", colorFamilies = setOf(jacketFamily), subcategoryId = it)
+        } + (8L..11L).map {
+            item(id = it, role = "Footwear", colorFamilies = setOf("Neutral"), subcategoryId = it)
+        } + item(id = 12, role = "Accessory", colorFamilies = setOf("Neutral"), subcategoryId = 12)
+
+    @Test
+    fun `cold weather keeps a mediocre jacket through a full footwear beam`() {
+        // Bright top + Bright jacket clash (x 0.70), still better than no layer (x 0.50).
+        val input = engineInput(
+            candidates = layeringPlacementItems(topFamily = "Bright", jacketFamily = "Bright"),
+            weather = weather(tempLow = -2.0, tempHigh = 3.0),
+        )
+        val top = engine.recommend(input).first()
+        assertTrue(top.items.any { it.outfitRole == "Outerwear" }, "top was ${top.key()}")
+        assertEquals(0.70, top.score, 0.001)
+    }
+
+    @Test
+    fun `warm weather drops a flattering jacket through a full footwear beam`() {
+        // Warm top + Warm jacket (x 1.10) loses to no layer once the warm penalty (x 0.75) applies.
+        val input = engineInput(
+            candidates = layeringPlacementItems(topFamily = "Warm", jacketFamily = "Warm"),
+            weather = weather(tempLow = 22.0, tempHigh = 30.0),
+        )
+        val top = engine.recommend(input).first()
+        assertTrue(top.items.none { it.outfitRole == "Outerwear" }, "top was ${top.key()}")
+        assertEquals(1.0, top.score, 0.001)
     }
 
     @Test
