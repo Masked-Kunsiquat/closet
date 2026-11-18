@@ -71,7 +71,7 @@
    - The bar shows only on the 5 top-level destinations.
    - Tab switches keep `popUpTo(start) { saveState = true }`, `launchSingleTop` and `restoreState`.
    - Labels and icons are unchanged. (Device smoke.)
-4. **Backup/restore is still reachable.** Settings → Backup & Restore opens the Android-only backup screen through the `platformDestinations` hook, and Restore still restarts the app. (Device smoke.)
+4. **Backup/restore is still reachable.** Settings → Backup & Restore opens the Android-only backup screen through the `platformDestinations` hook. (Device smoke.) Restore's restart path is unchanged by this phase (the backup screen, `RestoreRepository` and the restart stay in `app` untouched), so the ordinary smoke test never runs a restore; restart verification is deferred to the next PR that touches backup, using the test device and a known demo backup (as done for #102).
 5. **Theme.** Accent and dynamic color still follow the preferences, with dynamic color applied on Android 12+ through the existing core/ui actual. (Device smoke, by switching the accent in Settings.)
 
 ---

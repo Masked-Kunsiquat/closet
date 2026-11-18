@@ -103,6 +103,7 @@ private fun NavDestination?.isTopLevel() =
  * Tab switches use saveState/restoreState so each tab preserves its own back stack state.
  *
  * @param pendingShortcut latest shortcut request, or null; [onShortcutConsumed] is called after it is routed.
+ *   Each delivery is a new [ShortcutRequest], so a repeated shortcut is routed again.
  * @param onNavigateToBackup Settings' backup entry; backup is platform-specific and owned by the host.
  * @param platformDestinations extra destinations a platform registers inside the [NavHost].
  */
@@ -110,7 +111,7 @@ private fun NavDestination?.isTopLevel() =
 fun App(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    pendingShortcut: StateFlow<AppShortcut?> = MutableStateFlow(null),
+    pendingShortcut: StateFlow<ShortcutRequest?> = MutableStateFlow(null),
     onShortcutConsumed: () -> Unit = {},
     onNavigateToBackup: (NavHostController) -> Unit = {},
     platformDestinations: NavGraphBuilder.(NavHostController) -> Unit = {},
@@ -137,7 +138,7 @@ fun App(
 private fun AppContent(
     modifier: Modifier,
     navController: NavHostController,
-    pendingShortcut: StateFlow<AppShortcut?>,
+    pendingShortcut: StateFlow<ShortcutRequest?>,
     onShortcutConsumed: () -> Unit,
     onNavigateToBackup: (NavHostController) -> Unit,
     platformDestinations: NavGraphBuilder.(NavHostController) -> Unit,
@@ -148,7 +149,7 @@ private fun AppContent(
 
     LaunchedEffect(shortcut) {
         val pending = shortcut ?: return@LaunchedEffect
-        navController.navigate(pending.destination()) {
+        navController.navigate(pending.shortcut.destination()) {
             popUpTo(navController.graph.startDestinationId) { inclusive = false }
             launchSingleTop = true
         }

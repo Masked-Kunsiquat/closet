@@ -13,6 +13,13 @@ sealed interface AppShortcut {
     data class Category(val categoryId: Long?) : AppShortcut
 }
 
+/**
+ * One delivery of an [AppShortcut]. Compared by identity (not a data class), so the same
+ * shortcut delivered twice is two requests: a repeat that arrives before the previous one is
+ * observed as consumed still re-runs the routing effect.
+ */
+class ShortcutRequest(val shortcut: AppShortcut)
+
 /** The navigation destination a shortcut opens. */
 internal fun AppShortcut.destination(): Any = when (this) {
     AppShortcut.QuickAdd -> AddClothingDestination(openCamera = true)

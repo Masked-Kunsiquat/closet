@@ -6,8 +6,15 @@ import com.closet.features.wardrobe.BulkWashDestination
 import com.closet.features.wardrobe.ClosetDestination
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 
 class AppShortcutTest {
+    @Test
+    fun repeatedDeliveriesOfTheSameShortcutAreDistinctRequests() {
+        // A StateFlow conflates equal values; distinct requests keep a quick repeat from being dropped.
+        assertNotEquals(ShortcutRequest(AppShortcut.LaundryDay), ShortcutRequest(AppShortcut.LaundryDay))
+    }
+
     @Test
     fun quickAddOpensCameraForm() {
         assertEquals(AddClothingDestination(openCamera = true), AppShortcut.QuickAdd.destination())

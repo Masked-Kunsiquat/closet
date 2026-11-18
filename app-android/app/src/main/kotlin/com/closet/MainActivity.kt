@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import com.closet.backup.backupScreen
 import com.closet.backup.navigateToBackup
 import com.closet.shared.App
-import com.closet.shared.AppShortcut
+import com.closet.shared.ShortcutRequest
 import com.closet.shortcuts.toAppShortcut
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,8 +24,9 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class MainActivity : ComponentActivity() {
 
-    // Latest launcher-shortcut request. Null means "no pending navigation".
-    private val _pendingShortcut = MutableStateFlow<AppShortcut?>(null)
+    // Latest launcher-shortcut request. Null means "no pending navigation". Each delivery is a
+    // new ShortcutRequest, so tapping the same shortcut twice in quick succession routes twice.
+    private val _pendingShortcut = MutableStateFlow<ShortcutRequest?>(null)
     private val pendingShortcut = _pendingShortcut.asStateFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +34,7 @@ class MainActivity : ComponentActivity() {
 
         // Only on a fresh start (savedInstanceState == null), so rotation doesn't re-navigate.
         if (savedInstanceState == null) {
-            _pendingShortcut.value = intent.toAppShortcut()
+            _pendingShortcut.value = intent.toAppShortcut()?.let(::ShortcutRequest)
         }
 
         enableEdgeToEdge()
@@ -56,6 +57,6 @@ class MainActivity : ComponentActivity() {
     // Called when the activity is already running and a shortcut is tapped again.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        _pendingShortcut.value = intent.toAppShortcut()
+        _pendingShortcut.value = intent.toAppShortcut()?.let(::ShortcutRequest)
     }
 }
