@@ -3,6 +3,7 @@ package com.closet.core.data.weather
 import com.closet.core.data.di.redactSensitiveHeaders
 import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.WeatherCondition
+import com.closet.core.data.time.AppClock
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -13,10 +14,7 @@ import com.closet.core.data.util.catchingNonCancellation
 import co.touchlab.kermit.Logger
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
-import kotlinx.datetime.todayIn
-import kotlin.time.Clock
 
 /**
  * Stand-in for a failed Google Weather request that is safe to log and return: the API key travels
@@ -45,6 +43,7 @@ private const val BASE_URL = "https://weather.googleapis.com/v1/forecast/days:lo
  */
 class GoogleWeatherClient(
     private val client: HttpClient,
+    private val clock: AppClock,
 ) {
     suspend fun fetchDailyForecast(
         lat: Double,
@@ -59,7 +58,7 @@ class GoogleWeatherClient(
                 parameter("days", 7)
                 parameter("pageSize", 7)
             }.body()
-            response.toForecasts()
+            response.toForecasts(clock.today())
         }.recoverCatching { throw sanitizeWeatherFailure(it) }
             .onFailure { Logger.withTag("GoogleWeatherClient").e(it) { "GoogleWeatherClient: fetch failed" } }
 
@@ -69,8 +68,7 @@ class GoogleWeatherClient(
     private data class GoogleForecastResponse(
         @SerialName("forecastDays") val forecastDays: List<GoogleForecastDay> = emptyList(),
     ) {
-        fun toForecasts(): List<DailyForecast> {
-            val baseDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        fun toForecasts(baseDate: LocalDate): List<DailyForecast> {
             return forecastDays.mapIndexed { i, day ->
                 val date = day.displayDate?.toLocalDate() ?: baseDate.plus(i, DateTimeUnit.DAY)
                 DailyForecast(

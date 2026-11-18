@@ -26,6 +26,8 @@ import com.closet.core.data.repository.StatsRepository
 import com.closet.core.data.repository.WEATHER_PREFS_NAME
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.repository.WeatherRepository
+import com.closet.core.data.time.AppClock
+import com.closet.core.data.time.SystemAppClock
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.weather.GoogleWeatherClient
 import com.closet.core.data.weather.NwsClient
@@ -91,6 +93,8 @@ val commonDataModule = module {
             ),
         )
     }
+
+    single<AppClock> { SystemAppClock }
 
     single { AiPreferencesRepository(get(named(AI_PREFS_NAME)), get()) }
     singleOf(::BrandRepository)

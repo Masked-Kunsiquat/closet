@@ -6,6 +6,7 @@ import com.closet.core.data.model.DailyForecast
 import com.closet.core.data.model.WeatherService
 import com.closet.core.data.model.toCached
 import com.closet.core.data.model.toDomain
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.weather.GoogleWeatherClient
@@ -16,7 +17,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import co.touchlab.kermit.Logger
-import kotlin.time.Clock
 
 /** Cache is considered fresh for this many milliseconds after it was written. */
 private const val FORECAST_CACHE_TTL_MS = 3L * 60 * 60 * 1000   // 3 hours
@@ -44,6 +44,7 @@ class WeatherRepository(
     private val weatherPrefsRepo: WeatherPreferencesRepository,
     private val locationProvider: LocationProvider,
     private val json: Json,
+    private val clock: AppClock,
 ) {
     /**
      * Returns a 7-day forecast (today + 6 days), respecting the 3-hour cache.
@@ -54,7 +55,7 @@ class WeatherRepository(
             // Read all cache keys in one atomic snapshot to avoid observing partially-cleared state.
             val cache = weatherPrefsRepo.getCacheSnapshot()
             val currentService = weatherPrefsRepo.getWeatherService().first()
-            val age = Clock.System.now().toEpochMilliseconds() - cache.timestamp
+            val age = clock.now().toEpochMilliseconds() - cache.timestamp
 
             if (cache.forecastJson.isNotEmpty() && age < FORECAST_CACHE_TTL_MS && cache.service == currentService) {
                 val parsed = parseCached(cache.forecastJson)
@@ -116,7 +117,7 @@ class WeatherRepository(
         result.onSuccess { forecasts ->
             try {
                 val entriesJson = json.encodeToString(forecasts.map { it.toCached() })
-                weatherPrefsRepo.saveCache(entriesJson, Clock.System.now().toEpochMilliseconds(), lat, lon, service)
+                weatherPrefsRepo.saveCache(entriesJson, clock.now().toEpochMilliseconds(), lat, lon, service)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

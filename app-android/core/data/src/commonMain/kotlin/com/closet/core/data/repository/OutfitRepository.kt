@@ -5,13 +5,13 @@ import androidx.room.useWriterConnection
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.dao.OutfitDao
 import com.closet.core.data.model.*
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import co.touchlab.kermit.Logger
-import kotlin.time.Clock
 
 /**
  * Domain model for an Outfit with its constituent items and layout metadata.
@@ -41,7 +41,8 @@ data class OutfitItem(
  */
 class OutfitRepository(
     private val database: ClothingDatabase,
-    private val outfitDao: OutfitDao
+    private val outfitDao: OutfitDao,
+    private val clock: AppClock,
 ) {
     /**
      * Retrieves all outfits with their calculated metadata (item count and cover image).
@@ -104,7 +105,7 @@ class OutfitRepository(
                 id = outfitId,
                 name = name,
                 notes = notes,
-                updatedAt = Clock.System.now()
+                updatedAt = clock.now()
             )
             
             if (updatedRows == 0) {

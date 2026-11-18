@@ -2,6 +2,7 @@ package com.closet.core.data.ai.tools
 
 import com.closet.core.data.TestDatabase
 import com.closet.core.data.repository.LogRepository
+import com.closet.core.data.time.SystemAppClock
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.EmbeddingWork
@@ -25,8 +26,8 @@ class ToolSpecTest {
                 listOf(
                     SearchItemsTool(db.clothingDao(), db.lookupDao(), EmbeddingIndex(db.embeddingDao()), encoder),
                     GetItemsTool(db.clothingDao()),
-                    WearHistoryTool(db.clothingDao(), LogRepository(db.logDao())),
-                    ItemsNotWornSinceTool(db.clothingDao(), db.lookupDao()),
+                    WearHistoryTool(db.clothingDao(), LogRepository(db.logDao(), SystemAppClock)),
+                    ItemsNotWornSinceTool(db.clothingDao(), db.lookupDao(), SystemAppClock),
                     MostWornTool(db.statsDao(), db.clothingDao(), db.lookupDao()),
                     OutfitsWornOnTool(db.logDao(), db.clothingDao()),
                     LaundryListTool(db.clothingDao()),

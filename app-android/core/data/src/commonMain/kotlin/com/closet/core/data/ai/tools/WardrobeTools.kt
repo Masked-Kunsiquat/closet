@@ -8,6 +8,7 @@ import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.repository.LogRepository
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import kotlinx.coroutines.CancellationException
@@ -17,9 +18,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
-import kotlinx.datetime.todayIn
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -28,7 +27,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
-import kotlin.time.Clock
 
 // The 8 read-only wardrobe tools. Kept in one file (about 450 lines); split per tool if it grows.
 
@@ -385,6 +383,7 @@ class WearHistoryTool(
 class ItemsNotWornSinceTool(
     private val clothingDao: ClothingDao,
     private val lookupDao: LookupDao,
+    private val clock: AppClock,
 ) : WardrobeTool {
 
     override val spec = ToolSpec(
@@ -406,7 +405,7 @@ class ItemsNotWornSinceTool(
                 is Resolved.Bad -> return r.result
             }
         }
-        val cutoff = Clock.System.todayIn(TimeZone.currentSystemDefault()).minus(days, DateTimeUnit.DAY).toString()
+        val cutoff = clock.today().minus(days, DateTimeUnit.DAY).toString()
         val ids = clothingDao.getItemsNotWornSince(cutoff).map { it.id }
         val matching = clothingDao.detailsInOrder(ids).filter {
             it.item.status == ClothingStatus.Active && (category == null || it.category?.name == category)
