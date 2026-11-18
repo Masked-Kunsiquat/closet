@@ -40,21 +40,21 @@ class StatPeriodTest {
     fun allNonAllTimePeriodsProduceYyyyMmDdFormattedDates() {
         val datePattern = Regex("""\d{4}-\d{2}-\d{2}""")
         listOf(StatPeriod.LAST_30, StatPeriod.LAST_90, StatPeriod.THIS_YEAR).forEach { period ->
-            val date = period.toFromDate()!!
+            val date = period.toFromDate(today)!!
             assertTrue(datePattern.matches(date), "$period produced malformed date: $date")
         }
     }
 
     @Test
     fun last30DateIsStrictlyAfterLast90Date() {
-        val last30 = LocalDate.parse(StatPeriod.LAST_30.toFromDate()!!)
-        val last90 = LocalDate.parse(StatPeriod.LAST_90.toFromDate()!!)
+        val last30 = LocalDate.parse(StatPeriod.LAST_30.toFromDate(today)!!)
+        val last90 = LocalDate.parse(StatPeriod.LAST_90.toFromDate(today)!!)
         assertTrue(last30 > last90)
     }
 
     @Test
     fun thisYearToFromDateIsAlwaysJanuaryFirstRegardlessOfCurrentDay() {
-        val thisYear = LocalDate.parse(StatPeriod.THIS_YEAR.toFromDate()!!)
+        val thisYear = LocalDate.parse(StatPeriod.THIS_YEAR.toFromDate(today)!!)
         assertEquals(1, thisYear.month.number)
         assertEquals(1, thisYear.day)
     }

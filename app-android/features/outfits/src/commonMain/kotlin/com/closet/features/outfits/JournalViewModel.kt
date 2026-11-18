@@ -16,11 +16,13 @@ import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.repository.WeatherRepository
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import kotlin.time.Instant
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.minus
@@ -50,6 +52,7 @@ private val logger = Logger.withTag("JournalViewModel")
  * UI state for the Journal screen.
  *
  * @param currentYearMonth The month currently displayed in the calendar.
+ * @param today The current date per the injected clock; drives the "today" marker and the next-month bound.
  * @param calendarDays Days in [currentYearMonth] that have at least one wear log.
  * @param selectedDate The ISO date string ("YYYY-MM-DD") the user has tapped, or null.
  * @param logsForSelectedDate Logs for the currently selected date (drives DayDetailSheet).
@@ -57,7 +60,8 @@ private val logger = Logger.withTag("JournalViewModel")
  * @param editingLog Non-null when the log-edit sheet is open for this entry.
  */
 data class JournalUiState(
-    val currentYearMonth: YearMonth = todayLocal().yearMonth,
+    val currentYearMonth: YearMonth,
+    val today: LocalDate,
     val calendarDays: List<CalendarDay> = emptyList(),
     val selectedDate: String? = null,
     val logsForSelectedDate: List<OutfitLogWithMeta> = emptyList(),
@@ -84,9 +88,11 @@ class JournalViewModel(
     private val imagePathResolver: ImagePathResolver,
     private val weatherRepository: WeatherRepository,
     private val weatherPrefsRepo: WeatherPreferencesRepository,
+    private val clock: AppClock,
 ) : ViewModel() {
 
-    private val _currentYearMonth = MutableStateFlow(todayLocal().yearMonth)
+    private val initialToday = clock.today()
+    private val _currentYearMonth = MutableStateFlow(initialToday.yearMonth)
     private val _selectedDate = MutableStateFlow<String?>(null)
     private val _showOutfitPicker = MutableStateFlow(false)
     private val _editingLog = MutableStateFlow<OutfitLogWithMeta?>(null)
@@ -137,6 +143,7 @@ class JournalViewModel(
     ) { yearMonth, days, selectedDate, logs, showPicker ->
         JournalUiState(
             currentYearMonth = yearMonth,
+            today = initialToday,
             calendarDays = days,
             selectedDate = selectedDate,
             logsForSelectedDate = logs,
@@ -145,19 +152,24 @@ class JournalViewModel(
     }.combine(_editingLog) { state, editingLog ->
         state.copy(editingLog = editingLog)
     }.combine(forecastDays) { state, forecasts ->
-        val today = todayLocal()
-        state.copy(
-            todayForecast = forecasts.find { it.date == today },
-            forecastDays = forecasts,
-        )
+        state.copy(forecastDays = forecasts)
     }.combine(_showForecastSheet) { state, show ->
         state.copy(showForecastSheet = show)
     }.combine(temperatureUnit) { state, unit ->
-        state.copy(temperatureUnit = unit)
+        // Read the date on every emission so the "Today"/"Tomorrow" labels refresh across midnight.
+        val today = clock.today()
+        state.copy(
+            temperatureUnit = unit,
+            today = today,
+            todayForecast = state.forecastDays.find { it.date == today },
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = JournalUiState(),
+        initialValue = JournalUiState(
+            currentYearMonth = initialToday.yearMonth,
+            today = initialToday,
+        ),
     )
 
     /** All saved outfits — feeds the outfit picker sheet. */
@@ -172,7 +184,7 @@ class JournalViewModel(
 
     /** Advances to the next month. No-op if already on the current month. */
     fun nextMonth() = _currentYearMonth.update { current ->
-        if (current < todayLocal().yearMonth) current.plus(1, DateTimeUnit.MONTH) else current
+        if (current < clock.today().yearMonth) current.plus(1, DateTimeUnit.MONTH) else current
     }
 
     /** Opens the DayDetailSheet for [date], or pass null to close it. */
@@ -191,7 +203,7 @@ class JournalViewModel(
             logger.w { "navigateToDate: invalid date '$date', ignoring" }
             return
         }
-        if (localDate > todayLocal()) return
+        if (localDate > clock.today()) return
         _currentYearMonth.value = localDate.yearMonth
         _showOutfitPicker.value = false
         _editingLog.value = null
@@ -303,7 +315,7 @@ class JournalViewModel(
         viewModelScope.launch {
             val date = _selectedDate.value ?: return@launch
             val parsedDate = parseIsoDateOrNull(date) ?: return@launch
-            if (parsedDate > todayLocal()) return@launch
+            if (parsedDate > clock.today()) return@launch
             val forecast = uiState.value.forecastDays.find { it.date == parsedDate }
             when (val result = logRepository.wearOutfitOnDate(
                 outfitId = outfitId,

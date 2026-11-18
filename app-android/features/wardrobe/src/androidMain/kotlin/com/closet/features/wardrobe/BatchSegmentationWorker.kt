@@ -19,12 +19,12 @@ import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.dao.LookupDao
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.StorageRepository
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.repository.SubjectSegmenter
 import kotlinx.coroutines.CancellationException
 import co.touchlab.kermit.Logger
-import kotlin.time.Clock
 import java.util.UUID
 
 /**
@@ -53,6 +53,7 @@ class BatchSegmentationWorker(
     private val storageRepository: StorageRepository,
     private val segmentationRepository: SubjectSegmenter,
     private val clothingRepository: ClothingRepository,
+    private val clock: AppClock,
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -112,7 +113,7 @@ class BatchSegmentationWorker(
                 var savedPath: String? = null
                 try {
                     savedPath = storageRepository.saveBitmap(masked, UUID.randomUUID().toString())
-                    clothingDao.updateItemImagePath(item.id, savedPath, Clock.System.now())
+                    clothingDao.updateItemImagePath(item.id, savedPath, clock.now())
                 } catch (e: Exception) {
                     // Best-effort cleanup of the orphaned PNG before re-throwing so
                     // the outer catch can count this item as failed.

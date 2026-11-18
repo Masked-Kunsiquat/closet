@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.EmbeddingDao
 import com.closet.core.data.model.ItemEmbeddingEntity
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.util.toByteArrayLE
@@ -16,7 +17,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import co.touchlab.kermit.Logger
-import kotlin.time.Clock
 
 /**
  * Background worker that embeds every clothing item whose `semantic_description` is populated
@@ -41,6 +41,7 @@ class EmbeddingWorker(
     private val embeddingDao: EmbeddingDao,
     private val encoder: EmbeddingEncoder,
     private val embeddingIndex: EmbeddingIndex,
+    private val clock: AppClock,
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -84,7 +85,7 @@ class EmbeddingWorker(
                         embeddingBlob = vector.toByteArrayLE(),
                         modelVersion  = encoder.modelVersion,
                         inputSnapshot = text,
-                        embeddedAt    = Clock.System.now(),
+                        embeddedAt    = clock.now(),
                     )
                 )
                 done++

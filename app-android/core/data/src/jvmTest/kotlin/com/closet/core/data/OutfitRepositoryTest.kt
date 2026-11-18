@@ -1,6 +1,7 @@
 package com.closet.core.data
 
 import com.closet.core.data.repository.OutfitRepository
+import com.closet.core.data.time.SystemAppClock
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.runBlocking
@@ -21,7 +22,7 @@ class OutfitRepositoryTest {
     @BeforeTest
     fun setUp() {
         testDb = TestDatabase()
-        repository = OutfitRepository(testDb.db, testDb.db.outfitDao())
+        repository = OutfitRepository(testDb.db, testDb.db.outfitDao(), SystemAppClock)
     }
 
     @AfterTest

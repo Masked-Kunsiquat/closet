@@ -6,6 +6,7 @@ import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
+import com.closet.core.data.time.SystemAppClock
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -91,7 +92,7 @@ object DemoBackup {
                 val db = getDatabaseBuilder(dbFile).build()
                 try {
                     val lookups = Lookups.load(db)
-                    val clothing = ClothingRepository(db, db.clothingDao())
+                    val clothing = ClothingRepository(db, db.clothingDao(), SystemAppClock)
                     val enricher = Enricher(options.seed, options.today, options.enrichShare, options.historyDays)
                     val brands = BrandRepository(db.brandDao())
                     val brandIds = HashMap<String, Long>()

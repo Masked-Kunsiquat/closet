@@ -4,15 +4,13 @@ import co.touchlab.kermit.Logger
 import com.closet.core.data.ai.ChatResponse
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.dao.LogDao
-import kotlin.time.Clock
+import com.closet.core.data.time.AppClock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.char
 import kotlinx.datetime.format.Padding
 import kotlinx.datetime.minus
-import kotlinx.datetime.todayIn
 
 /**
  * Shared [ChatRouter]: uses a [LanguageDetector] to gate English-only
@@ -40,6 +38,7 @@ class PatternChatRouter(
     private val logDao: LogDao,
     private val dateParser: ChatDateParser,
     private val languageDetector: LanguageDetector,
+    private val clock: AppClock,
 ) : ChatRouter {
 
     override suspend fun route(message: String): ChatRouter.RouterResult {
@@ -127,7 +126,7 @@ class PatternChatRouter(
         // Use strict "> cutoffDate" semantics: an item last worn exactly `days` days ago
         // should appear in the results ("haven't worn in 30 days" includes day-30 boundary).
         // The DAO predicate is now "ol.date > :cutoffDate" (exclusive), so cutoffDate = today - days.
-        val cutoffDate = Clock.System.todayIn(TimeZone.currentSystemDefault()).minus(days, DateTimeUnit.DAY).toString()
+        val cutoffDate = clock.today().minus(days, DateTimeUnit.DAY).toString()
         val items = clothingDao.getItemsNotWornSince(cutoffDate)
 
         val itemsLabel = if (items.size == 1) "item" else "items"

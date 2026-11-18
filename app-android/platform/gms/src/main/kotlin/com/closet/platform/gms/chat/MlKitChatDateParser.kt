@@ -1,5 +1,7 @@
 package com.closet.platform.gms.chat
 
+import com.closet.core.data.time.AppClock
+import com.closet.core.data.time.FixedAppClock
 import com.closet.features.chat.ChatDateParser
 import com.closet.features.chat.RegexChatDateParser
 import com.google.mlkit.nl.entityextraction.DateTimeEntity
@@ -8,12 +10,12 @@ import com.google.mlkit.nl.entityextraction.EntityExtraction
 import com.google.mlkit.nl.entityextraction.EntityExtractionParams
 import com.google.mlkit.nl.entityextraction.EntityExtractorOptions
 import kotlinx.coroutines.tasks.await
+import kotlinx.datetime.toJavaZoneId
 import timber.log.Timber
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.util.TimeZone
 
 /**
  * GMS (full-flavor) [ChatDateParser]: uses ML Kit Entity Extraction to handle the full range of
@@ -23,9 +25,7 @@ import java.util.TimeZone
  * The English model (~5.6 MB) is downloaded via Play Services on first use. The download is
  * triggered lazily in [init] so it's typically ready by the time the user first queries a date.
  */
-class MlKitChatDateParser : ChatDateParser {
-
-    private val regexFallback = RegexChatDateParser()
+class MlKitChatDateParser(private val clock: AppClock) : ChatDateParser {
 
     private val extractor = EntityExtraction.getClient(
         EntityExtractorOptions.Builder(EntityExtractorOptions.ENGLISH).build()
@@ -46,12 +46,18 @@ class MlKitChatDateParser : ChatDateParser {
      * expressions resolve correctly. Falls back to [RegexChatDateParser] if ML Kit returns no
      * date entity or the model is not yet available.
      */
-    override suspend fun parseDate(text: String): String? = try {
+    override suspend fun parseDate(text: String): String? {
+        // One (instant, zone) pair per request, shared by ML Kit and both fallback paths, so a
+        // request that straddles midnight can't resolve "today" two different ways.
+        val now = clock.now()
+        val zone = clock.timeZone()
+        val regexFallback = RegexChatDateParser(FixedAppClock(now, zone))
+        return try {
         val params = EntityExtractionParams.Builder(text)
             .setEntityTypesFilter(setOf(Entity.TYPE_DATE_TIME))
             .setPreferredLocale(Locale.US)
-            .setReferenceTime(System.currentTimeMillis())
-            .setReferenceTimeZone(TimeZone.getDefault())
+            .setReferenceTime(now.toEpochMilliseconds())
+            .setReferenceTimeZone(zone.toJavaUtilTimeZone())
             .build()
 
         val annotations = extractor.annotate(params).await()
@@ -73,4 +79,13 @@ class MlKitChatDateParser : ChatDateParser {
         Timber.w(e, "ChatDateParser: ML Kit annotation failed, falling back to regex")
         regexFallback.parseDate(text)
     }
+    }
 }
+
+/**
+ * Lossless conversion for ML Kit's reference zone. `java.util.TimeZone.getTimeZone(String)` maps an
+ * unrecognised id such as a fixed offset "+05:30" to GMT; going through `ZoneId` keeps both fixed
+ * offsets and named zones (with their DST rules).
+ */
+internal fun kotlinx.datetime.TimeZone.toJavaUtilTimeZone(): java.util.TimeZone =
+    java.util.TimeZone.getTimeZone(toJavaZoneId())

@@ -5,6 +5,8 @@ import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.RecommendationRepository
+import com.closet.core.data.time.AppClock
+import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.util.DataResult
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitCombo
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import kotlin.time.Instant
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -58,8 +61,11 @@ class RecommendationViewModelSessionTest {
     private val viewModel by lazy { buildViewModel(aiReady = false) }
 
     /** AI ready = enabled with an OpenAI key; the scorer always returns null (fallback path). */
-    private fun buildViewModel(aiReady: Boolean): RecommendationViewModel {
-        val repo = mockk<RecommendationRepository>()
+    private fun buildViewModel(
+        aiReady: Boolean,
+        clock: AppClock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
+        repo: RecommendationRepository = mockk<RecommendationRepository>(),
+    ): RecommendationViewModel {
         coEvery { repo.getCandidates(any(), any(), any(), any()) } returns DataResult.Success(
             listOf(candidate(1, "Top"), candidate(2, "Top"), candidate(3, "Bottom"), candidate(4, "Bottom"))
         )
@@ -77,6 +83,7 @@ class RecommendationViewModelSessionTest {
             outfitRepository = mockk(relaxed = true),
             lookupRepository = mockk(relaxed = true),
             imagePathResolver = ImagePathResolver { it },
+            clock = clock,
             aiPrefsRepo = mockk(relaxed = true) {
                 every { getAiEnabled() } returns flowOf(aiReady)
                 every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
@@ -97,6 +104,26 @@ class RecommendationViewModelSessionTest {
     }
 
     private fun keys(combos: List<OutfitCombo>) = combos.map { it.key() }
+
+    @Test fun calendarSeasonComesFromTheClockMonth() {
+        val januaryRepo = mockk<RecommendationRepository>()
+        buildViewModel(
+            aiReady = false,
+            clock = FixedAppClock(Instant.parse("2031-01-10T12:00:00Z")),
+            repo = januaryRepo,
+        ).onWeatherConfirmed(weather)
+        coVerify(exactly = 1) { januaryRepo.getCandidates(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { januaryRepo.getCandidates("Winter", any(), any(), any()) }
+
+        val julyRepo = mockk<RecommendationRepository>()
+        buildViewModel(
+            aiReady = false,
+            clock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
+            repo = julyRepo,
+        ).onWeatherConfirmed(weather)
+        coVerify(exactly = 1) { julyRepo.getCandidates(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { julyRepo.getCandidates("Summer", any(), any(), any()) }
+    }
 
     @Test fun regenerateShowsUnseenComboThenCycles() {
         viewModel.onWeatherConfirmed(weather)

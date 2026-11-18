@@ -6,14 +6,12 @@ import com.closet.core.data.dao.LogDao
 import com.closet.core.data.dao.OutfitLogWithMeta
 import com.closet.core.data.model.OutfitLogEntity
 import com.closet.core.data.model.WeatherCondition
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import co.touchlab.kermit.Logger
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
-import kotlin.time.Clock
 
 /**
  * Repository for Outfit Log (Journal) operations.
@@ -21,7 +19,8 @@ import kotlin.time.Clock
  * Parity: This is the native equivalent of Outfit logs section in hangr/db/queries.ts.
  */
 class LogRepository(
-    private val logDao: LogDao
+    private val logDao: LogDao,
+    private val clock: AppClock,
 ) {
     /**
      * Retrieves all outfit logs for a specific date (e.g., "2024-03-20").
@@ -49,8 +48,16 @@ class LogRepository(
      * @param outfitId The ID of the outfit that was worn.
      * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
      */
-    suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> =
-        wearOutfitOnDate(outfitId, Clock.System.todayIn(TimeZone.currentSystemDefault()).toString())
+    suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> {
+        val today = try {
+            clock.today().toString()
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Logger.withTag("LogRepository").e(e) { "Error reading today's date for outfit $outfitId" }
+            return DataResult.Error(AppError.Unexpected(e))
+        }
+        return wearOutfitOnDate(outfitId, today)
+    }
 
     /**
      * Logs an outfit as worn on [date] (YYYY-MM-DD). Idempotent — returns the existing
@@ -105,7 +112,7 @@ class LogRepository(
      */
     suspend fun wearItemsToday(itemIds: List<Long>): DataResult<Long> = try {
         val logId = logDao.getOrCreateAdHocLogAndSnapshot(
-            date = Clock.System.todayIn(TimeZone.currentSystemDefault()).toString(),
+            date = clock.today().toString(),
             itemIds = itemIds,
         )
         DataResult.Success(logId)

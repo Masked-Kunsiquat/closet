@@ -5,6 +5,7 @@ import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.OutfitLogEntity
 import com.closet.core.data.model.SubcategoryEntity
 import com.closet.core.data.repository.OutfitRepository
+import com.closet.core.data.time.SystemAppClock
 import kotlinx.coroutines.flow.first
 import java.util.Random
 
@@ -101,7 +102,7 @@ internal class History(
     }
 
     private suspend fun createOutfits(): List<Long> {
-        val repository = OutfitRepository(db, db.outfitDao())
+        val repository = OutfitRepository(db, db.outfitDao(), SystemAppClock)
         val seen = HashSet<Set<Long>>()
         val ids = ArrayList<Long>()
         var attempts = 0

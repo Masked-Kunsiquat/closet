@@ -7,6 +7,7 @@ import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.Converters
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.*
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.isConstraintViolation
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CancellationException
-import kotlin.time.Clock
 
 /**
  * Repository providing access to clothing items.
@@ -28,7 +28,8 @@ import kotlin.time.Clock
  */
 class ClothingRepository(
     private val database: ClothingDatabase,
-    private val clothingDao: ClothingDao
+    private val clothingDao: ClothingDao,
+    private val clock: AppClock,
 ) {
     private val converters = Converters()
 
@@ -251,7 +252,7 @@ class ClothingRepository(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateWashStatus(id: Long, washStatus: WashStatus): DataResult<Unit> = try {
-        val updatedAt = converters.dateToTimestamp(Clock.System.now()) ?: ""
+        val updatedAt = converters.dateToTimestamp(clock.now()) ?: ""
         clothingDao.updateWashStatus(id, washStatus.label, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
@@ -267,7 +268,7 @@ class ClothingRepository(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateStatus(id: Long, status: ClothingStatus): DataResult<Unit> = try {
-        val updatedAt = converters.dateToTimestamp(Clock.System.now()) ?: ""
+        val updatedAt = converters.dateToTimestamp(clock.now()) ?: ""
         clothingDao.updateItemStatus(id, status.label, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
@@ -283,7 +284,7 @@ class ClothingRepository(
      * @return A [DataResult] indicating success or failure.
      */
     suspend fun updateFavoriteStatus(id: Long, isFavorite: Boolean): DataResult<Unit> = try {
-        val updatedAt = converters.dateToTimestamp(Clock.System.now()) ?: ""
+        val updatedAt = converters.dateToTimestamp(clock.now()) ?: ""
         clothingDao.updateFavoriteStatus(id, if (isFavorite) 1 else 0, updatedAt)
         DataResult.Success(Unit)
     } catch (e: Exception) {
@@ -360,7 +361,7 @@ class ClothingRepository(
         try {
             val detail = clothingDao.getClothingItemDetailOnce(id) ?: return
             val description = ItemVectorizer.describe(detail)
-            clothingDao.updateSemanticDescription(id, description, Clock.System.now())
+            clothingDao.updateSemanticDescription(id, description, clock.now())
             Logger.withTag("ClothingRepository").d { "vectorizeItem: wrote description for item $id (${description.length} chars)" }
         } catch (e: Exception) {
             if (e is CancellationException) throw e

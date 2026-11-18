@@ -9,6 +9,7 @@ import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.repository.WeatherRepository
+import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.util.DataResult
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -39,7 +40,9 @@ class JournalViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    private val todayJava = java.time.LocalDate.now()
+    // Pinned so "today" no longer depends on the machine date.
+    private val todayJava = java.time.LocalDate.of(2031, 6, 15)
+    private val clock = FixedAppClock(kotlin.time.Instant.parse("2031-06-15T12:00:00Z"))
     private val todayForecast = DailyForecast(
         date = todayJava.toKotlinLocalDate(),
         tempLow = 4.0,
@@ -90,6 +93,7 @@ class JournalViewModelTest {
         imagePathResolver = ImagePathResolver { "/root/$it" },
         weatherRepository = weatherRepository,
         weatherPrefsRepo = weatherPrefsRepo,
+        clock = clock,
     )
 
     @Test

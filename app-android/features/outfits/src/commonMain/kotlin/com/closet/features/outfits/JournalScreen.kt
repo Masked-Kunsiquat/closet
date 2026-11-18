@@ -138,7 +138,7 @@ internal fun JournalContent(
     onDismissForecastSheet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val today = remember(uiState.currentYearMonth) { todayLocal() }
+    val today = uiState.today
     val logsByDate = remember(uiState.calendarDays) {
         uiState.calendarDays.associateBy { it.date }
     }
@@ -170,6 +170,7 @@ internal fun JournalContent(
 
             MonthNavHeader(
                 yearMonth = uiState.currentYearMonth,
+                today = today,
                 onPrevious = onPreviousMonth,
                 onNext = onNextMonth,
             )
@@ -196,6 +197,7 @@ internal fun JournalContent(
         ForecastSheet(
             forecasts = uiState.forecastDays,
             temperatureUnit = uiState.temperatureUnit,
+            today = today,
             onDismiss = onDismissForecastSheet,
         )
     }
@@ -235,6 +237,7 @@ internal fun JournalContent(
 @Composable
 private fun MonthNavHeader(
     yearMonth: YearMonth,
+    today: LocalDate,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
@@ -242,7 +245,7 @@ private fun MonthNavHeader(
     val monthLabel = remember(yearMonth) {
         formatMonthYear(yearMonth)
     }
-    val isCurrentMonth = yearMonth >= todayLocal().yearMonth
+    val isCurrentMonth = yearMonth >= today.yearMonth
 
     Row(
         modifier = modifier.fillMaxWidth(),

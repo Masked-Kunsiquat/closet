@@ -29,6 +29,7 @@ import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LookupRepository
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.DataResult
 import com.closet.features.wardrobe.photo.ItemPhotoProcessor
@@ -42,7 +43,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
-import kotlin.time.Clock
 
 /**
  * UI state for the Clothing Form (Add/Edit).
@@ -138,6 +138,7 @@ class ClothingFormViewModel(
     private val photoProcessor: ItemPhotoProcessor,
     private val imagePathResolver: ImagePathResolver,
     private val shortcutUsageReporter: ShortcutUsageReporter,
+    private val clock: AppClock,
 ) : ViewModel() {
 
     private val log = Logger.withTag("ClothingFormViewModel")
@@ -729,8 +730,8 @@ class ClothingFormViewModel(
                     // If the user replaced the image, treat the old caption as stale and set null.
                     imageCaption = state.imageCaption
                         ?: if (state.imagePath == originalEntity?.imagePath) originalEntity?.imageCaption else null,
-                    createdAt = originalEntity?.createdAt ?: Clock.System.now(),
-                    updatedAt = Clock.System.now()
+                    createdAt = originalEntity?.createdAt ?: clock.now(),
+                    updatedAt = clock.now()
                 )
 
                 val result = if (isEditMode) {

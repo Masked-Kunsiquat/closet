@@ -7,6 +7,7 @@ import com.closet.core.data.ai.BatchCaptionResult
 import com.closet.core.data.ai.OnDeviceAiException
 import com.closet.platform.gms.mapGenAiErrorCode
 import com.closet.core.data.dao.ClothingDao
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.util.BitmapUtils
 import com.google.mlkit.genai.common.DownloadCallback
@@ -28,7 +29,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
-import kotlin.time.Clock
 import java.util.concurrent.ExecutionException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -47,6 +47,7 @@ import kotlin.coroutines.resumeWithException
 class MlKitImageCaptioner(
     private val context: Context,
     private val clothingDao: ClothingDao,
+    private val clock: AppClock,
 ) : CaptionEnrichmentProvider {
 
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -171,7 +172,7 @@ class MlKitImageCaptioner(
                             failed++
                         } else {
                             val caption = describe(bitmap)
-                            val updated = clothingDao.updateImageCaption(item.id, caption, Clock.System.now())
+                            val updated = clothingDao.updateImageCaption(item.id, caption, clock.now())
                             if (updated == 1) {
                                 done++
                             } else {

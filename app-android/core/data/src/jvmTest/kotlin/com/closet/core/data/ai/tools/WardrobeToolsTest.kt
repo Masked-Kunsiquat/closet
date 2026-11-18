@@ -8,6 +8,7 @@ import com.closet.core.data.model.ItemEmbeddingEntity
 import com.closet.core.data.model.OutfitLogEntity
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.LogRepository
+import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.util.toByteArrayLE
@@ -32,7 +33,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 
 class WardrobeToolsTest {
 
@@ -49,6 +50,9 @@ class WardrobeToolsTest {
     private lateinit var registry: ToolRegistry
     private lateinit var index: EmbeddingIndex
     private var encoder: EmbeddingEncoder = FakeEncoder()
+
+    // Today is 2026-06-15 (UTC), so a 30-day not-worn cutoff is 2026-05-16.
+    private val clock = FixedAppClock(Instant.parse("2026-06-15T12:00:00Z"))
 
     private var sneakersId = 0L
     private var overcoatId = 0L
@@ -75,8 +79,8 @@ class WardrobeToolsTest {
         listOf(
             SearchItemsTool(db.clothingDao(), db.lookupDao(), index, encoder),
             GetItemsTool(db.clothingDao()),
-            WearHistoryTool(db.clothingDao(), LogRepository(db.logDao())),
-            ItemsNotWornSinceTool(db.clothingDao(), db.lookupDao()),
+            WearHistoryTool(db.clothingDao(), LogRepository(db.logDao(), clock)),
+            ItemsNotWornSinceTool(db.clothingDao(), db.lookupDao(), clock),
             MostWornTool(db.statsDao(), db.clothingDao(), db.lookupDao()),
             OutfitsWornOnTool(db.logDao(), db.clothingDao()),
             LaundryListTool(db.clothingDao()),
@@ -383,12 +387,20 @@ class WardrobeToolsTest {
 
     @Test
     fun itemsNotWornSinceExcludesRecentlyWorn() {
-        // Dates are days away from the 30-day cutoff, so the UTC vs system-zone day never matters.
-        fun daysAgo(n: Int) = (Clock.System.now() - n.days).toString().substringBefore('T')
-        wear(sneakersId, daysAgo(5))
-        wear(overcoatId, daysAgo(100))
+        wear(sneakersId, "2026-06-10")
+        wear(overcoatId, "2026-03-07")
         val r = run("items_not_worn_since", buildJsonObject { put("days", 30) })
         assertEquals(setOf(overcoatId, shirtId), r.itemIdsInJson().toSet())
+    }
+
+    @Test
+    fun itemsNotWornSinceCutoffIsClockDateMinusDays() {
+        // Cutoff is 2026-05-16; a wear counts as recent only when strictly after it.
+        wear(sneakersId, "2026-05-16")
+        wear(overcoatId, "2026-05-17")
+        val r = run("items_not_worn_since", buildJsonObject { put("days", 30) })
+        assertEquals(setOf(sneakersId, shirtId), r.itemIdsInJson().toSet())
+        assertEquals("2026-05-16", r.obj()["cutoff_date"]!!.jsonPrimitive.content)
     }
 
     // ─── search_items filters ─────────────────────────────────────────────────

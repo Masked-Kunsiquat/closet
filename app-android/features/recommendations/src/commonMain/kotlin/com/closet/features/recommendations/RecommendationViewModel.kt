@@ -12,6 +12,7 @@ import com.closet.core.data.dao.ItemWindSuitability
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.OccasionEntity
 import com.closet.core.data.repository.AiPreferencesRepository
+import com.closet.core.data.time.AppClock
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.repository.OutfitRepository
 import com.closet.core.data.repository.RecommendationRepository
@@ -43,9 +44,6 @@ import kotlinx.coroutines.launch
 import com.closet.core.data.model.StyleVibe
 import kotlin.random.Random
 import co.touchlab.kermit.Logger
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
-import kotlin.time.Clock
 
 private val logger = Logger.withTag("RecommendationViewModel")
 
@@ -79,6 +77,7 @@ class RecommendationViewModel(
     private val lookupRepository: LookupRepository,
     private val imagePathResolver: ImagePathResolver,
     private val aiPrefsRepo: AiPreferencesRepository,
+    private val clock: AppClock,
 ) : ViewModel() {
 
     // -------------------------------------------------------------------------
@@ -348,7 +347,7 @@ class RecommendationViewModel(
         weather: WeatherConditions?,
         firstOfSession: Boolean
     ): List<OutfitCombo> = coroutineScope {
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val today = clock.today()
         val calendarSeason = seasonFor(today.month)
 
         // 1. Fetch candidates (sequential — item IDs are needed for subsequent queries)

@@ -10,6 +10,7 @@ import com.closet.core.data.dao.StatItem
 import com.closet.core.data.dao.StatsOverview
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.StatsRepository
+import com.closet.core.data.time.AppClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,10 +19,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
-import kotlinx.datetime.todayIn
-import kotlin.time.Clock
 
 /** Time window used to filter wear-based statistics. */
 enum class StatPeriod {
@@ -34,9 +32,7 @@ enum class StatPeriod {
      * Returns the ISO-8601 start date (YYYY-MM-DD) for this period relative to [today],
      * or null for [ALL_TIME] (no date filter).
      */
-    fun toFromDate(
-        today: LocalDate = Clock.System.todayIn(TimeZone.currentSystemDefault())
-    ): String? = when (this) {
+    fun toFromDate(today: LocalDate): String? = when (this) {
         ALL_TIME -> null
         LAST_30 -> today.minus(DatePeriod(days = 30)).toString()
         LAST_90 -> today.minus(DatePeriod(days = 90)).toString()
@@ -84,13 +80,14 @@ private data class PeriodData(
  */
 class StatsViewModel(
     private val statsRepository: StatsRepository,
-    private val imagePathResolver: ImagePathResolver
+    private val imagePathResolver: ImagePathResolver,
+    private val clock: AppClock,
 ) : ViewModel() {
 
     private val _selectedPeriod = MutableStateFlow(StatPeriod.ALL_TIME)
 
     private val periodData = _selectedPeriod.flatMapLatest { period ->
-        val fromDate = period.toFromDate()
+        val fromDate = period.toFromDate(clock.today())
         combine(
             statsRepository.getStatsOverview(fromDate),
             statsRepository.getMostWornItems(fromDate),
