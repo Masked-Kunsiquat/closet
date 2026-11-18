@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import com.closet.core.data.location.LocationProvider
 import com.closet.core.data.model.WeatherService
 import com.closet.core.data.time.FixedAppClock
+import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.weather.GoogleWeatherClient
 import com.closet.core.data.weather.NwsClient
@@ -60,11 +61,19 @@ class WeatherRepositoryTest {
         assertTrue(forecastWithCacheAge(ttlMs - 1) is DataResult.Success)
     }
 
+    /** A stale cache reaches the refresh path, which fails on the missing Google key. */
+    private fun assertMissingKeyError(result: DataResult<*>) {
+        assertTrue(
+            result is DataResult.Error && result.throwable is AppError.ValidationError.InvalidInput,
+            "expected the missing-key InvalidInput, got $result",
+        )
+    }
+
     @Test fun cacheExactlyAtTheLimitIsStale() = runBlocking {
-        assertTrue(forecastWithCacheAge(ttlMs) is DataResult.Error)
+        assertMissingKeyError(forecastWithCacheAge(ttlMs))
     }
 
     @Test fun cacheOneMillisecondPastTheLimitIsStale() = runBlocking {
-        assertTrue(forecastWithCacheAge(ttlMs + 1) is DataResult.Error)
+        assertMissingKeyError(forecastWithCacheAge(ttlMs + 1))
     }
 }

@@ -48,8 +48,16 @@ class LogRepository(
      * @param outfitId The ID of the outfit that was worn.
      * @return The new log row ID in [DataResult.Success], or [DataResult.Error].
      */
-    suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> =
-        wearOutfitOnDate(outfitId, clock.today().toString())
+    suspend fun wearOutfitToday(outfitId: Long): DataResult<Long> {
+        val today = try {
+            clock.today().toString()
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Logger.withTag("LogRepository").e(e) { "Error reading today's date for outfit $outfitId" }
+            return DataResult.Error(AppError.Unexpected(e))
+        }
+        return wearOutfitOnDate(outfitId, today)
+    }
 
     /**
      * Logs an outfit as worn on [date] (YYYY-MM-DD). Idempotent — returns the existing

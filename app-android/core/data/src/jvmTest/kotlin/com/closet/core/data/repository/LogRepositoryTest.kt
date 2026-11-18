@@ -1,6 +1,7 @@
 package com.closet.core.data.repository
 
 import com.closet.core.data.TestDatabase
+import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.OutfitEntity
 import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.util.DataResult
@@ -34,8 +35,12 @@ class LogRepositoryTest {
     }
 
     @Test fun wearItemsTodayLogsTheClockDate() = runBlocking {
-        val result = repo(TimeZone.UTC).wearItemsToday(emptyList())
+        val itemId = testDb.db.clothingDao().insertClothingItem(ClothingItemEntity(name = "Tee"))
+        val result = repo(TimeZone.of("America/Los_Angeles")).wearItemsToday(listOf(itemId))
         assertTrue(result is DataResult.Success)
-        assertEquals(1, testDb.db.logDao().getLogsByDate("2026-01-15").first().size)
+        // 07:30 UTC on Jan 15 is 23:30 on Jan 14 in Los Angeles.
+        val dates = testDb.db.logDao().getLogsForItem(itemId).first().map { it.date }
+        assertEquals(listOf("2026-01-14"), dates)
+        assertTrue(testDb.db.logDao().getLogsByDate("2026-01-15").first().isEmpty())
     }
 }

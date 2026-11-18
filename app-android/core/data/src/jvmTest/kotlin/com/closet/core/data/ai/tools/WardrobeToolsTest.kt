@@ -400,6 +400,7 @@ class WardrobeToolsTest {
         wear(overcoatId, "2026-05-17")
         val r = run("items_not_worn_since", buildJsonObject { put("days", 30) })
         assertEquals(setOf(sneakersId, shirtId), r.itemIdsInJson().toSet())
+        assertEquals("2026-05-16", r.obj()["cutoff_date"]!!.jsonPrimitive.content)
     }
 
     // ─── search_items filters ─────────────────────────────────────────────────

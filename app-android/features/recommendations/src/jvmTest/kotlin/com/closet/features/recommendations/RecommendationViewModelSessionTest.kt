@@ -106,20 +106,23 @@ class RecommendationViewModelSessionTest {
     private fun keys(combos: List<OutfitCombo>) = combos.map { it.key() }
 
     @Test fun calendarSeasonComesFromTheClockMonth() {
-        val repo = mockk<RecommendationRepository>()
+        val januaryRepo = mockk<RecommendationRepository>()
         buildViewModel(
             aiReady = false,
             clock = FixedAppClock(Instant.parse("2031-01-10T12:00:00Z")),
-            repo = repo,
+            repo = januaryRepo,
         ).onWeatherConfirmed(weather)
-        coVerify { repo.getCandidates("Winter", any(), any(), any()) }
+        coVerify(exactly = 1) { januaryRepo.getCandidates(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { januaryRepo.getCandidates("Winter", any(), any(), any()) }
 
+        val julyRepo = mockk<RecommendationRepository>()
         buildViewModel(
             aiReady = false,
             clock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
-            repo = repo,
+            repo = julyRepo,
         ).onWeatherConfirmed(weather)
-        coVerify { repo.getCandidates("Summer", any(), any(), any()) }
+        coVerify(exactly = 1) { julyRepo.getCandidates(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { julyRepo.getCandidates("Summer", any(), any(), any()) }
     }
 
     @Test fun regenerateShowsUnseenComboThenCycles() {
