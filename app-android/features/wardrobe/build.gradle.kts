@@ -89,7 +89,6 @@ kotlin {
             implementation(libs.androidx.ui.tooling.preview)
 
             // Logging: only BatchSegmentationWorker still uses Timber; common code uses Kermit
-            implementation(libs.timber)
         }
         jvmTest.dependencies {
             implementation(libs.mockk)

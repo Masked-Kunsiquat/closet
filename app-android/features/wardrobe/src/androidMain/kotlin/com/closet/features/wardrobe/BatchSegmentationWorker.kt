@@ -23,7 +23,7 @@ import com.closet.core.data.util.ColorMatcher
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.repository.SubjectSegmenter
 import kotlinx.coroutines.CancellationException
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 import kotlin.time.Clock
 import java.util.UUID
 
@@ -43,6 +43,8 @@ import java.util.UUID
  *
  * On completion, the output [androidx.work.Data] contains [KEY_DONE] and [KEY_FAILED] counts.
  */
+private val log = Logger.withTag("BatchSegmentationWorker")
+
 class BatchSegmentationWorker(
     private val context: Context,
     params: WorkerParameters,
@@ -75,7 +77,7 @@ class BatchSegmentationWorker(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Timber.e(e, "BatchSeg: model download failed, aborting")
+            log.e("BatchSeg: model download failed, aborting", e)
             return Result.failure(workDataOf("error" to "model_download_failed"))
         }
 
@@ -96,7 +98,7 @@ class BatchSegmentationWorker(
 
                 val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                     ?: run {
-                        Timber.w("BatchSeg: could not decode item ${item.id} ($originalPath)")
+                        log.w("BatchSeg: could not decode item ${item.id} ($originalPath)")
                         failed++
                         done++
                         setProgress(workDataOf(KEY_DONE to done, KEY_TOTAL to total))
@@ -116,7 +118,7 @@ class BatchSegmentationWorker(
                     // the outer catch can count this item as failed.
                     savedPath?.let { path ->
                         runCatching { storageRepository.deleteImage(path) }
-                            .onFailure { Timber.d(it, "BatchSeg: failed to delete orphaned PNG $path") }
+                            .onFailure { log.d("BatchSeg: failed to delete orphaned PNG $path", it) }
                     }
                     throw e
                 }
@@ -139,26 +141,26 @@ class BatchSegmentationWorker(
                                 .map { ColorMatcher.findNearestColor(it, availableColors) }
                                 .distinctBy { it.id }
                             clothingRepository.updateItemColors(item.id, matched.map { it.id })
-                            Timber.d("BatchSeg: item ${item.id} colours → ${matched.joinToString { it.name }}")
+                            log.d("BatchSeg: item ${item.id} colours → ${matched.joinToString { it.name }}")
                             clothingRepository.revectorizeItem(item.id)
                         }
                     } else {
-                        Timber.d("BatchSeg: item ${item.id} — no swatches extracted from masked bitmap")
+                        log.d("BatchSeg: item ${item.id} — no swatches extracted from masked bitmap")
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Timber.w(e, "BatchSeg: colour re-extraction failed for item ${item.id} — ignored")
+                    log.w("BatchSeg: colour re-extraction failed for item ${item.id} — ignored", e)
                 }
 
                 // Delete the original file best-effort — a failure here is not fatal
                 runCatching { storageRepository.deleteImage(originalPath) }
-                    .onFailure { Timber.d(it, "BatchSeg: failed to delete original $originalPath") }
+                    .onFailure { log.d("BatchSeg: failed to delete original $originalPath", it) }
 
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.e(e, "BatchSeg: failed for item ${item.id}")
+                log.e("BatchSeg: failed for item ${item.id}", e)
                 failed++
             }
 

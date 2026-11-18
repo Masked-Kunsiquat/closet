@@ -141,7 +141,7 @@ Vico (`vico-compose-m3 3.0.3`) for column charts in `features/stats/` (`commonMa
 
 ### Logging
 
-Timber only in `app` (and the Android-only `BatchSegmentationWorker`). Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only. `core/data` and the KMP features (`features/stats`, `features/settings`, `features/outfits`, `features/recommendations`, `features/chat`, `features/wardrobe`) use Kermit (multiplatform).
+Timber only in `app` and `platform/gms`. Debug tree planted in `ClosetApp.onCreate()` under `BuildConfig.DEBUG` only. `core/data` and the KMP features (`features/stats`, `features/settings`, `features/outfits`, `features/recommendations`, `features/chat`, `features/wardrobe`) use Kermit (multiplatform).
 
 ### Destructive actions
 
