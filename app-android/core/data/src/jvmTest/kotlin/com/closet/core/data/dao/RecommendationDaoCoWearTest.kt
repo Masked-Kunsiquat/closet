@@ -144,13 +144,34 @@ class RecommendationDaoCoWearTest {
     @Test
     fun itemColorHexesSkipNullHex() = runBlocking {
         val a = insertItem("a")
-        val withHex = exec("INSERT INTO colors (name, hex) VALUES ('ZZ Navy', '#112233')")
+        val withHex = exec("INSERT INTO colors (name, hex, color_family) VALUES ('ZZ Navy', '#112233', 'Cool')")
         val noHex = exec("INSERT INTO colors (name, hex) VALUES ('ZZ Mystery', NULL)")
         for (color in listOf(withHex, noHex)) {
             exec("INSERT INTO clothing_item_colors (clothing_item_id, color_id) VALUES (?, ?)") {
                 it.bindLong(1, a); it.bindLong(2, color)
             }
         }
-        assertEquals(listOf(a to "#112233"), dao.getItemColorHexes(listOf(a)).map { it.clothingItemId to it.hex })
+        assertEquals(listOf(ItemColorHex(a, "#112233", "Cool")), dao.getItemColorHexes(listOf(a)))
+    }
+
+    @Test
+    fun itemColorHexesCarryTheFamilyInColorIdOrder() = runBlocking {
+        val a = insertItem("a")
+        val b = insertItem("b")
+        val first = exec("INSERT INTO colors (name, hex, color_family) VALUES ('ZZ One', '#000080', 'Neutral')")
+        val second = exec("INSERT INTO colors (name, hex, color_family) VALUES ('ZZ Two', '#FF0000', 'Warm')")
+        // Tag in reverse color order, interleaving items, so only the ORDER BY gives the result.
+        for ((item, color) in listOf(b to second, a to second, b to first, a to first)) {
+            exec("INSERT INTO clothing_item_colors (clothing_item_id, color_id) VALUES (?, ?)") {
+                it.bindLong(1, item); it.bindLong(2, color)
+            }
+        }
+        assertEquals(
+            listOf(
+                ItemColorHex(a, "#000080", "Neutral"), ItemColorHex(a, "#FF0000", "Warm"),
+                ItemColorHex(b, "#000080", "Neutral"), ItemColorHex(b, "#FF0000", "Warm"),
+            ),
+            dao.getItemColorHexes(listOf(b, a)),
+        )
     }
 }

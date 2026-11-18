@@ -1,5 +1,6 @@
 package com.closet.features.recommendations.engine
 
+import com.closet.core.data.DatabaseSeeder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -91,7 +92,14 @@ class PairScorerTest {
     // Hue
     // =========================================================================
 
-    private fun h(vararg hexes: String) = item(id = 1).copy(colorHexes = hexes.toList())
+    /** A Warm item whose tagged colors are all Warm with these hexes. */
+    private fun h(vararg hexes: String) =
+        item(id = 1, colorFamilies = setOf("Warm")).copy(colorHexes = hexes.map { ColorHex(it, "Warm") })
+
+    private fun tagged(vararg colors: Pair<String, String>) = item(
+        id = 1,
+        colorFamilies = colors.map { it.second }.toSet(),
+    ).copy(colorHexes = colors.map { (hex, family) -> ColorHex(hex, family) })
 
     @Test
     fun `complementary hues get 1_05`() {
@@ -107,13 +115,16 @@ class PairScorerTest {
 
     @Test
     fun `clashing hues get 0_90`() {
-        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#00FF00")))  // 120 degrees
-        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#80FF00")))  // 90 degrees
+        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#80FF00")))  // about 90 degrees
+        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#A0FF00")))  // about 82 degrees
+        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#5EFF00")))  // about 98 degrees
     }
 
     @Test
     fun `other hue gaps are neutral`() {
         assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#FFAA00")))  // 40 degrees
+        assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#FFFF00")))  // 60 degrees
+        assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#00FF00")))  // 120 degrees
         assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#00FF40")))  // 135 degrees
     }
 
@@ -133,5 +144,46 @@ class PairScorerTest {
         assertEquals(1.05, PairScorer.hueTerm(h("#FF0000"), h("#808080", "#00FFFF")))
         // ARGB form is accepted.
         assertEquals(1.05, PairScorer.hueTerm(h("#FFFF0000"), h("#FF00FFFF")))
+    }
+
+    private val cyan = tagged("#00FFFF" to "Cool")  // 180 degrees: complementary to red, 60 from navy
+
+    @Test
+    fun `a Navy and Red item takes its hue from Red not the Neutral Navy`() {
+        // Navy (#000080) is chromatic but Neutral-family; it comes first in color-id order.
+        val navyRed = tagged("#000080" to "Neutral", "#FF0000" to "Warm")
+        assertEquals(1.05, PairScorer.hueTerm(navyRed, cyan))  // Red vs cyan; Navy would give 1_0
+        val redNavy = tagged("#FF0000" to "Warm", "#000080" to "Neutral")
+        assertEquals(PairScorer.hueTerm(navyRed, cyan), PairScorer.hueTerm(redNavy, cyan))
+    }
+
+    @Test
+    fun `the dominant family's hex is preferred over an earlier one`() {
+        // Warm outranks Cool, so the Red hex is used even though Royal Blue comes first.
+        val blueRed = tagged("#4169E1" to "Cool", "#FF0000" to "Warm")
+        assertEquals(1.05, PairScorer.hueTerm(blueRed, cyan))  // Royal Blue vs cyan would be 1_0
+    }
+
+    @Test
+    fun `only Neutral-family hexes give null`() {
+        val navy = item(id = 1, colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#000080", "Neutral")))
+        assertNull(PairScorer.hueTerm(navy, cyan))
+    }
+
+    @Test
+    fun `no seeded same-family pair scores below 1 on hue`() {
+        val seeded = DatabaseSeeder.SEEDED_COLORS
+            .filter { (_, _, family) -> family != "Neutral" }
+            .map { (name, hex, family) -> name to tagged(hex to family) }
+        var checked = 0
+        for (i in seeded.indices) for (j in i + 1 until seeded.size) {
+            val (nameA, a) = seeded[i]
+            val (nameB, b) = seeded[j]
+            if (a.colorFamilies != b.colorFamilies) continue
+            val term = PairScorer.hueTerm(a, b) ?: continue
+            assertTrue(term >= 1.0, "$nameA + $nameB scores $term")
+            checked++
+        }
+        assertEquals(23, checked, "every seeded same-family chromatic pair was checked")
     }
 }

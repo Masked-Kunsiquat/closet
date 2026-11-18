@@ -19,6 +19,7 @@ import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.WeatherRepository
 import com.closet.core.data.util.DataResult
+import com.closet.features.recommendations.engine.ColorHex
 import com.closet.features.recommendations.engine.CoWearStats
 import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.EngineItem
@@ -416,8 +417,8 @@ class RecommendationViewModel(
         val patternNameRows: List<ItemPatternName> = patternNamesDeferred.await()
         val occasionNamesMap: Map<Long, List<String>> = occasionNamesDeferred.await()
             .groupBy({ it.clothingItemId }, { it.occasionName })
-        val colorHexesMap: Map<Long, List<String>> = colorHexesDeferred.await()
-            .groupBy({ it.clothingItemId }, { it.hex })
+        val colorHexesMap: Map<Long, List<ColorHex>> = colorHexesDeferred.await()
+            .groupBy({ it.clothingItemId }, { ColorHex(it.hex, it.colorFamily) })
 
         val saved = CoWearStats.SAVED_OUTFIT_WEIGHT
         val pairCounts = HashMap<Pair<Long, Long>, Double>()

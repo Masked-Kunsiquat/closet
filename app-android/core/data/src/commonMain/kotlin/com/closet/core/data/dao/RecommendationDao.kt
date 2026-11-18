@@ -192,10 +192,11 @@ data class ItemOccasionName(
     @ColumnInfo(name = "occasion_name") val occasionName: String
 )
 
-/** One non-null color hex tagged on an item. */
+/** One non-null color hex tagged on an item, with that color's `color_family`. */
 data class ItemColorHex(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
-    @ColumnInfo(name = "hex") val hex: String
+    @ColumnInfo(name = "hex") val hex: String,
+    @ColumnInfo(name = "color_family") val colorFamily: String,
 )
 
 
@@ -506,13 +507,13 @@ interface RecommendationDao {
     """)
     suspend fun getItemOccasionNames(itemIds: List<Long>): List<ItemOccasionName>
 
-    /** Non-null color hexes tagged on [itemIds]. */
+    /** Non-null color hexes tagged on [itemIds] with their families, in a stable order. */
     @Query("""
-        SELECT cic.clothing_item_id, co.hex AS hex
+        SELECT cic.clothing_item_id, co.hex AS hex, co.color_family AS color_family
         FROM clothing_item_colors cic
         JOIN colors co ON cic.color_id = co.id
         WHERE cic.clothing_item_id IN (:itemIds) AND co.hex IS NOT NULL
-        ORDER BY cic.clothing_item_id ASC
+        ORDER BY cic.clothing_item_id ASC, cic.color_id ASC
     """)
     suspend fun getItemColorHexes(itemIds: List<Long>): List<ItemColorHex>
 }

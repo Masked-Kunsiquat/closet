@@ -14,6 +14,8 @@ import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.util.DataResult
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.CoWearStats
+import com.closet.features.recommendations.engine.ColorHex
+import com.closet.features.recommendations.engine.core
 import com.closet.features.recommendations.engine.EngineInput
 import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
@@ -140,7 +142,7 @@ class RecommendationViewModelSessionTest {
                 ItemOccasionName(1, "My Gala"), ItemOccasionName(2, "My Gala"),
             )
         )
-        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233")))
+        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233", "Cool")))
 
         vm.onWeatherConfirmed(weather)
 
@@ -156,7 +158,7 @@ class RecommendationViewModelSessionTest {
         val items = input.candidates.associateBy { it.id }
         assertEquals(3.5, items.getValue(1).formalityLevel)
         assertEquals(null, items.getValue(2).formalityLevel)
-        assertEquals(listOf("#112233"), items.getValue(3).colorHexes)
+        assertEquals(listOf(ColorHex("#112233", "Cool")), items.getValue(3).colorHexes)
         assertEquals(emptyList(), items.getValue(1).colorHexes)
     }
 
@@ -197,26 +199,49 @@ class RecommendationViewModelSessionTest {
         assertTrue(results().isNotEmpty())
     }
 
-    @Test fun dominantCoWornPairDoesNotCrowdOutOtherCores() {
-        // Echo-chamber guard (Review Focus 3): Top 2 + Bottom 4 (last in build order, so
-        // fourth without history) were worn together in 20 of 40 logs.
+    /**
+     * Echo-chamber guard (Review Focus 3) on 3 tops (1-3) x 3 bottoms (4-6). Of 40 logs, Top 1 +
+     * Bottom 4 were worn together 20 times; Top 2 and Bottom 5 were each worn 6 times, never with
+     * each other or with 1 or 4. (The date seed alone leads with 2 + 5.)
+     */
+    private fun echoChamberViewModel(withHistory: Boolean): RecommendationViewModel {
         val repo = mockk<RecommendationRepository>()
         val vm = buildViewModel(aiReady = false, repo = repo)
-        coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(listOf(ItemPair(2, 4, 20)))
-        coEvery { repo.getItemLogCounts(any()) } returns
-            DataResult.Success(listOf(ItemCount(2, 20), ItemCount(4, 20)))
-        coEvery { repo.getTotalLogCount() } returns DataResult.Success(40)
+        coEvery { repo.getCandidates(any(), any(), any(), any()) } returns DataResult.Success(
+            listOf(1L, 2L, 3L).map { candidate(it, "Top") } + listOf(4L, 5L, 6L).map { candidate(it, "Bottom") }
+        )
+        if (withHistory) {
+            coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(listOf(ItemPair(1, 4, 20)))
+            coEvery { repo.getItemLogCounts(any()) } returns DataResult.Success(
+                listOf(ItemCount(1, 20), ItemCount(2, 6), ItemCount(4, 20), ItemCount(5, 6))
+            )
+            coEvery { repo.getTotalLogCount() } returns DataResult.Success(40)
+        }
+        return vm
+    }
 
+    @Test fun dominantCoWornPairDoesNotCrowdOutOtherCores() {
+        val dominant = setOf(1L, 4L)
+        fun usesNeither(combo: OutfitCombo) = combo.core().none { it in dominant }
+
+        // Habit: the same date seed without history leads with a different core.
+        val cold = echoChamberViewModel(withHistory = false)
+        cold.onWeatherConfirmed(weather)
+        assertNotEquals(dominant, results(cold).first().core(), "without history the seed leads elsewhere")
+
+        val vm = echoChamberViewModel(withHistory = true)
         vm.onWeatherConfirmed(weather)
         val first = results(vm)
-        assertEquals(setOf(2L, 4L), first.first().key(), "habit ranks the dominant pair first")
-        assertEquals(3, first.map { it.key() }.toSet().size, "the page still has three distinct cores")
+        assertEquals(dominant, first.first().core(), "habit ranks the dominant pair first")
+        assertEquals(3, first.map { it.core() }.toSet().size, "the page has three distinct cores")
+        assertTrue(first.any(::usesNeither), "the first page has a core with neither dominant item")
 
         vm.onRegenerate()
         val second = results(vm)
         assertTrue(second.isNotEmpty())
-        assertTrue(keys(second).none { it == setOf(2L, 4L) }, "Regenerate does not repeat the dominant pair")
-        assertTrue(keys(second).none { it in keys(first) }, "Regenerate surfaces an unseen core")
+        assertTrue(second.none { it.core() == dominant }, "Regenerate does not repeat the dominant pair")
+        assertTrue(second.any(::usesNeither), "Regenerate surfaces a core with neither dominant item")
+        assertTrue(keys(second).none { it in keys(first) }, "Regenerate shows only unseen combos")
     }
 
     @Test fun freshSessionRepeatsTheFirstRun() {

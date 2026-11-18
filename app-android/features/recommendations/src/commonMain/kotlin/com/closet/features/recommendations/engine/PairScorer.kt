@@ -23,11 +23,15 @@ internal object PairScorer {
 
     private val NO_EVIDENCE = PairHistory(lift = 1.0, weight = 0.0)
 
-    // Hue harmony thresholds (degrees on the hue circle, 0 to 180 after folding).
+    // Hue harmony thresholds (degrees on the hue circle, 0 to 180 after folding). The clash band
+    // is fitted to the seeded palette: same-family seeded pairs sit at up to 77.4 degrees (Sky Blue
+    // with Forest Green or Mint) and from 102.6 degrees (Sky Blue with Purple), so 80 to 100 never
+    // marks a same-family seeded pair as a clash (PairScorerTest checks every one).
     private const val ANALOGOUS_MAX_DEG = 30.0
     private const val COMPLEMENTARY_MIN_DEG = 150.0
-    private const val CLASH_MIN_DEG = 60.0
-    private const val CLASH_MAX_DEG = 120.0
+    private const val CLASH_MIN_DEG = 80.0
+    private const val CLASH_MAX_DEG = 100.0
+    private const val FAMILY_NEUTRAL = "Neutral"
     private const val MULTIPLIER_HUE_HARMONY = 1.05
     private const val MULTIPLIER_HUE_CLASH = 0.90
 
@@ -61,13 +65,13 @@ internal object PairScorer {
     }
 
     /**
-     * Hue harmony of two items from their first chromatic hex each: analogous (≤ 30°) or
-     * complementary (150° to 210°) × 1.05, a 60° to 120° clash × 0.90, anything else 1.0.
-     * Null when either item has no chromatic hex, so the caller uses the color-family rule.
+     * Hue harmony of two items, each judged by [itemHue]: analogous (≤ 30°) or complementary
+     * (150° to 210°) × 1.05, an 80° to 100° clash × 0.90, anything else 1.0. Null when either
+     * item has no usable hue, so the caller uses the color-family rule.
      */
     fun hueTerm(a: EngineItem, b: EngineItem): Double? {
-        val ha = chromaticHue(a.colorHexes) ?: return null
-        val hb = chromaticHue(b.colorHexes) ?: return null
+        val ha = itemHue(a) ?: return null
+        val hb = itemHue(b) ?: return null
         val raw = abs(ha - hb) % 360.0
         val diff = if (raw > 180.0) 360.0 - raw else raw
         return when {
@@ -78,10 +82,24 @@ internal object PairScorer {
         }
     }
 
-    /** The HSL hue (degrees) of the first parseable, chromatic hex in [hexes], or null. */
-    private fun chromaticHue(hexes: List<String>): Double? {
-        for (hex in hexes) {
-            val rgb = parseRgb(hex) ?: continue
+    /**
+     * The hue of [item], from the same color its family side uses: the first chromatic hex (in
+     * the DAO's color-id order) whose family is the item's dominant family ([dominantFamilyOf]),
+     * then the first chromatic hex of any other non-Neutral family. Neutral-family hexes (such as
+     * Navy) are never used. Null when there is none, or the dominant family is Neutral.
+     */
+    private fun itemHue(item: EngineItem): Double? {
+        val dominant = dominantFamilyOf(item.colorFamilies)
+        if (dominant == FAMILY_NEUTRAL) return null
+        val nonNeutral = item.colorHexes.filter { it.family != FAMILY_NEUTRAL }
+        val (preferred, others) = nonNeutral.partition { it.family == dominant }
+        return chromaticHue(preferred) ?: chromaticHue(others)
+    }
+
+    /** The HSL hue (degrees) of the first parseable, chromatic hex in [colors], or null. */
+    private fun chromaticHue(colors: List<ColorHex>): Double? {
+        for (color in colors) {
+            val rgb = parseRgb(color.hex) ?: continue
             val r = ((rgb shr 16) and 0xFF) / 255.0
             val g = ((rgb shr 8) and 0xFF) / 255.0
             val b = (rgb and 0xFF) / 255.0

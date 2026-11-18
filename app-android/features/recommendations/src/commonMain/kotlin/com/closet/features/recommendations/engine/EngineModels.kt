@@ -29,7 +29,8 @@ import kotlinx.datetime.LocalDate
  *                          Empty when no colors are tagged; engine treats as Neutral.
  * @property isPatternSolid True when the item's pattern junction is empty OR every
  *                          tagged pattern name is "Solid". False = patterned.
- * @property colorHexes     Non-null hex codes of the item's tagged colors.
+ * @property colorHexes     The item's tagged colors that have a hex, each with its color family,
+ *                          in color-id order.
  * @property formalityLevel Median formality (1 to 5) of the item's occasions, or null if unknown.
  */
 data class EngineItem(
@@ -42,9 +43,12 @@ data class EngineItem(
     val warmthLayer: String?,
     val colorFamilies: Set<String>,
     val isPatternSolid: Boolean,
-    val colorHexes: List<String> = emptyList(),
+    val colorHexes: List<ColorHex> = emptyList(),
     val formalityLevel: Double? = null,
 )
+
+/** One tagged color's hex code and its `color_family` (Neutral / Earth / Cool / Warm / Bright). */
+data class ColorHex(val hex: String, val family: String)
 
 // ---------------------------------------------------------------------------
 // Engine input — all pre-fetched signals

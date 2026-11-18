@@ -129,21 +129,21 @@ class EnginePairScoringTest {
     @Test
     fun `complementary hexes outrank clashing hexes`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf("#FF0000")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Cool")).copy(colorHexes = listOf("#00FF00")),
+            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FF0000", "Warm"))),
+            item(id = 2, role = "Bottom", colorFamilies = setOf("Cool")).copy(colorHexes = listOf(ColorHex("#80FF00", "Cool"))),
             item(id = 3, role = "Bottom", colorFamilies = setOf("Cool"), subcategoryId = 9)
-                .copy(colorHexes = listOf("#00FFFF")),
+                .copy(colorHexes = listOf(ColorHex("#00FFFF", "Cool"))),
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(setOf(1L, 3L), result.first().key())
         assertEquals(1.05, result.scoreOf(1, 3), 1e-9)  // complementary, replaces Warm+Cool 0_85
-        assertEquals(0.90, result.scoreOf(1, 2), 1e-9)  // 120 degree clash
+        assertEquals(0.90, result.scoreOf(1, 2), 1e-9)  // about 90 degrees: a clash
     }
 
     @Test
     fun `a pair with one missing hex falls back to the family rule`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf("#FF0000")),
+            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FF0000", "Warm"))),
             item(id = 2, role = "Bottom", colorFamilies = setOf("Cool")),
         )
         val result = engine.recommend(engineInput(candidates = items))

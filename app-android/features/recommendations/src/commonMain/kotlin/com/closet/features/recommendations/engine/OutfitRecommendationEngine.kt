@@ -33,8 +33,9 @@ import kotlin.random.Random
  *    optional Outerwear / Footwear / Accessory.
  * 6. Outfit-level scoring — `meanItem × [W·H + (1 − W)·R] × layering × footwear`:
  *    - `R`, the taste rules: color harmony (the geometric mean over non-Neutral item pairs of
- *      the hue rule when both items have a chromatic hex — analogous ≤ 30° or complementary
- *      150°–210° × 1.05, a 60°–120° clash × 0.90 — otherwise the color-family rule) × pattern
+ *      the hue rule when both items have a chromatic hex of their dominant family — analogous
+ *      ≤ 30° or complementary 150°–210° × 1.05, an 80°–100° clash × 0.90 — otherwise the
+ *      color-family rule) × pattern
  *      mixing × the geometric mean over all item pairs of the formality term (× 0.85 when the
  *      two levels differ by 2 or more, 1.0 when either is unknown).
  *    - `H`, the habit: the geometric mean over all item pairs of the co-wear lift
@@ -457,7 +458,6 @@ class OutfitRecommendationEngine {
      * `R` = color harmony × pattern mixing × the geometric mean of [PairScorer.formalityTerm],
      * `H` = the geometric mean of the pairs' history lifts, `W` = the mean of their weights.
      */
-
     private fun scoreCombo(
         items: List<EngineItem>,
         itemScores: Map<Long, Double>,
@@ -588,11 +588,7 @@ class OutfitRecommendationEngine {
      * Priority (highest first): Bright > Warm > Cool > Earth > Neutral.
      * Items with no colors tagged return Neutral.
      */
-    private fun dominantColorFamily(families: Set<String>): String {
-        if (families.isEmpty()) return FAMILY_NEUTRAL
-        val priority = listOf(FAMILY_BRIGHT, FAMILY_WARM, FAMILY_COOL, FAMILY_EARTH, FAMILY_NEUTRAL)
-        return priority.firstOrNull { it in families } ?: FAMILY_NEUTRAL
-    }
+    private fun dominantColorFamily(families: Set<String>): String = dominantFamilyOf(families)
 
     // -------------------------------------------------------------------------
     // Pattern mixing scoring
@@ -642,6 +638,16 @@ class OutfitRecommendationEngine {
         return dates.maxOrNull() ?: NEVER_WORN_SENTINEL
     }
 }
+
+private val FAMILY_PRIORITY = listOf("Bright", "Warm", "Cool", "Earth", "Neutral")
+
+/**
+ * The dominant color family of an item: the highest-priority family present
+ * (Bright > Warm > Cool > Earth > Neutral), Neutral when none is tagged. Shared by the family
+ * harmony rules and [PairScorer.hueTerm], so both sides judge the same color.
+ */
+internal fun dominantFamilyOf(families: Set<String>): String =
+    FAMILY_PRIORITY.firstOrNull { it in families } ?: "Neutral"
 
 /** The combo's core: its Top + Bottom IDs, or its OnePiece ID. Two combos with the same core
  *  differ only in outerwear, footwear or accessories. */

@@ -19,6 +19,7 @@ class EnginePerformanceTest {
         val roles = listOf("Top", "Bottom", "OnePiece", "Outerwear", "Footwear", "Accessory")
         val families = listOf("Neutral", "Earth", "Cool", "Warm", "Bright")
         val items = (1L..500L).map { id ->
+            val family = families.random(random)
             EngineItem(
                 id = id,
                 name = "Item $id",
@@ -27,9 +28,9 @@ class EnginePerformanceTest {
                 subcategoryId = random.nextLong(1, 30),
                 outfitRole = roles[(id % roles.size).toInt()],
                 warmthLayer = if (id % 6 == 3L) "Outer" else "Base",
-                colorFamilies = setOf(families.random(random)),
+                colorFamilies = setOf(family),
                 isPatternSolid = random.nextInt(4) != 0,
-                colorHexes = listOf("#%06X".format(random.nextInt(0x1000000))),
+                colorHexes = listOf(ColorHex("#%06X".format(random.nextInt(0x1000000)), family)),
                 formalityLevel = if (random.nextBoolean()) random.nextInt(1, 6).toDouble() else null,
             )
         }

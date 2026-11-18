@@ -147,34 +147,38 @@ object DatabaseSeeder {
      * supplies the correct family explicitly.
      */
     fun seedColors(db: SQLiteConnection) {
-        // name, hex, color_family
-        val colors = listOf(
-            Triple("Black",        "#000000", "Neutral"),
-            Triple("White",        "#FFFFFF", "Neutral"),
-            Triple("Grey",         "#808080", "Neutral"),
-            Triple("Beige",        "#F5F5DC", "Neutral"),
-            Triple("Navy",         "#000080", "Neutral"),
-            Triple("Red",          "#FF0000", "Warm"),
-            Triple("Royal Blue",   "#4169E1", "Cool"),
-            Triple("Sky Blue",     "#87CEEB", "Cool"),
-            Triple("Forest Green", "#228B22", "Cool"),
-            Triple("Olive",        "#808000", "Earth"),
-            Triple("Mint",         "#98FF98", "Cool"),
-            Triple("Burgundy",     "#800020", "Warm"),
-            Triple("Pink",         "#FFC0CB", "Warm"),
-            Triple("Orange",       "#FFA500", "Warm"),
-            Triple("Yellow",       "#FFFF00", "Warm"),
-            Triple("Purple",       "#800080", "Cool"),
-            Triple("Brown",        "#A52A2A", "Earth"),
-            Triple("Tan",          "#D2B48C", "Earth"),
-        )
-        colors.forEach { (name, hex, family) ->
+        SEEDED_COLORS.forEach { (name, hex, family) ->
             db.execSQL(
                 "INSERT OR IGNORE INTO colors (name, hex, color_family) VALUES (?, ?, ?)",
                 arrayOf<Any>(name, hex, family)
             )
         }
     }
+
+    /**
+     * The seeded colors as (name, hex, color_family). Public so the recommendation engine's
+     * hue thresholds can be tested against the real palette.
+     */
+    val SEEDED_COLORS: List<Triple<String, String, String>> = listOf(
+        Triple("Black",        "#000000", "Neutral"),
+        Triple("White",        "#FFFFFF", "Neutral"),
+        Triple("Grey",         "#808080", "Neutral"),
+        Triple("Beige",        "#F5F5DC", "Neutral"),
+        Triple("Navy",         "#000080", "Neutral"),
+        Triple("Red",          "#FF0000", "Warm"),
+        Triple("Royal Blue",   "#4169E1", "Cool"),
+        Triple("Sky Blue",     "#87CEEB", "Cool"),
+        Triple("Forest Green", "#228B22", "Cool"),
+        Triple("Olive",        "#808000", "Earth"),
+        Triple("Mint",         "#98FF98", "Cool"),
+        Triple("Burgundy",     "#800020", "Warm"),
+        Triple("Pink",         "#FFC0CB", "Warm"),
+        Triple("Orange",       "#FFA500", "Warm"),
+        Triple("Yellow",       "#FFFF00", "Warm"),
+        Triple("Purple",       "#800080", "Cool"),
+        Triple("Brown",        "#A52A2A", "Earth"),
+        Triple("Tan",          "#D2B48C", "Earth"),
+    )
 
     /** Seeds 23 fabric/material types including natural fibers, synthetics, and "Other". */
     private fun seedMaterials(db: SQLiteConnection) {
