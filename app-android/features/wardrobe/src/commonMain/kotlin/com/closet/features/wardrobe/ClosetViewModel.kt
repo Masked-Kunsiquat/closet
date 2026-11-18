@@ -3,6 +3,7 @@ package com.closet.features.wardrobe
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ClothingStatus
@@ -97,7 +98,7 @@ class ClosetViewModel(
     private val categoryShortcutPinner: CategoryShortcutPinner,
 ) : ViewModel() {
 
-    private val _selectedCategoryId    = MutableStateFlow(savedStateHandle.closetInitialCategoryId())
+    private val _selectedCategoryId    = MutableStateFlow(try { savedStateHandle.toRoute<ClosetDestination>().initialCategoryId } catch (_: Exception) { null })
     private val _selectedColorIds      = MutableStateFlow<Set<Long>>(emptySet())
     private val _selectedSeasonIds     = MutableStateFlow<Set<Long>>(emptySet())
     private val _selectedOccasionIds   = MutableStateFlow<Set<Long>>(emptySet())

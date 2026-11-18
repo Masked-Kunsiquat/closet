@@ -1,8 +1,5 @@
-package com.closet.navigation
+package com.closet.shared
 
-import android.content.Intent
-import androidx.annotation.StringRes
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
@@ -16,23 +13,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
-import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.closet.R
-import com.closet.core.ui.resources.Res
+import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.resources.ic_icon_calendar_dots
 import com.closet.core.ui.resources.ic_icon_chart_bar
 import com.closet.core.ui.resources.ic_icon_chat_circle
 import com.closet.core.ui.resources.ic_icon_coat_hanger
 import com.closet.core.ui.resources.ic_icon_t_shirt
+import com.closet.core.ui.theme.ClosetAccent
+import com.closet.core.ui.theme.ClosetTheme
+import com.closet.features.chat.ChatRoute
+import com.closet.features.chat.chatScreen
 import com.closet.features.outfits.JournalRoute
 import com.closet.features.outfits.OutfitBuilderDestination
 import com.closet.features.outfits.OutfitsRoute
@@ -40,12 +39,8 @@ import com.closet.features.outfits.journalScreen
 import com.closet.features.outfits.outfitBuilderScreen
 import com.closet.features.outfits.outfitsScreen
 import com.closet.features.outfits.wardrobePickerScreen
-import com.closet.features.chat.ChatRoute
-import com.closet.features.chat.chatScreen
 import com.closet.features.recommendations.navigateToRecommendations
 import com.closet.features.recommendations.recommendationScreen
-import com.closet.backup.backupScreen
-import com.closet.backup.navigateToBackup
 import com.closet.features.settings.aiSettingsScreen
 import com.closet.features.settings.navigateToAiSettings
 import com.closet.features.settings.navigateToSettings
@@ -56,89 +51,107 @@ import com.closet.features.wardrobe.AddClothingDestination
 import com.closet.features.wardrobe.BrandManagementDestination
 import com.closet.features.wardrobe.BrandManagementScreen
 import com.closet.features.wardrobe.BulkWashDestination
-import com.closet.features.wardrobe.bulkWashScreen
+import com.closet.features.wardrobe.ClosetDestination
+import com.closet.features.wardrobe.ClosetScreen
 import com.closet.features.wardrobe.ClothingDetailDestination
 import com.closet.features.wardrobe.ClothingDetailScreen
 import com.closet.features.wardrobe.ClothingFormScreen
-import com.closet.features.wardrobe.ClosetDestination
-import com.closet.features.wardrobe.ClosetScreen
 import com.closet.features.wardrobe.EditClothingDestination
-import com.closet.shortcuts.ShortcutActions
+import com.closet.features.wardrobe.bulkWashScreen
+import com.closet.shared.resources.Res
+import com.closet.shared.resources.nav_chat
+import com.closet.shared.resources.nav_closet
+import com.closet.shared.resources.nav_journal
+import com.closet.shared.resources.nav_outfits
+import com.closet.shared.resources.nav_stats
+import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlin.reflect.KClass
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import com.closet.core.ui.resources.Res as UiRes
 
 // ─── Bottom nav items ─────────────────────────────────────────────────────────
 
 private data class TopLevelRoute(
     val destination: Any,
     val routeClass: KClass<*>,
-    @StringRes val labelRes: Int,
+    val label: StringResource,
     val icon: DrawableResource,
 )
 
 private val topLevelRoutes = listOf(
-    TopLevelRoute(ClosetDestination(), ClosetDestination::class, R.string.nav_closet, Res.drawable.ic_icon_coat_hanger),
-    TopLevelRoute(OutfitsRoute, OutfitsRoute::class, R.string.nav_outfits, Res.drawable.ic_icon_t_shirt),
-    TopLevelRoute(JournalRoute(), JournalRoute::class, R.string.nav_journal, Res.drawable.ic_icon_calendar_dots),
-    TopLevelRoute(StatsRoute, StatsRoute::class, R.string.nav_stats, Res.drawable.ic_icon_chart_bar),
-    TopLevelRoute(ChatRoute, ChatRoute::class, R.string.nav_chat, Res.drawable.ic_icon_chat_circle),
+    TopLevelRoute(ClosetDestination(), ClosetDestination::class, Res.string.nav_closet, UiRes.drawable.ic_icon_coat_hanger),
+    TopLevelRoute(OutfitsRoute, OutfitsRoute::class, Res.string.nav_outfits, UiRes.drawable.ic_icon_t_shirt),
+    TopLevelRoute(JournalRoute(), JournalRoute::class, Res.string.nav_journal, UiRes.drawable.ic_icon_calendar_dots),
+    TopLevelRoute(StatsRoute, StatsRoute::class, Res.string.nav_stats, UiRes.drawable.ic_icon_chart_bar),
+    TopLevelRoute(ChatRoute, ChatRoute::class, Res.string.nav_chat, UiRes.drawable.ic_icon_chat_circle),
 )
 
 private fun NavDestination?.isTopLevel() =
     topLevelRoutes.any { this?.hasRoute(it.routeClass) == true }
 
-// ─── Nav graph ────────────────────────────────────────────────────────────────
+// ─── Root ─────────────────────────────────────────────────────────────────────
 
 /**
- * Root [NavHost] for the app, wiring all feature destinations into a single navigation graph.
- * Owns the root [Scaffold] so the bottom [NavigationBar] can be conditionally shown based on
- * the current destination — visible only on the top-level tabs, hidden on detail screens.
+ * Shared root of the app: theme, root [Scaffold] with the bottom [NavigationBar] (shown only on
+ * the top-level tabs) and the [NavHost] wiring every feature destination.
  *
- * Tab switches use [saveState]/[restoreState] so each tab preserves its own back stack state.
+ * Tab switches use saveState/restoreState so each tab preserves its own back stack state.
+ *
+ * @param pendingShortcut latest shortcut request, or null; [onShortcutConsumed] is called after it is routed.
+ *   Each delivery is a new [ShortcutRequest], so a repeated shortcut is routed again.
+ * @param onNavigateToBackup Settings' backup entry; backup is platform-specific and owned by the host.
+ * @param platformDestinations extra destinations a platform registers inside the [NavHost].
  */
 @Composable
-fun ClosetNavGraph(
+fun App(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    shortcutIntent: StateFlow<Intent?> = MutableStateFlow(null),
+    pendingShortcut: StateFlow<ShortcutRequest?> = MutableStateFlow(null),
     onShortcutConsumed: () -> Unit = {},
+    onNavigateToBackup: (NavHostController) -> Unit = {},
+    platformDestinations: NavGraphBuilder.(NavHostController) -> Unit = {},
 ) {
-    // Route to the correct destination when a shortcut intent arrives, then
-    // clear it so rotation / recomposition doesn't re-navigate.
-    val pendingIntent by shortcutIntent.collectAsStateWithLifecycle()
+    val preferencesRepository: PreferencesRepository = koinInject()
+    val accent = preferencesRepository.getAccent()
+        .collectAsStateWithLifecycle(initialValue = ClosetAccent.Amber)
+    val dynamicColor = preferencesRepository.getDynamicColor()
+        .collectAsStateWithLifecycle(initialValue = false)
 
-    LaunchedEffect(pendingIntent) {
-        val intent = pendingIntent ?: return@LaunchedEffect
-        val action = intent.action ?: return@LaunchedEffect
-        when (action) {
-            ShortcutActions.ACTION_QUICK_ADD -> {
-                navController.navigate(AddClothingDestination(openCamera = true)) {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                    launchSingleTop = true
-                }
-            }
-            ShortcutActions.ACTION_LOG_FIT -> {
-                navController.navigate(OutfitBuilderDestination()) {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                    launchSingleTop = true
-                }
-            }
-            ShortcutActions.ACTION_LAUNDRY_DAY -> {
-                navController.navigate(BulkWashDestination) {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                    launchSingleTop = true
-                }
-            }
-            ShortcutActions.ACTION_CATEGORY -> {
-                val categoryId = intent
-                    .getLongExtra(ShortcutActions.EXTRA_CATEGORY_ID, -1L)
-                    .takeIf { it != -1L }
-                navController.navigate(ClosetDestination(initialCategoryId = categoryId)) {
-                    popUpTo(navController.graph.startDestinationId) { inclusive = false }
-                    launchSingleTop = true
-                }
-            }
+    ClosetTheme(accent = accent.value, dynamicColor = dynamicColor.value) {
+        AppContent(
+            modifier = modifier,
+            navController = navController,
+            pendingShortcut = pendingShortcut,
+            onShortcutConsumed = onShortcutConsumed,
+            onNavigateToBackup = onNavigateToBackup,
+            platformDestinations = platformDestinations,
+        )
+    }
+}
+
+@Composable
+private fun AppContent(
+    modifier: Modifier,
+    navController: NavHostController,
+    pendingShortcut: StateFlow<ShortcutRequest?>,
+    onShortcutConsumed: () -> Unit,
+    onNavigateToBackup: (NavHostController) -> Unit,
+    platformDestinations: NavGraphBuilder.(NavHostController) -> Unit,
+) {
+    // Route to the correct destination when a shortcut arrives, then clear it so
+    // rotation / recomposition doesn't re-navigate.
+    val shortcut by pendingShortcut.collectAsStateWithLifecycle()
+
+    LaunchedEffect(shortcut) {
+        val pending = shortcut ?: return@LaunchedEffect
+        navController.navigate(pending.shortcut.destination()) {
+            popUpTo(navController.graph.startDestinationId) { inclusive = false }
+            launchSingleTop = true
         }
         onShortcutConsumed()
     }
@@ -242,14 +255,10 @@ fun ClosetNavGraph(
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToBulkWash = { navController.navigate(BulkWashDestination) },
                 onNavigateToAiSettings = { navController.navigateToAiSettings() },
-                onNavigateToBackup = { navController.navigateToBackup() },
+                onNavigateToBackup = { onNavigateToBackup(navController) },
             )
 
             aiSettingsScreen(
-                onNavigateUp = { navController.popBackStack() },
-            )
-
-            backupScreen(
                 onNavigateUp = { navController.popBackStack() },
             )
 
@@ -260,6 +269,8 @@ fun ClosetNavGraph(
                     navController.navigate(OutfitBuilderDestination(preselectedItemIds = itemIds))
                 },
             )
+
+            platformDestinations(navController)
         }
     }
 }
@@ -280,10 +291,10 @@ private fun ClosetBottomBar(
                 icon = {
                     Icon(
                         painter = painterResource(topLevel.icon),
-                        contentDescription = stringResource(topLevel.labelRes)
+                        contentDescription = stringResource(topLevel.label)
                     )
                 },
-                label = { Text(stringResource(topLevel.labelRes)) }
+                label = { Text(stringResource(topLevel.label)) }
             )
         }
     }

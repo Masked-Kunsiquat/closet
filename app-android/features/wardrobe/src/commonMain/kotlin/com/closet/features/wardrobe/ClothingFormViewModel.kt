@@ -11,6 +11,7 @@ import com.closet.features.wardrobe.resources.wardrobe_segmentation_error
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
@@ -141,7 +142,7 @@ class ClothingFormViewModel(
 
     private val log = Logger.withTag("ClothingFormViewModel")
 
-    private val itemId: Long? = savedStateHandle.editItemId()
+    private val itemId: Long? = try { savedStateHandle.toRoute<EditClothingDestination>().itemId } catch (_: Exception) { null }
     private val isEditMode = itemId != null
 
     private val _form = MutableStateFlow(FormState(isLoading = isEditMode))
@@ -284,7 +285,7 @@ class ClothingFormViewModel(
         initialValue = ClothingFormUiState(isEditMode = isEditMode, isLoading = isEditMode)
     )
 
-    private val openCamera: Boolean = savedStateHandle.addOpenCamera()
+    private val openCamera: Boolean = try { savedStateHandle.toRoute<AddClothingDestination>().openCamera } catch (_: Exception) { false }
 
     init {
         if (isEditMode && itemId != null) {

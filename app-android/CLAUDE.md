@@ -50,10 +50,10 @@ Run all Gradle commands from the `app-android/` directory.
 Full verification before a PR:
 
 ```bash
-./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata :features:settings:jvmTest :features:settings:compileCommonMainKotlinMetadata :features:outfits:jvmTest :features:outfits:compileCommonMainKotlinMetadata :features:recommendations:jvmTest :features:recommendations:compileCommonMainKotlinMetadata :features:chat:jvmTest :features:chat:compileCommonMainKotlinMetadata :features:wardrobe:jvmTest :features:wardrobe:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
+./gradlew test :core:data:jvmTest :core:data:testAndroidHostTest :core:data:compileCommonMainKotlinMetadata :core:ui:jvmTest :core:ui:compileCommonMainKotlinMetadata :features:stats:jvmTest :features:stats:compileCommonMainKotlinMetadata :features:settings:jvmTest :features:settings:compileCommonMainKotlinMetadata :features:outfits:jvmTest :features:outfits:compileCommonMainKotlinMetadata :features:recommendations:jvmTest :features:recommendations:compileCommonMainKotlinMetadata :features:chat:jvmTest :features:chat:compileCommonMainKotlinMetadata :features:wardrobe:jvmTest :features:wardrobe:compileCommonMainKotlinMetadata :shared:jvmTest :shared:compileCommonMainKotlinMetadata lint assembleFullDebug assembleFossDebug
 ```
 
-CI runs the same checks on every PR and push to `main`. `.github/workflows/ci.yml` runs the tests, lint and both debug builds on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources) on macOS. Instrumented tests don't run in CI; run them on a device.
+CI runs a subset of that on every PR and push to `main`: `.github/workflows/ci.yml` runs `test :core:data:jvmTest` (the root `test` includes every KMP module's `jvmTest`), `lint`, and `assembleFullDebug assembleFossDebug` on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources, klib cross-compilation, no linking) on Ubuntu. `ios-link.yml` is a manual-only macOS job that links the `:shared` framework (`:shared:linkDebugFrameworkIosSimulatorArm64`); trigger it from the Actions tab when the iOS export changes. The `compileCommonMainKotlinMetadata` tasks run only locally (the iOS compile covers the same sources in CI), so run the full command above before a PR. Instrumented tests don't run in CI; run them on a device.
 
 Unit and instrumented tests exist for the stats feature. Room tests (`FreshInstallSchemaTest`, `StatsDaoTest`, the repository tests) live in `core/data/src/jvmTest/` and run on the JVM against the bundled SQLite driver with `./gradlew :core:data:jvmTest` (no device needed); run them before any PR that touches the schema. `core/data/src/androidDeviceTest/` keeps only the Android-only checks (`DatabasePathTest`, `ExistingInstallUpgradeTest`); run `./gradlew :core:data:connectedAndroidDeviceTest` when changing the database builder or driver.
 
@@ -62,19 +62,20 @@ Unit and instrumented tests exist for the stats feature. Room tests (`FreshInsta
 ### Module structure
 
 ```
-app/                   — Application entry point, NavGraph, MainActivity
+app/                   — Android start-up (Application, MainActivity), flavors, launcher shortcuts, backup/restore
+shared/                — KMP/CMP root: `App()` (theme, bottom bar, `NavHost`), `AppShortcut`; iOS framework export
 core/data/             — Database, DAOs, Repositories, entities, Koin data module
 core/ui/               — KMP/CMP module: Material 3 theme, shared Composable components, Compose resources, preferences
-features/wardrobe/     — KMP module: Closet screen, item detail, add/edit form, bulk wash, brand management (commonMain UI, ViewModels, routes and Koin; androidMain navigation, previews, the photo processor and shortcut pinner, `BatchSegmentationWorker`, the `expect` UI hooks' actuals and the `Bitmap`-typed flavor stubs)
-features/outfits/      — KMP module: Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet (commonMain UI, ViewModels, routes and Koin; androidMain navigation and the `toRoute` actual)
-features/stats/        — KMP module: Stats screen, StatsViewModel, breakdown sections (commonMain UI + ViewModel; androidMain navigation, previews, Koin module)
-features/recommendations/ — KMP module: outfit recommendations (commonMain engine, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms), UI, ViewModel and Koin; androidMain navigation and previews)
-features/settings/     — KMP module: Settings screen, AI settings sub-screen, SettingsViewModel (commonMain UI, ViewModel and Koin; androidMain navigation, previews and the permission / keep-screen-on actuals)
-features/chat/         — KMP module: wardrobe chat (commonMain repository, providers, routers, UI, ViewModel and Koin; androidMain navigation and previews)
+features/wardrobe/     — KMP module: Closet screen, item detail, add/edit form, bulk wash, brand management (commonMain UI, ViewModels, routes, navigation and Koin; androidMain previews, the photo processor and shortcut pinner, `BatchSegmentationWorker`, the `expect` UI hooks' actuals and the `Bitmap`-typed flavor stubs)
+features/outfits/      — KMP module: Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet (commonMain UI, ViewModels, routes, navigation and Koin)
+features/stats/        — KMP module: Stats screen, StatsViewModel, breakdown sections (commonMain UI, ViewModel and navigation; androidMain previews, Koin module)
+features/recommendations/ — KMP module: outfit recommendations (commonMain engine, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms), UI, ViewModel, navigation and Koin; androidMain previews)
+features/settings/     — KMP module: Settings screen, AI settings sub-screen, SettingsViewModel (commonMain UI, ViewModel, navigation and Koin; androidMain previews and the permission / keep-screen-on actuals)
+features/chat/         — KMP module: wardrobe chat (commonMain repository, providers, routers, UI, ViewModel, navigation and Koin; androidMain previews)
 platform/gms/          — GMS/ML Kit implementations of feature capability interfaces (full flavor only)
 ```
 
-Module dependencies: `app` → `features/*` → `core/ui` → `core/data`; `app (full)` → `platform/gms` → `features/*`.
+Module dependencies: `app` → `shared` → `features/*` → `core/ui` → `core/data`; `app (full)` → `platform/gms` → `features/*`.
 
 ### MVVM + Clean Architecture
 
@@ -103,7 +104,7 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 - **Scope.** DAOs, repositories and providers are `single`.
 - **AI HTTP client.** AI inference calls need 120 s timeouts; everything else uses the bare `HttpClient` (30 s). A class that makes AI calls takes an `AiHttpClient` constructor parameter (`core/data/di/AiHttpClient.kt`), never a bare `HttpClient`, so plain `singleOf` resolution gives it the right client. Both clients are built by `buildHttpClient(engine, ...)` in `commonMain/.../di/HttpClients.kt` (the engine is bound per platform: OkHttp on Android and JVM, Darwin on iOS); add any new secret-bearing header to its `SENSITIVE_HEADERS`.
 - **Feature modules in KMP.** A KMP feature module declares its Koin module in commonMain (`features/settings` `settingsModule`) and verifies it with a jvmTest graph `verify()`. `BatchCaptioner` is the common batch half of `CaptionEnrichmentProvider`; JVM and iOS bind `UnavailableNanoInitializer` and `NoOpBatchCaptioner`.
-- **Verification.** Every module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
+- **Verification.** Every module that declares a Koin module has a `verify()` unit test (`platform/gms` has `GmsKoinTest`), and `app/src/test/.../di/AppKoinGraphTest.kt` verifies the whole graph in both flavors. Add new definitions' dependencies to the module, not to `extraTypes`. The one exception: a module test may whitelist a type bound by a *sibling* module it can't depend on (e.g. `SettingsKoinModuleTest`); `AppKoinGraphTest` has no such whitelist and covers it.
 
 ### Database (Room)
 
@@ -119,7 +120,7 @@ Koin throughout (`koin-bom` in `gradle/libs.versions.toml`). No annotations, no 
 
 ### Navigation
 
-Type-safe Compose Navigation (2.9.7+). Destinations are `@Serializable` data classes/objects in `app/navigation/`. Feature modules add routes via extension functions in their own `*Navigation.kt` files.
+Type-safe navigation on JetBrains `navigation-compose` (`libs.jetbrains.navigation.compose`, which resolves to androidx 2.9.7 on Android). Destinations are `@Serializable` data classes/objects in each feature's commonMain (backup's are in `app`). Most are registered via extension functions in the feature's `*Navigation.kt`; the wardrobe item screens (`ClosetDestination`, `ClothingDetailDestination`, `AddClothingDestination`, `EditClothingDestination`, `BrandManagementDestination`) are registered directly with `composable<…>` in `shared`'s `App.kt`, so a change to their screen wiring goes there, while their route classes stay in `features/wardrobe`'s `WardrobeNavigation.kt`. The root `NavHost`, bottom bar and theme live in `shared` (`App()`); `app` supplies Android-only destinations (backup) and launcher-shortcut intents through `App`'s parameters.
 
 ### Error handling
 
@@ -176,8 +177,8 @@ Two distinct MLKit namespaces — do not confuse them. Both are used only from `
 
 | File | Purpose |
 |------|---------|
-| `app/src/.../navigation/ClosetNavGraph.kt` | Root `NavHost` — all routes registered here |
-| `app/src/.../shortcuts/ShortcutActions.kt` | App shortcut constants (IDs, actions, extras) — shared hub for `shortcuts.xml`, `MainActivity`, `ClosetNavGraph`, and `ClosetViewModel` |
+| `shared/src/commonMain/.../App.kt` | Root `App()` — theme, bottom bar and `NavHost`; all routes registered here |
+| `app/src/.../shortcuts/ShortcutActions.kt` | App shortcut constants (IDs, actions, extras) — shared hub for `shortcuts.xml`, `MainActivity` and `ClosetViewModel`; `ShortcutIntents.kt` maps an `Intent` to `AppShortcut` |
 | `core/data/src/commonMain/.../ClothingDatabase.kt` | Room DB, `configureClosetDatabase()` (driver, callbacks, migrations), `DatabaseSeeder` invocation |
 | `core/data/src/.../dao/ClothingDao.kt` | Clothing queries with `wear_count` join |
 | `core/data/src/.../repository/ClothingRepository.kt` | CRUD, junction helpers, `DataResult` wrapping |

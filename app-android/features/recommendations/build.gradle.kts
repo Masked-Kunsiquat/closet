@@ -39,6 +39,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // Navigation (JetBrains; common toRoute)
+            implementation(libs.jetbrains.navigation.compose)
+
             implementation(project(":core:data"))
             implementation(project(":core:ui"))
 
@@ -74,8 +77,6 @@ kotlin {
             implementation(libs.turbine)
         }
         androidMain.dependencies {
-            // Navigation
-            implementation(libs.androidx.navigation.compose)
 
             // @Preview annotation for RecommendationPreviews.kt
             implementation(project.dependencies.platform(libs.androidx.compose.bom))

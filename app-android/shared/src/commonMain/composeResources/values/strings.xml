@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_closet">Closet</string>
+    <string name="nav_outfits">Outfits</string>
+    <string name="nav_journal">Journal</string>
+    <string name="nav_stats">Stats</string>
+    <string name="nav_chat">Assistant</string>
+</resources>

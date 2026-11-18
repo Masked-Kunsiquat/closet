@@ -124,6 +124,7 @@ kotlin {
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:ui"))
+    implementation(project(":shared"))
     implementation(libs.room.runtime)
     implementation(project(":features:wardrobe"))
     implementation(project(":features:outfits"))
@@ -147,7 +148,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     
     // Navigation
-    implementation(libs.androidx.navigation.compose)
+    implementation(libs.jetbrains.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
     
     // Required for Material 3 XML theme parent
