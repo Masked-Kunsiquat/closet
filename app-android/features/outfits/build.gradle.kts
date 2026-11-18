@@ -39,6 +39,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // Navigation (JetBrains; common toRoute)
+            implementation(libs.jetbrains.navigation.compose)
+
             implementation(project(":core:data"))
             implementation(project(":core:ui"))
 
@@ -67,10 +70,6 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.turbine)
-        }
-        androidMain.dependencies {
-            // Navigation
-            implementation(libs.androidx.navigation.compose)
         }
         jvmTest.dependencies {
             implementation(libs.mockk)

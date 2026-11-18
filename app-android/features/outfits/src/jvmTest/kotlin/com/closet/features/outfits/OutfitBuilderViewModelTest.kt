@@ -53,7 +53,7 @@ class OutfitBuilderViewModelTest {
         OutfitBuilderViewModel(handle, clothingRepository, outfitRepository, imagePathResolver)
 
     @Test fun `preselected item ids end up selected`() = runTest {
-        val vm = vm(SavedStateHandle(mapOf("preselectedItemIds" to listOf(3L, 5L))))
+        val vm = vm(SavedStateHandle(mapOf("preselectedItemIds" to longArrayOf(3L, 5L))))
         backgroundScope.launch(testDispatcher) { vm.members.collect {} }
         assertEquals(listOf(3L, 5L), vm.members.value.map { it.item.item.id })
     }

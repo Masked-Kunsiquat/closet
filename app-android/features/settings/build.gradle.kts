@@ -39,6 +39,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // Navigation (JetBrains; common toRoute)
+            implementation(libs.jetbrains.navigation.compose)
+
             implementation(project(":core:data"))
             implementation(project(":core:ui"))
 
@@ -67,8 +70,6 @@ kotlin {
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.android)
 
-            // Navigation
-            implementation(libs.androidx.navigation.compose)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)

@@ -39,6 +39,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            // Navigation (JetBrains; common toRoute)
+            implementation(libs.jetbrains.navigation.compose)
+
             implementation(project(":core:data"))
             implementation(project(":core:ui"))
 
@@ -69,8 +72,6 @@ kotlin {
             implementation(libs.turbine)
         }
         androidMain.dependencies {
-            // Navigation
-            implementation(libs.androidx.navigation.compose)
             implementation(libs.androidx.activity.compose)
 
             // Koin Android (androidContext, WorkManager worker factory DSL)

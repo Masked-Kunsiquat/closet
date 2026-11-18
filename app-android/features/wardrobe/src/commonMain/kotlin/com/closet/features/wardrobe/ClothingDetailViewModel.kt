@@ -3,6 +3,7 @@ package com.closet.features.wardrobe
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.closet.core.data.BuildFlags
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
@@ -34,7 +35,7 @@ class ClothingDetailViewModel(
 ) : ViewModel() {
 
     /** The ID of the item being displayed, extracted from the navigation destination. */
-    val itemId: Long = savedStateHandle.detailItemId()
+    val itemId: Long = savedStateHandle.toRoute<ClothingDetailDestination>().itemId
 
     /** Whether to show the semantic debug card; debug builds only. */
     val showDebugCard: Boolean = buildFlags.isDebug
