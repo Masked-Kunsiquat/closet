@@ -20,13 +20,13 @@ Assembly (beam search) is PR 2. Embedding backoff is PR 3.
   - No scoring change.
 - **Task 3 (`PairScorer` + wiring):** a pure `engine/PairScorer.kt` (history lift with shrinkage, formality gap, hue harmony), wired into `scoreCombo`. Then the spec's behaviour tests, the replay "must improve" assertion, docs, and the PR checkpoint.
 
-**Deviation from the spec's pair formula (owner OK needed at plan review).** The spec writes `pair = w·hist + (1 − w)·prior`. This plan instead uses `outfit = meanItem × rules × historyFactor`:
-- `rules` is today's outfit-level color-harmony and pattern multipliers plus the new formality and hue terms.
-- `historyFactor` is the geometric mean, over all item pairs, of `w·hist + (1 − w)·1.0`.
-- **Why:**
-  - With no history, `historyFactor = 1`, so cold start is exactly #95's behaviour. The 39 existing engine tests keep their values, rather than shifting by an approximate amount.
-  - The rules stay at full weight, so a heavily worn pairing can't override a color clash or formality clash.
-- **Cost:** a pair worn together very often still can't fully escape a rule penalty. `w ≤ W_MAX = 0.7` caps history's pull at about ±21% per pair either way.
+**Blend (owner decision, 2026-11-18: "habit should kinda win", fashion is subjective).** The spec's `w·hist + (1 − w)·prior` is kept, applied at the **outfit** level so cold start stays exact:
+- `R` is the taste-rules multiplier: today's color harmony (hue when both items have a hex, otherwise the family rule), the pattern mixing, and the new formality term.
+- `H` is the geometric mean over all item pairs of the pair's history lift `hist_ab`, which is 1.0 with no evidence.
+- `W` is the mean over all item pairs of the pair weight `w_ab`, each ≤ `W_MAX`.
+- **The outfit score:** `meanItem × [W·H + (1 − W)·R] × situational`. The situational multipliers (layering for the weather, the missing-footwear penalty) stay outside the blend, because they aren't taste.
+- **With no history:** `W = 0`, so the result is exactly today's (cold-start parity, and the existing engine tests keep their values).
+- **With heavy history:** `W` approaches `W_MAX = 0.7`, so a pairing you wear constantly is scored mostly by your habit and the rules keep 30%. Someone who loves clashing or very matchy outfits gets them suggested.
 
 **Tech Stack:** Kotlin 2.4.21, Room KMP, kotlinx-datetime, Koin. No new libraries.
 
@@ -133,14 +133,14 @@ Assembly (beam search) is PR 2. Embedding backoff is PR 3.
 
 **Files:**
 - **Create `features/recommendations/.../engine/PairScorer.kt`** (pure, internal):
-  - `historyTerm(a, b, coWear): Double`, which returns `w·hist + (1 − w)`;
+  - `history(a, b, coWear): PairHistory(lift: Double, weight: Double)`, where `lift = hist_ab` is clamped to `[PAIR_MIN, PAIR_MAX]` and `weight = w_ab ≤ W_MAX`;
   - `formalityTerm(a, b): Double`;
   - `hueTerm(a, b): Double?`, which returns null when hue doesn't apply so the caller falls back to the family rule.
 - **`OutfitRecommendationEngine.scoreCombo`:**
   - Color harmony: per non-neutral pair, use `hueTerm` when non-null, otherwise the existing family rule. Keep the geometric mean over those pairs.
-  - Multiply by the geometric mean of `formalityTerm` over all item pairs.
-  - Multiply by `historyFactor`, the geometric mean of `historyTerm` over all item pairs.
-  - The layering, footwear and pattern multipliers are unchanged.
+  - `R` is color × pattern × the geometric mean of `formalityTerm` over all item pairs.
+  - `H` and `W` come from `history` over all item pairs.
+  - The score is `meanItem × [W·H + (1 − W)·R] × layering × footwear`, per the Blend section.
 - **Tests:**
   - **`PairScorerTest`:**
     - no evidence → 1.0;
@@ -152,6 +152,7 @@ Assembly (beam search) is PR 2. Embedding backoff is PR 3.
   - **Engine tests:**
     - cold-start parity (Review Focus 1);
     - A+B logged together ranks above A+C;
+    - **habit outvotes a rule:** a Bright+Bright (clashing) top/bottom pair logged together often ranks above the same top with a harmonious, never-worn bottom;
     - a level-5 blazer with level-1 sweatpants ranks below the same blazer with level-4 trousers;
     - hex harmony vs. clash;
     - the 500-item performance guard.
