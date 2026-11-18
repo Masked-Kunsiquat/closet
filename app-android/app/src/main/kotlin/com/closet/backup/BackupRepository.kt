@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.closet.BuildConfig
 import com.closet.core.data.ClothingDatabase
+import com.closet.core.data.time.AppClock
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -31,6 +32,7 @@ class BackupRepository(
     private val context: Context,
     private val database: ClothingDatabase,
     private val json: Json,
+    private val clock: AppClock,
 ) {
 
     companion object {
@@ -106,7 +108,7 @@ class BackupRepository(
                 val manifest = BackupManifest(
                     schemaVersion = schemaVersion,
                     appVersion = BuildConfig.VERSION_NAME,
-                    createdAt = System.currentTimeMillis(),
+                    createdAt = clock.now().toEpochMilliseconds(),
                     imageCount = imageFiles.size,
                 )
                 File(tempDir, "manifest.json").writeText(json.encodeToString(manifest))

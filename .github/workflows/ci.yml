@@ -67,17 +67,39 @@ jobs:
           path: ${{ matrix.reports }}
           retention-days: 7
 
+  # "Now" and "today" are read through AppClock (#112). Only the clock itself and the
+  # entity timestamp defaults may read the system clock directly.
+  clock-reads:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: No direct system-clock reads outside AppClock
+        working-directory: app-android
+        run: |
+          allowed='core/data/src/commonMain/kotlin/com/closet/core/data/(time/AppClock|model/ClothingItemEntity|model/OutfitEntities)\.kt'
+          hits=$(grep -rlE 'Clock\.System|currentSystemDefault\(\)|System\.currentTimeMillis\(\)' --include=*.kt \
+            core features shared platform app \
+            | grep -E '/src/(commonMain|androidMain|jvmMain|iosMain|main)/' \
+            | grep -vE "$allowed" || true)
+          if [ -n "$hits" ]; then
+            echo "::error::Read now/today through AppClock (com.closet.core.data.time), not the system clock:"
+            echo "$hits"
+            exit 1
+          fi
+
   # The required status check. Kept under its old name so the branch ruleset
-  # doesn't change; fails unless every gradle job succeeded.
+  # doesn't change; fails unless every gradle job and the clock check succeeded.
   android:
-    needs: gradle
+    needs: [gradle, clock-reads]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: All Gradle jobs passed
         run: |
-          if [ "${{ needs.gradle.result }}" != "success" ]; then
-            echo "::error::Gradle jobs result: ${{ needs.gradle.result }}"
+          if [ "${{ needs.gradle.result }}" != "success" ] || [ "${{ needs.clock-reads.result }}" != "success" ]; then
+            echo "::error::Gradle jobs: ${{ needs.gradle.result }}, clock check: ${{ needs.clock-reads.result }}"
             exit 1
           fi

@@ -37,6 +37,6 @@ val gmsModule = module {
     single<OnDeviceRecommendationProvider> { NanoProvider(get()) } binds arrayOf(OutfitAiProvider::class, NanoInitializer::class)
 
     // wardrobe
-    single<CaptionEnrichmentProvider> { MlKitImageCaptioner(androidContext(), get()) } bind BatchCaptioner::class
+    single<CaptionEnrichmentProvider> { MlKitImageCaptioner(androidContext(), get(), get()) } bind BatchCaptioner::class
     single<SubjectSegmenter> { MlKitSubjectSegmenter() }
 }
