@@ -57,10 +57,14 @@ class BackupWriterTest {
         assertTrue(ImageIO.write(image, "jpg", file))
     }
 
-    private fun build(history: Boolean): Pair<File, BuildSummary> {
+    /** [enrichShare] defaults to 0 so the mapping assertions see bare items. */
+    private fun build(history: Boolean, enrichShare: Double = 0.0): Pair<File, BuildSummary> {
         val out = File(work, "demo.hangr")
         val summary = runBlocking {
-            DemoBackup.build(fixtureDataset(), out, BackupOptions(count = 300, seed = 7, history = history))
+            DemoBackup.build(
+                fixtureDataset(), out,
+                BackupOptions(count = 300, seed = 7, history = history, enrichShare = enrichShare),
+            )
         }
         return out to summary
     }
@@ -199,6 +203,37 @@ class BackupWriterTest {
         assertEquals(summary.logs.toLong(), logCount)
         assertTrue(ootdPerDay <= 1, "two OOTD logs share a date")
         assertTrue(snapshotRows >= logCount * 2, "logs must snapshot their items")
+    }
+
+    @Test
+    fun enrichedItemsCarryPriceBrandMaterialsPatternsAndAnOlderPurchaseDate() {
+        val (out, summary) = build(history = false, enrichShare = 1.0)
+        assertEquals(4, summary.enriched)
+        val root = unzip(out)
+        val details: List<ClothingItemDetail> = withDb(File(root, "closet.db")) { db ->
+            db.clothingDao().getAllClothingItemDetails().first()
+        }
+        val newestPurchase = BackupOptions().let { it.today.minusDays(it.historyDays.toLong()) }
+        for (d in details) {
+            val price = assertNotNull(d.item.purchasePrice, "price missing for ${d.item.name}")
+            assertEquals(0.99, price - price.toInt(), 1e-9)
+            val date = java.time.LocalDate.parse(assertNotNull(d.item.purchaseDate))
+            assertTrue(!date.isAfter(newestPurchase), "purchase ${d.item.name} on $date falls inside the wear history")
+            assertTrue(d.materials.isNotEmpty(), "materials missing for ${d.item.name}")
+            assertTrue(d.patterns.isNotEmpty(), "patterns missing for ${d.item.name}")
+        }
+        val byName = details.associateBy { it.item.name }
+        assertEquals(listOf("Denim"), assertNotNull(byName["Slim Fit Jeans"]).materials.map { it.name })
+        assertEquals(listOf("Floral"), assertNotNull(byName["Floral Party Dress"]).patterns.map { it.name })
+    }
+
+    @Test
+    fun everyEnrichmentNameIsSeeded() {
+        val lookups = withDb(File(work, "lookups.db")) { db -> Lookups.load(db) }
+        assertTrue(lookups.materialNames.containsAll(Enricher.allMaterials()),
+            "unseeded materials: ${Enricher.allMaterials() - lookups.materialNames}")
+        assertTrue(lookups.patternNames.containsAll(Enricher.allPatterns()),
+            "unseeded patterns: ${Enricher.allPatterns() - lookups.patternNames}")
     }
 
     @Test

@@ -2,6 +2,9 @@ package com.closet.tools.demobackup
 
 import com.closet.core.data.getDatabaseBuilder
 import com.closet.core.data.model.ClothingItemEntity
+import com.closet.core.data.model.ClothingStatus
+import com.closet.core.data.model.WashStatus
+import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.Dispatchers
@@ -21,9 +24,11 @@ data class BackupOptions(
     val history: Boolean = true,
     /** The newest day wear logs can land on; the default is the day the tool runs. */
     val today: LocalDate = LocalDate.now(),
-    val outfitCount: Int = 15,
-    val logCount: Int = 60,
-    val historyDays: Int = 90,
+    val outfitCount: Int = 25,
+    val logCount: Int = 120,
+    val historyDays: Int = 180,
+    /** Share of items (0.0..1.0) that get price, brand, materials, patterns and status details. */
+    val enrichShare: Double = 0.65,
 )
 
 class BuildSummary(
@@ -34,6 +39,8 @@ class BuildSummary(
     val perCategory: Map<String, Int>,
     val outfits: Int,
     val logs: Int,
+    /** Items given price/brand/material/pattern/status details. */
+    val enriched: Int,
     val out: File,
 ) {
     val sampled: Int get() = perCategory.values.sum()
@@ -51,6 +58,7 @@ class BuildSummary(
             val available = pool[category] ?: continue
             appendLine("  ${category.padEnd(22)} ${(perCategory[category] ?: 0).toString().padStart(4)} / $available")
         }
+        appendLine("With details:     $enriched")
         appendLine("Outfits:          $outfits")
         append("Wear logs:        $logs")
     }
@@ -78,11 +86,16 @@ object DemoBackup {
                 val schemaVersion: Int
                 val outfits: Int
                 val logs: Int
+                val enrichedCount: Int
 
                 val db = getDatabaseBuilder(dbFile).build()
                 try {
                     val lookups = Lookups.load(db)
                     val clothing = ClothingRepository(db, db.clothingDao())
+                    val enricher = Enricher(options.seed, options.today, options.enrichShare, options.historyDays)
+                    val brands = BrandRepository(db.brandDao())
+                    val brandIds = HashMap<String, Long>()
+                    var enriched = 0
 
                     // Insert through the repository the app uses, so junctions are delete-then-insert
                     // and semantic_description is generated.
@@ -91,19 +104,31 @@ object DemoBackup {
                         val fileName = imageName(item)
                         item.image.copyTo(File(imagesDir, fileName), overwrite = true)
                         val subcategory = lookups.subcategory(item.category, item.subcategory)
+                        val details = enricher.detailsFor(item)
+                        if (!details.isBare) enriched++
+                        val brandId = details.brand?.let { name ->
+                            brandIds.getOrPut(name) { brands.insertBrand(name).unwrap("insert brand $name") }
+                        }
                         val entity = ClothingItemEntity(
                             name = item.name,
                             categoryId = subcategory.categoryId,
                             subcategoryId = subcategory.id,
                             imagePath = fileName,
+                            brandId = brandId,
+                            purchasePrice = details.price,
+                            purchaseDate = details.purchaseDate,
+                            isFavorite = if (details.favorite) 1 else 0,
+                            washStatus = if (details.dirty) WashStatus.Dirty else WashStatus.Clean,
+                            status = details.retired?.let { label -> ClothingStatus.entries.first { it.label == label } }
+                                ?: ClothingStatus.Active,
                         )
                         val result = clothing.insertItemWithAttributes(
                             item = entity,
                             colors = listOfNotNull(item.color?.let { lookups.color(it) }),
                             seasonIds = listOfNotNull(item.season?.let { lookups.season(it) }),
                             occasionIds = listOfNotNull(item.occasion?.let { lookups.occasion(it) }),
-                            materialIds = emptyList(),
-                            patternIds = emptyList(),
+                            materialIds = details.materials.map { lookups.material(it) },
+                            patternIds = details.patterns.map { lookups.pattern(it) },
                         )
                         dbIds[item.id] = result.unwrap("insert item ${item.id}")
                     }
@@ -120,6 +145,7 @@ object DemoBackup {
                         logs = 0
                     }
 
+                    enrichedCount = enriched
                     schemaVersion = db.databaseVersion()
                     db.checkpointWal()
                 } finally {
@@ -135,6 +161,7 @@ object DemoBackup {
                     perCategory = chosen.groupingBy { it.category }.eachCount(),
                     outfits = outfits,
                     logs = logs,
+                    enriched = enrichedCount,
                     out = out,
                 )
             } finally {
