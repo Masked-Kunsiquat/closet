@@ -9,7 +9,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 ## [Unreleased]
 
 ### Changed
-- **Smarter outfit suggestions** — the engine now builds outfits piece by piece around what goes together, learns which clothes you wear together, avoids mixing very dressy and very casual pieces, and uses real color harmony. Regenerate explores more varied outfits.
+- **Smarter outfit suggestions** — the engine now builds outfits piece by piece around what goes together, learns which clothes you wear together, avoids mixing very dressy and very casual pieces, and uses hue-based color harmony. Regenerate explores more varied outfits.
 - **The app's navigation and root screen are Kotlin Multiplatform** (KMP Phase 6): a shared `App()` with the bottom bar and navigation graph. The Kotlin Multiplatform migration is complete; Android behaviour is unchanged.
 - **Wardrobe is Kotlin Multiplatform** (KMP Phase 5): shared closet, item detail, add/edit form, bulk wash and brand screens, Compose resources, Material Symbols icons. Every feature is now multiplatform.
 - **Better outfit suggestions** — Regenerate shows new outfits instead of repeating, results no longer repeat the same top and bottom, outfits with shoes are preferred, and clothes you haven't worn in a while get a nudge.

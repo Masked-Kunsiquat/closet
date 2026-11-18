@@ -149,4 +149,16 @@ class EnginePairScoringTest {
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(0.85, result.single().score, 1e-9)
     }
+
+    @Test
+    fun `same-family pairs use max of family rule and hue term`() {
+        // Red (#FF0000, 0 deg) and Yellow (#FFFF00, 60 deg) are both Warm.
+        // Hue term alone gives 1.0 (60 deg is neutral), but Warm+Warm gives 1.10.
+        val items = listOf(
+            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FF0000", "Warm"))),
+            item(id = 2, role = "Bottom", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FFFF00", "Warm"))),
+        )
+        val result = engine.recommend(engineInput(candidates = items))
+        assertEquals(1.10, result.single().score, 1e-9)
+    }
 }

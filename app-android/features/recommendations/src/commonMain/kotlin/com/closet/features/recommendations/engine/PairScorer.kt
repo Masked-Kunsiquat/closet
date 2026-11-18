@@ -65,9 +65,10 @@ internal object PairScorer {
     }
 
     /**
-     * Hue harmony of two items, each judged by [itemHue]: analogous (≤ 30°) or complementary
-     * (150° to 210°) × 1.05, an 80° to 100° clash × 0.90, anything else 1.0. Null when either
-     * item has no usable hue, so the caller uses the color-family rule.
+     * Hue harmony of two items, each judged by [itemHue]: analogous (angular distance ≤ 30°)
+     * or complementary (folded distance ≥ 150°, representing 150° to 210° unfolded) × 1.05,
+     * an 80° to 100° clash × 0.90, anything else 1.0. Null when either item has no usable hue,
+     * so the caller uses the color-family rule.
      */
     fun hueTerm(a: EngineItem, b: EngineItem): Double? {
         val ha = itemHue(a) ?: return null

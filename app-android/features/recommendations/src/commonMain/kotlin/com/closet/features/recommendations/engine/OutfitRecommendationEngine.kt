@@ -46,7 +46,8 @@ import kotlin.random.Random
  *    - `R`, the taste rules: color harmony (the geometric mean over non-Neutral item pairs of
  *      the hue rule when both items have a chromatic hex of their dominant family — analogous
  *      ≤ 30° or complementary 150°–210° × 1.05, an 80°–100° clash × 0.90 — otherwise the
- *      color-family rule) × pattern
+ *      color-family rule; same-family pairs use max(familyRule, hueTerm) so same-family
+ *      cohesion keeps its bonus) × pattern
  *      mixing × the geometric mean over all item pairs of the formality term (× 0.85 when the
  *      two levels differ by 2 or more, 1.0 when either is unknown).
  *    - `H`, the habit: the geometric mean over all item pairs of the co-wear lift
@@ -547,7 +548,8 @@ class OutfitRecommendationEngine {
      * does not compound with outfit size. With one pair this is that pair's value.
      *
      * Per pair, the hue rule ([PairScorer.hueTerm]) applies when both items have a chromatic
-     * hex; otherwise the family rules below.
+     * hex; otherwise the family rules below. For same-family pairs, `max(familyRule, hueTerm)`
+     * applies so that same-family cohesion retains its bonus.
      *
      * Family rules (per pair):
      * - Neutral + anything → no effect (skip Neutral items in pairwise check)
@@ -573,7 +575,14 @@ class OutfitRecommendationEngine {
             for (j in i + 1 until nonNeutral.size) {
                 val (a, familyA) = nonNeutral[i]
                 val (b, familyB) = nonNeutral[j]
-                product *= PairScorer.hueTerm(a, b) ?: pairHarmonyMultiplier(familyA, familyB)
+                val hue = PairScorer.hueTerm(a, b)
+                val familyMultiplier = pairHarmonyMultiplier(familyA, familyB)
+                val pairMultiplier = if (hue != null && familyA == familyB) {
+                    maxOf(familyMultiplier, hue)
+                } else {
+                    hue ?: familyMultiplier
+                }
+                product *= pairMultiplier
                 pairCount++
             }
         }
