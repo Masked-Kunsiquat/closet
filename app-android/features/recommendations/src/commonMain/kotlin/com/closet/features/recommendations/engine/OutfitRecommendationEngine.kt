@@ -2,6 +2,8 @@ package com.closet.features.recommendations.engine
 
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
+import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.random.Random
 
@@ -29,9 +31,20 @@ import kotlin.random.Random
  * 4. Color deduplication — one item per (color+subcategory) combo within each slot.
  * 5. Category completeness — build valid combos: (Top + Bottom) OR (OnePiece),
  *    optional Outerwear / Footwear / Accessory.
- * 6. Outfit-level scoring — mean of item scores × outfit-level multipliers (layering,
- *    color harmony as the geometric mean of its pair multipliers, pattern mixing, and
- *    × 0.85 for a shoe-less outfit when the capped pool has footwear).
+ * 6. Outfit-level scoring — `meanItem × [W·H + (1 − W)·R] × layering × footwear`:
+ *    - `R`, the taste rules: color harmony (the geometric mean over non-Neutral item pairs of
+ *      the hue rule when both items have a chromatic hex — analogous ≤ 30° or complementary
+ *      150°–210° × 1.05, a 60°–120° clash × 0.90 — otherwise the color-family rule) × pattern
+ *      mixing × the geometric mean over all item pairs of the formality term (× 0.85 when the
+ *      two levels differ by 2 or more, 1.0 when either is unknown).
+ *    - `H`, the habit: the geometric mean over all item pairs of the co-wear lift
+ *      `clamp((c + 1) / (E + 1), 0.7, 1.3)`, `c` the weighted co-wear count and
+ *      `E = nA·nB / N` its chance expectation ([EngineInput.coWear]).
+ *    - `W`, the mean over all item pairs of `min(0.7, n / (n + 5))`, `n = max(c, E)`. With no
+ *      history `W = 0` and the score equals the rules-only score exactly; with heavy history
+ *      habit can outvote the rules, which keep at least 30%.
+ *    - Layering for the weather and × 0.85 for a shoe-less outfit (when the capped pool has
+ *      footwear) are situational and stay outside the blend.
  * 7. Exclusion — drop combos whose [key] is in `exclude` (already shown this session).
  * 8. Sort + tie-break — descending score (or score × (1 ± 0.03) when a `jitter` [Random]
  *    is given; [OutfitCombo.score] stays un-jittered); ties broken by oldest last-worn date.
@@ -70,6 +83,17 @@ class OutfitRecommendationEngine {
 
         // --- Footwear ---
         private const val MULTIPLIER_NO_FOOTWEAR = 0.85
+
+        // --- Pair scoring (engine v2, #96; used by PairScorer) ---
+        /** Shrinkage: a pair's history weight is `n / (n + K)`. */
+        internal const val K = 5.0
+        /** Cap on a pair's history weight, so the taste rules always keep 30%. */
+        internal const val W_MAX = 0.7
+        /** Bounds of a pair's history lift. */
+        internal const val PAIR_MIN = 0.7
+        internal const val PAIR_MAX = 1.3
+        /** Applied per item pair whose formality levels differ by 2 or more. */
+        internal const val FORMALITY_GAP_PENALTY = 0.85
 
         // --- Wear recency ---
         private const val RECENT_WEAR_DAYS = 3
@@ -217,7 +241,7 @@ class OutfitRecommendationEngine {
             .map { comboItems ->
                 OutfitCombo(
                     items = comboItems,
-                    score = scoreCombo(comboItems, itemScores, input.weather, hasFootwearInPool),
+                    score = scoreCombo(comboItems, itemScores, input.weather, hasFootwearInPool, input.coWear),
                 )
             }
             .let { scored -> if (exclude.isEmpty()) scored else scored.filter { it.key() !in exclude } }
@@ -425,14 +449,21 @@ class OutfitRecommendationEngine {
     }
 
     // -------------------------------------------------------------------------
-    // Step 5 — Outfit-level score
+    // Step 6 — Outfit-level score
     // -------------------------------------------------------------------------
+
+    /**
+     * `meanItem × [W·H + (1 − W)·R] × layering × footwear`, over all item pairs of the combo:
+     * `R` = color harmony × pattern mixing × the geometric mean of [PairScorer.formalityTerm],
+     * `H` = the geometric mean of the pairs' history lifts, `W` = the mean of their weights.
+     */
 
     private fun scoreCombo(
         items: List<EngineItem>,
         itemScores: Map<Long, Double>,
         weather: EngineWeather?,
-        hasFootwearInPool: Boolean
+        hasFootwearInPool: Boolean,
+        coWear: CoWearStats,
     ): Double {
         // Mean of individual item scores
         val meanScore = items.map { itemScores[it.id] ?: 1.0 }.average()
@@ -452,11 +483,35 @@ class OutfitRecommendationEngine {
             }
         }
 
-        // Color harmony
-        multiplier *= colorHarmonyMultiplier(items)
-
-        // Pattern mixing
-        multiplier *= patternMixingMultiplier(items)
+        // Taste: the rules R (color harmony × pattern mixing × formality), blended with the
+        // co-wear habit H by its weight W. With no history W = 0 and this is exactly R, applied
+        // term by term as before pair scoring existed (cold-start parity).
+        var habitWeightSum = 0.0
+        var logLiftSum = 0.0
+        var formalityProduct = 1.0
+        var pairCount = 0
+        for (i in items.indices) {
+            for (j in i + 1 until items.size) {
+                val history = PairScorer.history(items[i].id, items[j].id, coWear)
+                habitWeightSum += history.weight
+                logLiftSum += ln(history.lift)
+                formalityProduct *= PairScorer.formalityTerm(items[i], items[j])
+                pairCount++
+            }
+        }
+        val colorHarmony = colorHarmonyMultiplier(items)
+        val patternMixing = patternMixingMultiplier(items)
+        val formality = if (pairCount == 0) 1.0 else formalityProduct.pow(1.0 / pairCount)
+        val habitWeight = if (pairCount == 0) 0.0 else habitWeightSum / pairCount
+        if (habitWeight == 0.0) {
+            multiplier *= colorHarmony
+            multiplier *= patternMixing
+            multiplier *= formality
+        } else {
+            val rules = colorHarmony * patternMixing * formality
+            val habit = exp(logLiftSum / pairCount)
+            multiplier *= habitWeight * habit + (1.0 - habitWeight) * rules
+        }
 
         // Footwear — penalise a shoe-less outfit only when shoes were available
         if (hasFootwearInPool && items.none { it.outfitRole == ROLE_FOOTWEAR }) {
@@ -472,11 +527,14 @@ class OutfitRecommendationEngine {
 
     /**
      * Computes the combined color harmony multiplier for an outfit by evaluating
-     * all distinct pairs of non-Neutral dominant color families and returning the
+     * all distinct pairs of items whose dominant color family is not Neutral and returning the
      * **geometric mean** of the pair multipliers, `(∏ pair)^(1/pairCount)`, so the effect
      * does not compound with outfit size. With one pair this is that pair's value.
      *
-     * Rules (per pair):
+     * Per pair, the hue rule ([PairScorer.hueTerm]) applies when both items have a chromatic
+     * hex; otherwise the family rules below.
+     *
+     * Family rules (per pair):
      * - Neutral + anything → no effect (skip Neutral items in pairwise check)
      * - Same family + same family → +0.10 bonus (additive to base multiplier 1.0)
      * - Earth + Warm → +0.05 bonus
@@ -489,15 +547,18 @@ class OutfitRecommendationEngine {
      * Items with no color tagged are treated as Neutral.
      */
     private fun colorHarmonyMultiplier(items: List<EngineItem>): Double {
-        val families = items.map { dominantColorFamily(it.colorFamilies) }
-        val nonNeutral = families.filter { it != FAMILY_NEUTRAL }
+        val nonNeutral = items
+            .map { it to dominantColorFamily(it.colorFamilies) }
+            .filter { (_, family) -> family != FAMILY_NEUTRAL }
         if (nonNeutral.size < 2) return 1.0
 
         var product = 1.0
         var pairCount = 0
         for (i in nonNeutral.indices) {
             for (j in i + 1 until nonNeutral.size) {
-                product *= pairHarmonyMultiplier(nonNeutral[i], nonNeutral[j])
+                val (a, familyA) = nonNeutral[i]
+                val (b, familyB) = nonNeutral[j]
+                product *= PairScorer.hueTerm(a, b) ?: pairHarmonyMultiplier(familyA, familyB)
                 pairCount++
             }
         }

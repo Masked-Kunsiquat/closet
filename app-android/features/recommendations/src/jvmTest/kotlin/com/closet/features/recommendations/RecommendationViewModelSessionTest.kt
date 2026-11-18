@@ -197,6 +197,28 @@ class RecommendationViewModelSessionTest {
         assertTrue(results().isNotEmpty())
     }
 
+    @Test fun dominantCoWornPairDoesNotCrowdOutOtherCores() {
+        // Echo-chamber guard (Review Focus 3): Top 2 + Bottom 4 (last in build order, so
+        // fourth without history) were worn together in 20 of 40 logs.
+        val repo = mockk<RecommendationRepository>()
+        val vm = buildViewModel(aiReady = false, repo = repo)
+        coEvery { repo.getCoWearPairs(any()) } returns DataResult.Success(listOf(ItemPair(2, 4, 20)))
+        coEvery { repo.getItemLogCounts(any()) } returns
+            DataResult.Success(listOf(ItemCount(2, 20), ItemCount(4, 20)))
+        coEvery { repo.getTotalLogCount() } returns DataResult.Success(40)
+
+        vm.onWeatherConfirmed(weather)
+        val first = results(vm)
+        assertEquals(setOf(2L, 4L), first.first().key(), "habit ranks the dominant pair first")
+        assertEquals(3, first.map { it.key() }.toSet().size, "the page still has three distinct cores")
+
+        vm.onRegenerate()
+        val second = results(vm)
+        assertTrue(second.isNotEmpty())
+        assertTrue(keys(second).none { it == setOf(2L, 4L) }, "Regenerate does not repeat the dominant pair")
+        assertTrue(keys(second).none { it in keys(first) }, "Regenerate surfaces an unseen core")
+    }
+
     @Test fun freshSessionRepeatsTheFirstRun() {
         viewModel.onWeatherConfirmed(weather)
         val first = keys(results())

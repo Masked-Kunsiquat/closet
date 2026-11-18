@@ -72,7 +72,7 @@ data class EngineItem(
  *                            and layering validation are skipped.
  * @property today            Today's date, for the wear-recency multiplier. Null (the default)
  *                            disables recency scoring. Passed in so the engine never reads a clock.
- * @property coWear           Co-wear and saved-outfit statistics; not read by scoring yet.
+ * @property coWear           Co-wear and saved-outfit statistics: the habit term of the outfit score.
  */
 data class EngineInput(
     val candidates: List<EngineItem>,
