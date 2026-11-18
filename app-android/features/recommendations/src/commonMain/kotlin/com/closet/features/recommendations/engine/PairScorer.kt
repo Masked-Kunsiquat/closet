@@ -83,10 +83,15 @@ internal object PairScorer {
         val extendedA = listOf(ItemNeighbor(a.id, 1.0)) + neighborsA
         val extendedB = listOf(ItemNeighbor(b.id, 1.0)) + neighborsB
 
+        val targetKey = if (a.id < b.id) a.id to b.id else b.id to a.id
+        val seenPairs = mutableSetOf<Pair<Long, Long>>()
+
         for (na in extendedA) {
             for (nb in extendedB) {
-                if (na.itemId == a.id && nb.itemId == b.id) continue
                 if (na.itemId == nb.itemId) continue
+                val pairKey = if (na.itemId < nb.itemId) na.itemId to nb.itemId else nb.itemId to na.itemId
+                if (pairKey == targetKey) continue
+                if (!seenPairs.add(pairKey)) continue
                 val pairHist = directHistory(na.itemId, nb.itemId, coWear)
                 if (pairHist.evidence > 0.0) {
                     val sim = na.similarity * nb.similarity
@@ -103,7 +108,7 @@ internal object PairScorer {
         // Level 2: Subcategory fallback
         val subA = a.subcategoryId
         val subB = b.subcategoryId
-        val (lift2, n2) = if (subA != null && subB != null && subA != subB) {
+        val (lift2, n2) = if (n0 + n1 < K && subA != null && subB != null && subA != subB) {
             val subHist = directHistory(subA, subB, subcategoryCoWear)
             if (subHist.evidence > 0.0) {
                 subHist.lift to min(K, BETA_SUBCATEGORY * subHist.evidence)

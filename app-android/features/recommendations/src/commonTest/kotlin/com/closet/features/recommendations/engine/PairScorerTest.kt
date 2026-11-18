@@ -176,6 +176,100 @@ class PairScorerTest {
     }
 
     @Test
+    fun `neighbor filtering excludes target pair in reverse order and deduplicates canonical pairs`() {
+        val item1 = item(id = 1)
+        val item2 = item(id = 2)
+        // Item 2 is a neighbor of Item 1, and Item 1 is a neighbor of Item 2.
+        // Also both share neighbors 10 and 20 in reverse directions.
+        val neighbors = mapOf(
+            1L to listOf(ItemNeighbor(2L, 0.9), ItemNeighbor(10L, 0.8), ItemNeighbor(20L, 0.75)),
+            2L to listOf(ItemNeighbor(1L, 0.9), ItemNeighbor(20L, 0.8), ItemNeighbor(10L, 0.75)),
+        )
+        // Pair (10, 20) has co-wear: c = 4, E = 3 -> lift = 1.25, n = 4.0
+        // Target pair (1, 2) has direct wear: c = 2, E = 0 -> lift = 3.0 -> clamped 1.3, n = 2.0
+        val coWear = CoWearStats(
+            pairCounts = mapOf((1L to 2L) to 2.0, (10L to 20L) to 4.0),
+            itemCounts = mapOf(10L to 6.0, 20L to 6.0),
+            total = 12.0,
+        )
+        val result = PairScorer.history(item1, item2, coWear, itemNeighbors = neighbors)
+        // Direct: n0 = 2.0, lift0 = 1.3
+        // In neighbor cross-product:
+        // (1, 2) and (2, 1) are target pair in both orders -> excluded!
+        // (1, 1) and (2, 2) -> same item -> excluded!
+        // (10, 20) is visited once with sim = 0.8 * 0.8 = 0.64; reverse (20, 10) is deduplicated!
+        // n1 = 0.6 * (0.64 * 4.0) = 1.536, lift1 = 1.25
+        val n0 = 2.0
+        val lift0 = 1.3
+        val n1 = 0.6 * (0.64 * 4.0)
+        val lift1 = 1.25
+        val nEff = n0 + n1
+        val expectedLift = (n0 * lift0 + n1 * lift1) / nEff
+        assertEquals(expectedLift, result.lift, 1e-9)
+        assertEquals(nEff / (nEff + 5.0), result.weight, 1e-9)
+    }
+
+    @Test
+    fun `Level 2 subcategory fallback is skipped once combined direct and neighbor evidence reaches K`() {
+        val item1 = item(id = 1, subcategoryId = 100)
+        val item2 = item(id = 2, subcategoryId = 200)
+        val neighbors = mapOf(
+            1L to listOf(ItemNeighbor(10L, 1.0)),
+            2L to listOf(ItemNeighbor(20L, 1.0)),
+        )
+        // Direct n0 = 2.0 (c = 2, E = 0 -> lift = 1.3 clamped)
+        // Neighbor (10, 20) n = 5.0, E = 3.0 -> lift = (5+1)/(3+1) = 1.5, n1 = 0.6 * 5.0 = 3.0
+        // Combined n0 + n1 = 5.0 >= K (5.0) -> Level 2 MUST be skipped!
+        val coWear = CoWearStats(
+            pairCounts = mapOf((1L to 2L) to 2.0, (10L to 20L) to 5.0),
+            itemCounts = mapOf(10L to 6.0, 20L to 6.0),
+            total = 12.0,
+        )
+        // Subcategory co-wear with extreme low lift ((0+1)/(5+1) = 0.166)
+        val subCoWear = CoWearStats(
+            pairCounts = mapOf((100L to 200L) to 0.0),
+            itemCounts = mapOf(100L to 10.0, 200L to 10.0),
+            total = 20.0,
+        )
+        val result = PairScorer.history(item1, item2, coWear, itemNeighbors = neighbors, subcategoryCoWear = subCoWear)
+        // Because n0 + n1 = 5.0 >= K, subcategory is skipped!
+        // lift = ((2.0 * 1.3 + 3.0 * 1.5) / 5.0).coerceIn(0.8, 1.3) = (7.1 / 5.0) -> clamped to 1.3
+        assertEquals(1.3, result.lift, 1e-9)
+        assertEquals(5.0 / (5.0 + 5.0), result.weight, 1e-9)
+    }
+
+    @Test
+    fun `Level 2 subcategory fallback is preserved when combined direct and neighbor evidence is under K`() {
+        val item1 = item(id = 1, subcategoryId = 100)
+        val item2 = item(id = 2, subcategoryId = 200)
+        val neighbors = mapOf(
+            1L to listOf(ItemNeighbor(10L, 1.0)),
+        )
+        // Direct n0 = 1.0, lift0 = 1.3 (clamped)
+        // Neighbor (10, 2) n = 2.0, lift = (2+1)/(1+1) = 1.5 -> n1 = 0.6 * (1.0 * 2.0) = 1.2
+        val coWear = CoWearStats(
+            pairCounts = mapOf((1L to 2L) to 1.0, (2L to 10L) to 2.0),
+            itemCounts = mapOf(10L to 3.0, 2L to 4.0),
+            total = 12.0,
+        )
+        // Subcategory evidence: c = 0.0, E = 5.0 -> lift = 1/6, n_sub = 5.0
+        // n2 = min(5.0, 0.25 * 5.0) = 1.25
+        val subCoWear = CoWearStats(
+            pairCounts = mapOf((100L to 200L) to 0.0),
+            itemCounts = mapOf(100L to 10.0, 200L to 10.0),
+            total = 20.0,
+        )
+        val result = PairScorer.history(item1, item2, coWear, itemNeighbors = neighbors, subcategoryCoWear = subCoWear)
+        // Since n0 + n1 = 1.0 + 1.2 = 2.2 < K (5.0), Level 2 subcategory IS preserved!
+        // To verify Level 2 was preserved: if subcategory were skipped, lift would be (1*2.0 + 1.2*1.5)/2.2 = 1.727 -> clamped to 1.3.
+        // With subcategory preserved, actual lift is ~1.083 (pulled down by low subcategory lift), well below 1.3!
+        assertTrue(result.lift < 1.2, "lift was ${result.lift}")
+        assertTrue(result.lift > 1.0, "lift was ${result.lift}")
+        val expectedWeight = 3.45 / (3.45 + 5.0)
+        assertEquals(expectedWeight, result.weight, 1e-9)
+    }
+
+    @Test
     fun `buildItemNeighbors finds similar items above threshold and limits to topK`() {
         // Unit vectors in 3D:
         // vec1 = [1, 0, 0]

@@ -114,6 +114,7 @@ class RecommendationViewModelSessionTest {
                 every { getOpenAiApiKey() } returns flowOf("test-key")
                 every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
             },
+            computationDispatcher = UnconfinedTestDispatcher(),
         ).also { vm -> collectorScope.launch { vm.uiState.collect { } } }
     }
 
