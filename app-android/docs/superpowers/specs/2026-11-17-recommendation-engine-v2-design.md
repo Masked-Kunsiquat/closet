@@ -1,6 +1,15 @@
 # Recommendation engine v2: learned compatibility + step-by-step assembly
 
-**Status:** draft, awaiting owner approval · **Issue:** #94 (replaces its "PR 2: embedding compatibility" slot)
+**Status:** approved (#98, 2026-11-17); amended 2026-11-17 (see "Amendment 1") · **Issues:** #96, under #94 (replaces its "PR 2: embedding compatibility" slot)
+
+> **Amendment 1 (2026-11-17)** changes the following:
+> - **Stochastic beam search** (seeded Gumbel-top-k sampling) replaces the ±3% ranking jitter.
+> - **Diversity** is held inside the beam, per core.
+> - **Already-shown outfits** are excluded during the final extension step, not after ranking.
+> - **A layering-fairness rule and test.**
+> - **An offline replay check**, built in PR 1 as a baseline against the current engine.
+>
+> The "complete" beam variants (beam stack, depth-first beam, BULB) and local beam search were considered and rejected. The search is four levels deep, and we want several good, varied outfits, not the single optimum.
 
 ## Why
 
@@ -25,7 +34,7 @@ Goal: suggestions that reflect how *this* closet is actually worn, that pair ite
 
 ## Anti-goals (failure even if it "works")
 
-- **Echo chamber.** History must not lock suggestions into the same few outfits the owner already wears. The history weight is capped (never 100%), recency and jitter still apply, and diversity by core still applies.
+- **Echo chamber.** History must not lock suggestions into the same few outfits the owner already wears. The history weight is capped (never 100%), recency still applies, the beam samples rather than always taking the top (see "Stochastic selection"), and diversity by core still applies.
 - **Regressing a new wardrobe.** A wardrobe with zero logs must get suggestions at least as good as #95's.
 - **Slower than it feels instant.** A run on a 500-item wardrobe stays well under 100 ms of engine time on the test phone (DB reads excluded).
 
@@ -81,12 +90,33 @@ An item's level is the median of its tags' levels. User-created occasions have n
 
 ### Assembly (beam search)
 
-1. **Cores.** Score every Top×Bottom pair and every OnePiece as `itemScore(top)·itemScore(bottom)·pair(top,bottom)` (OnePiece: its item score). Rank cores with already-shown cores after unshown ones (same demotion idea as #95) and keep the best `CORE_BEAM` (e.g. 30).
-2. **Extend** each kept partial outfit through outerwear → footwear → accessory, each slot offering "none" plus every candidate in that role, scored by the outfit score so far. Keep the best `BEAM` (e.g. 12) partials per core after each slot.
-3. **Exclude** shown combo keys, **jitter** (ranking only, ±3%), **diversity by core** + fill — all as today.
-4. Ask for `topN` (3, or 25 for the AI pool). If exclusion leaves fewer than `topN`, widen the beam (not a per-slot cap) up to a bound; this replaces #95's `MAX_WIDENED_CANDIDATES_PER_SLOT`.
+1. **Cores.**
+   - Score every Top×Bottom pair as `itemScore(top)·itemScore(bottom)·pair(top,bottom)`, and every OnePiece by its item score.
+   - Cores already shown this session (cores of excluded keys, as in #95) rank after unshown ones.
+   - **Select** `CORE_BEAM` cores (e.g. 30) with the stochastic selection below.
+2. **Extend each core separately.**
+   - Go through outerwear → footwear → accessory. Each slot offers "none" plus every candidate in that role.
+   - Score each partial outfit with the full outfit formula (mean item score × geometric-mean pair score × outfit multipliers) applied to the items chosen so far.
+   - **Select** `BEAM_PER_CORE` partials (e.g. 4) *per core* after each slot.
 
-Cost: cores ≤ tops×bottoms (e.g. 60×40 = 2 400 pair scores, cheap), then `CORE_BEAM × slots × (role size + 1) × BEAM` extensions — linear in wardrobe size per slot, not multiplicative.
+   Holding the beam per core keeps the diversity inside the search: one dominant core can't crowd the others out of the beam.
+3. **Exclude during the last slot.** Combo keys include the optional slots, so a partial can only be matched against `exclude` once it is complete. Drop excluded keys from the last slot's candidates *before* that core's selection, so shown outfits never take a beam place.
+4. **Final pick:** stochastic selection over the complete outfits, then **diversity by core** + fill (as today).
+
+   Ask for `topN` (3, or 25 for the AI pool). If exclusion leaves fewer than `topN`, widen `CORE_BEAM`/`BEAM_PER_CORE` up to a bound. This replaces #95's `MAX_WIDENED_CANDIDATES_PER_SLOT`.
+
+**Stochastic selection (replaces the ±3% jitter).** "Select k" means seeded Gumbel-top-k, which samples without replacement in proportion to score:
+- Compute `key = ln(score) / T + g` per candidate, with `g = −ln(−ln(u))`, `u` uniform from the injected `Random`. Keep the k largest keys.
+- **`T` (temperature)** controls exploration. A small `T` approaches strict top-k; a larger `T` gives runner-ups more chances. Start at `T = 0.15`; the builder tunes it with the replay check.
+- **When `jitter`/random is null** (the deterministic path the engine tests use), selection is a plain top-k by score. The existing engine tests keep their exact values.
+- **Seeding is unchanged:** the session's first run is date-seeded and Regenerate is unseeded. The reported `OutfitCombo.score` stays the un-noised score.
+
+**Layering fairness.**
+- Adding an item adds pairs to the geometric mean, so a mediocre layer can pull the mean below "none" even when the weather calls for it.
+- The weather multipliers (`MULTIPLIER_COLD_NO_OUTER` and the warm-with-outer one) must stay applied to *partial* outfits at the outerwear step, so cold weather favours adding a reasonable layer.
+- Tested below.
+
+Cost: cores ≤ tops×bottoms (e.g. 60×40 = 2 400 pair scores, cheap), then `CORE_BEAM × BEAM_PER_CORE × slots × (role size + 1)` extensions — linear in wardrobe size per slot, not multiplicative.
 
 ### Explicit feedback (phase 4, optional)
 
@@ -95,8 +125,11 @@ Cost: cores ≤ tops×bottoms (e.g. 60×40 = 2 400 pair scores, cheap), then `CO
 
 ## Delivery (one PR each, under #94)
 
-1. **Compatibility data + pair scorer.** DAO queries (co-wear, saved-outfit co-membership, formality levels, hex), `PairScorer` (pure, `commonMain`) with hist + prior, wired into the *existing* assembly as the outfit score. Ships value immediately.
-2. **Beam assembly.** Replace per-slot cap + cartesian product + widening with beam search. Pure engine change.
+1. **Replay check + compatibility data + pair scorer.**
+   - **First**, the offline replay check (see Testing), run against the *current* engine to record a baseline.
+   - **Then** the DAO queries (co-wear, saved-outfit co-membership, formality levels, hex) and `PairScorer` (pure, `commonMain`) with hist + prior, wired into the *existing* assembly as the outfit score.
+   - Ships value immediately, with a measured before/after.
+2. **Beam assembly.** Replace the per-slot cap + cartesian product + widening with the per-core stochastic beam. The ±3% jitter goes too. Pure engine change, measured with the replay check.
 3. **Embedding backoff.** Neighbour-based history generalisation (the old "PR 2" slot).
 4. **Feedback** (optional, needs the migration).
 
@@ -111,6 +144,19 @@ Order 1 → 2 → 3 → 4. Scheduled after Phase 5 chat + wardrobe, so it lands 
 - **Formality:** a level-5 blazer with level-1 sweatpants scores below the same blazer with level-4 trousers.
 - **Hex harmony:** complementary/analogous pairs outrank a clashing pair; missing hex falls back to families.
 - **Beam reachability:** an unseen outfit that the old per-slot cap could not reach is returned.
+- **Stochastic selection:**
+  - the same seed gives the same results;
+  - a null random gives strict top-k;
+  - with a seeded random over many runs, a runner-up partial is sometimes selected and a far-worse one almost never (a statistical bound, not exact counts);
+  - selection is without replacement (no duplicate partials in a beam).
+- **Per-core beam:** with one core whose extensions all outscore every other core's, the final picks still have `topN` distinct cores when they exist.
+- **Exclusion inside the search:** with the top-scoring complete outfit of each core excluded, a run still returns `topN` outfits without widening.
+- **Layering fairness:** in cold weather (high below the cold threshold), with an ordinary jacket available, the top result includes outerwear. In warm weather (low above the warm threshold), it doesn't.
+- **Offline replay check** (built in PR 1):
+  - **Setup:** a jvmTest generates a synthetic wardrobe with planted taste (some top/bottom/shoe pairings worn far more often than chance) plus a log history. Hold out the last N logs (e.g. 20). For each held-out log, build `EngineInput` from only the logs before its date, with `today` = its date.
+  - **Metric:** hit-rate@10 by core, meaning whether the held-out outfit's core appears among the cores of the top-10 results, with no exclusion and deterministic selection.
+  - **Gate:** a PR may not lower it versus the recorded baseline. PR 1 must raise it on the planted-taste fixture.
+  - **Real data:** the same harness can also take a real restored database file (from the #102 demo wardrobe) via a system property, and is skipped when the property is absent, for a manual sanity check that is never committed.
 - **Performance:** a jvmTest generating a 500-item wardrobe with 300 logs asserts the engine run is under a generous bound (smoke guard, not a benchmark).
 - Device check on the test phone with the demo wardrobe after each PR.
 
@@ -118,5 +164,6 @@ Order 1 → 2 → 3 → 4. Scheduled after Phase 5 chat + wardrobe, so it lands 
 
 - The exact smoothing formula for `hist`, as long as it meets the stated properties.
 - Hue harmony thresholds (degrees for analogous/complementary, saturation/lightness cut-off for "neutral").
-- `CORE_BEAM`/`BEAM` values within the performance bound.
+- `CORE_BEAM`/`BEAM_PER_CORE` values within the performance bound, and the temperature `T` (start at 0.15), tuned with the replay check.
+- The replay fixture's generator: how taste is planted, and the wardrobe and log sizes.
 - Query shapes (one aggregated SQL per signal vs. Kotlin aggregation), as long as reads happen once per run, in parallel like today.
