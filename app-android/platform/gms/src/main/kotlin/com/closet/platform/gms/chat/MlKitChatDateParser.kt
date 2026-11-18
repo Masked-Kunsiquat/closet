@@ -14,7 +14,6 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.util.TimeZone
 
 /**
  * GMS (full-flavor) [ChatDateParser]: uses ML Kit Entity Extraction to handle the full range of
@@ -24,7 +23,7 @@ import java.util.TimeZone
  * The English model (~5.6 MB) is downloaded via Play Services on first use. The download is
  * triggered lazily in [init] so it's typically ready by the time the user first queries a date.
  */
-class MlKitChatDateParser(clock: AppClock) : ChatDateParser {
+class MlKitChatDateParser(private val clock: AppClock) : ChatDateParser {
 
     private val regexFallback = RegexChatDateParser(clock)
 
@@ -51,8 +50,8 @@ class MlKitChatDateParser(clock: AppClock) : ChatDateParser {
         val params = EntityExtractionParams.Builder(text)
             .setEntityTypesFilter(setOf(Entity.TYPE_DATE_TIME))
             .setPreferredLocale(Locale.US)
-            .setReferenceTime(System.currentTimeMillis())
-            .setReferenceTimeZone(TimeZone.getDefault())
+            .setReferenceTime(clock.now().toEpochMilliseconds())
+            .setReferenceTimeZone(java.util.TimeZone.getTimeZone(clock.timeZone().id))
             .build()
 
         val annotations = extractor.annotate(params).await()

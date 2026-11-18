@@ -91,7 +91,8 @@ class JournalViewModel(
     private val clock: AppClock,
 ) : ViewModel() {
 
-    private val _currentYearMonth = MutableStateFlow(clock.today().yearMonth)
+    private val initialToday = clock.today()
+    private val _currentYearMonth = MutableStateFlow(initialToday.yearMonth)
     private val _selectedDate = MutableStateFlow<String?>(null)
     private val _showOutfitPicker = MutableStateFlow(false)
     private val _editingLog = MutableStateFlow<OutfitLogWithMeta?>(null)
@@ -142,7 +143,7 @@ class JournalViewModel(
     ) { yearMonth, days, selectedDate, logs, showPicker ->
         JournalUiState(
             currentYearMonth = yearMonth,
-            today = clock.today(),
+            today = initialToday,
             calendarDays = days,
             selectedDate = selectedDate,
             logsForSelectedDate = logs,
@@ -151,21 +152,23 @@ class JournalViewModel(
     }.combine(_editingLog) { state, editingLog ->
         state.copy(editingLog = editingLog)
     }.combine(forecastDays) { state, forecasts ->
-        val today = clock.today()
-        state.copy(
-            todayForecast = forecasts.find { it.date == today },
-            forecastDays = forecasts,
-        )
+        state.copy(forecastDays = forecasts)
     }.combine(_showForecastSheet) { state, show ->
         state.copy(showForecastSheet = show)
     }.combine(temperatureUnit) { state, unit ->
-        state.copy(temperatureUnit = unit)
+        // Read the date on every emission so the "Today"/"Tomorrow" labels refresh across midnight.
+        val today = clock.today()
+        state.copy(
+            temperatureUnit = unit,
+            today = today,
+            todayForecast = state.forecastDays.find { it.date == today },
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = JournalUiState(
-            currentYearMonth = clock.today().yearMonth,
-            today = clock.today(),
+            currentYearMonth = initialToday.yearMonth,
+            today = initialToday,
         ),
     )
 

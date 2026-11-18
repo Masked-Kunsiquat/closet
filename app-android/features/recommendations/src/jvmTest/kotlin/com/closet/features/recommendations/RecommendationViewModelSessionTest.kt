@@ -107,7 +107,6 @@ class RecommendationViewModelSessionTest {
 
     @Test fun calendarSeasonComesFromTheClockMonth() {
         val repo = mockk<RecommendationRepository>()
-        coEvery { repo.getCandidates(any(), any(), any(), any()) } returns DataResult.Success(emptyList())
         buildViewModel(
             aiReady = false,
             clock = FixedAppClock(Instant.parse("2031-01-10T12:00:00Z")),
