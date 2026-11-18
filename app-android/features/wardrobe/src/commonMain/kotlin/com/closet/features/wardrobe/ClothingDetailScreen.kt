@@ -1,6 +1,9 @@
 package com.closet.features.wardrobe
 
 import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_back
+import com.closet.features.wardrobe.resources.wardrobe_edit
+import com.closet.features.wardrobe.resources.wardrobe_favorite
 import com.closet.core.ui.resources.ic_symbol_arrow_back
 import com.closet.core.ui.resources.ic_symbol_attach_money
 import com.closet.core.ui.resources.ic_symbol_check_circle_filled
@@ -178,16 +181,16 @@ fun ClothingDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painterResource(CoreRes.drawable.ic_symbol_arrow_back), contentDescription = "Back")
+                        Icon(painterResource(CoreRes.drawable.ic_symbol_arrow_back), contentDescription = stringResource(Res.string.wardrobe_back))
                     }
                 },
                 actions = {
                     (uiState as? ClothingDetailUiState.Success)?.item?.let { detail ->
                         IconButton(onClick = { onEdit(detail.item.id) }) {
-                            Icon(painterResource(CoreRes.drawable.ic_symbol_edit), contentDescription = "Edit")
+                            Icon(painterResource(CoreRes.drawable.ic_symbol_edit), contentDescription = stringResource(Res.string.wardrobe_edit))
                         }
                         IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(painterResource(CoreRes.drawable.ic_symbol_delete), contentDescription = "Delete")
+                            Icon(painterResource(CoreRes.drawable.ic_symbol_delete), contentDescription = stringResource(Res.string.wardrobe_delete))
                         }
                     }
                 }
@@ -255,7 +258,7 @@ fun ClothingDetailScreen(
                         ) {
                             Icon(
                                 painter = if (detail.item.isFavorite == 1) painterResource(CoreRes.drawable.ic_symbol_favorite_filled) else painterResource(CoreRes.drawable.ic_symbol_favorite),
-                                contentDescription = "Favorite",
+                                contentDescription = stringResource(Res.string.wardrobe_favorite),
                                 tint = if (detail.item.isFavorite == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

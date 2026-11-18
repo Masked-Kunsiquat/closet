@@ -31,6 +31,7 @@
     <string name="wardrobe_edit">Edit</string>
     <string name="wardrobe_edit_with_section">Edit %1$s</string>
     <string name="wardrobe_delete">Delete</string>
+    <string name="wardrobe_favorite">Favorite</string>
     <string name="wardrobe_stat_wash">Wash</string>
     <string name="wardrobe_stat_wears">Wears</string>
     <string name="wardrobe_stat_price">Price</string>

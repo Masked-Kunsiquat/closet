@@ -47,8 +47,12 @@ class FakeItemPhotoProcessor : ItemPhotoProcessor {
         return segmentedPath
     }
 
+    /** Runs before [extractColors] returns; a test can suspend here to make extraction late. */
+    var extractGate: suspend (String) -> Unit = {}
+
     override suspend fun extractColors(relativePath: String, available: List<ColorEntity>): List<ColorEntity> {
         extractCalls += relativePath
+        extractGate(relativePath)
         return colorsByPath[relativePath].orEmpty()
     }
 

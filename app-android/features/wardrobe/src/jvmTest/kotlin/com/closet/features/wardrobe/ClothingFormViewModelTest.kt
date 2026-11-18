@@ -355,6 +355,38 @@ class ClothingFormViewModelTest {
     }
 
     @Test
+    fun `a late color extraction for an earlier image neither overwrites colors nor cancels the current caption`() = runTest {
+        photos.importResults.clear()
+        photos.importResults.addAll(listOf("first.jpg", "second.jpg"))
+        photos.colorsByPath["first.jpg"] = listOf(red)
+        photos.colorsByPath["second.jpg"] = listOf(blue)
+        // The first image's extraction finishes only after the second image is picked.
+        var lateFirstExtraction: Continuation<Unit>? = null
+        photos.extractGate = { path -> if (path == "first.jpg") suspendCoroutine { lateFirstExtraction = it } }
+        // The second image's caption is still in flight when the late extraction lands.
+        var pendingSecondCaption: Continuation<String?>? = null
+        photos.describeHandler = { path ->
+            if (path == "second.jpg") suspendCoroutine { pendingSecondCaption = it } else "caption:$path"
+        }
+        val viewModel = subscribed(buildViewModel())
+
+        viewModel.onImageSelected("content://media/picked/1")
+        viewModel.onImageSelected("content://media/picked/2")
+        assertEquals(listOf(blue), viewModel.uiState.value.selectedColors)
+
+        lateFirstExtraction!!.resume(Unit)
+        advanceUntilIdle()
+        pendingSecondCaption!!.resume("caption:second.jpg")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("second.jpg", state.imagePath)
+        assertEquals(listOf(blue), state.selectedColors)
+        assertEquals("caption:second.jpg", state.imageCaption)
+        assertEquals(listOf("second.jpg"), photos.describeCalls)
+    }
+
+    @Test
     fun `cancel deletes the staged image`() = runTest {
         val viewModel = subscribed(buildViewModel())
         viewModel.onImageSelected("content://media/picked/1")

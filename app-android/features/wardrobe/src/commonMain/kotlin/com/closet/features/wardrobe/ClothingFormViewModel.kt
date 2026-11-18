@@ -617,6 +617,9 @@ class ClothingFormViewModel(
      * Must be called from a coroutine context that can reach Main (i.e. viewModelScope).
      */
     private fun launchCaptionJob(path: String) {
+        // A late call for an image that is no longer current must not cancel the current
+        // image's caption job.
+        if (_form.value.imagePath != path) return
         captionJob?.cancel()
         captionJob = viewModelScope.launch(Dispatchers.Main) {
             if (_form.value.imagePath == path) _form.update { it.copy(isCaptioning = true) }
@@ -641,11 +644,14 @@ class ClothingFormViewModel(
         }
     }
 
-    /** Replaces the selected colors with those matched from [path]; leaves them if none match. */
+    /**
+     * Replaces the selected colors with those matched from [path]; leaves them if none match,
+     * or if [path] is no longer the current image by the time extraction finishes.
+     */
     private suspend fun extractColors(path: String) {
         val matched = photoProcessor.extractColors(path, allColors.value)
         if (matched.isNotEmpty()) {
-            _form.update { it.copy(selectedColors = matched) }
+            _form.update { if (it.imagePath == path) it.copy(selectedColors = matched) else it }
         }
     }
 
