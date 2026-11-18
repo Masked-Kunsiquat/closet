@@ -84,21 +84,27 @@ internal object PairScorer {
         val extendedB = listOf(ItemNeighbor(b.id, 1.0)) + neighborsB
 
         val targetKey = if (a.id < b.id) a.id to b.id else b.id to a.id
-        val seenPairs = mutableSetOf<Pair<Long, Long>>()
+        val neighborSims = mutableMapOf<Pair<Long, Long>, Double>()
 
         for (na in extendedA) {
             for (nb in extendedB) {
                 if (na.itemId == nb.itemId) continue
                 val pairKey = if (na.itemId < nb.itemId) na.itemId to nb.itemId else nb.itemId to na.itemId
                 if (pairKey == targetKey) continue
-                if (!seenPairs.add(pairKey)) continue
-                val pairHist = directHistory(na.itemId, nb.itemId, coWear)
-                if (pairHist.evidence > 0.0) {
-                    val sim = na.similarity * nb.similarity
-                    sumSimLift += sim * pairHist.lift
-                    sumSim += sim
-                    sumSimEvidence += sim * pairHist.evidence
+                val sim = na.similarity * nb.similarity
+                val prev = neighborSims[pairKey]
+                if (prev == null || sim > prev) {
+                    neighborSims[pairKey] = sim
                 }
+            }
+        }
+
+        for ((pairKey, sim) in neighborSims) {
+            val pairHist = directHistory(pairKey.first, pairKey.second, coWear)
+            if (pairHist.evidence > 0.0) {
+                sumSimLift += sim * pairHist.lift
+                sumSim += sim
+                sumSimEvidence += sim * pairHist.evidence
             }
         }
 

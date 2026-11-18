@@ -207,6 +207,10 @@ class PairScorerTest {
         val expectedLift = (n0 * lift0 + n1 * lift1) / nEff
         assertEquals(expectedLift, result.lift, 1e-9)
         assertEquals(nEff / (nEff + 5.0), result.weight, 1e-9)
+        // Symmetric: history(1, 2) must strictly equal history(2, 1)
+        val reverseResult = PairScorer.history(item2, item1, coWear, itemNeighbors = neighbors)
+        assertEquals(result.lift, reverseResult.lift, 1e-9)
+        assertEquals(result.weight, reverseResult.weight, 1e-9)
     }
 
     @Test
