@@ -238,7 +238,7 @@ Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color ter
 
       | Hue gap | Multiplier |
       |---|---|
-      | ≤ 30° (analogous) | × 1.05 |
+      | ≤ 60° (analogous; widened from 30° by point 16) | × 1.05 |
       | 150–210° (complementary) | × 1.05 |
       | everything else | × 1.0 |
 
@@ -254,6 +254,30 @@ Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color ter
     - So PR 2 adds a **chroma-match feature** (the OKLCh chroma gap between the main colours) to #118's feature set with a **prior weight of 0**. It only matters if your logs show it.
     - Adding it means bumping `TASTE_WEIGHTS_SCHEMA_VERSION`.
 14. **Dominance:** the multi-colour advice ("one or two colors as the dominant ones", Pham) supports the share weighting already in the design: main colours count fully, accents lightly.
+16. **Vogue ("How to Master Color Theory for Clothing Like a Vogue Fashion Editor") and Maggie Carroll ("Color Theory in Fashion", Medium).** Both were read in full from owner-supplied PDFs.
+    - **Four of four guides now use the painter's wheel.** Vogue: "primary colors: red, yellow, and blue"; complements "red and green, orange and blue, yellow and purple". Carroll calls orange and blue "on the exact opposite sides of the color wheel".
+    - **Navy is a blue, not a neutral.** Vogue describes a monochromatic blue scheme that "can span deep navy, bright sky, and pale baby blue". Its neutrals are "black or white", plus "off-whites and rich espresso". That supports point 12.
+    - **Dominance:** "one color is usually the star of the show in complementary looks", which supports share weighting (point 14).
+    - **The warp checked against Vogue's real outfits.** The hexes are the controller's estimates of the named colours:
+
+      | Outfit | Vogue calls it | Raw OKLCh gap | Warped gap |
+      |---|---|---|---|
+      | Forest green sweater + vivid red skirt | complementary | 117° | **176°** |
+      | Blue dress over an orange tank | complementary | 159° | **166°** |
+      | Dusty purple sweater + ochre skirt | complementary | 89° | **102°** |
+      | Red + orange | analogous | — | 46° |
+      | Lime + olive | analogous | — | 31° |
+      | Carroll's pink + purple | analogous | — | 37° |
+      | Carroll's purple + blue | analogous | — | 63° |
+
+      - The warp turns red–green and blue–orange into complements, as stylists describe them.
+      - Dusty purple + ochre still misses, at 102°. Dusty purple is low-chroma, where hue is unreliable, and ochre is an orange-yellow, so the estimated hexes are the weak link. This is why harmony stays gated on a chroma floor and stays a weak, learned prior.
+      - Tarver's 90° example (yellow + red-orange) lands at 86° on the warped wheel, as she describes.
+    - **Change: widen analogous to ≤ 60° on the warped wheel**, replacing ≤ 30°. Real analogous examples sit at 31–63°, because a three-colour run on a 12-step wheel spans 60°.
+    - **Monochrome needs lightness variety.** Carroll: "green with varying saturation and value (especially value)". Vogue: "plenty of room for dimensionality". A same-hue outfit looks deliberate when value varies. This is the second **candidate learned feature (prior weight 0)**, the lightness spread among same-hue main colours, alongside chroma-match (point 13).
+    - **Patterns in tonal dressing:** Vogue says "patterns are your friend in tonal dressing" (a striped green maxi skirt). So a two-tone striped item producing two same-hue clusters is fine and expected, which answers part of the heathers/patterns question.
+    - **Preference over rules:** Vogue says to pick "a color that matches your season and—more importantly—that you like". That backs leaving the weights to #118.
+
 15. **Seasonal colour analysis is out of scope.**
     - The Concept Wardrobe: a colour is harmonious "if it emphasises certain aspects of your own coloring". It is about the wearer's skin, hair and eyes, not garment-to-garment pairing.
     - The app has no photo of the wearer. A user-chosen "season" palette preference is a possible later feature and a non-goal here.
