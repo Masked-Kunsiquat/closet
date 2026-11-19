@@ -38,7 +38,8 @@ object Oklab {
         return fromArgb(rgb or (0xFF shl 24))
     }
 
-    private fun fromLinear(r: Double, g: Double, b: Double): Lab {
+    /** Oklab from linear-light r, g, b in 0..1. */
+    internal fun fromLinear(r: Double, g: Double, b: Double): Lab {
         val l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
         val m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
         val s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
