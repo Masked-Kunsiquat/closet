@@ -55,6 +55,7 @@ The measured color is thrown away.
 **`colors`** gains:
 - `wears_as_neutral INTEGER NOT NULL DEFAULT 0`: a fashion convention, so Navy, denim, olive and camel wear as neutrals even though they have chroma. It replaces "the Neutral family means neutral" in harmony scoring.
 - Reference shades: a child table `color_shades(color_id, hex)`, so pale yellow, yellow and mustard all name Yellow.
+- `basic_term TEXT NOT NULL`: one of the 11 Berlin & Kay basic terms, for chat search, the stats roll-up and coarse logic (see Research findings 6).
 
 **Seeds:**
 - Re-pick the base hexes to look like clothing.
@@ -78,12 +79,12 @@ The measured color is thrown away.
 2. **sRGB → linear → OKLab** (Björn Ottosson's matrices).
 3. **k-means++** in OKLab, k ≤ 4, seeded for determinism.
 4. **Cleanup:** merge clusters closer than ΔE_merge, then drop clusters with share below `MIN_SHARE` (about 0.15).
-5. **Naming:** nearest reference shade by ΔE in OKLab. That gives the name, while the cluster mean is stored as `hex`. Two clusters with the same name merge and their shares add.
+5. **Naming:** nearest reference shade by ΔE in OKLab. That gives the name, while the cluster's mean in linear RGB, encoded to sRGB, is stored as `hex` (see Research findings 3). Two clusters with the same name merge and their shares add.
 6. **Output:** at most 3, by share.
 7. **White balance (optional):** correct the colour cast of the lighting before clustering. **Open:** decide with the reading list and the demo wardrobe.
 
 **Platform:**
-- **Android:** decodes the bitmap and supplies the mask: ML Kit when present, else none.
+- **Android:** decodes the bitmap into sRGB (`inPreferredColorSpace`, see Research findings 5) and supplies the mask: ML Kit when present, else none.
 - **iOS:** the centre path now; a Vision foreground mask later.
 - AndroidX Palette and the HSL `ColorMatcher` are deleted.
 
@@ -95,7 +96,7 @@ The measured color is thrown away.
   - The same-family `max(familyRule, hueTerm)` from #115 stays.
   - Re-check the thresholds (80–100° clash band, ±30° analogous, 150–210° complementary) on OKLCh and real shades; the seeded-palette test moves to the new references.
 - **Learned weights (#118):** the hue and family feature values change, so bump `TASTE_WEIGHTS_SCHEMA_VERSION` to retrain, and keep `ReplayCheckTest` green.
-- **Chat:** `search_items` matches return share, so "mostly blue" and "blue trim" become answerable. The tool description stays ≤ 180 characters.
+- **Chat:** `search_items` color filters also match `basic_term`, so "blue" finds Navy and Sky Blue items as tagged matches. Matches return share, so "mostly blue" and "blue trim" become answerable. The tool description stays ≤ 180 characters.
 - **Stats:** the color breakdown stays by name. Share weighting is optional and probably later.
 - **#108:** measured-color ΔE becomes an extra duplicate signal next to embeddings, which #108 owns.
 
@@ -114,17 +115,61 @@ The measured color is thrown away.
   - pastel yellow → Yellow; mustard → Yellow; tan → Tan/Camel; denim → Denim or Navy, per the seed decision; charcoal → Charcoal or Grey;
   - a two-color synthetic item at 70/30 gives shares within ±0.05;
   - an all-background crop returns nothing;
-  - the same input gives the same output.
+  - the same input gives the same output;
+  - conversion vectors: `#FFFFFF` → OKLab (1, 0, 0) and `#FF0000` → (0.6280, 0.2249, 0.1258), each to ±1e-4; the sRGB encode/decode round-trip is within 1 / 255.
 - **The migration test passes** (v1 → v2).
 - **Demo wardrobe (#70):** auto-tag agreement with the dataset's `baseColour` is reported before and after, and the after must beat before by a margin set once we see the baseline.
 - **User edits survive** re-extraction.
 - **The engine's replay and variety tests stay green.**
 
-## Open questions (for the reading list)
-1. ΔE thresholds for merging and naming: OKLab Euclidean or CIEDE2000? *(Color difference; Oklab color space)*
-2. Is k-means++ with k ≤ 4 enough, and how should k be picked? Fixed k plus merge, or a silhouette/elbow method? *(k-means clustering; Color quantization)*
-3. Gamma: average in linear light vs. in OKLab. *(sRGB)*
-4. White balance: correct or not, and how? Gray-world, or using the background? *(Color constancy; Color balance)*
-5. Harmony bands in OKLCh vs. HSL hue, and whether triadic or split-complementary deserve a bonus. *(Color scheme; Color theory)*
-6. Seed names: which basic and fashion color terms to add. *(Basic Color Terms)*
-7. Heathers and patterns: does a striped or heathered item produce two clusters, and is that desired?
+## Research findings (2026-11-19)
+Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color term*, and Wikibooks *Color Theory/Color gradient*.
+
+**Settled:**
+1. **Distance is plain Euclidean in OKLab.** The Oklab page: "The perceptual color difference in Oklab is calculated as the Euclidean distance". No CIEDE2000 is needed.
+   - Neither page gives a just-noticeable-difference value, so `ΔE_merge` and the naming cut-off are **calibrated on the demo wardrobe (#70)**, not taken from a source.
+   - The thresholds live as named constants, with the calibration numbers recorded in the PR.
+2. **Clustering is k-means in a perceptual space.**
+   - *Color quantization* cites Celebi (2011): "an efficient implementation of k-means outperforms a large number of color quantization methods". It also calls Lab "another popular choice" because "Euclidean distance is more consistent with perceptual difference".
+   - The page gives no rule for choosing k, so we keep **fixed k = 4 + merge + `MIN_SHARE` drop**, which is deterministic and simple.
+   - Dithering is irrelevant to us, because we never render the quantized image.
+3. **Assign clusters in OKLab, but average in linear RGB.**
+   - The Oklab page warns it is "not suitable for image blending or processing, for which the gamma-expanded linear RGB color space is more appropriate". The Wikibooks gradient page agrees: average in *linear* RGB.
+   - So:
+     - pixels are assigned to clusters by OKLab distance;
+     - each cluster's stored representative is the **mean of its members in linear sRGB**, encoded back to sRGB for `hex`;
+     - k-means centroid *updates* still use OKLab means, so assignment stays perceptual.
+   - **Never average gamma-encoded sRGB bytes.**
+4. **Exact constants.** These were verified by the controller: white `#FFFFFF` → (L, a, b) = (1, 0, 0) and red `#FF0000` → (0.6280, 0.2249, 0.1258), C = 0.2577, h = 29.2°. A subagent's transcription of the page had lost the minus signs and failed this check, so **the implementation's tests must include these two vectors.**
+   - **sRGB decode:** `c ≤ 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055)^2.4`.
+   - **sRGB encode:** `c ≤ 0.0031308 ? 12.92·c : 1.055·c^(1/2.4) − 0.055`.
+   - **Linear sRGB → LMS:**
+     ```
+     l = 0.4122214708 r + 0.5363325363 g + 0.0514459929 b
+     m = 0.2119034982 r + 0.6806995451 g + 0.1073969566 b
+     s = 0.0883024619 r + 0.2817188376 g + 0.6299787005 b
+     ```
+   - **Cube root**, then **LMS′ → Lab:**
+     ```
+     L = 0.2104542553 l′ + 0.7936177850 m′ − 0.0040720468 s′
+     a = 1.9779984951 l′ − 2.4285922050 m′ + 0.4505937099 s′
+     b = 0.0259040371 l′ + 0.7827717662 m′ − 0.8086757660 s′
+     ```
+   - **OKLCh:** C = √(a² + b²), h = atan2(b, a). Hue is undefined at C = 0 and noisy at low C, so **gate harmony on a chroma floor.** In practice C ≤ about 0.4 for sRGB colors.
+   - **Gamut:** converting a linear mean back to sRGB stays in gamut, because it is a convex combination of in-gamut colors. Clamp to [0, 1] before the 8-bit encode anyway.
+5. **Decode photos into sRGB.**
+   - The sRGB page says sRGB is "usually the assumed colorspace for images that do not have an embedded color profile". But phones can write Display P3.
+   - On Android, decode with `BitmapFactory.Options.inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)` (API 26 = our `minSdk`), so pixel math always sees sRGB. Verify on the test device with one of its own photos.
+6. **Two-level names** (*Color term*, Berlin & Kay). English has 11 basic terms: black, white, red, green, yellow, blue, brown, orange, pink, purple, gray.
+   - Basic terms are "monolexemic … high-frequency, and agreed upon by speakers". Terms like maroon and turquoise are not basic. Brown is set apart by *lightness* (dark orange), which OKLab naming handles naturally, because L is in the distance.
+   - **Our 18 seeds have no plain "Blue" or "Green"**, only Navy, Royal Blue, Sky Blue, Forest Green, Mint and Olive. Chat's color filter resolves names against the lookup table, so "blue" doesn't match a Navy item as a tag (only through description text).
+   - **Proposal:** each seeded color gets a `basic_term` column (Navy, Royal Blue and Sky Blue map to blue; Burgundy maps to red; Tan maps to brown; Beige maps to white or brown, *to decide*).
+     - The fashion name stays the tag the user sees and edits.
+     - The basic term powers chat search ("blue"), the stats roll-up and coarse family logic.
+     - Languages split blue into light and dark (Russian, Italian), which supports keeping Navy and Sky Blue as separate fashion names under one basic term.
+
+**Still open:**
+- **White balance:** correct it or not, and how (gray-world, or using the background)? The read pages don't cover it; candidate reading is *Color constancy* and *Color balance*. The default until then is **no correction**; measure first on the demo wardrobe and a few test-device photos under warm light.
+- **Harmony bands:** OKLCh bands vs. the current HSL ones, and whether triadic or split-complementary deserve a bonus. The read pages don't cover harmony; candidate reading is *Color scheme* and *Color theory*. The default is **to keep today's bands** (#115) re-expressed in OKLCh hue, then re-check the seeded-pair test.
+- **Heathers and patterns:** does a striped or heathered item produce two clusters, and is that desired? To be decided on demo-wardrobe examples; `MIN_SHARE` and `ΔE_merge` govern it.
+- **The seed list itself:** which of Denim, Camel/Khaki, Cream, Charcoal and Teal to add, and the `basic_term` of the ambiguous ones (Beige, Tan, Olive).
