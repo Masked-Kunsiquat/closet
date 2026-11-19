@@ -20,6 +20,9 @@ class ColorExtractor(shades: List<ReferenceShade>) {
      * [argb] is row-major, `width * height` long. Returns at most [MAX_COLORS] colours sorted by share
      * descending (ties by colorId); empty when the item has too few pixels or nothing reaches [MIN_SHARE].
      * Shares are fractions of the sampled item pixels and are not renormalized after filtering.
+     * With no reference shades nothing can be named, so the result is empty.
+     *
+     * @throws IllegalArgumentException if `argb.size != width * height` or a dimension is not positive.
      */
     fun extract(argb: IntArray, width: Int, height: Int): List<ExtractedColor> {
         require(width > 0 && height > 0 && argb.size == width * height) {
