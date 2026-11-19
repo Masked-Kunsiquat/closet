@@ -52,7 +52,7 @@ class HistoricalStratumBuilderTest {
     }
 
     @Test
-    fun `core deduplication (IIA) - adding extra accessories does not inflate competing core count`() {
+    fun `core deduplication IIA - adding extra accessories does not inflate competing core count`() {
         val acc1 = item(6L, role = "Accessory", colorFamilies = setOf("Neutral"), subcategoryId = 40L)
         val acc2 = item(7L, role = "Accessory", colorFamilies = setOf("Earth"), subcategoryId = 41L)
         val acc3 = item(8L, role = "Accessory", colorFamilies = setOf("Cool"), subcategoryId = 42L)
