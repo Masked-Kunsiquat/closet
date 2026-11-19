@@ -91,6 +91,18 @@ class ClothingRepositoryColorsTest {
     }
 
     @Test
+    fun `replaceAutoColors leaves auto rows unchanged on an empty extraction`() = runBlocking {
+        val item = newItem()
+        val auto = TaggedColor(colorId("Red"), "#D62B2B", 1.0, ColorSource.AUTO)
+        repo.updateItemColors(item, listOf(auto))
+
+        val result = repo.replaceAutoColors(item, emptyList())
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(setOf(auto.row(item)), rows(item))
+    }
+
+    @Test
     fun `replaceAutoColors fills an untagged item`() = runBlocking {
         val item = newItem()
         val extracted = listOf(ExtractedColor(colorId("Olive"), "#6B6B3A", 1.0))

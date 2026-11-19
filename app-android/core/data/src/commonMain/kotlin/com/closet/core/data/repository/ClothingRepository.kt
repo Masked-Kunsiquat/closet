@@ -318,12 +318,15 @@ class ClothingRepository(
     }
 
     /**
-     * Replaces an item's colors with freshly [extracted] ones as [ColorSource.AUTO] rows, unless the
-     * user has curated them: if any existing row has source [ColorSource.USER], nothing is written.
-     * The check and the write run in one transaction.
-     * @return A [DataResult] with true when the rows were replaced, false when the item was skipped.
+     * Replaces an item's colors with freshly [extracted] ones as [ColorSource.AUTO] rows. Nothing is
+     * written when the user has curated them (any existing row has source [ColorSource.USER]) or
+     * when [extracted] is empty (the extractor found no colour), so a failed extraction never
+     * wipes the existing rows. The check and the write run in one transaction.
+     * @return A [DataResult] with true when the rows were replaced, false when they were left
+     *   unchanged (user-curated, or nothing extracted).
      */
     suspend fun replaceAutoColors(itemId: Long, extracted: List<ExtractedColor>): DataResult<Boolean> = wrapInTransaction {
+        if (extracted.isEmpty()) return@wrapInTransaction false
         val curated = clothingDao.getItemColorRows(itemId).any { it.source == ColorSource.USER }
         if (curated) return@wrapInTransaction false
         clothingDao.updateItemColors(

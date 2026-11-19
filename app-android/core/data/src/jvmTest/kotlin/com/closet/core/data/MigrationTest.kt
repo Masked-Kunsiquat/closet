@@ -99,6 +99,9 @@ class MigrationTest {
             assertEquals(freshShades, migratedShades)
             assertEquals(22, freshColors.size)
             assertEquals(83, freshShades.size)
+            // Ids are pinned to the seed order: Black = 1 … Teal = 22.
+            val expectedIds = DatabaseSeeder.SEEDED_COLORS.mapIndexed { i, c -> c.name to (i + 1).toLong() }.toMap()
+            assertEquals(expectedIds, migratedColors.associate { it[1] as String to it[0] as Long })
         } finally {
             fresh.close()
         }
@@ -127,13 +130,13 @@ class MigrationTest {
         buildList { while (step()) add(map(this@collect)) }
 
     private fun colorRow(s: SQLiteStatement): List<Any> =
-        listOf(s.getText(0), s.getText(1), s.getText(2), s.getText(3), s.getLong(4))
+        listOf(s.getLong(0), s.getText(1), s.getText(2), s.getText(3), s.getText(4), s.getLong(5))
 
     private fun shadeRow(s: SQLiteStatement): Pair<String, String> = s.getText(0) to s.getText(1)
 
     private companion object {
         const val COLORS_SQL =
-            "SELECT name, hex, color_family, basic_term, wears_as_neutral FROM colors ORDER BY name, hex"
+            "SELECT id, name, hex, color_family, basic_term, wears_as_neutral FROM colors ORDER BY name, hex"
         const val SHADES_SQL =
             "SELECT c.name, s.hex FROM color_shades s JOIN colors c ON c.id = s.color_id ORDER BY c.name, s.hex"
 
