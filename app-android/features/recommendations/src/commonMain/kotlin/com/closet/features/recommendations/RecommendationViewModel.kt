@@ -436,6 +436,12 @@ class RecommendationViewModel(
         val subcategorySavedCountsDeferred = async {
             recommendationRepository.getSubcategorySavedItemCounts().unwrapOrThrow("getSubcategorySavedItemCounts")
         }
+        val subcategoryNamesDeferred = async {
+            recommendationRepository.getItemSubcategoryNames(itemIds).unwrapOrThrow("getItemSubcategoryNames")
+        }
+        val materialNamesDeferred = async {
+            recommendationRepository.getItemMaterialNames(itemIds).unwrapOrThrow("getItemMaterialNames")
+        }
 
         val tempPercentiles: List<ItemTempPercentiles> = tempPercentilesDeferred.await()
         val rain: List<ItemRainSuitability> = rainDeferred.await()
@@ -447,6 +453,8 @@ class RecommendationViewModel(
             .groupBy({ it.clothingItemId }, { it.occasionName })
         val colorHexesMap: Map<Long, List<ColorHex>> = colorHexesDeferred.await()
             .groupBy({ it.clothingItemId }, { ColorHex(it.hex, it.colorFamily) })
+        val subcategoryNamesMap: Map<Long, String> = subcategoryNamesDeferred.await()
+        val materialNamesMap: Map<Long, Set<String>> = materialNamesDeferred.await()
 
         val saved = CoWearStats.SAVED_OUTFIT_WEIGHT
         val pairCounts = HashMap<Pair<Long, Long>, Double>()
@@ -517,6 +525,8 @@ class RecommendationViewModel(
                 isPatternSolid = patternNames.isEmpty() || patternNames.all { it == "Solid" },
                 colorHexes = colorHexesMap[item.id] ?: emptyList(),
                 formalityLevel = formalityLevel(occasionNamesMap[item.id] ?: emptyList()),
+                subcategoryName = subcategoryNamesMap[item.id],
+                materials = materialNamesMap[item.id] ?: emptySet(),
             )
         }
 
@@ -688,6 +698,12 @@ class RecommendationViewModel(
         val embeddingsDeferred = async {
             recommendationRepository.getItemEmbeddings(allItemIds).unwrapOrThrow("getItemEmbeddings")
         }
+        val subcategoryNamesDeferred = async {
+            recommendationRepository.getItemSubcategoryNames(allItemIds).unwrapOrThrow("getItemSubcategoryNames")
+        }
+        val materialNamesDeferred = async {
+            recommendationRepository.getItemMaterialNames(allItemIds).unwrapOrThrow("getItemMaterialNames")
+        }
 
         val colorFamilyMap = colorFamiliesDeferred.await()
             .groupBy { it.clothingItemId }
@@ -700,6 +716,8 @@ class RecommendationViewModel(
         val colorHexesMap = colorHexesDeferred.await()
             .groupBy({ it.clothingItemId }, { ColorHex(it.hex, it.colorFamily) })
         val embeddingsMap = embeddingsDeferred.await()
+        val subcategoryNamesMap = subcategoryNamesDeferred.await()
+        val materialNamesMap = materialNamesDeferred.await()
 
         withContext(computationDispatcher) {
             val createdDates = HashMap<Long, LocalDate>(trainingItems.size)
@@ -724,6 +742,8 @@ class RecommendationViewModel(
                     isPatternSolid = patterns.isEmpty() || patterns.all { it == "Solid" },
                     colorHexes = colorHexesMap[row.id] ?: emptyList(),
                     formalityLevel = formalityLevel(occasionNamesMap[row.id] ?: emptyList()),
+                    subcategoryName = subcategoryNamesMap[row.id],
+                    materials = materialNamesMap[row.id] ?: emptySet(),
                 )
             }
 
@@ -766,7 +786,7 @@ class RecommendationViewModel(
     }
 
     companion object {
-        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v1"
+        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v2"
     }
 
     // -------------------------------------------------------------------------

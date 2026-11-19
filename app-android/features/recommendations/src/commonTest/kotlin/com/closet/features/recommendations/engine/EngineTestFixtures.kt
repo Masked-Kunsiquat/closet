@@ -17,6 +17,8 @@ internal fun item(
     subcategoryId: Long? = null,
     colorHexes: List<ColorHex> = emptyList(),
     formalityLevel: Double? = null,
+    subcategoryName: String? = null,
+    materials: Set<String> = emptySet(),
 ) = EngineItem(
     id = id,
     name = "Item $id",
@@ -29,6 +31,8 @@ internal fun item(
     isPatternSolid = isPatternSolid,
     colorHexes = colorHexes,
     formalityLevel = formalityLevel,
+    subcategoryName = subcategoryName,
+    materials = materials,
 )
 
 internal fun weather(

@@ -33,11 +33,14 @@ import com.closet.features.wardrobe.resources.wardrobe_worn_times
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -47,6 +50,11 @@ import com.closet.core.data.model.*
 import com.closet.core.ui.components.ClothingItemCard
 import com.closet.core.ui.theme.ClosetTheme
 import org.koin.compose.viewmodel.koinViewModel
+
+private class IdentityKey(val target: Any?) {
+    override fun equals(other: Any?): Boolean = other is IdentityKey && this.target === other.target
+    override fun hashCode(): Int = target?.hashCode() ?: 0
+}
 
 /**
  * The main screen for browsing the wardrobe (Closet).
@@ -61,10 +69,15 @@ import org.koin.compose.viewmodel.koinViewModel
 fun ClosetScreen(
     onAddItemClick: () -> Unit,
     modifier: Modifier = Modifier,
+    initialCategoryId: Long? = null,
+    initialCategoryRequestIdentity: Any? = initialCategoryId,
     onItemClick: (Long) -> Unit = {},
     onSettingsClick: () -> Unit,
     viewModel: ClosetViewModel = koinViewModel()
 ) {
+    LaunchedEffect(IdentityKey(initialCategoryRequestIdentity), initialCategoryId) {
+        viewModel.consumeInitialCategoryRequest(initialCategoryId, initialCategoryRequestIdentity)
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ClosetContent(
@@ -144,6 +157,36 @@ internal fun ClosetContent(
 ) {
     var showFilterPanel by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+
+    val sortAndFilterKey = remember(
+        sortOrder,
+        selectedCategoryId,
+        favoritesOnly,
+        showArchived,
+        selectedColorIds,
+        selectedSeasonIds,
+        selectedOccasionIds,
+        selectedSizeSystemIds,
+    ) {
+        buildString {
+            append(sortOrder.name).append('|')
+            append(selectedCategoryId ?: "all").append('|')
+            append(favoritesOnly).append('|')
+            append(showArchived).append('|')
+            append(selectedColorIds.sorted().joinToString(",")).append('|')
+            append(selectedSeasonIds.sorted().joinToString(",")).append('|')
+            append(selectedOccasionIds.sorted().joinToString(",")).append('|')
+            append(selectedSizeSystemIds.sorted().joinToString(","))
+        }
+    }
+    var lastSortAndFilterKey by rememberSaveable { mutableStateOf(sortAndFilterKey) }
+    LaunchedEffect(sortAndFilterKey) {
+        if (lastSortAndFilterKey != sortAndFilterKey) {
+            lastSortAndFilterKey = sortAndFilterKey
+            gridState.scrollToItem(0)
+        }
+    }
 
     if (showFilterPanel) {
         FilterPanel(
@@ -258,6 +301,7 @@ internal fun ClosetContent(
                     items = items,
                     onItemClick = onItemClick,
                     resolveImagePath = resolveImagePath,
+                    gridState = gridState,
                     modifier = Modifier.weight(1f)
                 )
                 isFiltered -> FilteredEmptyMessage(
@@ -361,9 +405,11 @@ private fun ClosetGrid(
     items: List<ClothingItemDetail>,
     onItemClick: (Long) -> Unit,
     resolveImagePath: (String?) -> String?,
+    gridState: LazyGridState = rememberLazyGridState(),
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),

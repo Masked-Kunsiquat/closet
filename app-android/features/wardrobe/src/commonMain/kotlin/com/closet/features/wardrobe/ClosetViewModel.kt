@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * Snapshot of all state needed to render the Closet screen.
@@ -106,6 +108,47 @@ class ClosetViewModel(
     private val _favoritesOnly         = MutableStateFlow(false)
     private val _showArchived          = MutableStateFlow(false)
     private val _sortOrder             = MutableStateFlow(SortOrder.NEWEST)
+
+    /**
+     * Tracks the last `NavBackStackEntry` instance (by reference identity) whose
+     * [ClosetDestination.initialCategoryId] was consumed, so returning from detail (which reuses
+     * the same `NavBackStackEntry` instance) does not reapply the old shortcut while a new
+     * `launchSingleTop` navigation (which creates a new `NavBackStackEntry` copy with equal `.id`)
+     * is applied even if it targets the same category ID.
+     */
+    private var lastConsumedRequestIdentity: Any? = null
+
+    init {
+        viewModelScope.launch {
+            savedStateHandle.getStateFlow<Long?>("initialCategoryId", _selectedCategoryId.value)
+                .drop(1)
+                .collect { categoryId ->
+                    _selectedCategoryId.value = categoryId
+                }
+        }
+    }
+
+    /**
+     * Applies [initialCategoryId] at most once per navigation request [requestIdentity]
+     * (compared by reference identity `===`).
+     *
+     * When `NavController.navigate(ClosetDestination(id)) { launchSingleTop = true }` runs,
+     * Navigation creates a new `NavBackStackEntry` instance sharing the same `id` (so its
+     * `equals`/`hashCode` are unchanged!) and sharing this ViewModel's store. Comparing
+     * [requestIdentity] by `===` ensures:
+     * 1. Returning from item detail (same `NavBackStackEntry` instance) does not overwrite the
+     *    user's in-session category change.
+     * 2. Triggering the same category shortcut a second time (new `NavBackStackEntry` instance)
+     *    reapplies that category filter.
+     */
+    fun consumeInitialCategoryRequest(initialCategoryId: Long?, requestIdentity: Any?) {
+        val token = requestIdentity ?: initialCategoryId
+        if (token === lastConsumedRequestIdentity) return
+        lastConsumedRequestIdentity = token
+        if (initialCategoryId != null) {
+            _selectedCategoryId.value = initialCategoryId
+        }
+    }
 
     private val filterSelections = combine(
         _selectedColorIds,
