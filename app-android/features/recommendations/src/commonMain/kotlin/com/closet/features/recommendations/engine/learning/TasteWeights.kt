@@ -70,6 +70,24 @@ data class TasteWeights(
             footwear * features[IDX_FOOTWEAR]
     }
 
+    /**
+     * Computes the learned log-utility deviation $(\beta - \beta_0)^\top x$ relative to [DEFAULT]
+     * ($\beta_0 = [1, 1, \dots, 1]^\top$) for an 8-element feature vector [features].
+     */
+    fun deltaDot(features: DoubleArray): Double {
+        require(features.size == FEATURE_COUNT) {
+            "Expected $FEATURE_COUNT features, got ${features.size}"
+        }
+        return (meanItem - 1.0) * features[IDX_MEAN_ITEM] +
+            (hueHarmony - 1.0) * features[IDX_HUE_HARMONY] +
+            (familyHarmony - 1.0) * features[IDX_FAMILY_HARMONY] +
+            (patternMix - 1.0) * features[IDX_PATTERN_MIX] +
+            (formalityGap - 1.0) * features[IDX_FORMALITY_GAP] +
+            (historyLift - 1.0) * features[IDX_HISTORY_LIFT] +
+            (layering - 1.0) * features[IDX_LAYERING] +
+            (footwear - 1.0) * features[IDX_FOOTWEAR]
+    }
+
     /** Serializes this weight vector as a compact comma-separated string for DataStore persistence. */
     fun serialize(): String = toDoubleArray().joinToString(separator = ",")
 

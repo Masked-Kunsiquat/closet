@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.closet.core.data.ai.NanoAvailability
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
+import com.closet.core.data.util.AppError
+import com.closet.core.data.util.DataResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -257,17 +259,17 @@ class AiPreferencesRepository(
     /**
      * Atomically persists the serialized [rawWeights] and [watermark] to DataStore.
      */
-    suspend fun setTasteWeights(rawWeights: String, watermark: String) {
-        try {
-            aiDataStore.edit { prefs ->
-                prefs[tasteWeightsKey] = rawWeights
-                prefs[tasteWeightsWatermarkKey] = watermark
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Logger.withTag("AiPrefsRepo").w(e) { "Failed to persist taste_weights" }
+    suspend fun setTasteWeights(rawWeights: String, watermark: String): DataResult<Unit> = try {
+        aiDataStore.edit { prefs ->
+            prefs[tasteWeightsKey] = rawWeights
+            prefs[tasteWeightsWatermarkKey] = watermark
         }
+        DataResult.Success(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Logger.withTag("AiPrefsRepo").w(e) { "Failed to persist taste_weights" }
+        DataResult.Error(AppError.Unexpected(e))
     }
 
     // ── Composite helpers ────────────────────────────────────────────────────

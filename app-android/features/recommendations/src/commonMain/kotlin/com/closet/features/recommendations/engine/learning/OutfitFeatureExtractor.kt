@@ -97,6 +97,20 @@ internal object OutfitFeatureExtractor {
     }
 
     /**
+     * Computes the baseline log-utility offset $\delta_{\text{base}} = \ln(\text{defaultScore}) - \beta_0^\top x$
+     * between the deployed arithmetic blend $W \cdot H + (1 - W) \cdot R$ and the geometric blend
+     * $H^W \cdot R^{1 - W}$ at [TasteWeights.DEFAULT] ($\beta_0 = \mathbf{1}$).
+     *
+     * Adding this offset to $\beta^\top x$ in [ConditionalLogitOptimizer] ensures that
+     * $\text{offset} + \beta^\top x \equiv \ln(\text{defaultScore}) + (\beta - \beta_0)^\top x$,
+     * matching [OutfitRecommendationEngine.scoreCombo] for all $\beta$ (including [TasteWeights.DEFAULT]).
+     */
+    fun baselineOffset(features: DoubleArray, defaultScore: Double): Double {
+        if (defaultScore <= 0.0 || !defaultScore.isFinite()) return 0.0
+        return ln(defaultScore) - TasteWeights.DEFAULT.dot(features)
+    }
+
+    /**
      * Decomposes color harmony across non-Neutral item pairs into [ColorHarmonyFactors.hueMultiplier]
      * and [ColorHarmonyFactors.familyMultiplier] such that their product equals the legacy
      * `colorHarmonyMultiplier` identically.

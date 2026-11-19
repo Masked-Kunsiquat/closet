@@ -17,11 +17,19 @@ import kotlin.math.sqrt
 internal class ChoiceStratum(
     val chosenFeatures: DoubleArray,
     val controlFeatures: List<DoubleArray>,
+    val logId: Long = 0L,
+    val chosenBaselineOffset: Double = 0.0,
+    val controlBaselineOffsets: DoubleArray = DoubleArray(controlFeatures.size),
 ) {
     /** All candidates in stratum $d$, with index 0 always being the worn case ($y = 1$). */
     val allCandidates: List<DoubleArray> = buildList(1 + controlFeatures.size) {
         add(chosenFeatures)
         addAll(controlFeatures)
+    }
+
+    /** Baseline log-utility offsets $\delta_{\text{base}, k}$ aligned with [allCandidates]. */
+    val allBaselineOffsets: DoubleArray = DoubleArray(1 + controlFeatures.size) { k ->
+        if (k == 0) chosenBaselineOffset else controlBaselineOffsets.getOrElse(k - 1) { 0.0 }
     }
 }
 
@@ -30,7 +38,7 @@ internal class ChoiceStratum(
  * Conditional Logit model (McFadden 1974; Reid & Tibshirani 2014 `clogitL1` §2.1–2.6).
  *
  * Maximizes the regularized conditional log-likelihood centered on the prior $\beta_0$:
- * $$\ell(\tilde{\beta}) = \sum_d \left( \tilde{\beta}^\top \tilde{x}_{\text{worn}, d} - \ln \sum_{k \in C_d} \exp(\tilde{\beta}^\top \tilde{x}_{d, k}) \right) - \frac{\lambda}{2} \|\tilde{\beta} - \tilde{\beta}_0\|_2^2$$
+ * $$\ell(\tilde{\beta}) = \sum_d \left( u_{\text{worn}, d}(\tilde{\beta}) - \ln \sum_{k \in C_d} \exp(u_{d, k}(\tilde{\beta})) \right) - \frac{\lambda}{2} \|\tilde{\beta} - \tilde{\beta}_0\|_2^2$$
  */
 internal object ConditionalLogitOptimizer {
 
@@ -96,6 +104,9 @@ internal object ConditionalLogitOptimizer {
                 DoubleArray(p) { j -> if (active[j]) raw[j] / sigma[j] else 0.0 }
             }
         }
+        val baselineOffsets = Array(validStrata.size) { d ->
+            validStrata[d].allBaselineOffsets
+        }
 
         // Standardized prior center: \tilde{\beta}_{0, j} = \beta_{0, j} * sigma_j
         val tildeBeta0 = DoubleArray(p) { j -> if (active[j]) beta0[j] * sigma[j] else beta0[j] }
@@ -113,6 +124,7 @@ internal object ConditionalLogitOptimizer {
         for (iter in 0 until MAX_ITERATIONS) {
             val currentObj = evaluateObjectiveGradHessian(
                 stdStrata = stdStrata,
+                baselineOffsets = baselineOffsets,
                 tildeBeta = tildeBeta,
                 tildeBeta0 = tildeBeta0,
                 active = active,
@@ -143,6 +155,7 @@ internal object ConditionalLogitOptimizer {
                 }
                 val trialObj = evaluateObjectiveOnly(
                     stdStrata = stdStrata,
+                    baselineOffsets = baselineOffsets,
                     tildeBeta = trial,
                     tildeBeta0 = tildeBeta0,
                     active = active,
@@ -179,12 +192,14 @@ internal object ConditionalLogitOptimizer {
 
     /**
      * Computes the unpenalized conditional log-likelihood of [weights] on a single [stratum]:
-     * $$\ell_d(\beta) = \beta^\top x_{\text{worn}, d} - \ln \sum_{k \in C_d} \exp(\beta^\top x_{d, k})$$
+     * $$\ell_d(\beta) = u_{\text{worn}, d}(\beta) - \ln \sum_{k \in C_d} \exp(u_{d, k}(\beta))$$
+     * where $u_{d, k}(\beta) = \delta_{\text{base}, d, k} + \beta^\top x_{d, k} = \ln(\text{defaultScore}_{d, k}) + (\beta - \beta_0)^\top x_{d, k}$.
      */
     fun stratumLogLikelihood(stratum: ChoiceStratum, weights: TasteWeights): Double {
         val candidates = stratum.allCandidates
         if (candidates.size <= 1) return 0.0
-        val utilities = DoubleArray(candidates.size) { k -> weights.dot(candidates[k]) }
+        val offsets = stratum.allBaselineOffsets
+        val utilities = DoubleArray(candidates.size) { k -> offsets[k] + weights.dot(candidates[k]) }
         val lse = logSumExp(utilities)
         return utilities[0] - lse
     }
@@ -225,6 +240,7 @@ internal object ConditionalLogitOptimizer {
 
     private fun evaluateObjectiveOnly(
         stdStrata: Array<Array<DoubleArray>>,
+        baselineOffsets: Array<DoubleArray>,
         tildeBeta: DoubleArray,
         tildeBeta0: DoubleArray,
         active: BooleanArray,
@@ -232,10 +248,12 @@ internal object ConditionalLogitOptimizer {
     ): Double {
         val p = tildeBeta.size
         var logLik = 0.0
-        for (candidates in stdStrata) {
+        for (d in stdStrata.indices) {
+            val candidates = stdStrata[d]
+            val offsets = baselineOffsets[d]
             val m = candidates.size
             val utilities = DoubleArray(m) { k ->
-                var u = 0.0
+                var u = offsets[k]
                 val x = candidates[k]
                 for (j in 0 until p) u += tildeBeta[j] * x[j]
                 u
@@ -255,6 +273,7 @@ internal object ConditionalLogitOptimizer {
 
     private fun evaluateObjectiveGradHessian(
         stdStrata: Array<Array<DoubleArray>>,
+        baselineOffsets: Array<DoubleArray>,
         tildeBeta: DoubleArray,
         tildeBeta0: DoubleArray,
         active: BooleanArray,
@@ -269,10 +288,12 @@ internal object ConditionalLogitOptimizer {
         var logLik = 0.0
         val mu = DoubleArray(p)
 
-        for (candidates in stdStrata) {
+        for (d in stdStrata.indices) {
+            val candidates = stdStrata[d]
+            val offsets = baselineOffsets[d]
             val m = candidates.size
             val utilities = DoubleArray(m) { k ->
-                var u = 0.0
+                var u = offsets[k]
                 val x = candidates[k]
                 for (j in 0 until p) u += tildeBeta[j] * x[j]
                 u

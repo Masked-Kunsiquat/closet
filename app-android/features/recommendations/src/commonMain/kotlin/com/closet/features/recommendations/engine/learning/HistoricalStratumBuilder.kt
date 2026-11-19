@@ -123,20 +123,22 @@ internal object HistoricalStratumBuilder {
                 continue
             }
 
-            val dayCores: List<Pair<HistoricalWearLog, Set<Long>>> = dayLogs.mapNotNull { log ->
-                val wornItems = log.itemIds.distinct().mapNotNull { itemById[it] }
+            val dayCores: List<Triple<HistoricalWearLog, List<EngineItem>, Set<Long>>> = dayLogs.mapNotNull { log ->
+                val distinctIds = log.itemIds.distinct()
+                val wornItems = distinctIds.mapNotNull { itemById[it] }
+                if (wornItems.size != distinctIds.size) return@mapNotNull null
                 val core = extractValidCore(wornItems) ?: return@mapNotNull null
-                log to core
+                Triple(log, wornItems, core)
             }
 
             if (dayCores.isNotEmpty()) {
                 val historyStats = buildPriorStats(priorLogs, itemById)
-                val allDayCoreSets = dayCores.map { it.second }.toSet()
+                val allDayCoreSets = dayCores.map { it.third }.toSet()
 
-                for ((log, wornCore) in dayCores) {
+                for ((log, wornItems, wornCore) in dayCores) {
                     if (log.logId !in activeLogIds) continue
-                    val wornItems = log.itemIds.distinct().mapNotNull { itemById[it] }
                     val stratum = buildSingleStratum(
+                        logId = log.logId,
                         date = date,
                         wornItems = wornItems,
                         wornCore = wornCore,
@@ -165,6 +167,7 @@ internal object HistoricalStratumBuilder {
     // -------------------------------------------------------------------------
 
     private fun buildSingleStratum(
+        logId: Long,
         date: LocalDate,
         wornItems: List<EngineItem>,
         wornCore: Set<Long>,
@@ -260,7 +263,8 @@ internal object HistoricalStratumBuilder {
         val selectedCores = selectStratifiedControls(rankedCores, maxControls)
 
         // Extend each competing core to its single best default-scoring completion
-        val controlFeatures = selectedCores.map { (coreItems, _) ->
+        val controlBaselineOffsets = DoubleArray(selectedCores.size)
+        val controlFeatures = selectedCores.mapIndexed { idx, (coreItems, _) ->
             val bestCompletion = findBestCompletion(
                 coreItems = coreItems,
                 optionalSlots = optionalSlots,
@@ -272,7 +276,7 @@ internal object HistoricalStratumBuilder {
                 itemNeighbors = itemNeighbors,
                 engine = engine,
             )
-            OutfitFeatureExtractor.extract(
+            val features = OutfitFeatureExtractor.extract(
                 items = bestCompletion,
                 itemScores = itemScores,
                 weather = weather,
@@ -281,6 +285,18 @@ internal object HistoricalStratumBuilder {
                 itemNeighbors = itemNeighbors,
                 subcategoryCoWear = historyStats.subcategoryCoWear,
             )
+            val defaultScore = engine.scoreCombo(
+                items = bestCompletion,
+                itemScores = itemScores,
+                weather = weather,
+                hasFootwearInPool = hasFootwearInPool,
+                coWear = historyStats.coWear,
+                itemNeighbors = itemNeighbors,
+                subcategoryCoWear = historyStats.subcategoryCoWear,
+                tasteWeights = TasteWeights.DEFAULT,
+            )
+            controlBaselineOffsets[idx] = OutfitFeatureExtractor.baselineOffset(features, defaultScore)
+            features
         }
 
         val chosenFeatures = OutfitFeatureExtractor.extract(
@@ -292,10 +308,24 @@ internal object HistoricalStratumBuilder {
             itemNeighbors = itemNeighbors,
             subcategoryCoWear = historyStats.subcategoryCoWear,
         )
+        val chosenDefaultScore = engine.scoreCombo(
+            items = wornItems,
+            itemScores = itemScores,
+            weather = weather,
+            hasFootwearInPool = hasFootwearInPool,
+            coWear = historyStats.coWear,
+            itemNeighbors = itemNeighbors,
+            subcategoryCoWear = historyStats.subcategoryCoWear,
+            tasteWeights = TasteWeights.DEFAULT,
+        )
+        val chosenBaselineOffset = OutfitFeatureExtractor.baselineOffset(chosenFeatures, chosenDefaultScore)
 
         return ChoiceStratum(
             chosenFeatures = chosenFeatures,
             controlFeatures = controlFeatures,
+            logId = logId,
+            chosenBaselineOffset = chosenBaselineOffset,
+            controlBaselineOffsets = controlBaselineOffsets,
         )
     }
 
@@ -422,7 +452,7 @@ internal object HistoricalStratumBuilder {
         val lastWorn = HashMap<Long, String>()
 
         val tempLogsByItem = HashMap<Long, MutableList<Pair<Double, Double>>>()
-        val totalWeatherLogsByItem = HashMap<Long, Int>()
+        val totalLogsByItem = HashMap<Long, Int>()
         val rainHitsByItem = HashMap<Long, Int>()
         val windHitsByItem = HashMap<Long, Int>()
 
@@ -431,6 +461,7 @@ internal object HistoricalStratumBuilder {
             val distinctIds = log.itemIds.distinct().sorted()
             for (id in distinctIds) {
                 itemCounts[id] = (itemCounts[id] ?: 0.0) + 1.0
+                totalLogsByItem[id] = (totalLogsByItem[id] ?: 0) + 1
                 lastWorn[id] = dateStr
             }
             for (i in distinctIds.indices) {
@@ -452,11 +483,12 @@ internal object HistoricalStratumBuilder {
                 }
             }
 
-            // Weather suitability observations
+            // Weather suitability observations (rain/wind denominators count all prior snapshots
+            // matching RecommendationDao.getRainSuitability / getWindSuitability; temperature counts
+            // only logs where both low and high temperatures are present matching getTempLogs).
             val w = log.weather
             if (w != null) {
                 for (id in distinctIds) {
-                    totalWeatherLogsByItem[id] = (totalWeatherLogsByItem[id] ?: 0) + 1
                     if (w.isRaining) rainHitsByItem[id] = (rainHitsByItem[id] ?: 0) + 1
                     if (w.isWindy) windHitsByItem[id] = (windHitsByItem[id] ?: 0) + 1
                     if (w.tempLowC != null && w.tempHighC != null) {
@@ -476,12 +508,12 @@ internal object HistoricalStratumBuilder {
             ItemTempPercentiles(itemId, p10Low, p90High, count)
         }
 
-        val rainSuitability = totalWeatherLogsByItem.mapValues { (itemId, count) ->
+        val rainSuitability = totalLogsByItem.mapValues { (itemId, count) ->
             val hits = rainHitsByItem[itemId] ?: 0
             ItemRainSuitability(itemId, hits.toDouble() / count.toDouble(), count)
         }
 
-        val windSuitability = totalWeatherLogsByItem.mapValues { (itemId, count) ->
+        val windSuitability = totalLogsByItem.mapValues { (itemId, count) ->
             val hits = windHitsByItem[itemId] ?: 0
             ItemWindSuitability(itemId, hits.toDouble() / count.toDouble(), count)
         }

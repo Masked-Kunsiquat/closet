@@ -50,20 +50,25 @@ internal fun evaluateReplay(
     val allHistorical = fixture.logs.mapIndexed { idx, l ->
         HistoricalWearLog(logId = (idx + 1).toLong(), date = l.date, itemIds = l.itemIds)
     }
-    val allStrata = HistoricalStratumBuilder.buildStrata(
+    val stratumByLogId = HistoricalStratumBuilder.buildStrata(
         items = fixture.items,
         logs = allHistorical,
         engine = engine,
-    )
+    ).associateBy { it.logId }
+    val heldHistorical = allHistorical.takeLast(holdOut)
     val heldLogs = fixture.logs.takeLast(holdOut)
-    val heldStrata = allStrata.takeLast(holdOut)
 
     var hits = 0
+    var evaluatedCount = 0
     var totalHeldOutLL = 0.0
     var lastWeights = TasteWeights.DEFAULT
 
     for (i in heldLogs.indices) {
         val log = heldLogs[i]
+        val logId = heldHistorical[i].logId
+        val heldStratum = stratumByLogId[logId] ?: continue
+        evaluatedCount++
+
         val earlier = fixture.logs.filter { it.date < log.date }
         val weights = if (useLearnedWeights) {
             val earlierHistorical = earlier.mapIndexed { idx, l ->
@@ -85,13 +90,11 @@ internal fun evaluateReplay(
         )
         if (result.any { it.core() == log.coreIds }) hits++
 
-        if (i < heldStrata.size) {
-            totalHeldOutLL += ConditionalLogitOptimizer.stratumLogLikelihood(heldStrata[i], weights)
-        }
+        totalHeldOutLL += ConditionalLogitOptimizer.stratumLogLikelihood(heldStratum, weights)
     }
 
     return ReplayEvaluation(
-        hitRateAt10 = hits.toDouble() / holdOut,
+        hitRateAt10 = if (evaluatedCount == 0) 0.0 else hits.toDouble() / evaluatedCount,
         heldOutLogLik = totalHeldOutLL,
         finalLearnedWeights = lastWeights,
     )

@@ -120,4 +120,17 @@ class HistoricalStratumBuilderTest {
         // while top3 is not yet created.
         assertTrue(strata.all { it.controlFeatures.size == 3 })
     }
+
+    @Test
+    fun `partial snapshot with missing item id is excluded from forming a stratum`() {
+        // Log 1 references item 999L (archived / deleted, not in wardrobe) alongside a valid core {1, 3}
+        val logs = listOf(
+            HistoricalWearLog(1L, LocalDate(2026, 4, 1), listOf(1L, 3L, 999L)),
+            HistoricalWearLog(2L, LocalDate(2026, 4, 2), listOf(1L, 3L, 5L)),
+        )
+
+        val strata = HistoricalStratumBuilder.buildStrata(wardrobe, logs)
+        assertEquals(1, strata.size)
+        assertEquals(2L, strata.first().logId)
+    }
 }

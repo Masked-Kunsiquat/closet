@@ -493,8 +493,9 @@ class OutfitRecommendationEngine {
      * `H` = the geometric mean of the pairs' history lifts, `W` = the mean of their weights.
      *
      * When [tasteWeights] is not [com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT],
-     * evaluates the personalized log-linear conditional logit utility $\exp(\beta^\top x)$ over the
-     * 8 features extracted by [com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor].
+     * scales the baseline default score by the personalized log-linear conditional logit deviation
+     * $\exp((\beta - \beta_0)^\top x)$ over the 8 features extracted by
+     * [com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor].
      */
     internal fun scoreCombo(
         items: List<EngineItem>,
@@ -507,19 +508,6 @@ class OutfitRecommendationEngine {
         tasteWeights: com.closet.features.recommendations.engine.learning.TasteWeights =
             com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT,
     ): Double {
-        if (!tasteWeights.isDefault) {
-            val features = com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor.extract(
-                items = items,
-                itemScores = itemScores,
-                weather = weather,
-                hasFootwearInPool = hasFootwearInPool,
-                coWear = coWear,
-                itemNeighbors = itemNeighbors,
-                subcategoryCoWear = subcategoryCoWear,
-            )
-            return exp(tasteWeights.dot(features))
-        }
-
         // Mean of individual item scores
         val meanScore = items.map { itemScores[it.id] ?: 1.0 }.average()
 
@@ -579,7 +567,19 @@ class OutfitRecommendationEngine {
             multiplier *= MULTIPLIER_NO_FOOTWEAR
         }
 
-        return meanScore * multiplier
+        val defaultScore = meanScore * multiplier
+        if (tasteWeights.isDefault) return defaultScore
+
+        val features = com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor.extract(
+            items = items,
+            itemScores = itemScores,
+            weather = weather,
+            hasFootwearInPool = hasFootwearInPool,
+            coWear = coWear,
+            itemNeighbors = itemNeighbors,
+            subcategoryCoWear = subcategoryCoWear,
+        )
+        return defaultScore * exp(tasteWeights.deltaDot(features))
     }
 
     // -------------------------------------------------------------------------

@@ -641,7 +641,10 @@ class RecommendationViewModel(
             }
 
             val trained = trainTasteWeightsFromRepo()
-            aiPrefsRepo.setTasteWeights(trained.serialize(), currentWatermark)
+            val persistResult = aiPrefsRepo.setTasteWeights(trained.serialize(), currentWatermark)
+            if (persistResult is DataResult.Error) {
+                logger.w("RecommendationViewModel: failed to persist taste weights — using in-memory weights", persistResult.throwable)
+            }
             trained
         } catch (e: CancellationException) {
             throw e
