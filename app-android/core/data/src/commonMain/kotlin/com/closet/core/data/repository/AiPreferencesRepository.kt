@@ -9,7 +9,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.closet.core.data.ai.NanoAvailability
 import com.closet.core.data.model.AiProvider
 import com.closet.core.data.model.StyleVibe
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import co.touchlab.kermit.Logger
@@ -42,6 +44,8 @@ class AiPreferencesRepository(
     private val nanoAvailabilityKey = stringPreferencesKey("ai_nano_availability")
     private val nanoTokenLimitKey = intPreferencesKey("ai_nano_token_limit")
     private val styleVibeKey = stringPreferencesKey("ai_style_vibe")
+    private val tasteWeightsKey = stringPreferencesKey("taste_weights")
+    private val tasteWeightsWatermarkKey = stringPreferencesKey("taste_weights_watermark")
 
     // ── Master AI toggle ─────────────────────────────────────────────────────
 
@@ -222,6 +226,48 @@ class AiPreferencesRepository(
 
     suspend fun setStyleVibe(vibe: StyleVibe) {
         aiDataStore.edit { prefs -> prefs[styleVibeKey] = vibe.name }
+    }
+
+    // ── Learned taste weights (Engine v2, #114) ──────────────────────────────
+
+    /**
+     * Serialized learned taste weights string (`"w0,w1,...,w7"`), or `null` when not yet trained.
+     * Catches DataStore I/O errors and emits `null` so callers fall back to default weights.
+     */
+    fun getTasteWeightsRaw(): Flow<String?> = aiDataStore.data
+        .map { prefs -> prefs[tasteWeightsKey] }
+        .catch { e ->
+            if (e is CancellationException) throw e
+            Logger.withTag("AiPrefsRepo").w(e) { "Failed to read taste_weights; falling back to null" }
+            emit(null)
+        }
+
+    /**
+     * Watermark of the wear log history on which [getTasteWeightsRaw] was last trained
+     * (format: `"v1:$totalLogCount:$maxLogId"`), or `null` when not yet trained.
+     */
+    fun getTasteWeightsWatermark(): Flow<String?> = aiDataStore.data
+        .map { prefs -> prefs[tasteWeightsWatermarkKey] }
+        .catch { e ->
+            if (e is CancellationException) throw e
+            Logger.withTag("AiPrefsRepo").w(e) { "Failed to read taste_weights_watermark; falling back to null" }
+            emit(null)
+        }
+
+    /**
+     * Atomically persists the serialized [rawWeights] and [watermark] to DataStore.
+     */
+    suspend fun setTasteWeights(rawWeights: String, watermark: String) {
+        try {
+            aiDataStore.edit { prefs ->
+                prefs[tasteWeightsKey] = rawWeights
+                prefs[tasteWeightsWatermarkKey] = watermark
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.withTag("AiPrefsRepo").w(e) { "Failed to persist taste_weights" }
+        }
     }
 
     // ── Composite helpers ────────────────────────────────────────────────────

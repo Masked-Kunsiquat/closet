@@ -73,7 +73,6 @@ internal object HistoricalStratumBuilder {
         val itemById = items.associateBy { it.id }
 
         // Compute effective availability date per item: min(createdDate, firstWornDate).
-        // If an item has no createdDate and was never worn, it is available from LocalDate.MIN.
         val firstWornDate = HashMap<Long, LocalDate>()
         for (log in sortedLogs) {
             for (id in log.itemIds) {
@@ -100,7 +99,6 @@ internal object HistoricalStratumBuilder {
         val strata = ArrayList<ChoiceStratum>(sortedLogs.size)
 
         for ((date, dayLogs) in logsByDate) {
-            // Available items on date d
             val availableItems = items.filter { item ->
                 (effectiveStartDate[item.id] ?: LocalDate(1970, 1, 1)) <= date
             }
@@ -109,7 +107,6 @@ internal object HistoricalStratumBuilder {
                 continue
             }
 
-            // All cores worn on this calendar day (for same-day exclusion from controls)
             val dayCores: List<Pair<HistoricalWearLog, Set<Long>>> = dayLogs.mapNotNull { log ->
                 val wornItems = log.itemIds.distinct().mapNotNull { itemById[it] }
                 val core = extractValidCore(wornItems) ?: return@mapNotNull null
@@ -117,7 +114,6 @@ internal object HistoricalStratumBuilder {
             }
 
             if (dayCores.isNotEmpty()) {
-                // Build causal statistics strictly from priorLogs (all have log.date < date)
                 val historyStats = buildPriorStats(priorLogs, itemById)
                 val allDayCoreSets = dayCores.map { it.second }.toSet()
 
@@ -141,7 +137,6 @@ internal object HistoricalStratumBuilder {
                 }
             }
 
-            // Advance causal history window after processing all logs on `date`
             priorLogs.addAll(dayLogs)
         }
 
@@ -182,14 +177,19 @@ internal object HistoricalStratumBuilder {
             item.id to engine.itemScore(item, input)
         }
 
-        // Group available items by role, sorted by itemScore descending, deduplicated by color + subcategory
-        // (matching OutfitRecommendationEngine.assemble step 3)
+        // For core candidates (Top / Bottom / OnePiece), keep all available items so every worn
+        // core and its competitors are represented even if items share color + subcategory.
+        // For optional slots (Outerwear / Footwear / Accessory), deduplicate by color + subcategory
+        // to keep completion search fast and eliminate near-duplicate accessory permutations.
         val byRole: Map<String, List<EngineItem>> = availableItems
             .groupBy { it.outfitRole ?: "Other" }
-            .mapValues { (_, roleItems) ->
-                roleItems
-                    .sortedByDescending { itemScores[it.id] ?: 1.0 }
-                    .deduplicateByColorAndSubcategory()
+            .mapValues { (role, roleItems) ->
+                val sorted = roleItems.sortedByDescending { itemScores[it.id] ?: 1.0 }
+                if (role in OutfitRecommendationEngine.CORE_ROLES) {
+                    sorted
+                } else {
+                    sorted.deduplicateByColorAndSubcategory()
+                }
             }
 
         val hasFootwearInPool = availableItems.any { it.outfitRole == OutfitRecommendationEngine.ROLE_FOOTWEAR }
@@ -216,9 +216,11 @@ internal object HistoricalStratumBuilder {
 
         if (rawCompetingCores.isEmpty()) return null
 
-        // Score cores under default weights and pick top maxControls competing cores
+        // Score cores under default weights and pick a balanced set of competing controls:
+        // half from the top-scoring cores (hard negatives) and half sampled evenly across the
+        // remaining ranked cores (so controls span both worn and unworn/low-habit items).
         val weatherForCoreOnly = if (OutfitRecommendationEngine.ROLE_OUTERWEAR !in optionalSlots) weather else null
-        val scoredCores = rawCompetingCores
+        val rankedCores = rawCompetingCores
             .map { coreItems ->
                 val s = engine.scoreCombo(
                     items = coreItems,
@@ -236,10 +238,11 @@ internal object HistoricalStratumBuilder {
                 compareByDescending<Pair<List<EngineItem>, Double>> { it.second }
                     .thenBy { tieBreakKey(it.first, historyStats.lastWornDates) }
             )
-            .take(maxControls)
+
+        val selectedCores = selectStratifiedControls(rankedCores, maxControls)
 
         // Extend each competing core to its single best default-scoring completion
-        val controlFeatures = scoredCores.map { (coreItems, _) ->
+        val controlFeatures = selectedCores.map { (coreItems, _) ->
             val bestCompletion = findBestCompletion(
                 coreItems = coreItems,
                 optionalSlots = optionalSlots,
@@ -276,6 +279,27 @@ internal object HistoricalStratumBuilder {
             chosenFeatures = chosenFeatures,
             controlFeatures = controlFeatures,
         )
+    }
+
+    /**
+     * Selects up to [maxControls] competing cores from [rankedCores]: takes the top half as hard
+     * negatives and spaces the remaining half evenly across the rest of the distribution so the
+     * control set includes both high-scoring and baseline/unworn cores.
+     */
+    private fun <T> selectStratifiedControls(rankedCores: List<T>, maxControls: Int): List<T> {
+        if (rankedCores.size <= maxControls) return rankedCores
+        val topHalf = maxControls / 2
+        val restNeeded = maxControls - topHalf
+        val result = ArrayList<T>(maxControls)
+        for (i in 0 until topHalf) {
+            result.add(rankedCores[i])
+        }
+        val remaining = rankedCores.size - topHalf
+        for (k in 0 until restNeeded) {
+            val idx = topHalf + (k * remaining) / restNeeded
+            result.add(rankedCores[idx])
+        }
+        return result
     }
 
     /**

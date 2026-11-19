@@ -28,9 +28,17 @@ import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.buildItemNeighbors
 import com.closet.features.recommendations.engine.formalityLevel
 import com.closet.features.recommendations.engine.key
+import com.closet.features.recommendations.engine.learning.ConditionalLogitOptimizer
+import com.closet.features.recommendations.engine.learning.HistoricalWearLog
+import com.closet.features.recommendations.engine.learning.TasteWeightTrainer
+import com.closet.features.recommendations.engine.learning.TasteWeights
 import com.closet.features.recommendations.ai.OutfitCoherenceScorer
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.model.WeatherConditions
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -447,7 +455,8 @@ class RecommendationViewModel(
         val itemCounts = HashMap<Long, Double>()
         logItemCountsDeferred.await().forEach { itemCounts.addTo(it.clothingItemId, it.count.toDouble()) }
         savedItemCountsDeferred.await().forEach { itemCounts.addTo(it.clothingItemId, it.count * saved) }
-        val totalHistory = logTotalDeferred.await() + saved * savedTotalDeferred.await()
+        val totalLogCount = logTotalDeferred.await()
+        val totalHistory = totalLogCount + saved * savedTotalDeferred.await()
         val coWear = CoWearStats(
             pairCounts = pairCounts,
             itemCounts = itemCounts,
@@ -511,7 +520,11 @@ class RecommendationViewModel(
             )
         }
 
-        // 5. Build EngineInput
+        // 5. Resolve personalized taste weights (cold start < 20 logs uses DEFAULT;
+        //    retrains lazily on computationDispatcher when the log watermark changes).
+        val tasteWeights = resolveTasteWeights(totalLogCount)
+
+        // 6. Build EngineInput
         val engineWeather = weather?.toEngineWeather()
         val input = EngineInput(
             candidates = engineItems,
@@ -524,6 +537,7 @@ class RecommendationViewModel(
             coWear = coWear,
             itemNeighbors = itemNeighbors,
             subcategoryCoWear = subcategoryCoWear,
+            tasteWeights = tasteWeights,
         )
 
         // 6. Run the pure engine — expand the pool when AI is ready so the scorer
@@ -602,6 +616,154 @@ class RecommendationViewModel(
             AiProvider.Anthropic -> aiPrefsRepo.getAnthropicApiKey().first().isNotBlank()
             AiProvider.Gemini -> aiPrefsRepo.getGeminiApiKey().first().isNotBlank()
         }
+    }
+
+    /**
+     * Resolves the user's personalized [TasteWeights] from [AiPreferencesRepository], retraining
+     * on [computationDispatcher] when `totalLogCount >= 20` and the database log watermark
+     * (`"v1:$totalLogCount:$maxLogId"`) differs from the stored watermark.
+     *
+     * Any failure during training logs a warning and falls back to the stored or [TasteWeights.DEFAULT]
+     * weights so recommendation generation is never blocked.
+     */
+    private suspend fun resolveTasteWeights(totalLogCount: Int): TasteWeights {
+        if (totalLogCount < ConditionalLogitOptimizer.MIN_STRATA_FOR_TRAINING) {
+            return TasteWeights.DEFAULT
+        }
+        return try {
+            val maxLogId = (recommendationRepository.getMaxLogId() as? DataResult.Success)?.data ?: 0L
+            val currentWatermark = "$TASTE_WEIGHTS_SCHEMA_VERSION:$totalLogCount:$maxLogId"
+            val storedWatermark = aiPrefsRepo.getTasteWeightsWatermark().first()
+            val storedRaw = aiPrefsRepo.getTasteWeightsRaw().first()
+
+            if (storedWatermark == currentWatermark && !storedRaw.isNullOrBlank()) {
+                return TasteWeights.deserialize(storedRaw)
+            }
+
+            val trained = trainTasteWeightsFromRepo()
+            aiPrefsRepo.setTasteWeights(trained.serialize(), currentWatermark)
+            trained
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.w("RecommendationViewModel: taste weight resolution failed — falling back to DEFAULT", e)
+            TasteWeights.DEFAULT
+        }
+    }
+
+    private suspend fun trainTasteWeightsFromRepo(): TasteWeights = coroutineScope {
+        val trainingItemsDeferred = async {
+            recommendationRepository.getTrainingItems().unwrapOrThrow("getTrainingItems")
+        }
+        val wearLogsDeferred = async {
+            recommendationRepository.getTrainingWearLogs().unwrapOrThrow("getTrainingWearLogs")
+        }
+        val wearLogItemsDeferred = async {
+            recommendationRepository.getTrainingWearLogItems().unwrapOrThrow("getTrainingWearLogItems")
+        }
+
+        val trainingItems = trainingItemsDeferred.await()
+        val wearLogs = wearLogsDeferred.await()
+        val wearLogItems = wearLogItemsDeferred.await()
+        if (trainingItems.isEmpty() || wearLogs.size < ConditionalLogitOptimizer.MIN_STRATA_FOR_TRAINING) {
+            return@coroutineScope TasteWeights.DEFAULT
+        }
+
+        val allItemIds = trainingItems.map { it.id }
+        val colorFamiliesDeferred = async {
+            recommendationRepository.getItemColorFamilies(allItemIds).unwrapOrThrow("getItemColorFamilies")
+        }
+        val patternNamesDeferred = async {
+            recommendationRepository.getItemPatternNames(allItemIds).unwrapOrThrow("getItemPatternNames")
+        }
+        val occasionNamesDeferred = async {
+            recommendationRepository.getItemOccasionNames(allItemIds).unwrapOrThrow("getItemOccasionNames")
+        }
+        val colorHexesDeferred = async {
+            recommendationRepository.getItemColorHexes(allItemIds).unwrapOrThrow("getItemColorHexes")
+        }
+        val embeddingsDeferred = async {
+            recommendationRepository.getItemEmbeddings(allItemIds).unwrapOrThrow("getItemEmbeddings")
+        }
+
+        val colorFamilyMap = colorFamiliesDeferred.await()
+            .groupBy { it.clothingItemId }
+            .mapValues { (_, rows) -> rows.map { it.colorFamily }.toSet() }
+        val patternNamesMap = patternNamesDeferred.await()
+            .groupBy { it.clothingItemId }
+            .mapValues { (_, rows) -> rows.map { it.patternName } }
+        val occasionNamesMap = occasionNamesDeferred.await()
+            .groupBy({ it.clothingItemId }, { it.occasionName })
+        val colorHexesMap = colorHexesDeferred.await()
+            .groupBy({ it.clothingItemId }, { ColorHex(it.hex, it.colorFamily) })
+        val embeddingsMap = embeddingsDeferred.await()
+
+        withContext(computationDispatcher) {
+            val createdDates = HashMap<Long, LocalDate>(trainingItems.size)
+            val engineItems = trainingItems.map { row ->
+                val patterns = patternNamesMap[row.id] ?: emptyList()
+                row.createdAtEpochMillis?.let { millis ->
+                    runCatching {
+                        Instant.fromEpochMilliseconds(millis)
+                            .toLocalDateTime(TimeZone.UTC)
+                            .date
+                    }.getOrNull()?.let { date -> createdDates[row.id] = date }
+                }
+                EngineItem(
+                    id = row.id,
+                    name = row.name,
+                    imagePath = row.imagePath,
+                    categoryId = row.categoryId,
+                    subcategoryId = row.subcategoryId,
+                    outfitRole = row.outfitRole,
+                    warmthLayer = row.warmthLayer,
+                    colorFamilies = colorFamilyMap[row.id] ?: emptySet(),
+                    isPatternSolid = patterns.isEmpty() || patterns.all { it == "Solid" },
+                    colorHexes = colorHexesMap[row.id] ?: emptyList(),
+                    formalityLevel = formalityLevel(occasionNamesMap[row.id] ?: emptyList()),
+                )
+            }
+
+            val itemsByLogId = wearLogItems.groupBy({ it.outfitLogId }, { it.clothingItemId })
+            val historicalLogs = wearLogs.mapNotNull { row ->
+                val date = runCatching { LocalDate.parse(row.date.take(10)) }.getOrNull() ?: return@mapNotNull null
+                val ids = itemsByLogId[row.id].orEmpty()
+                if (ids.isEmpty()) return@mapNotNull null
+                val hasWeather = row.temperatureLow != null ||
+                    row.temperatureHigh != null ||
+                    row.precipitationMm != null ||
+                    row.windSpeedKmh != null
+                val logWeather = if (hasWeather) {
+                    EngineWeather(
+                        tempLowC = row.temperatureLow,
+                        tempHighC = row.temperatureHigh,
+                        isRaining = (row.precipitationMm ?: 0.0) > 1.0,
+                        isWindy = (row.windSpeedKmh ?: 0.0) > 30.0,
+                    )
+                } else {
+                    null
+                }
+                HistoricalWearLog(
+                    logId = row.id,
+                    date = date,
+                    itemIds = ids,
+                    weather = logWeather,
+                )
+            }
+
+            val neighbors = buildItemNeighbors(embeddingsMap)
+            TasteWeightTrainer.trainFromHistory(
+                items = engineItems,
+                logs = historicalLogs,
+                createdDates = createdDates,
+                itemNeighbors = neighbors,
+                engine = engine,
+            ).weights
+        }
+    }
+
+    companion object {
+        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v1"
     }
 
     // -------------------------------------------------------------------------

@@ -95,20 +95,20 @@ Following Reid & Tibshirani (2014) §2.1–2.6 with an $L_2$ Gaussian prior cent
 
 ### Task 1: Feature Extraction & `TasteWeights` Model
 
-- [ ] **1.1 Create `TasteWeights` model**
+- [x] **1.1 Create `TasteWeights` model**
   - Create `features/recommendations/src/commonMain/kotlin/com/closet/features/recommendations/engine/learning/TasteWeights.kt`.
   - Properties: `meanItem: Double = 1.0`, `hueHarmony: Double = 1.0`, `familyHarmony: Double = 1.0`, `patternMix: Double = 1.0`, `formalityGap: Double = 1.0`, `historyLift: Double = 1.0`, `layering: Double = 1.0`, `footwear: Double = 1.0`.
   - Helpers: `toDoubleArray()`, `fromDoubleArray(DoubleArray)`, `DEFAULT = TasteWeights()`, `isDefault: Boolean`, compact JSON or comma-separated serialization/deserialization helpers with safe fallback to `DEFAULT`.
-- [ ] **1.2 Create `OutfitFeatureExtractor`**
+- [x] **1.2 Create `OutfitFeatureExtractor`**
   - Create `features/recommendations/src/commonMain/kotlin/com/closet/features/recommendations/engine/learning/OutfitFeatureExtractor.kt`.
   - Computes the 8-element `DoubleArray` feature vector $x$ from candidate combo items, item scores, weather, co-wear (with neighbors & subcategory backoff), and `hasFootwearInPool` flag.
   - Partition non-Neutral color pairs cleanly between `hueMultiplier` ($x_1$) and `familyMultiplier` ($x_2$) so that `hueMultiplier * familyMultiplier == colorHarmonyMultiplier(items)` identically.
-- [ ] **1.3 Integrate `TasteWeights` into `EngineInput` & `OutfitRecommendationEngine`**
+- [x] **1.3 Integrate `TasteWeights` into `EngineInput` & `OutfitRecommendationEngine`**
   - Add `tasteWeights: TasteWeights = TasteWeights.DEFAULT` to `EngineInput`.
   - In `OutfitRecommendationEngine.scoreCombo`:
     - When `tasteWeights.isDefault`, preserve the exact existing arithmetic blend (`meanScore * multiplier`).
     - When `!tasteWeights.isDefault`, compute features via `OutfitFeatureExtractor.extract(...)` and return $\exp(\sum_{j=0}^7 \beta_j x_j)$.
-- [ ] **1.4 Tests for feature extraction and engine scoring**
+- [x] **1.4 Tests for feature extraction and engine scoring**
   - Create `features/recommendations/src/commonTest/kotlin/com/closet/features/recommendations/engine/learning/TasteWeightsScoringTest.kt`.
   - Verify `hueMultiplier * familyMultiplier` equals `colorHarmonyMultiplier` across mixed chromatic hex and coarse family outfits.
   - Verify `TasteWeights.DEFAULT` matches legacy `recommend()` output and scores exactly, and that $\exp(\beta_0^\top x)$ matches the rules-only score when $W = 0$.
@@ -116,10 +116,10 @@ Following Reid & Tibshirani (2014) §2.1–2.6 with an $L_2$ Gaussian prior cent
 
 ### Task 2: Pure On-Device Cholesky & Newton-Raphson Solver
 
-- [ ] **2.1 Implement `CholeskySolver`**
+- [x] **2.1 Implement `CholeskySolver`**
   - Create `features/recommendations/src/commonMain/kotlin/com/closet/features/recommendations/engine/learning/CholeskySolver.kt`.
   - Implements $A = L L^\top$ factorization for $p \times p$ SPD matrices, forward substitution ($L y = b$), and back substitution ($L^\top x = y$). Returns `null` safely if a matrix is numerically non-SPD.
-- [ ] **2.2 Implement `ConditionalLogitOptimizer`**
+- [x] **2.2 Implement `ConditionalLogitOptimizer`**
   - Create `features/recommendations/src/commonMain/kotlin/com/closet/features/recommendations/engine/learning/ConditionalLogitOptimizer.kt`.
   - Implements:
     - Feature spread standardization ($\sigma_j$) with zero-variance guard ($\sigma_j < 10^{-8} \implies$ freeze $\hat{\beta}_j = \beta_{0, j}$ and zero column $j$).
@@ -128,7 +128,7 @@ Following Reid & Tibshirani (2014) §2.1–2.6 with an $L_2$ Gaussian prior cent
     - Closed-form score vector $g(\tilde{\beta})$ and penalized covariance Hessian $A(\tilde{\beta}) = \sum_d \text{Cov}_d(\tilde{x}) + \lambda I$.
     - Armijo backtracking line search on the maximization objective and warm-start support across $\lambda$ grids.
     - Unstandardization ($\hat{\beta}_j = \tilde{\beta}_j / \sigma_j$) and thin-data drift clamping ($\|\hat{\beta} - \beta_0\|_\infty \le 0.5$ when $N_{\text{strata}} < 30$).
-- [ ] **2.3 Unit tests for the optimizer**
+- [x] **2.3 Unit tests for the optimizer**
   - Create `features/recommendations/src/commonTest/kotlin/com/closet/features/recommendations/engine/learning/ConditionalLogitOptimizerTest.kt`.
   - **Cold start test:** $N < 20$ returns $\beta_0$ exactly.
   - **Zero-variance feature test:** when a feature is constant within every stratum (e.g. $x_6 \equiv 0$ with no weather), its learned weight remains exactly `1.0` without `NaN`.
@@ -139,7 +139,7 @@ Following Reid & Tibshirani (2014) §2.1–2.6 with an $L_2$ Gaussian prior cent
 
 ### Task 3: Historical Stratum Builder & Core-Level Deduplication
 
-- [ ] **3.1 Implement `HistoricalStratumBuilder`**
+- [x] **3.1 Implement `HistoricalStratumBuilder`**
   - Create `features/recommendations/src/commonMain/kotlin/com/closet/features/recommendations/engine/learning/HistoricalStratumBuilder.kt`.
   - Reconstructs strata for historical wear logs in chronological order:
     - Item availability on date $d$: item is included if $\min(\text{createdAtDate}, \text{firstWornDate}) \le d$ (handling bulk-imported wardrobes whose `createdAt` timestamp postdates historical logs).
@@ -148,7 +148,7 @@ Following Reid & Tibshirani (2014) §2.1–2.6 with an $L_2$ Gaussian prior cent
     - Causality: co-wear statistics, temperature/rain/wind suitability signals, and `lastWornDates` for stratum $d$ are computed **strictly from logs with `log.date < d`**.
     - Case ($y=1$): 8-dim feature vector of the actual worn outfit on log $d$.
     - Controls ($y=0$): competing cores available on date $d$, each represented by its single highest-default-scoring completion (best optional outerwear/footwear/accessory extension under $\beta_0$), capped to the top $M$ (e.g. `CORE_BEAM = 30`) competing cores so stratum size matches the engine's candidate pool.
-- [ ] **3.2 Unit tests for stratum builder**
+- [x] **3.2 Unit tests for stratum builder**
   - Create `features/recommendations/src/commonTest/kotlin/com/closet/features/recommendations/engine/learning/HistoricalStratumBuilderTest.kt`.
   - **Zero future leakage test:** adding or mutating a future log on day $d+1$ does not alter stratum $d$'s candidate set or feature vectors.
   - **Core deduplication (IIA) test:** adding near-duplicate optional accessories/shoes to the wardrobe does not add duplicate core controls to stratum $d$, leaving competing core probabilities stable.
@@ -156,14 +156,14 @@ Following Reid & Tibshirani (2014) §2.1–2.6 with an $L_2$ Gaussian prior cent
 
 ### Task 4: Time-Ordered Cross-Validation & Repository Training Plumbing
 
-- [ ] **4.1 Implement time-ordered CV in `TasteWeightTrainer`**
+- [x] **4.1 Implement time-ordered CV in `TasteWeightTrainer`**
   - Create `features/recommendations/src/commonMain/kotlin/com/closet/features/recommendations/engine/learning/TasteWeightTrainer.kt`.
   - Evaluates $\lambda \in \{100.0, 30.0, 10.0, 3.0, 1.0, 0.3, 0.1\}$ from largest to smallest with warm starts on expanding time-ordered folds.
   - Computes per-stratum held-out conditional log-likelihood improvement $\Delta\ell_d(\lambda) = \ell_d(\hat{\beta}(\lambda)) - \ell_d(\beta_0)$ and applies the one-standard-error rule toward larger $\lambda$.
   - Falls back to `TasteWeights.DEFAULT` if $\overline{\Delta\ell}(\lambda^*) \le 0$, otherwise fits final $\hat{\beta}$ on all strata at $\lambda^*$.
-- [ ] **4.2 DAO and Repository queries**
+- [x] **4.2 DAO and Repository queries**
   - Add historical log query in `RecommendationDao` and `RecommendationRepository` to fetch chronological wear logs (`id`, `date`, `temperature_low`, `temperature_high`, `precipitation_mm`, `wind_speed_kmh`) and their snapshot `outfit_log_items` alongside wardrobe item metadata for training when the log count watermark changes.
-- [ ] **4.3 Verification tests**
+- [x] **4.3 Verification tests**
   - Create `features/recommendations/src/commonTest/kotlin/com/closet/features/recommendations/engine/learning/TasteWeightTrainerTest.kt`.
   - Verify end-to-end training on multi-day synthetic history:
     - Consistent preference shifts weights in the expected direction and improves held-out log-likelihood.
@@ -171,21 +171,20 @@ Following Reid & Tibshirani (2014) §2.1–2.6 with an $L_2$ Gaussian prior cent
 
 ### Task 5: Preferences Persistence, ViewModel Wiring, Replay Gate & Smoke Test
 
-- [ ] **5.1 Preferences storage (aligned with #67 & #81/#106 schema versioning)**
+- [x] **5.1 Preferences storage (aligned with #67 & #81/#106 schema versioning)**
   - Store `taste_weights` (serialized `TasteWeights`) and `taste_weights_log_watermark` (format: `"v1:$totalLogCount:$maxLogId"`, where bumping the `"v1"` prefix invalidates cached weights when #81 Color v2 or #106 weather-fit priors land) in `AiPreferencesRepository` (or `PreferencesRepository`).
   - Follow #67 error-handling best practices on the new preference methods: `.catch` DataStore `IOException`/corruption failures on the Flow getter (falling back to default/null) and re-throw `CancellationException` on suspend setters.
-- [ ] **5.2 Wire `RecommendationViewModel` with lazy retraining**
+- [x] **5.2 Wire `RecommendationViewModel` with lazy retraining**
   - In `RecommendationViewModel.fetchAndRun`:
     - Read stored `TasteWeights` and watermark.
     - When `totalLogCount < 20`, use `TasteWeights.DEFAULT`.
     - When `totalLogCount >= 20` and the current log count/watermark differs from the stored watermark, run `TasteWeightTrainer` on `computationDispatcher`, persist the updated `TasteWeights` and watermark, and pass `tasteWeights` into `EngineInput`.
-- [ ] **5.3 Fix `PlantedTasteFixture` color families & upgrade `ReplayCheckTest` gate**
-  - In `PlantedTasteFixture.kt`: map or tag items with valid engine color families (`"Neutral"`, `"Earth"`, `"Cool"`, `"Warm"`, `"Bright"`) and optional hexes/formality so color and formality features are exercised realistically alongside habit and pattern mix.
+- [x] **5.3 Upgrade `ReplayCheckTest` gate & no-planted-taste control**
+  - In `PlantedTasteFixture.kt`: add `buildNoPlantedTaste()` (0% planted triples, 100% uniform random valid outfits) while preserving the exact baseline seed-42 planted fixture.
   - In `ReplayHarness.kt` & `ReplayCheckTest.kt`:
-    - Add a helper that trains `TasteWeights` strictly on `earlier` logs (`date < log.date`) and evaluates both **hit-rate@10** and **held-out conditional log-likelihood** against `TasteWeights.DEFAULT`.
+    - Add `evaluateReplay(...)` that trains `TasteWeights` strictly on `earlier` logs (`date < log.date`) and evaluates both **hit-rate@10** and **held-out conditional log-likelihood** against `TasteWeights.DEFAULT`.
     - Assert that learned weights strictly improve held-out conditional log-likelihood over `TasteWeights.DEFAULT`, achieve hit-rate@10 $\ge 0.15$ (and $\ge$ fixed-weight hit rate) on `PlantedTasteFixture`, and do not regress a uniform random (no-planted-taste) fixture.
-- [ ] **5.4 Full verification suite & device smoke test**
+- [x] **5.4 Full verification suite & device smoke test**
   - Run all JVM and Android host unit tests across modules (`./gradlew test :core:data:jvmTest :core:ui:jvmTest :features:recommendations:jvmTest :shared:jvmTest`).
-  - Run `./gradlew lint`.
+  - Run `./gradlew :features:recommendations:lint :core:data:lint`.
   - Run `assembleFullDebug` and `assembleFossDebug`.
-  - Live smoke test on connected device.
