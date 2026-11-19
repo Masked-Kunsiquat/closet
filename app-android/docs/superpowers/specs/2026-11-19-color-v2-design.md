@@ -299,6 +299,17 @@ Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color ter
         So "peak chroma in the mid-tones" doesn't hold for yellow or blue. Its HSL claim *is* right: `#FFFF00` is L 0.968 and `#0000FF` is L 0.452.
       - **"L > 0.65 needs dark text, below needs light text."** For greys, WCAG contrast crosses over near L ≈ 0.56. At L 0.60, white text is only 3.9:1, which fails AA's 4.5:1, while black text is 5.3:1. Use WCAG contrast on relative luminance, not an Oklab L cut-off.
 
+18. **Denim** (owner-supplied PDFs: "Denim on Denim: The Right Way to Wear All-Jean Outfits", "Denim", and Vogue's "7 Street-Style Approved Ways to Wear … Denim-On-Denim").
+    - **Denim is a fabric first.** The articles cover "black-on-black denim", "white or cream denim" and "non-blue options such as charcoal, ivory, or muted pastels". "Denim" is already a seeded *material*.
+      - The new **Denim colour** therefore means the blue-wash range only ("denim blue": indigo through mid-wash).
+      - A black denim jacket is colour Black plus material Denim. Extraction names it Black on its own, because its pixels are black.
+      - No plan change is needed.
+    - **Wash contrast corroborates point 16's lightness-spread candidate.** "Light blue denim and dark indigo remain one of the most enduring combinations because they naturally create separation"; "a faded jacket worn with darker jeans".
+      - Matching washes are also endorsed, as "a cohesive column".
+      - So both low and high value spread can work, which is another reason for a learned weight with prior 0 and no fixed rule.
+    - **Neutrals:** "Mixing blue denim with white, gray, or washed black" fits Denim's `wears_as_neutral`.
+    - **Double denim is a *material* rule, not a colour rule.** "Two denim pieces—a top and a bottom—are the easiest starting point." For more than two, "keep shoes, bags, and jewelry simple and non-denim". This is a possible future engine feature (a same-material count, prior 0). It is **not** in color v2.
+
 15. **Seasonal colour analysis is out of scope.**
     - The Concept Wardrobe: a colour is harmonious "if it emphasises certain aspects of your own coloring". It is about the wearer's skin, hair and eyes, not garment-to-garment pairing.
     - The app has no photo of the wearer. A user-chosen "season" palette preference is a possible later feature and a non-goal here.
