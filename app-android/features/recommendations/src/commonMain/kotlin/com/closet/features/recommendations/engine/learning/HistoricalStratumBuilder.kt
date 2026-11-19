@@ -44,7 +44,12 @@ internal object HistoricalStratumBuilder {
     /** Maximum number of competing control cores kept per stratum (matches engine [OutfitRecommendationEngine.CORE_BEAM]). */
     internal const val MAX_CONTROLS_PER_STRATUM = OutfitRecommendationEngine.CORE_BEAM
 
-    private const val BEAM_PER_CORE_COMPLETION = 2
+    /** Maximum number of recent choice strata constructed for training (older logs still feed causal history). */
+    internal const val MAX_TRAINING_STRATA = 120
+
+    private const val MAX_CORE_ROLE_CANDIDATES = 20
+    private const val MAX_OPTIONAL_ROLE_CANDIDATES = 6
+    private const val BEAM_PER_CORE_COMPLETION = 1
 
     /**
      * Builds the chronological list of [ChoiceStratum] from [items] and [logs].
@@ -93,12 +98,23 @@ internal object HistoricalStratumBuilder {
             item.id to effective
         }
 
+        // Only construct strata for the most recent MAX_TRAINING_STRATA logs; earlier logs still
+        // accumulate into priorLogs so co-wear lift and recency reflect full causal history.
+        val stratumStartIndex = (sortedLogs.size - MAX_TRAINING_STRATA).coerceAtLeast(0)
+        val activeLogIds: Set<Long> = sortedLogs.subList(stratumStartIndex, sortedLogs.size)
+            .mapTo(HashSet()) { it.logId }
+
         // Group logs by date so we can identify same-day worn cores and advance prior history strictly by date < d
         val logsByDate = sortedLogs.groupBy { it.date }
         val priorLogs = ArrayList<HistoricalWearLog>(sortedLogs.size)
-        val strata = ArrayList<ChoiceStratum>(sortedLogs.size)
+        val strata = ArrayList<ChoiceStratum>(minOf(sortedLogs.size, MAX_TRAINING_STRATA))
 
         for ((date, dayLogs) in logsByDate) {
+            if (dayLogs.none { it.logId in activeLogIds }) {
+                priorLogs.addAll(dayLogs)
+                continue
+            }
+
             val availableItems = items.filter { item ->
                 (effectiveStartDate[item.id] ?: LocalDate(1970, 1, 1)) <= date
             }
@@ -118,6 +134,7 @@ internal object HistoricalStratumBuilder {
                 val allDayCoreSets = dayCores.map { it.second }.toSet()
 
                 for ((log, wornCore) in dayCores) {
+                    if (log.logId !in activeLogIds) continue
                     val wornItems = log.itemIds.distinct().mapNotNull { itemById[it] }
                     val stratum = buildSingleStratum(
                         date = date,
@@ -177,18 +194,19 @@ internal object HistoricalStratumBuilder {
             item.id to engine.itemScore(item, input)
         }
 
-        // For core candidates (Top / Bottom / OnePiece), keep all available items so every worn
-        // core and its competitors are represented even if items share color + subcategory.
+        // For core candidates (Top / Bottom / OnePiece), select up to MAX_CORE_ROLE_CANDIDATES
+        // stratified across itemScores so large wardrobes remain fast while preserving both
+        // high-scoring and baseline/unworn candidates.
         // For optional slots (Outerwear / Footwear / Accessory), deduplicate by color + subcategory
-        // to keep completion search fast and eliminate near-duplicate accessory permutations.
+        // and cap to MAX_OPTIONAL_ROLE_CANDIDATES to keep completion search fast.
         val byRole: Map<String, List<EngineItem>> = availableItems
             .groupBy { it.outfitRole ?: "Other" }
             .mapValues { (role, roleItems) ->
                 val sorted = roleItems.sortedByDescending { itemScores[it.id] ?: 1.0 }
                 if (role in OutfitRecommendationEngine.CORE_ROLES) {
-                    sorted
+                    selectStratifiedControls(sorted, MAX_CORE_ROLE_CANDIDATES)
                 } else {
-                    sorted.deduplicateByColorAndSubcategory()
+                    sorted.deduplicateByColorAndSubcategory().take(MAX_OPTIONAL_ROLE_CANDIDATES)
                 }
             }
 
