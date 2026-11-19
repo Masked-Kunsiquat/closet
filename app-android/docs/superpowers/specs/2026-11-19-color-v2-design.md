@@ -1,6 +1,13 @@
-# Color v2 — design (ROUGH DRAFT)
+# Color v2 — design
 
-**Status:** rough draft, 2026-11-19. It needs the owner's reading list to settle the open questions below, then approval. Tracking issue: #81.
+**Status:** approved for planning, 2026-11-19. Tracking issue: #81. The PR 1 plan is `docs/superpowers/plans/2026-11-19-color-v2-pr1-extraction-and-schema.md`.
+
+**Decisions made while planning PR 1** (they amend the sections below):
+- **Re-picking the base hexes moves to PR 2.** The engine reads `colors.hex` and `color_family`, so PR 1 leaves the 18 existing rows unchanged. Naming uses the new `color_shades` table instead.
+- **New seed names:** Charcoal, Cream, Denim and Teal. Khaki and camel become shades of Tan, and lavender a shade of Purple.
+- **Tan wears as neutral,** because it lies between the sourced neutrals beige and brown. This departs from point 12's "camel not neutral".
+- **Beige's `basic_term` is brown, and Teal's is blue.**
+- **A kept auto colour keeps its measured hex.** Any manual change to an item's colours marks its rows `user`, and `user` rows are never overwritten by re-extraction.
 
 ## Why
 Color is the weakest input to everything that uses it.
