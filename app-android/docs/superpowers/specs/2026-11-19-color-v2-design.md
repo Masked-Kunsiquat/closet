@@ -278,6 +278,20 @@ Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color ter
     - **Patterns in tonal dressing:** Vogue says "patterns are your friend in tonal dressing" (a striped green maxi skirt). So a two-tone striped item producing two same-hue clusters is fine and expected, which answers part of the heathers/patterns question.
     - **Preference over rules:** Vogue says to pick "a color that matches your season and—more importantly—that you like". That backs leaving the weights to #118.
 
+17. **The manual colour picker** (from a search-engine AI answer about UI palettes; claims checked by the controller):
+    - **Adopt the two-tier picker for manual edits.** Show a row of basic terms, and tapping one reveals that term's fashion shades (blue → Navy, Royal Blue, Sky Blue). This maps directly onto `basic_term` (point 6). It's a UI note for PR 1's edit form; whether to build it is the owner's call.
+    - **Reject evenly spaced hue steps and "avoid pure black/white".** Those advise building a pleasant *UI* palette. Our seeds must look like real garments (the `#A52A2A` "Brown" lesson), and black and white garments exist.
+    - **Two of its claims are wrong. Don't reuse them:**
+      - **"OKLCH guarantees the exact same visual weight at a given lightness."** Many lightness–chroma–hue cells are out of the sRGB gamut, and the peak chroma depends on the hue:
+
+        | L | Max chroma, yellow (h 110°) | Max chroma, blue (h 264°) |
+        |---|---|---|
+        | 0.3 | 0.065 | 0.173 |
+        | 0.9 | 0.196 | 0.048 |
+
+        So "peak chroma in the mid-tones" doesn't hold for yellow or blue. Its HSL claim *is* right: `#FFFF00` is L 0.968 and `#0000FF` is L 0.452.
+      - **"L > 0.65 needs dark text, below needs light text."** For greys, WCAG contrast crosses over near L ≈ 0.56. At L 0.60, white text is only 3.9:1, which fails AA's 4.5:1, while black text is 5.3:1. Use WCAG contrast on relative luminance, not an Oklab L cut-off.
+
 15. **Seasonal colour analysis is out of scope.**
     - The Concept Wardrobe: a colour is harmonious "if it emphasises certain aspects of your own coloring". It is about the wearer's skin, hair and eyes, not garment-to-garment pairing.
     - The app has no photo of the wearer. A user-chosen "season" palette preference is a possible later feature and a non-goal here.
