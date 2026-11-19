@@ -220,6 +220,44 @@ Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color ter
    - Harmony stays gated on the chroma floor. *Hue* notes that HSL hue "does not appear to all be of the same lightness", which is another reason to leave HSL.
    - **Alternative:** keep the bands on the raw OKLCh hue. That's simpler, but it contradicts stylist convention for red–green and yellow–purple.
 
+**Third round: fashion sources.**
+- **Read:** Karen Tarver, "How to combine colors"; Carlo Pham, "Color wheel for clothes"; Ivy & Pearl, "Matching clothing colors using the color wheel"; The Concept Wardrobe, "What is color analysis".
+- **Failed to load:** Vogue (fetch refused) and a Medium article (HTTP 403).
+- The controller had the key Tarver sentences re-fetched verbatim.
+
+10. **The painter's wheel is confirmed, so we adopt the RYB warp from point 9.**
+    - Ivy & Pearl: "The primary colors are red, yellow, and blue", with complements "red/green, yellow/purple, and blue/orange".
+    - Tarver: complements "yellow and violet; blue and orange; red and green".
+    - Pham's 12-segment primary/secondary/tertiary wheel is RYB-style.
+    - All three readable outfit guides agree.
+11. **Drop the 80–100° clash penalty.** No source names a clashing hue angle.
+    - Tarver: "Colors which are at an angle of 90 degrees from each other are a good match when combined in an outfit". Her page never says any combination should be avoided.
+    - Ivy & Pearl: "Complementary colors always match."
+    - Pham and Ivy list triadic, split-complementary and tetradic as workable, with "one color to dominate" for four-colour schemes.
+    - **New bands on the warped wheel:**
+
+      | Hue gap | Multiplier |
+      |---|---|
+      | ≤ 30° (analogous) | × 1.05 |
+      | 150–210° (complementary) | × 1.05 |
+      | everything else | × 1.0 |
+
+    - The #115 seeded-pair test is rewritten to match. The Bright+Bright family penalty is a separate question for PR 2.
+12. **The neutral set comes from the sources, not my earlier guess.**
+    - Tarver: "Black, brown, gray and white are neutral colors … Denim is considered a neutral color in most cases as well."
+    - Ivy & Pearl: "black, gray, white, off-white, brown, charcoal, and beige". Navy is listed there as a *cool colour* ("navy, blue, and shades of green").
+    - **So `wears_as_neutral`** = black, white/off-white/cream, grey/charcoal, beige, brown, denim.
+    - **Navy, olive and camel are *not* neutral.** This reverses the earlier draft and the current seed, where Navy's family is Neutral. Navy then takes part in hue harmony, so navy + orange gets the classic blue–orange complement.
+    - Brown becomes neutral; today it's Earth.
+13. **Intensity matching is a candidate, not a rule.**
+    - Ivy & Pearl: "match pastel colors with other pastels, jewel tones with jewel tones". Only one source says this.
+    - So PR 2 adds a **chroma-match feature** (the OKLCh chroma gap between the main colours) to #118's feature set with a **prior weight of 0**. It only matters if your logs show it.
+    - Adding it means bumping `TASTE_WEIGHTS_SCHEMA_VERSION`.
+14. **Dominance:** the multi-colour advice ("one or two colors as the dominant ones", Pham) supports the share weighting already in the design: main colours count fully, accents lightly.
+15. **Seasonal colour analysis is out of scope.**
+    - The Concept Wardrobe: a colour is harmonious "if it emphasises certain aspects of your own coloring". It is about the wearer's skin, hair and eyes, not garment-to-garment pairing.
+    - The app has no photo of the wearer. A user-chosen "season" palette preference is a possible later feature and a non-goal here.
+
 **Still open:**
 - **Heathers and patterns:** does a striped or heathered item produce two clusters, and is that desired? To be decided on demo-wardrobe examples; `MIN_SHARE` and `ΔE_merge` govern it.
 - **The seed list itself:** which of Denim, Camel/Khaki, Cream, Charcoal and Teal to add, and the `basic_term` of the ambiguous ones (Beige, Tan, Olive).
