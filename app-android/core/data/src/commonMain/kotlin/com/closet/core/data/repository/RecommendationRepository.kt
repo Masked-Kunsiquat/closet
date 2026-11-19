@@ -12,6 +12,9 @@ import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
 import com.closet.core.data.dao.RecommendationDao
+import com.closet.core.data.dao.TrainingItemRow
+import com.closet.core.data.dao.TrainingWearLogItemRow
+import com.closet.core.data.dao.TrainingWearLogRow
 import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.toFloatArrayLE
@@ -329,6 +332,20 @@ class RecommendationRepository(
 
     suspend fun getSubcategorySavedItemCounts(): DataResult<List<ItemCount>> =
         runCatching { recommendationDao.getSubcategorySavedItemCounts() }.toDataResult("getSubcategorySavedItemCounts")
+
+    // Learned taste weights training (engine v2, #114): watermark and historical log snapshots.
+
+    suspend fun getMaxLogId(): DataResult<Long?> =
+        runCatching { recommendationDao.getMaxLogId() }.toDataResult("getMaxLogId")
+
+    suspend fun getTrainingItems(): DataResult<List<TrainingItemRow>> =
+        runCatching { recommendationDao.getTrainingItems() }.toDataResult("getTrainingItems")
+
+    suspend fun getTrainingWearLogs(): DataResult<List<TrainingWearLogRow>> =
+        runCatching { recommendationDao.getTrainingWearLogs() }.toDataResult("getTrainingWearLogs")
+
+    suspend fun getTrainingWearLogItems(): DataResult<List<TrainingWearLogItemRow>> =
+        runCatching { recommendationDao.getTrainingWearLogItems() }.toDataResult("getTrainingWearLogItems")
 
     // ---------------------------------------------------------------------------
     // Helpers
