@@ -112,7 +112,7 @@ The measured color is thrown away.
 
 ## Done when
 - **Pipeline unit tests** (known pixels → names and shares):
-  - pastel yellow → Yellow; mustard → Yellow; tan → Tan/Camel; denim → Denim or Navy, per the seed decision; charcoal → Charcoal or Grey;
+  - pastel yellow (including `#FFFACD`, which is 0.029 from Beige) → Yellow; mustard → Yellow; tan → Tan/Camel; denim → Denim or Navy, per the seed decision; charcoal → Charcoal or Grey;
   - a two-color synthetic item at 70/30 gives shares within ±0.05;
   - an all-background crop returns nothing;
   - the same input gives the same output;
@@ -168,8 +168,58 @@ Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color ter
      - The basic term powers chat search ("blue"), the stats roll-up and coarse family logic.
      - Languages split blue into light and dark (Russian, Italian), which supports keeping Navy and Sky Blue as separate fashion names under one basic term.
 
+**Second round** (Wikipedia *Color balance*, *CIE 1931 color space*, *Color wheel*, *Color theory*, *Hue*, *Comparison of color models in computer graphics*, Wikibooks *Color Models: RGB, HSV, HSL*, and W3C *CSS Color Module Level 4*; the controller recomputed every number below):
+
+7. **Thresholds have a scale, and naming needs reference shades.**
+   - CSS Color 4 §14.2.1: "For the OkLCh color space, one JND is an OkLCh difference of 0.02." That value is a conversion (ΔE2000 JND ≈ 2, ÷ 100), used for gamut mapping, not an observer measurement. The "< 0.01 imperceptible / > 0.05 clearly distinct" figures from a search-engine AI summary are **not** in the spec, so we don't use them.
+   - **Controller-computed reference distances:**
+
+     | Pair | ΔE_OK |
+     |---|---|
+     | Adjacent 8-bit greys | 0.003 |
+     | Grey + 5 steps | 0.017 |
+     | Beige vs. Tan | 0.182 |
+     | Yellow vs. mustard `#E1AD01` | 0.214 |
+     | Navy vs. Royal Blue | 0.289 |
+     | Black vs. charcoal `#36454F` | 0.382 |
+
+     Fabric shading spans many JNDs, so `ΔE_merge` starts around 0.06–0.08 (3–4 JND), to be calibrated on the demo wardrobe.
+   - **Oklab alone does not fix #81's bug.** Pale yellow `#FFFACD` is **0.029 from Beige** but 0.154 from Yellow, so nearest-name naming in Oklab would still call it Beige. Reference shades (pale yellow as a Yellow shade) are what fix it, and the pale-yellow → Yellow test is the guard.
+   - Beige and pale yellow are only about 1.5 JND apart, so this is a naming-convention choice, not perception. The Beige reference shades must sit at lower chroma than Yellow's pale shades.
+8. **No white-balance correction in PR 1.**
+   - *Color balance*: balancing works best in camera RGB ("most camera RGB spaces performed better than either monitor RGB or XYZ"), and we only get processed sRGB.
+   - Phone JPEGs have already been through the camera's auto white balance, so correcting again risks a double correction. (This is inference: the page doesn't discuss pre-balanced images.)
+   - Gray-world isn't on the page. Its known failure is a scene dominated by one colour, which is exactly a photo of one garment (inference).
+   - **If measurement on warm-light test photos shows casts:** a later option is von Kries diagonal scaling in Oklab's own LMS stage, using the known background pixels from the mask as the neutral estimate. Not built now.
+9. **Harmony is a weak prior, on the painter's wheel.**
+   - *Color wheel*: "a painter's color wheel is indicative rather than predictive". *Color theory* (summary-level read) says harmony responses vary with culture and context. So harmony stays a weak prior whose weight #118 learns from your logs.
+   - But learning only scales the bands, it can't move them, so **which wheel the bands sit on matters.**
+   - **Controller-computed hue gaps** for the painter's (RYB) complements:
+
+     | Pair | HSL hue gap | OKLCh hue gap |
+     |---|---|---|
+     | Red + Forest Green | 120° | 114° |
+     | Yellow + Purple | 120° | 141° |
+     | Orange + Royal Blue | 174° | 164° |
+
+     Today's 150–210° "complementary" band misses red–green and yellow–purple on *both* wheels. Fashion advice ("red and green are complementary") follows the RYB wheel.
+   - **Proposal (owner to approve):** warp the OKLCh hue onto an RYB-like wheel with a piecewise-linear map through anchors taken from the seeded hues:
+
+     | Color | OKLCh hue | RYB wheel |
+     |---|---|---|
+     | red | 29° | 0° |
+     | orange | 71° | 60° |
+     | yellow | 110° | 120° |
+     | green | 143° | 180° |
+     | blue | 266° | 240° |
+     | purple | 328° | 300° |
+
+     The analogous, complementary and clash bands then apply on the warped wheel, so the painter's complements land at about 180°.
+   - Hue differences wrap around 360° (*Hue*: "the simple difference between the two hue angles", wrapped).
+   - No triadic or split-complementary bonus by default, because the rules are weak. #118 can learn if one matters.
+   - Harmony stays gated on the chroma floor. *Hue* notes that HSL hue "does not appear to all be of the same lightness", which is another reason to leave HSL.
+   - **Alternative:** keep the bands on the raw OKLCh hue. That's simpler, but it contradicts stylist convention for red–green and yellow–purple.
+
 **Still open:**
-- **White balance:** correct it or not, and how (gray-world, or using the background)? The read pages don't cover it; candidate reading is *Color constancy* and *Color balance*. The default until then is **no correction**; measure first on the demo wardrobe and a few test-device photos under warm light.
-- **Harmony bands:** OKLCh bands vs. the current HSL ones, and whether triadic or split-complementary deserve a bonus. The read pages don't cover harmony; candidate reading is *Color scheme* and *Color theory*. The default is **to keep today's bands** (#115) re-expressed in OKLCh hue, then re-check the seeded-pair test.
 - **Heathers and patterns:** does a striped or heathered item produce two clusters, and is that desired? To be decided on demo-wardrobe examples; `MIN_SHARE` and `ΔE_merge` govern it.
 - **The seed list itself:** which of Denim, Camel/Khaki, Cream, Charcoal and Teal to add, and the `basic_term` of the ambiguous ones (Beige, Tan, Olive).
