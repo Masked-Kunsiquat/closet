@@ -220,9 +220,10 @@ internal object WeatherFitPrior {
 
     /**
      * Computes the temperature suitability multiplier for an item using the combo shrinkage model:
-     * 1. Shrinks empirical temperature percentiles $[p_{10}, p_{90}]$ toward $[L_0, U_0]$ with
-     *    weight $w = \frac{n}{n + K}$ so small log counts don't collapse the comfort band.
-     * 2. Blends the prior multiplier ($m_{\text{prior}}$) and posterior-band multiplier
+     * 1. For sparse histories ($n < 5$), shrinks empirical temperature percentiles $[p_{10}, p_{90}]$
+     *    toward $[L_0, U_0]$ with weight $w = \frac{n}{n + K}$ so small log counts don't collapse
+     *    the comfort band; once $n \ge 5$, uses the raw empirical $[p_{10}, p_{90}]$ band directly.
+     * 2. Blends the prior multiplier ($m_{\text{prior}}$) and empirical/posterior-band multiplier
      *    ($m_{\text{post}}$) by $w = \frac{n}{n + K}$.
      *
      * When [prior] is `null`, falls back to the legacy `logCount >= 5` rule.
@@ -249,9 +250,13 @@ internal object WeatherFitPrior {
         if (n <= 0 || percentiles == null) return mPrior
 
         val w = n.toDouble() / (n.toDouble() + PRIOR_WEIGHT_K)
-        val effLow = w * percentiles.p10TempLow + (1.0 - w) * prior.tempLowC
-        val effHigh = w * percentiles.p90TempHigh + (1.0 - w) * prior.tempHighC
-        val postOutside = forecastHigh < effLow || forecastLow > effHigh
+        val postOutside = if (n >= OutfitRecommendationEngine.MIN_LOGS_FOR_SIGNAL) {
+            forecastHigh < percentiles.p10TempLow || forecastLow > percentiles.p90TempHigh
+        } else {
+            val effLow = w * percentiles.p10TempLow + (1.0 - w) * prior.tempLowC
+            val effHigh = w * percentiles.p90TempHigh + (1.0 - w) * prior.tempHighC
+            forecastHigh < effLow || forecastLow > effHigh
+        }
         val mPost = if (postOutside) penalty else 1.0
 
         return w * mPost + (1.0 - w) * mPrior

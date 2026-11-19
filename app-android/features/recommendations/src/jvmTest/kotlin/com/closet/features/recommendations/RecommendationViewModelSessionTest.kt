@@ -165,6 +165,12 @@ class RecommendationViewModelSessionTest {
         coEvery { repo.getSubcategorySavedOutfitPairs() } returns DataResult.Success(listOf(ItemPair(10, 20, 2)))
         coEvery { repo.getSubcategoryLogCounts() } returns DataResult.Success(listOf(ItemCount(10, 3)))
         coEvery { repo.getSubcategorySavedItemCounts() } returns DataResult.Success(listOf(ItemCount(10, 2)))
+        coEvery { repo.getItemSubcategoryNames(any()) } returns DataResult.Success(
+            mapOf(1L to "Sweater", 3L to "Jeans")
+        )
+        coEvery { repo.getItemMaterialNames(any()) } returns DataResult.Success(
+            mapOf(1L to setOf("Wool", "Cashmere"), 3L to setOf("Denim"))
+        )
 
         vm.onWeatherConfirmed(weather)
 
@@ -182,6 +188,12 @@ class RecommendationViewModelSessionTest {
         assertEquals(null, items.getValue(2).formalityLevel)
         assertEquals(listOf(ColorHex("#112233", "Cool")), items.getValue(3).colorHexes)
         assertEquals(emptyList(), items.getValue(1).colorHexes)
+        assertEquals("Sweater", items.getValue(1).subcategoryName)
+        assertEquals(null, items.getValue(2).subcategoryName)
+        assertEquals("Jeans", items.getValue(3).subcategoryName)
+        assertEquals(setOf("Wool", "Cashmere"), items.getValue(1).materials)
+        assertEquals(emptySet(), items.getValue(2).materials)
+        assertEquals(setOf("Denim"), items.getValue(3).materials)
         assertEquals(1, input.itemNeighbors[1L]?.size)
         assertEquals(2L, input.itemNeighbors[1L]?.first()?.itemId)
         assertEquals(
@@ -327,7 +339,7 @@ class RecommendationViewModelSessionTest {
                     every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
                     every { getOpenAiApiKey() } returns flowOf("test-key")
                     every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
-                    every { getTasteWeightsWatermark() } returns flowOf("v1:25:42")
+                    every { getTasteWeightsWatermark() } returns flowOf("v2:25:42")
                     every { getTasteWeightsRaw() } returns flowOf(customWeights.serialize())
                 },
                 computationDispatcher = UnconfinedTestDispatcher(),

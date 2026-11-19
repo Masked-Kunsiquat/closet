@@ -179,4 +179,35 @@ class WeatherFitPriorTest {
         )
         assertTrue(engine.itemScore(suedeSandals, rainyVeteranInput) > 0.85)
     }
+
+    @Test
+    fun `five logs inside empirical p10-p90 band are not penalized by shrunk bounds`() {
+        // Wool sweater has prior band [-11.0, 10.0]°C.
+        // With 5 logs in 18..26°C, w = 5 / 10 = 0.5.
+        // If shrunk bounds were used at n = 5, effHigh would be 0.5*26 + 0.5*10 = 18.0°C,
+        // so a 20..25°C forecast (inside the observed [18, 26]°C p10..p90 band!) would wrongly
+        // fall above effHigh and take the 0.55 penalty on the empirical term.
+        // Using the raw empirical [18, 26]°C band once n >= 5 gives mPost = 1.0 and
+        // blended multiplier = 0.5 * 1.0 + 0.5 * 0.55 = 0.775.
+        val woolSweater = item(
+            id = 1,
+            role = "Top",
+            subcategoryName = "Sweater",
+            materials = setOf("Wool"),
+        )
+        val input = engineInput(
+            candidates = listOf(woolSweater),
+            tempPercentiles = mapOf(
+                1L to ItemTempPercentiles(
+                    clothingItemId = 1,
+                    p10TempLow = 18.0,
+                    p90TempHigh = 26.0,
+                    logCount = 5,
+                )
+            ),
+            weather = weather(tempLow = 20.0, tempHigh = 25.0),
+        )
+
+        assertEquals(0.775, engine.itemScore(woolSweater, input), 1e-6)
+    }
 }

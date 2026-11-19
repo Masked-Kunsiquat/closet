@@ -786,7 +786,7 @@ class RecommendationViewModel(
     }
 
     companion object {
-        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v1"
+        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v2"
     }
 
     // -------------------------------------------------------------------------

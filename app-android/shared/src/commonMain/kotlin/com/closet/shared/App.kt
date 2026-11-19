@@ -194,6 +194,7 @@ private fun AppContent(
                 val route = runCatching { backStackEntry.toRoute<ClosetDestination>() }.getOrNull()
                 ClosetScreen(
                     initialCategoryId = route?.initialCategoryId,
+                    initialCategoryRequestIdentity = backStackEntry,
                     onAddItemClick = { navController.navigate(AddClothingDestination()) },
                     onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) },
                     onSettingsClick = { navController.navigateToSettings() },

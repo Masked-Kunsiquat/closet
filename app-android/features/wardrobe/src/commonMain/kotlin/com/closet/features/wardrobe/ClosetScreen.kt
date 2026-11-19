@@ -51,6 +51,11 @@ import com.closet.core.ui.components.ClothingItemCard
 import com.closet.core.ui.theme.ClosetTheme
 import org.koin.compose.viewmodel.koinViewModel
 
+private class IdentityKey(val target: Any?) {
+    override fun equals(other: Any?): Boolean = other is IdentityKey && this.target === other.target
+    override fun hashCode(): Int = target?.hashCode() ?: 0
+}
+
 /**
  * The main screen for browsing the wardrobe (Closet).
  * Displays a grid of clothing items with their wear counts and category metadata.
@@ -65,14 +70,13 @@ fun ClosetScreen(
     onAddItemClick: () -> Unit,
     modifier: Modifier = Modifier,
     initialCategoryId: Long? = null,
+    initialCategoryRequestIdentity: Any? = initialCategoryId,
     onItemClick: (Long) -> Unit = {},
     onSettingsClick: () -> Unit,
     viewModel: ClosetViewModel = koinViewModel()
 ) {
-    LaunchedEffect(initialCategoryId) {
-        if (initialCategoryId != null) {
-            viewModel.selectCategory(initialCategoryId)
-        }
+    LaunchedEffect(IdentityKey(initialCategoryRequestIdentity), initialCategoryId) {
+        viewModel.consumeInitialCategoryRequest(initialCategoryId, initialCategoryRequestIdentity)
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
