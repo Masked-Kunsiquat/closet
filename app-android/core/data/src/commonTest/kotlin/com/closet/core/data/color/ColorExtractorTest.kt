@@ -8,10 +8,10 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class ColorExtractorTest {
-    private val extractor = ColorExtractor(SeedShadesFixture.shades)
-    private val namer = ColorNamer(SeedShadesFixture.shades)
+    private val extractor = ColorExtractor(SeededShades.shades)
+    private val namer = ColorNamer(SeededShades.shades)
 
-    private fun id(name: String): Long = SeedShadesFixture.idOf(name)
+    private fun id(name: String): Long = SeededShades.idOf(name)
 
     private fun opaque(rgb: Int): Int = rgb or OPAQUE
 
@@ -165,7 +165,7 @@ class ColorExtractorTest {
 
         val first = extractor.extract(pixels, 512, 512)
         val second = extractor.extract(pixels, 512, 512)
-        val fresh = ColorExtractor(SeedShadesFixture.shades).extract(pixels, 512, 512)
+        val fresh = ColorExtractor(SeededShades.shades).extract(pixels, 512, 512)
 
         assertTrue(first.isNotEmpty(), "noise should still yield colours")
         assertEquals(first, second)

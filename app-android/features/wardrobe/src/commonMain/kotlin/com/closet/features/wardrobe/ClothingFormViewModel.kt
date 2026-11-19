@@ -24,6 +24,7 @@ import com.closet.core.data.model.SeasonEntity
 import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
+import com.closet.core.data.model.TaggedColor
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
@@ -734,10 +735,12 @@ class ClothingFormViewModel(
                     updatedAt = clock.now()
                 )
 
+                // Temporary user-source mapping; Task 4 (#81) carries extracted hex/share/source.
+                val colors = state.selectedColors.map { TaggedColor(it.id) }
                 val result = if (isEditMode) {
                     clothingRepository.updateItemWithAttributes(
                         item,
-                        state.selectedColors,
+                        colors,
                         state.selectedSeasonIds.toList(),
                         state.selectedOccasionIds.toList(),
                         state.selectedMaterialIds.toList(),
@@ -746,7 +749,7 @@ class ClothingFormViewModel(
                 } else {
                     clothingRepository.insertItemWithAttributes(
                         item,
-                        state.selectedColors,
+                        colors,
                         state.selectedSeasonIds.toList(),
                         state.selectedOccasionIds.toList(),
                         state.selectedMaterialIds.toList(),

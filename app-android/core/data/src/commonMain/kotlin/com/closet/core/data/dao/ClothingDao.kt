@@ -149,13 +149,18 @@ interface ClothingDao {
     // --- Junction Table Helpers (Atomically replace associations) ---
 
     /**
-     * Updates the color associations for a specific clothing item.
+     * Replaces the color rows of a specific clothing item with [colors] (delete-then-insert),
+     * keeping each row's measured hex, share and source.
      */
     @Transaction
-    suspend fun updateItemColors(itemId: Long, colorIds: List<Long>) {
+    suspend fun updateItemColors(itemId: Long, colors: List<TaggedColor>) {
         deleteItemColors(itemId)
-        insertItemColors(colorIds.map { ClothingItemColorEntity(itemId, it) })
+        insertItemColors(colors.map { ClothingItemColorEntity(itemId, it.colorId, it.hex, it.share, it.source) })
     }
+
+    /** One-shot fetch of an item's raw color rows (hex, share and source included). */
+    @Query("SELECT * FROM clothing_item_colors WHERE clothing_item_id = :itemId ORDER BY share IS NULL, share DESC, color_id")
+    suspend fun getItemColorRows(itemId: Long): List<ClothingItemColorEntity>
 
     @Query("DELETE FROM clothing_item_colors WHERE clothing_item_id = :itemId")
     suspend fun deleteItemColors(itemId: Long)

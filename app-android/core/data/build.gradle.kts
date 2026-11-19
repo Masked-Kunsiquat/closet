@@ -106,6 +106,10 @@ kotlin {
             // Ktor engine
             implementation(libs.ktor.client.okhttp)
         }
+        jvmTest.dependencies {
+            // MigrationTestHelper (MigrationTest) against the committed schemas/ exports.
+            implementation(libs.room.testing)
+        }
         iosMain.dependencies {
             // Ktor engine
             implementation(libs.ktor.client.darwin)
@@ -129,7 +133,7 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-// FreshInstallSchemaTest (jvmTest) reads the committed schema export, schemas/…/1.json.
+// FreshInstallSchemaTest and MigrationTest (jvmTest) read the committed schema exports, schemas/…/<version>.json.
 tasks.named<Test>("jvmTest") {
     val schemaDir = layout.projectDirectory.dir("schemas")
     inputs.dir(schemaDir).withPropertyName("roomSchemas").withPathSensitivity(PathSensitivity.RELATIVE)

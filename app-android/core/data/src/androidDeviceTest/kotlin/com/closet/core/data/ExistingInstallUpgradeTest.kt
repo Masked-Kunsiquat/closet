@@ -19,7 +19,7 @@ import kotlin.time.Clock
 
 /**
  * An install made by the previous build (Room over the framework SQLite, no driver set) must open
- * in place with the bundled driver: same `closet.db`, its rows kept, still version 1, and the
+ * in place with the bundled driver: same `closet.db`, its rows kept, still the current version, and the
  * seeds not re-run (seeding is `onCreate` only).
  */
 @RunWith(AndroidJUnit4::class)
@@ -67,7 +67,7 @@ class ExistingInstallUpgradeTest {
         val item = upgraded.clothingDao().getClothingItemEntityById(itemId)
         assertNotNull("item from the previous build should survive", item)
         assertEquals("Upgrade Shirt", item!!.name)
-        assertEquals(1, upgraded.databaseVersion())
+        assertEquals(2, upgraded.databaseVersion())
         assertEquals(10, count(upgraded, "categories"))
         // Subcategories have no stable ids, so a second seeding would double them.
         assertEquals(subcategoriesBefore, count(upgraded, "subcategories"))

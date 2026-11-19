@@ -8,6 +8,9 @@ import androidx.room.Index
 /**
  * Junction entity linking a clothing item to one or more [ColorEntity] values.
  * Cascade-deletes when either side is removed.
+ *
+ * Schema v2 adds the measured colour: [hex] and [share] (the fraction of item pixels) are set on
+ * extracted rows and null on picked ones; [source] is a [ColorSource] value.
  */
 @Entity(
     tableName = "clothing_item_colors",
@@ -20,7 +23,10 @@ import androidx.room.Index
 )
 data class ClothingItemColorEntity(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
-    @ColumnInfo(name = "color_id") val colorId: Long
+    @ColumnInfo(name = "color_id") val colorId: Long,
+    @ColumnInfo(name = "hex") val hex: String? = null,
+    @ColumnInfo(name = "share") val share: Double? = null,
+    @ColumnInfo(name = "source", defaultValue = "'user'") val source: String = ColorSource.USER,
 )
 
 /**

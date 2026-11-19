@@ -139,45 +139,77 @@ object DatabaseSeeder {
     }
 
     /**
-     * Seeds 18 named colors with hex codes and color families.
-     * Public so it can be called independently in migrations that backfill color data.
+     * Seeds the 22 named colors ([SEEDED_COLORS], in order, so a fresh install gets ids 1–22),
+     * then their reference shades into `color_shades`.
      *
-     * color_family values: Neutral | Earth | Cool | Warm | Bright.
-     * Added in Migration 2→3; the column has DEFAULT 'Neutral' so this insert always
-     * supplies the correct family explicitly.
+     * Migrations must not call this (see `migrations/AGENTS.md`); `MIGRATION_1_2` inlines the
+     * same values as literal SQL, and `MigrationTest` checks the two agree.
      */
     fun seedColors(db: SQLiteConnection) {
-        SEEDED_COLORS.forEach { (name, hex, family) ->
+        SEEDED_COLORS.forEach { c ->
             db.execSQL(
-                "INSERT OR IGNORE INTO colors (name, hex, color_family) VALUES (?, ?, ?)",
-                arrayOf<Any>(name, hex, family)
+                "INSERT OR IGNORE INTO colors (name, hex, color_family, basic_term, wears_as_neutral) VALUES (?, ?, ?, ?, ?)",
+                arrayOf<Any>(c.name, c.hex, c.family, c.basicTerm, if (c.wearsAsNeutral) 1 else 0)
             )
+        }
+        SEEDED_COLORS.forEach { c ->
+            c.shades.forEach { shade ->
+                db.execSQL(
+                    "INSERT INTO color_shades (color_id, hex) SELECT id, ? FROM colors WHERE name = ? " +
+                        "AND NOT EXISTS (SELECT 1 FROM color_shades s WHERE s.color_id = colors.id AND s.hex = ?)",
+                    arrayOf<Any>(shade, c.name, shade)
+                )
+            }
         }
     }
 
     /**
-     * The seeded colors as (name, hex, color_family). Public so the recommendation engine's
-     * hue thresholds can be tested against the real palette.
+     * A seeded color.
+     *
+     * @property hex the legacy display hex, which the recommendation engine's hue terms read.
+     * @property family the `color_family`: Neutral | Earth | Cool | Warm | Bright.
+     * @property basicTerm the basic colour term (`colors.basic_term`).
+     * @property wearsAsNeutral `colors.wears_as_neutral`.
+     * @property shades the reference shades (`color_shades.hex`) the colour namer matches
+     *   against; [hex] is not automatically one of them.
      */
-    val SEEDED_COLORS: List<Triple<String, String, String>> = listOf(
-        Triple("Black",        "#000000", "Neutral"),
-        Triple("White",        "#FFFFFF", "Neutral"),
-        Triple("Grey",         "#808080", "Neutral"),
-        Triple("Beige",        "#F5F5DC", "Neutral"),
-        Triple("Navy",         "#000080", "Neutral"),
-        Triple("Red",          "#FF0000", "Warm"),
-        Triple("Royal Blue",   "#4169E1", "Cool"),
-        Triple("Sky Blue",     "#87CEEB", "Cool"),
-        Triple("Forest Green", "#228B22", "Cool"),
-        Triple("Olive",        "#808000", "Earth"),
-        Triple("Mint",         "#98FF98", "Cool"),
-        Triple("Burgundy",     "#800020", "Warm"),
-        Triple("Pink",         "#FFC0CB", "Warm"),
-        Triple("Orange",       "#FFA500", "Warm"),
-        Triple("Yellow",       "#FFFF00", "Warm"),
-        Triple("Purple",       "#800080", "Cool"),
-        Triple("Brown",        "#A52A2A", "Earth"),
-        Triple("Tan",          "#D2B48C", "Earth"),
+    data class SeedColor(
+        val name: String,
+        val hex: String,
+        val family: String,
+        val basicTerm: String,
+        val wearsAsNeutral: Boolean,
+        val shades: List<String>,
+    )
+
+    /**
+     * The seeded colors, in insert order (Black = 1 … Teal = 22 on a fresh install). Public so the
+     * recommendation engine's hue thresholds and the colour namer can be tested against the real
+     * palette. The first 18 rows are the v1 palette, unchanged; v2 appended the last 4.
+     */
+    val SEEDED_COLORS: List<SeedColor> = listOf(
+        SeedColor("Black",        "#000000", "Neutral", "black",  true,  listOf("#000000", "#1A1A1A", "#2B2B2B")),
+        SeedColor("White",        "#FFFFFF", "Neutral", "white",  true,  listOf("#FFFFFF", "#F4F4F2", "#EDEDE8")),
+        SeedColor("Grey",         "#808080", "Neutral", "gray",   true,  listOf("#808080", "#A0A0A0", "#6E6E6E", "#BEBEBE")),
+        SeedColor("Beige",        "#F5F5DC", "Neutral", "brown",  true,  listOf("#F5F5DC", "#E8DCC4", "#D9C8A9")),
+        SeedColor("Navy",         "#000080", "Neutral", "blue",   false, listOf("#000080", "#1F2A44", "#202A5A", "#2C3E63")),
+        SeedColor("Red",          "#FF0000", "Warm",    "red",    false, listOf("#FF0000", "#B3202A", "#D62B2B", "#C41E3A")),
+        SeedColor("Royal Blue",   "#4169E1", "Cool",    "blue",   false, listOf("#4169E1", "#2E50A8", "#3A5FCD")),
+        SeedColor("Sky Blue",     "#87CEEB", "Cool",    "blue",   false, listOf("#87CEEB", "#8DB8DE", "#A7C7E7")),
+        SeedColor("Forest Green", "#228B22", "Cool",    "green",  false, listOf("#228B22", "#2E5E3A", "#355E3B", "#4F7942")),
+        SeedColor("Olive",        "#808000", "Earth",   "green",  false, listOf("#808000", "#6B6B3A", "#708238")),
+        SeedColor("Mint",         "#98FF98", "Cool",    "green",  false, listOf("#98FF98", "#A8DCC0", "#B2E0C8")),
+        SeedColor("Burgundy",     "#800020", "Warm",    "red",    false, listOf("#800020", "#6D1A2B", "#7B2D3A")),
+        SeedColor("Pink",         "#FFC0CB", "Warm",    "pink",   false, listOf("#FFC0CB", "#F2A7B8", "#E75480", "#F4C2C2")),
+        SeedColor("Orange",       "#FFA500", "Warm",    "orange", false, listOf("#FFA500", "#E8742A", "#F28C28", "#FF7F50")),
+        SeedColor("Yellow",       "#FFFF00", "Warm",    "yellow", false, listOf("#FFFF00", "#F2CF3A", "#FFFACD", "#FFF59D", "#E1AD01", "#FFD300", "#F6E7A5")),
+        SeedColor("Purple",       "#800080", "Cool",    "purple", false, listOf("#800080", "#6A3D8F", "#9B59B6", "#B57EDC", "#CDB4E0", "#E6E6FA")),
+        SeedColor("Brown",        "#A52A2A", "Earth",   "brown",  true,  listOf("#6B4423", "#5C4033", "#7B5B3A", "#4E342E")),
+        SeedColor("Tan",          "#D2B48C", "Earth",   "brown",  true,  listOf("#D2B48C", "#C8A47E", "#C3B091", "#C19A6B")),
+        SeedColor("Charcoal",     "#36454F", "Neutral", "gray",   true,  listOf("#36454F", "#3C3C3C", "#4A4A4A")),
+        SeedColor("Cream",        "#F3EBD3", "Neutral", "white",  true,  listOf("#FFFDD0", "#F3EBD3", "#FAF3E0", "#FFF5DC")),
+        SeedColor("Denim",        "#4F6D8F", "Neutral", "blue",   true,  listOf("#3B5A80", "#4F6D8F", "#5B7BA6", "#2F4A6B")),
+        SeedColor("Teal",         "#1F7A7A", "Cool",    "blue",   false, listOf("#008080", "#1F7A7A", "#2A9D8F")),
     )
 
     /** Seeds 23 fabric/material types including natural fibers, synthetics, and "Other". */

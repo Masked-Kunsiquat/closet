@@ -16,16 +16,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Fresh-install schema test for the version-1 baseline, on the JVM.
+ * Fresh-install schema test for the newest schema version ([LATEST_VERSION]), on the JVM.
  *
  * Opens a new database through the production builder ([getDatabaseBuilder], so the bundled
  * driver and the real `configureClosetDatabase` `onCreate`/`onOpen` callbacks run) and checks it
- * against the committed schema export `core/data/schemas/com.closet.core.data.ClothingDatabase/1.json`
- * (located by [committedSchemaFile]).
- *
- * Replaces the old `MigrationTest`: the 1→6 migration chain was squashed into this baseline
- * (see `migrations/AGENTS.md`). When a real migration is added again, add a migration test
- * for it alongside this one.
+ * against the committed schema export `core/data/schemas/com.closet.core.data.ClothingDatabase/<LATEST_VERSION>.json`
+ * (located by [committedSchemaFile]). Upgrades from older versions are covered by [MigrationTest].
  */
 class FreshInstallSchemaTest {
 
@@ -36,7 +32,7 @@ class FreshInstallSchemaTest {
     @BeforeTest
     fun setUp() {
         testDb = TestDatabase()
-        val json = committedSchemaFile(1).readText()
+        val json = committedSchemaFile(LATEST_VERSION).readText()
         schema = Json.parseToJsonElement(json).jsonObject.getValue("database").jsonObject
     }
 
@@ -46,19 +42,19 @@ class FreshInstallSchemaTest {
     }
 
     @Test
-    fun freshInstall_isVersionOne_andMatchesCommittedSchemaHash() {
-        assertEquals(1, schema.getValue("version").jsonPrimitive.int)
-        assertEquals(1, runBlocking { db.databaseVersion() })
+    fun freshInstall_isLatestVersion_andMatchesCommittedSchemaHash() {
+        assertEquals(LATEST_VERSION, schema.getValue("version").jsonPrimitive.int)
+        assertEquals(LATEST_VERSION, runBlocking { db.databaseVersion() })
         val storedHash = query("SELECT identity_hash FROM room_master_table") {
             it.step()
             it.getText(0)
         }
-        // A mismatch means 1.json is stale: rerun `./gradlew :core:data:kspAndroidMain` and commit it.
+        // A mismatch means the newest schema JSON is stale: rerun `./gradlew :core:data:kspAndroidMain` and commit it.
         assertEquals(schema.getValue("identityHash").jsonPrimitive.content, storedHash)
     }
 
     @Test
-    fun freshInstall_hasEveryTableColumnAndIndexIn1Json() {
+    fun freshInstall_hasEveryTableColumnAndIndexInLatestJson() {
         for (element in schema.getValue("entities").jsonArray) {
             val entity = element.jsonObject
             val table = entity.getValue("tableName").jsonPrimitive.content
@@ -95,6 +91,8 @@ class FreshInstallSchemaTest {
         }
         // Brands were only ever seeded by the old MIGRATION_3_4, never on a fresh install.
         assertEquals(0, count("brands"))
+        assertEquals(22, count("colors"))
+        assertEquals(83, count("color_shades"))
     }
 
     @Test
@@ -108,6 +106,11 @@ class FreshInstallSchemaTest {
         )) {
             assertTrue(sqliteObjectExists("trigger", trigger), "trigger $trigger")
         }
+    }
+
+    private companion object {
+        /** The newest schema version; its export is `<LATEST_VERSION>.json`. */
+        const val LATEST_VERSION = 2
     }
 
     private fun count(table: String): Int =

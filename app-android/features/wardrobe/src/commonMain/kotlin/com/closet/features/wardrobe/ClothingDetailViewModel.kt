@@ -168,7 +168,7 @@ class ClothingDetailViewModel(
     /** Replaces the item's color associations with [colorIds] (delete-then-insert). */
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
-            clothingRepository.updateItemColors(itemId, colorIds).fold(
+            clothingRepository.updateItemColors(itemId, colorIds.map { TaggedColor(it) }).fold(
                 onLoading = {},
                 onSuccess = {},
                 onError = { handleActionError(it) }

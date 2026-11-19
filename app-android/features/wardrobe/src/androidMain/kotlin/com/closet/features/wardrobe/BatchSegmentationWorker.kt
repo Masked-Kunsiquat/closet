@@ -17,6 +17,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.dao.LookupDao
+import com.closet.core.data.model.TaggedColor
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.time.AppClock
@@ -141,7 +142,8 @@ class BatchSegmentationWorker(
                             val matched = extracted
                                 .map { ColorMatcher.findNearestColor(it, availableColors) }
                                 .distinctBy { it.id }
-                            clothingRepository.updateItemColors(item.id, matched.map { it.id })
+                            // Temporary user-source mapping; Task 4 (#81) moves this to replaceAutoColors.
+                            clothingRepository.updateItemColors(item.id, matched.map { TaggedColor(it.id) })
                             log.d("BatchSeg: item ${item.id} colours → ${matched.joinToString { it.name }}")
                             clothingRepository.revectorizeItem(item.id)
                         }

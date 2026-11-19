@@ -11,7 +11,7 @@ class ColorExtractorPerformanceTest {
 
     @Test
     fun `large image stays fast`() {
-        val extractor = ColorExtractor(SeedShadesFixture.shades)
+        val extractor = ColorExtractor(SeededShades.shades)
         val random = Random(7)
         val pixels = IntArray(512 * 512) { random.nextInt() or -0x1000000 }
         extractor.extract(pixels, 512, 512) // warm-up

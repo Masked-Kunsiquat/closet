@@ -413,8 +413,8 @@ class PairScorerTest {
     @Test
     fun `no seeded same-family pair scores below 1 on hue`() {
         val seeded = DatabaseSeeder.SEEDED_COLORS
-            .filter { (_, _, family) -> family != "Neutral" }
-            .map { (name, hex, family) -> name to tagged(hex to family) }
+            .filter { it.family != "Neutral" }
+            .map { it.name to tagged(it.hex to it.family) }
         var checked = 0
         for (i in seeded.indices) for (j in i + 1 until seeded.size) {
             val (nameA, a) = seeded[i]
@@ -424,6 +424,7 @@ class PairScorerTest {
             assertTrue(term >= 1.0, "$nameA + $nameB scores $term")
             checked++
         }
-        assertEquals(23, checked, "every seeded same-family chromatic pair was checked")
+        // 23 pairs from the v1 palette, plus Teal (Cool) with the 5 other Cool colours.
+        assertEquals(28, checked, "every seeded same-family chromatic pair was checked")
     }
 }

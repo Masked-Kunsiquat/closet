@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class ColorNamingTest {
-    private val namer = ColorNamer(SeedShadesFixture.shades)
+    private val namer = ColorNamer(SeededShades.shades)
 
     private val heldOut: Map<String, List<String>> = mapOf(
         "Yellow" to listOf("#FAF0B4", "#F9E79F", "#F3E5AB", "#D4A017", "#C9A227"),
@@ -31,11 +31,11 @@ class ColorNamingTest {
     fun `held out colours get the expected names`() {
         val failures = mutableListOf<String>()
         for ((name, hexes) in heldOut) {
-            val expected = SeedShadesFixture.idOf(name)
+            val expected = SeededShades.idOf(name)
             for (hex in hexes) {
                 val got = namer.nearest(Oklab.fromHex(hex))
                 if (got != expected) {
-                    val gotName = got?.let { SeedShadesFixture.names[(it - 1).toInt()] }
+                    val gotName = got?.let { SeededShades.names[(it - 1).toInt()] }
                     failures += "$hex expected $name but was $gotName"
                 }
             }

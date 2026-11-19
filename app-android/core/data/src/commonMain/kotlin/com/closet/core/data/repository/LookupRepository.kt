@@ -1,7 +1,12 @@
 package com.closet.core.data.repository
 
+import co.touchlab.kermit.Logger
+import com.closet.core.data.color.ReferenceShade
 import com.closet.core.data.dao.LookupDao
 import com.closet.core.data.model.*
+import com.closet.core.data.util.AppError
+import com.closet.core.data.util.DataResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -66,7 +71,19 @@ class LookupRepository(
      * @param systemId The ID of the size system.
      * @return A [Flow] emitting a list of [SizeValueEntity].
      */
-    fun getSizeValues(systemId: Long): Flow<List<SizeValueEntity>> = 
+    fun getSizeValues(systemId: Long): Flow<List<SizeValueEntity>> =
         lookupDao.getSizeValues(systemId)
+
+    /**
+     * One-shot fetch of every colour's reference shades, for the colour namer and extractor.
+     * @return A [DataResult] with one [ReferenceShade] per `color_shades` row.
+     */
+    suspend fun getReferenceShades(): DataResult<List<ReferenceShade>> = try {
+        DataResult.Success(lookupDao.getAllColorShades().map { ReferenceShade(colorId = it.colorId, hex = it.hex) })
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Logger.withTag("LookupRepository").e(e) { "Error fetching reference shades" }
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
 
 }

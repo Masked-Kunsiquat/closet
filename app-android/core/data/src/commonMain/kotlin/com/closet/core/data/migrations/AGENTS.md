@@ -15,12 +15,17 @@ package (`commonMain`).
 
 ## Where things stand
 
-**The database is at version 1, a squashed baseline.** The old 1→6 migration chain was reset
-on 2026-11-15 (KMP Phase 3), when hangr had no users. Version 1 is the v6 shape exactly; its
-schema export is `core/data/schemas/com.closet.core.data.ClothingDatabase/1.json`.
+**The database is at version 2.** Version 1 is a squashed baseline: the old 1→6 migration chain
+was reset on 2026-11-15 (KMP Phase 3), when hangr had no users, and version 1 is the v6 shape
+exactly. The schema exports are `core/data/schemas/com.closet.core.data.ClothingDatabase/<N>.json`.
 
-There are no migration files in this package yet. **Every schema change from here on needs a
-real migration** — the reset was a one-off.
+Migrations in this package:
+- `MIGRATION_1_2` (`Migration1To2.kt`, colour v2, #81): measured colour columns on
+  `clothing_item_colors` (`hex`, `share`, `source`), `basic_term` and `wears_as_neutral` on
+  `colors`, the 4 new colours and the seeded `color_shades` table. Tested by `jvmTest`'s
+  `MigrationTest`.
+
+**Every schema change needs a real migration** — the reset was a one-off.
 
 Side effects of the reset: a device with an older dev install (version 6) must uninstall before
 installing a version-1 build (Room refuses to downgrade), and `.hangr` backups made before the
