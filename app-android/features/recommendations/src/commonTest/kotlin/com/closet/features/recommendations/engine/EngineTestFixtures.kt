@@ -14,7 +14,9 @@ internal fun item(
     warmthLayer: String? = null,
     colorFamilies: Set<String> = emptySet(),
     isPatternSolid: Boolean = true,
-    subcategoryId: Long? = null
+    subcategoryId: Long? = null,
+    colorHexes: List<ColorHex> = emptyList(),
+    formalityLevel: Double? = null,
 ) = EngineItem(
     id = id,
     name = "Item $id",
@@ -24,7 +26,9 @@ internal fun item(
     outfitRole = role,
     warmthLayer = warmthLayer,
     colorFamilies = colorFamilies,
-    isPatternSolid = isPatternSolid
+    isPatternSolid = isPatternSolid,
+    colorHexes = colorHexes,
+    formalityLevel = formalityLevel,
 )
 
 internal fun weather(
@@ -49,7 +53,9 @@ internal fun engineInput(
     today: LocalDate? = null,
     coWear: CoWearStats = CoWearStats.EMPTY,
     itemNeighbors: Map<Long, List<ItemNeighbor>> = emptyMap(),
-    subcategoryCoWear: CoWearStats = CoWearStats.EMPTY
+    subcategoryCoWear: CoWearStats = CoWearStats.EMPTY,
+    tasteWeights: com.closet.features.recommendations.engine.learning.TasteWeights =
+        com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT,
 ) = EngineInput(
     candidates = candidates,
     tempPercentiles = tempPercentiles,
@@ -60,5 +66,6 @@ internal fun engineInput(
     today = today,
     coWear = coWear,
     itemNeighbors = itemNeighbors,
-    subcategoryCoWear = subcategoryCoWear
+    subcategoryCoWear = subcategoryCoWear,
+    tasteWeights = tasteWeights,
 )

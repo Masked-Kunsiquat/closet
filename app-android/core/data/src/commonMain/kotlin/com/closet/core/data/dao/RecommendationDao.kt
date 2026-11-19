@@ -220,6 +220,45 @@ data class ItemEmbeddingBlob(
     }
 }
 
+/**
+ * One clothing item row from `clothing_items` joined with `categories` for historical
+ * choice-stratum reconstruction (learned taste weights, Issue #114).
+ *
+ * Includes all items regardless of current `wash_status` so historical wear logs can be
+ * reconstructed even if a worn item is currently in the laundry.
+ */
+data class TrainingItemRow(
+    val id: Long,
+    val name: String,
+    @ColumnInfo(name = "image_path") val imagePath: String?,
+    @ColumnInfo(name = "category_id") val categoryId: Long?,
+    @ColumnInfo(name = "subcategory_id") val subcategoryId: Long?,
+    @ColumnInfo(name = "outfit_role") val outfitRole: String?,
+    @ColumnInfo(name = "warmth_layer") val warmthLayer: String?,
+    @ColumnInfo(name = "created_at") val createdAtEpochMillis: Long?,
+)
+
+/**
+ * One historical wear log header row from `outfit_logs` ordered chronologically
+ * for taste-weight training (Issue #114).
+ */
+data class TrainingWearLogRow(
+    val id: Long,
+    val date: String,
+    @ColumnInfo(name = "temperature_low") val temperatureLow: Double?,
+    @ColumnInfo(name = "temperature_high") val temperatureHigh: Double?,
+    @ColumnInfo(name = "precipitation_mm") val precipitationMm: Double?,
+    @ColumnInfo(name = "wind_speed_kmh") val windSpeedKmh: Double?,
+)
+
+/**
+ * One snapshot item entry from `outfit_log_items` for taste-weight training (Issue #114).
+ */
+data class TrainingWearLogItemRow(
+    @ColumnInfo(name = "outfit_log_id") val outfitLogId: Long,
+    @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
+)
+
 
 /**
  * DAO for the outfit recommendation pipeline.
@@ -597,4 +636,54 @@ interface RecommendationDao {
         GROUP BY ci.subcategory_id
     """)
     suspend fun getSubcategorySavedItemCounts(): List<ItemCount>
+
+    // -------------------------------------------------------------------------
+    // Learned taste weights training queries (engine v2, #114)
+    // -------------------------------------------------------------------------
+
+    /** Maximum primary key in `outfit_logs` (or null when empty), combined with log count for the training watermark. */
+    @Query("SELECT MAX(id) FROM outfit_logs")
+    suspend fun getMaxLogId(): Long?
+
+    /** All active wardrobe items (regardless of current wash status) for historical stratum reconstruction. */
+    @Query("""
+        SELECT
+            ci.id,
+            ci.name,
+            ci.image_path,
+            ci.category_id,
+            ci.subcategory_id,
+            cat.outfit_role,
+            cat.warmth_layer,
+            ci.created_at
+        FROM clothing_items ci
+        LEFT JOIN categories cat ON ci.category_id = cat.id
+        WHERE ci.status = 'Active'
+        ORDER BY ci.id ASC
+    """)
+    suspend fun getTrainingItems(): List<TrainingItemRow>
+
+    /** All historical wear logs in chronological order for taste-weight training. */
+    @Query("""
+        SELECT
+            id,
+            date,
+            temperature_low,
+            temperature_high,
+            precipitation_mm,
+            wind_speed_kmh
+        FROM outfit_logs
+        ORDER BY date ASC, id ASC
+    """)
+    suspend fun getTrainingWearLogs(): List<TrainingWearLogRow>
+
+    /** All snapshot (outfit_log_id, clothing_item_id) rows from `outfit_log_items`. */
+    @Query("""
+        SELECT
+            outfit_log_id,
+            clothing_item_id
+        FROM outfit_log_items
+        ORDER BY outfit_log_id ASC, clothing_item_id ASC
+    """)
+    suspend fun getTrainingWearLogItems(): List<TrainingWearLogItemRow>
 }

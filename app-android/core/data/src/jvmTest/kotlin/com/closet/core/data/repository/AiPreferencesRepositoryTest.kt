@@ -102,4 +102,18 @@ class AiPreferencesRepositoryTest {
             assertEquals("k", repository.getOpenAiApiKey().first())
         }
     }
+
+    @Test
+    fun tasteWeightsAndWatermarkPersistAcrossInstances() = runBlocking {
+        withDataStore { store ->
+            val repository = AiPreferencesRepository(store, InMemorySecretStore())
+            val res = repository.setTasteWeights("1.0,0.8,0.9,1.1,1.0,1.4,1.0,1.0", "v1:25:42")
+            assertEquals(com.closet.core.data.util.DataResult.Success(Unit), res)
+        }
+        withDataStore { store ->
+            val repository = AiPreferencesRepository(store, InMemorySecretStore())
+            assertEquals("1.0,0.8,0.9,1.1,1.0,1.4,1.0,1.0", repository.getTasteWeightsRaw().first())
+            assertEquals("v1:25:42", repository.getTasteWeightsWatermark().first())
+        }
+    }
 }

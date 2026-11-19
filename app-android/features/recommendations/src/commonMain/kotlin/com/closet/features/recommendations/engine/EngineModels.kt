@@ -79,6 +79,9 @@ data class ColorHex(val hex: String, val family: String)
  * @property coWear           Co-wear and saved-outfit statistics: the habit term of the outfit score.
  * @property itemNeighbors    Top-k cosine neighbors per item for Level 1 history generalization.
  * @property subcategoryCoWear Aggregate subcategory-pair co-wear stats for Level 2 fallback.
+ * @property tasteWeights     Personalized taste weights learned from wear history, or
+ *                            [com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT]
+ *                            at cold start.
  */
 data class EngineInput(
     val candidates: List<EngineItem>,
@@ -91,6 +94,8 @@ data class EngineInput(
     val coWear: CoWearStats = CoWearStats.EMPTY,
     val itemNeighbors: Map<Long, List<ItemNeighbor>> = emptyMap(),
     val subcategoryCoWear: CoWearStats = CoWearStats.EMPTY,
+    val tasteWeights: com.closet.features.recommendations.engine.learning.TasteWeights =
+        com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT,
 )
 
 /**

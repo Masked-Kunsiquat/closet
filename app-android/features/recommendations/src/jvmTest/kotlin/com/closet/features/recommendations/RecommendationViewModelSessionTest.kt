@@ -99,6 +99,10 @@ class RecommendationViewModelSessionTest {
         coEvery { repo.getSubcategorySavedOutfitPairs() } returns DataResult.Success(emptyList())
         coEvery { repo.getSubcategoryLogCounts() } returns DataResult.Success(emptyList())
         coEvery { repo.getSubcategorySavedItemCounts() } returns DataResult.Success(emptyList())
+        coEvery { repo.getMaxLogId() } returns DataResult.Success(0L)
+        coEvery { repo.getTrainingItems() } returns DataResult.Success(emptyList())
+        coEvery { repo.getTrainingWearLogs() } returns DataResult.Success(emptyList())
+        coEvery { repo.getTrainingWearLogItems() } returns DataResult.Success(emptyList())
         return RecommendationViewModel(
             recommendationRepository = repo,
             engine = engine,
@@ -113,6 +117,8 @@ class RecommendationViewModelSessionTest {
                 every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
                 every { getOpenAiApiKey() } returns flowOf("test-key")
                 every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
+                every { getTasteWeightsRaw() } returns flowOf(null)
+                every { getTasteWeightsWatermark() } returns flowOf(null)
             },
             computationDispatcher = UnconfinedTestDispatcher(),
         ).also { vm -> collectorScope.launch { vm.uiState.collect { } } }
@@ -290,5 +296,43 @@ class RecommendationViewModelSessionTest {
         // (Recording the whole pool would exclude all 4 and restart the cycle with 3.)
         assertEquals(1, second.size)
         assertTrue(keys(second).none { it in keys(first) })
+    }
+
+    @Test fun cachedTasteWeightsArePassedToEngineWhenWatermarkMatches() {
+        val repo = mockk<RecommendationRepository>()
+        val customWeights = com.closet.features.recommendations.engine.learning.TasteWeights(historyLift = 1.8)
+        var capturedInput: EngineInput? = null
+        val customScorer = mockk<OutfitCoherenceScorer> {
+            coEvery { score(any(), any(), any(), any()) } answers {
+                capturedInput = secondArg()
+                null
+            }
+        }
+        val vm = buildViewModel(aiReady = true, repo = repo).let {
+            coEvery { repo.getTotalLogCount() } returns DataResult.Success(25)
+            coEvery { repo.getMaxLogId() } returns DataResult.Success(42L)
+            RecommendationViewModel(
+                recommendationRepository = repo,
+                engine = OutfitRecommendationEngine(),
+                scorer = customScorer,
+                weatherRepository = mockk(relaxed = true),
+                outfitRepository = mockk(relaxed = true),
+                lookupRepository = mockk(relaxed = true),
+                imagePathResolver = ImagePathResolver { it },
+                clock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
+                aiPrefsRepo = mockk(relaxed = true) {
+                    every { getAiEnabled() } returns flowOf(true)
+                    every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
+                    every { getOpenAiApiKey() } returns flowOf("test-key")
+                    every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
+                    every { getTasteWeightsWatermark() } returns flowOf("v1:25:42")
+                    every { getTasteWeightsRaw() } returns flowOf(customWeights.serialize())
+                },
+                computationDispatcher = UnconfinedTestDispatcher(),
+            ).also { v -> collectorScope.launch { v.uiState.collect { } } }
+        }
+        vm.onWeatherConfirmed(weather)
+        assertEquals(customWeights, capturedInput?.tasteWeights)
+        coVerify(exactly = 0) { repo.getTrainingWearLogs() }
     }
 }

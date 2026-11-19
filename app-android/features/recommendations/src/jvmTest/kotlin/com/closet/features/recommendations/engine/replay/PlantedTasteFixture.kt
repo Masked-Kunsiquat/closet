@@ -16,6 +16,9 @@ internal data class PlantedTriple(val topId: Long, val bottomId: Long, val shoeI
 /**
  * A deterministic synthetic wardrobe plus a wear history with planted taste: ~70% of logs are
  * one of a few favourite triples, ~30% are random valid outfits. Logs are in ascending date order.
+ *
+ * Also supports [buildNoPlantedTaste] (0% planted triples, 100% uniform random valid outfits)
+ * as the non-regression control fixture for learned taste weights (#114).
  */
 internal class PlantedTasteFixture(
     val items: List<EngineItem>,
@@ -34,7 +37,7 @@ internal class PlantedTasteFixture(
         private const val LOG_COUNT = 120
         private const val SPAN_DAYS = 180
 
-        fun build(seed: Int = 42): PlantedTasteFixture {
+        fun build(seed: Int = 42, plantedProbabilityPct: Int = 70): PlantedTasteFixture {
             val rnd = Random(seed)
             var nextId = 1L
             fun make(role: String, count: Int, warmth: String?): List<EngineItem> = List(count) {
@@ -60,7 +63,7 @@ internal class PlantedTasteFixture(
             val start = LocalDate(2026, 1, 1)
             val logs = List(LOG_COUNT) { i ->
                 val date = start.plus(i * SPAN_DAYS / LOG_COUNT, DateTimeUnit.DAY)
-                if (rnd.nextInt(100) < 70) {
+                if (rnd.nextInt(100) < plantedProbabilityPct) {
                     val t = planted[rnd.nextInt(PLANTED)]
                     WearLog(date, listOf(t.topId, t.bottomId, t.shoeId), setOf(t.topId, t.bottomId))
                 } else {
@@ -73,5 +76,9 @@ internal class PlantedTasteFixture(
             }
             return PlantedTasteFixture(tops + bottoms + shoes + outer, planted, logs)
         }
+
+        /** Control fixture with 0% planted triples (100% uniform random valid outfits). */
+        fun buildNoPlantedTaste(seed: Int = 42): PlantedTasteFixture =
+            build(seed = seed, plantedProbabilityPct = 0)
     }
 }

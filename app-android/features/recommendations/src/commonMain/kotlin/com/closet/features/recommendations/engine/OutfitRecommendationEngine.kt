@@ -79,8 +79,8 @@ class OutfitRecommendationEngine {
 
     companion object {
         // --- Temperatures ---
-        private const val COLD_THRESHOLD_C = 5.0
-        private const val WARM_THRESHOLD_C = 20.0
+        internal const val COLD_THRESHOLD_C = 5.0
+        internal const val WARM_THRESHOLD_C = 20.0
 
         // --- Per-item multipliers ---
         private const val MULTIPLIER_TEMP_OUT_OF_RANGE = 0.55
@@ -88,21 +88,21 @@ class OutfitRecommendationEngine {
         private const val MULTIPLIER_WIND_NOT_SUITABLE = 0.70
 
         // --- Outfit-level multipliers ---
-        private const val MULTIPLIER_COLD_NO_OUTER = 0.50
-        private const val MULTIPLIER_WARM_WITH_OUTER = 0.75
+        internal const val MULTIPLIER_COLD_NO_OUTER = 0.50
+        internal const val MULTIPLIER_WARM_WITH_OUTER = 0.75
 
         // --- Color harmony ---
-        private const val BONUS_SAME_FAMILY = 0.10
-        private const val BONUS_EARTH_WARM = 0.05
-        private const val MULTIPLIER_BRIGHT_BRIGHT = 0.70
-        private const val MULTIPLIER_WARM_COOL = 0.85
+        internal const val BONUS_SAME_FAMILY = 0.10
+        internal const val BONUS_EARTH_WARM = 0.05
+        internal const val MULTIPLIER_BRIGHT_BRIGHT = 0.70
+        internal const val MULTIPLIER_WARM_COOL = 0.85
 
         // --- Pattern mixing ---
-        private const val BONUS_ONE_PATTERNED = 0.10
-        private const val MULTIPLIER_MULTI_PATTERNED = 0.75
+        internal const val BONUS_ONE_PATTERNED = 0.10
+        internal const val MULTIPLIER_MULTI_PATTERNED = 0.75
 
         // --- Footwear ---
-        private const val MULTIPLIER_NO_FOOTWEAR = 0.85
+        internal const val MULTIPLIER_NO_FOOTWEAR = 0.85
 
         // --- Pair scoring (engine v2, #96; used by PairScorer) ---
         /** Shrinkage: a pair's history weight is `n / (n + K)`. */
@@ -157,20 +157,20 @@ class OutfitRecommendationEngine {
         internal const val MAX_WIDENED_BEAM_PER_CORE = 12
 
         // --- Outfit roles ---
-        private const val ROLE_TOP = "Top"
-        private const val ROLE_BOTTOM = "Bottom"
-        private const val ROLE_ONEPIECE = "OnePiece"
-        private const val ROLE_OUTERWEAR = "Outerwear"
-        private const val ROLE_FOOTWEAR = "Footwear"
-        private const val ROLE_ACCESSORY = "Accessory"
+        internal const val ROLE_TOP = "Top"
+        internal const val ROLE_BOTTOM = "Bottom"
+        internal const val ROLE_ONEPIECE = "OnePiece"
+        internal const val ROLE_OUTERWEAR = "Outerwear"
+        internal const val ROLE_FOOTWEAR = "Footwear"
+        internal const val ROLE_ACCESSORY = "Accessory"
         internal val CORE_ROLES = setOf(ROLE_TOP, ROLE_BOTTOM, ROLE_ONEPIECE)
 
         // --- Color families ---
-        private const val FAMILY_NEUTRAL = "Neutral"
-        private const val FAMILY_EARTH = "Earth"
-        private const val FAMILY_COOL = "Cool"
-        private const val FAMILY_WARM = "Warm"
-        private const val FAMILY_BRIGHT = "Bright"
+        internal const val FAMILY_NEUTRAL = "Neutral"
+        internal const val FAMILY_EARTH = "Earth"
+        internal const val FAMILY_COOL = "Cool"
+        internal const val FAMILY_WARM = "Warm"
+        internal const val FAMILY_BRIGHT = "Bright"
 
         // Sentinel for "never worn" tie-breaking — sorts before any real date.
         private const val NEVER_WORN_SENTINEL = ""
@@ -272,6 +272,7 @@ class OutfitRecommendationEngine {
                 coWear = input.coWear,
                 itemNeighbors = input.itemNeighbors,
                 subcategoryCoWear = input.subcategoryCoWear,
+                tasteWeights = input.tasteWeights,
             )
         }
         val tieBreak = compareBy<Scored> { tieBreakKey(it.items, input) }
@@ -490,8 +491,13 @@ class OutfitRecommendationEngine {
      * `meanItem × [W·H + (1 − W)·R] × layering × footwear`, over all item pairs of the combo:
      * `R` = color harmony × pattern mixing × the geometric mean of [PairScorer.formalityTerm],
      * `H` = the geometric mean of the pairs' history lifts, `W` = the mean of their weights.
+     *
+     * When [tasteWeights] is not [com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT],
+     * scales the baseline default score by the personalized log-linear conditional logit deviation
+     * $\exp((\beta - \beta_0)^\top x)$ over the 8 features extracted by
+     * [com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor].
      */
-    private fun scoreCombo(
+    internal fun scoreCombo(
         items: List<EngineItem>,
         itemScores: Map<Long, Double>,
         weather: EngineWeather?,
@@ -499,6 +505,8 @@ class OutfitRecommendationEngine {
         coWear: CoWearStats,
         itemNeighbors: Map<Long, List<ItemNeighbor>> = emptyMap(),
         subcategoryCoWear: CoWearStats = CoWearStats.EMPTY,
+        tasteWeights: com.closet.features.recommendations.engine.learning.TasteWeights =
+            com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT,
     ): Double {
         // Mean of individual item scores
         val meanScore = items.map { itemScores[it.id] ?: 1.0 }.average()
@@ -559,7 +567,19 @@ class OutfitRecommendationEngine {
             multiplier *= MULTIPLIER_NO_FOOTWEAR
         }
 
-        return meanScore * multiplier
+        val defaultScore = meanScore * multiplier
+        if (tasteWeights.isDefault) return defaultScore
+
+        val features = com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor.extract(
+            items = items,
+            itemScores = itemScores,
+            weather = weather,
+            hasFootwearInPool = hasFootwearInPool,
+            coWear = coWear,
+            itemNeighbors = itemNeighbors,
+            subcategoryCoWear = subcategoryCoWear,
+        )
+        return defaultScore * exp(tasteWeights.deltaDot(features))
     }
 
     // -------------------------------------------------------------------------
