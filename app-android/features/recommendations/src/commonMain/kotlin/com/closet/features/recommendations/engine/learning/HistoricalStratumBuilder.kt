@@ -123,6 +123,11 @@ internal object HistoricalStratumBuilder {
                 continue
             }
 
+            val allDayCoreSets: Set<Set<Long>> = dayLogs.mapNotNullTo(HashSet()) { log ->
+                val presentItems = log.itemIds.distinct().mapNotNull { itemById[it] }
+                extractValidCore(presentItems)
+            }
+
             val dayCores: List<Triple<HistoricalWearLog, List<EngineItem>, Set<Long>>> = dayLogs.mapNotNull { log ->
                 val distinctIds = log.itemIds.distinct()
                 val wornItems = distinctIds.mapNotNull { itemById[it] }
@@ -133,7 +138,6 @@ internal object HistoricalStratumBuilder {
 
             if (dayCores.isNotEmpty()) {
                 val historyStats = buildPriorStats(priorLogs, itemById)
-                val allDayCoreSets = dayCores.map { it.third }.toSet()
 
                 for ((log, wornItems, wornCore) in dayCores) {
                     if (log.logId !in activeLogIds) continue
