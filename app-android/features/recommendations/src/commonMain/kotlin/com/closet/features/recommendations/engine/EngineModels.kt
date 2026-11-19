@@ -32,6 +32,8 @@ import kotlinx.datetime.LocalDate
  * @property colorHexes     The item's tagged colors that have a hex, each with its color family,
  *                          in color-id order.
  * @property formalityLevel Median formality (1 to 5) of the item's occasions, or null if unknown.
+ * @property subcategoryName Human-readable subcategory name (e.g. "Sweater", "Shorts"), or null if none.
+ * @property materials      Set of tagged material names (e.g. "Wool", "Linen"). Empty when none tagged.
  */
 data class EngineItem(
     val id: Long,
@@ -45,6 +47,8 @@ data class EngineItem(
     val isPatternSolid: Boolean,
     val colorHexes: List<ColorHex> = emptyList(),
     val formalityLevel: Double? = null,
+    val subcategoryName: String? = null,
+    val materials: Set<String> = emptySet(),
 )
 
 /** One tagged color's hex code and its `color_family` (Neutral / Earth / Cool / Warm / Bright). */

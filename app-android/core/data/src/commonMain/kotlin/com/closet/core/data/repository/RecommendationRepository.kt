@@ -246,6 +246,35 @@ class RecommendationRepository(
         }
     }
 
+    /**
+     * Returns a map from clothing item ID to its human-readable subcategory name
+     * for each item in [itemIds] that has a subcategory assigned.
+     */
+    suspend fun getItemSubcategoryNames(
+        itemIds: List<Long>,
+    ): DataResult<Map<Long, String>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyMap())
+        return runCatching {
+            recommendationDao.getItemSubcategoryHints(itemIds)
+                .associate { it.clothingItemId to it.subcategoryName }
+        }.toDataResult("getItemSubcategoryNames")
+    }
+
+    /**
+     * Returns a map from clothing item ID to the set of tagged material names
+     * for each item in [itemIds] that has at least one material tagged.
+     */
+    suspend fun getItemMaterialNames(
+        itemIds: List<Long>,
+    ): DataResult<Map<Long, Set<String>>> {
+        if (itemIds.isEmpty()) return DataResult.Success(emptyMap())
+        return runCatching {
+            recommendationDao.getItemMaterialHints(itemIds)
+                .groupBy { it.clothingItemId }
+                .mapValues { (_, rows) -> rows.mapTo(LinkedHashSet()) { it.materialName } }
+        }.toDataResult("getItemMaterialNames")
+    }
+
     // Compatibility signals (engine v2): co-wear, saved outfits, occasions, hex.
 
     suspend fun getCoWearPairs(

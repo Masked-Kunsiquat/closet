@@ -22,6 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.closet.core.ui.preferences.PreferencesRepository
 import com.closet.core.ui.resources.ic_icon_calendar_dots
 import com.closet.core.ui.resources.ic_icon_chart_bar
@@ -189,8 +190,10 @@ private fun AppContent(
                 .consumeWindowInsets(innerPadding)
                 .imePadding()
         ) {
-            composable<ClosetDestination> {
+            composable<ClosetDestination> { backStackEntry ->
+                val route = runCatching { backStackEntry.toRoute<ClosetDestination>() }.getOrNull()
                 ClosetScreen(
+                    initialCategoryId = route?.initialCategoryId,
                     onAddItemClick = { navController.navigate(AddClothingDestination()) },
                     onItemClick = { itemId -> navController.navigate(ClothingDetailDestination(itemId)) },
                     onSettingsClick = { navController.navigateToSettings() },

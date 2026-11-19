@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * Snapshot of all state needed to render the Closet screen.
@@ -106,6 +108,16 @@ class ClosetViewModel(
     private val _favoritesOnly         = MutableStateFlow(false)
     private val _showArchived          = MutableStateFlow(false)
     private val _sortOrder             = MutableStateFlow(SortOrder.NEWEST)
+
+    init {
+        viewModelScope.launch {
+            savedStateHandle.getStateFlow<Long?>("initialCategoryId", _selectedCategoryId.value)
+                .drop(1)
+                .collect { categoryId ->
+                    _selectedCategoryId.value = categoryId
+                }
+        }
+    }
 
     private val filterSelections = combine(
         _selectedColorIds,

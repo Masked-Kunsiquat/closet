@@ -76,6 +76,23 @@ class ClosetViewModelTest {
     }
 
     @Test
+    fun `updating initialCategoryId on SavedStateHandle or selectCategory updates selectedCategoryId`() = runTest {
+        val savedStateHandle = SavedStateHandle()
+        val viewModel = buildViewModel(savedStateHandle)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+
+        assertNull(viewModel.uiState.value.selectedCategoryId)
+
+        // Simulates singleTop re-delivery updating the argument on the existing entry
+        savedStateHandle["initialCategoryId"] = 2L
+        assertEquals(2L, viewModel.uiState.value.selectedCategoryId)
+
+        // Simulates ClosetScreen LaunchedEffect(initialCategoryId) calling selectCategory
+        viewModel.selectCategory(5L)
+        assertEquals(5L, viewModel.uiState.value.selectedCategoryId)
+    }
+
+    @Test
     fun `image paths resolve through the ImagePathResolver`() {
         val viewModel = buildViewModel()
         assertEquals("/abs/a.jpg", viewModel.resolveImagePath("a.jpg"))

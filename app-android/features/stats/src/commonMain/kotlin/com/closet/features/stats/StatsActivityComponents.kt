@@ -52,9 +52,12 @@ import com.closet.features.stats.resources.stats_wear_badge
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.closet.core.data.dao.BreakdownRow
 import com.closet.core.data.dao.CostPerWearItem
@@ -63,11 +66,13 @@ import com.closet.core.data.dao.StatsOverview
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.columnSeries
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 
 // ─── Period selector ──────────────────────────────────────────────────────────
 
@@ -339,6 +344,8 @@ internal fun TotalLogsCallout(
 
 // ─── Wear by category ─────────────────────────────────────────────────────────
 
+private val CategoryLabelsKey = ExtraStore.Key<List<String>>()
+
 /** Vico animated column chart showing how many times each category has been worn. */
 @Composable
 internal fun CategoryWearSection(
@@ -352,23 +359,52 @@ internal fun CategoryWearSection(
     LaunchedEffect(rows) {
         modelProducer.runTransaction {
             columnSeries { series(rows.map { it.count }) }
+            extras { it[CategoryLabelsKey] = rows.map { row -> row.label } }
+        }
+    }
+
+    val startAxisLabel = rememberAxisLabelComponent(
+        style = TextStyle(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+        ),
+        lineCount = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+    val bottomAxisLabel = rememberAxisLabelComponent(
+        style = TextStyle(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+        ),
+        lineCount = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+
+    val bottomValueFormatter = remember {
+        CartesianValueFormatter { context, x, _ ->
+            context.model.extraStore.getOrNull(CategoryLabelsKey)
+                ?.getOrNull(x.roundToInt())
+                ?: ""
         }
     }
 
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberColumnCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
+            startAxis = VerticalAxis.rememberStart(
+                label = startAxisLabel,
+            ),
             bottomAxis = HorizontalAxis.rememberBottom(
-                valueFormatter = CartesianValueFormatter { _, x, _ ->
-                    rows.getOrNull(x.toInt())?.label ?: ""
-                }
+                label = bottomAxisLabel,
+                itemPlacer = remember { HorizontalAxis.ItemPlacer.segmented() },
+                valueFormatter = bottomValueFormatter,
             )
         ),
         modelProducer = modelProducer,
         modifier = modifier
             .fillMaxWidth()
-            .height(200.dp)
+            .height(220.dp)
             .padding(horizontal = 16.dp)
     )
 }

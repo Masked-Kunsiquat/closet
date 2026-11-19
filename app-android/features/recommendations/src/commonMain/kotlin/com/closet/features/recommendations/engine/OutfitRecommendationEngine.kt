@@ -83,9 +83,9 @@ class OutfitRecommendationEngine {
         internal const val WARM_THRESHOLD_C = 20.0
 
         // --- Per-item multipliers ---
-        private const val MULTIPLIER_TEMP_OUT_OF_RANGE = 0.55
-        private const val MULTIPLIER_RAIN_NOT_SUITABLE = 0.60
-        private const val MULTIPLIER_WIND_NOT_SUITABLE = 0.70
+        internal const val MULTIPLIER_TEMP_OUT_OF_RANGE = 0.55
+        internal const val MULTIPLIER_RAIN_NOT_SUITABLE = 0.60
+        internal const val MULTIPLIER_WIND_NOT_SUITABLE = 0.70
 
         // --- Outfit-level multipliers ---
         internal const val MULTIPLIER_COLD_NO_OUTER = 0.50
@@ -132,7 +132,7 @@ class OutfitRecommendationEngine {
         private const val BONUS_NOT_WORN_LATELY = 1.05
 
         // --- Sparse data guard ---
-        private const val MIN_LOGS_FOR_SIGNAL = 5
+        internal const val MIN_LOGS_FOR_SIGNAL = 5
 
         // --- Top N result (the default page size; the ViewModel shows this many) ---
         internal const val TOP_N = 3
@@ -402,39 +402,34 @@ class OutfitRecommendationEngine {
         var score = recencyMultiplier(item, input) // runs with or without weather
         val weather = input.weather ?: return score // no weather → no weather signals
 
+        val prior = WeatherFitPrior.forItem(item)
+
         // Temperature signal
-        val tempPercentile = input.tempPercentiles[item.id]
-        if (tempPercentile != null && tempPercentile.logCount >= MIN_LOGS_FOR_SIGNAL) {
-            val forecastLow = weather.tempLowC
-            val forecastHigh = weather.tempHighC
-            if (forecastLow != null && forecastHigh != null) {
-                val outsideRange =
-                    forecastHigh < tempPercentile.p10TempLow ||
-                    forecastLow > tempPercentile.p90TempHigh
-                if (outsideRange) {
-                    score *= MULTIPLIER_TEMP_OUT_OF_RANGE
-                }
-            }
+        val forecastLow = weather.tempLowC
+        val forecastHigh = weather.tempHighC
+        if (forecastLow != null && forecastHigh != null) {
+            score *= WeatherFitPrior.temperatureMultiplier(
+                prior = prior,
+                percentiles = input.tempPercentiles[item.id],
+                forecastLow = forecastLow,
+                forecastHigh = forecastHigh,
+            )
         }
 
         // Rain signal
         if (weather.isRaining) {
-            val rain = input.rainSuitability[item.id]
-            if (rain != null && rain.rainLogCount >= MIN_LOGS_FOR_SIGNAL) {
-                if (rain.rainPct < 0.20) {
-                    score *= MULTIPLIER_RAIN_NOT_SUITABLE
-                }
-            }
+            score *= WeatherFitPrior.rainMultiplier(
+                prior = prior,
+                rain = input.rainSuitability[item.id],
+            )
         }
 
         // Wind signal
         if (weather.isWindy) {
-            val wind = input.windSuitability[item.id]
-            if (wind != null && wind.windLogCount >= MIN_LOGS_FOR_SIGNAL) {
-                if (wind.windPct < 0.20) {
-                    score *= MULTIPLIER_WIND_NOT_SUITABLE
-                }
-            }
+            score *= WeatherFitPrior.windMultiplier(
+                prior = prior,
+                wind = input.windSuitability[item.id],
+            )
         }
 
         return score

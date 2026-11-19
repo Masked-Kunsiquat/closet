@@ -99,6 +99,8 @@ class RecommendationViewModelSessionTest {
         coEvery { repo.getSubcategorySavedOutfitPairs() } returns DataResult.Success(emptyList())
         coEvery { repo.getSubcategoryLogCounts() } returns DataResult.Success(emptyList())
         coEvery { repo.getSubcategorySavedItemCounts() } returns DataResult.Success(emptyList())
+        coEvery { repo.getItemSubcategoryNames(any()) } returns DataResult.Success(emptyMap())
+        coEvery { repo.getItemMaterialNames(any()) } returns DataResult.Success(emptyMap())
         coEvery { repo.getMaxLogId() } returns DataResult.Success(0L)
         coEvery { repo.getTrainingItems() } returns DataResult.Success(emptyList())
         coEvery { repo.getTrainingWearLogs() } returns DataResult.Success(emptyList())
