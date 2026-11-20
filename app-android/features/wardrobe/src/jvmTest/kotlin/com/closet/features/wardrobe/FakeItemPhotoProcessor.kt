@@ -1,6 +1,7 @@
 package com.closet.features.wardrobe
 
-import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.color.ExtractedColor
+import com.closet.core.data.color.ReferenceShade
 import com.closet.features.wardrobe.photo.ItemPhotoProcessor
 
 /** Hand-written [ItemPhotoProcessor] that records every call and can be told to fail. */
@@ -21,8 +22,10 @@ class FakeItemPhotoProcessor : ItemPhotoProcessor {
     val removeBackgroundCalls = mutableListOf<String>()
 
     /** Colors returned by [extractColors] per path; unknown paths yield an empty list. */
-    val colorsByPath = mutableMapOf<String, List<ColorEntity>>()
+    val colorsByPath = mutableMapOf<String, List<ExtractedColor>>()
     val extractCalls = mutableListOf<String>()
+    /** The reference shades handed to each [extractColors] call, in order. */
+    val extractShades = mutableListOf<List<ReferenceShade>>()
 
     val describeCalls = mutableListOf<String>()
     var describeHandler: suspend (String) -> String? = { path -> "caption:$path" }
@@ -32,8 +35,12 @@ class FakeItemPhotoProcessor : ItemPhotoProcessor {
         return importResults.removeFirst()
     }
 
+    /** Runs before [deleteImage] returns; a test can suspend here to make cleanup slow. */
+    var deleteGate: suspend (String) -> Unit = {}
+
     override suspend fun deleteImage(relativePath: String) {
         deleted += relativePath
+        deleteGate(relativePath)
     }
 
     override suspend fun ensureSegmentationModel() {
@@ -50,8 +57,9 @@ class FakeItemPhotoProcessor : ItemPhotoProcessor {
     /** Runs before [extractColors] returns; a test can suspend here to make extraction late. */
     var extractGate: suspend (String) -> Unit = {}
 
-    override suspend fun extractColors(relativePath: String, available: List<ColorEntity>): List<ColorEntity> {
+    override suspend fun extractColors(relativePath: String, shades: List<ReferenceShade>): List<ExtractedColor> {
         extractCalls += relativePath
+        extractShades += shades
         extractGate(relativePath)
         return colorsByPath[relativePath].orEmpty()
     }

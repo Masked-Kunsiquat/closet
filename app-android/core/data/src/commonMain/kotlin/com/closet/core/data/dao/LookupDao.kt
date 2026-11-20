@@ -55,6 +55,10 @@ interface LookupDao {
     @Query("SELECT * FROM colors ORDER BY name")
     suspend fun getAllColors(): List<ColorEntity>
 
+    /** One-shot fetch of every colour's reference shades (the colour namer's palette). */
+    @Query("SELECT * FROM color_shades ORDER BY color_id, id")
+    suspend fun getAllColorShades(): List<ColorShadeEntity>
+
     /**
      * Retrieves all materials ordered alphabetically by name.
      * @return A [Flow] emitting a list of [MaterialEntity].

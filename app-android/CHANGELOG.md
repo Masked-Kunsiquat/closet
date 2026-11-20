@@ -8,6 +8,9 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ## [Unreleased]
 
+### Changed
+- **Better automatic colour tags**: photos are analysed by how colours really look, with the background ignored, and each tag remembers its real shade and how much of the item it covers. Colours you set yourself are never overwritten.
+
 ---
 
 ## [0.9.0] — 2026-11-18

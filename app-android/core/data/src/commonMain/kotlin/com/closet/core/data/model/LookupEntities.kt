@@ -86,6 +86,36 @@ data class ColorEntity(
      * Added in Migration 2→3.
      */
     @ColumnInfo(name = "color_family", defaultValue = "Neutral") val colorFamily: String = "Neutral",
+    /**
+     * The basic colour term this name falls under (black, white, gray, brown, blue, red, green,
+     * pink, orange, yellow, purple); empty when unset. Added in schema v2.
+     */
+    @ColumnInfo(name = "basic_term", defaultValue = "") val basicTerm: String = "",
+    /** Whether this colour wears as a neutral. Added in schema v2. */
+    @ColumnInfo(name = "wears_as_neutral", defaultValue = "0") val wearsAsNeutral: Boolean = false,
+)
+
+/**
+ * A reference shade of a [ColorEntity]: a hex the colour namer matches measured colours against
+ * (nearest Oklab distance). A colour's own [ColorEntity.hex] is not automatically one of its
+ * shades. Seeded; added in schema v2.
+ */
+@Entity(
+    tableName = "color_shades",
+    foreignKeys = [
+        ForeignKey(
+            entity = ColorEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["color_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("color_id")]
+)
+data class ColorShadeEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "color_id") val colorId: Long,
+    val hex: String,
 )
 
 /** Fabric/material lookup value (e.g. Cotton, Wool). */

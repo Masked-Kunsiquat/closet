@@ -87,9 +87,6 @@ kotlin {
             implementation(libs.androidx.core.ktx)
             implementation(libs.kotlinx.coroutines.android)
 
-            // Palette
-            implementation(libs.androidx.palette.ktx)
-
             // Encrypted storage for API keys
             implementation(libs.androidx.security.crypto)
 
@@ -105,6 +102,10 @@ kotlin {
         jvmMain.dependencies {
             // Ktor engine
             implementation(libs.ktor.client.okhttp)
+        }
+        jvmTest.dependencies {
+            // MigrationTestHelper (MigrationTest) against the committed schemas/ exports.
+            implementation(libs.room.testing)
         }
         iosMain.dependencies {
             // Ktor engine
@@ -129,7 +130,7 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-// FreshInstallSchemaTest (jvmTest) reads the committed schema export, schemas/…/1.json.
+// FreshInstallSchemaTest and MigrationTest (jvmTest) read the committed schema exports, schemas/…/<version>.json.
 tasks.named<Test>("jvmTest") {
     val schemaDir = layout.projectDirectory.dir("schemas")
     inputs.dir(schemaDir).withPropertyName("roomSchemas").withPathSensitivity(PathSensitivity.RELATIVE)

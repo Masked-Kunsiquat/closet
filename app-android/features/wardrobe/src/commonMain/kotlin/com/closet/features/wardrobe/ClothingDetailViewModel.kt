@@ -165,10 +165,16 @@ class ClothingDetailViewModel(
 
     // --- Junction Table Updates ---
 
-    /** Replaces the item's color associations with [colorIds] (delete-then-insert). */
+    /**
+     * Replaces the item's color associations with [colorIds] (delete-then-insert). A manual edit:
+     * every row is saved as [ColorSource.USER]; colours already on the item keep their measured
+     * hex and share, new ones have neither. Writes nothing if [colorIds] is the same set the item
+     * already has (so confirming the picker unchanged leaves auto rows open to later re-extraction).
+     * The read, check and write are one transaction in [ClothingRepository.updateColorsAsUser].
+     */
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
-            clothingRepository.updateItemColors(itemId, colorIds).fold(
+            clothingRepository.updateColorsAsUser(itemId, colorIds).fold(
                 onLoading = {},
                 onSuccess = {},
                 onError = { handleActionError(it) }

@@ -3,6 +3,7 @@ package com.closet.tools.demobackup
 import com.closet.core.data.getDatabaseBuilder
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ClothingStatus
+import com.closet.core.data.model.TaggedColor
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
@@ -125,7 +126,7 @@ object DemoBackup {
                         )
                         val result = clothing.insertItemWithAttributes(
                             item = entity,
-                            colors = listOfNotNull(item.color?.let { lookups.color(it) }),
+                            colors = listOfNotNull(item.color?.let { TaggedColor(lookups.color(it).id) }),
                             seasonIds = listOfNotNull(item.season?.let { lookups.season(it) }),
                             occasionIds = listOfNotNull(item.occasion?.let { lookups.occasion(it) }),
                             materialIds = details.materials.map { lookups.material(it) },

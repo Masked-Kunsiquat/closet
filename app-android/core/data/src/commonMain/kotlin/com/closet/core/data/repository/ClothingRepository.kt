@@ -5,6 +5,7 @@ import androidx.room.useWriterConnection
 import androidx.sqlite.SQLiteException
 import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.Converters
+import com.closet.core.data.color.ExtractedColor
 import com.closet.core.data.dao.ClothingDao
 import com.closet.core.data.model.*
 import com.closet.core.data.time.AppClock
@@ -110,18 +111,29 @@ class ClothingRepository(
     fun getItemColors(itemId: Long): Flow<List<ColorEntity>> = clothingDao.getItemColors(itemId)
 
     /**
+     * One-shot fetch of an item's raw color rows, with each row's measured hex, share and source.
+     */
+    suspend fun getItemColorRows(itemId: Long): DataResult<List<ClothingItemColorEntity>> = try {
+        DataResult.Success(clothingDao.getItemColorRows(itemId))
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Logger.withTag("ClothingRepository").e(e) { "Error fetching color rows for item: $itemId" }
+        DataResult.Error(AppError.DatabaseError.QueryError(e))
+    }
+
+    /**
      * Inserts a new clothing item along with its associations.
      * @param item The item entity to insert.
-     * @param colorIds Optional list of color IDs to associate.
+     * @param colors Optional colors to associate.
      * @return A [DataResult] containing the new row ID.
      */
     suspend fun insertItem(
         item: ClothingItemEntity,
-        colorIds: List<Long> = emptyList()
+        colors: List<TaggedColor> = emptyList()
     ): DataResult<Long> = wrapInTransaction {
         val id = clothingDao.insertClothingItem(item)
-        if (colorIds.isNotEmpty()) {
-            clothingDao.updateItemColors(id, colorIds)
+        if (colors.isNotEmpty()) {
+            clothingDao.updateItemColors(id, colors)
         }
         id
     }
@@ -132,9 +144,9 @@ class ClothingRepository(
      */
     suspend fun insertItemWithColors(
         item: ClothingItemEntity,
-        colors: List<ColorEntity>
+        colors: List<TaggedColor>
     ): DataResult<Long> {
-        val result = insertItem(item, colors.map { it.id })
+        val result = insertItem(item, colors)
         if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(result.data) }
         return result
     }
@@ -145,7 +157,7 @@ class ClothingRepository(
      */
     suspend fun insertItemWithAttributes(
         item: ClothingItemEntity,
-        colors: List<ColorEntity>,
+        colors: List<TaggedColor>,
         seasonIds: List<Long>,
         occasionIds: List<Long>,
         materialIds: List<Long>,
@@ -153,7 +165,7 @@ class ClothingRepository(
     ): DataResult<Long> {
         val result = wrapInTransaction {
             val id = clothingDao.insertClothingItem(item)
-            clothingDao.updateItemColors(id, colors.map { it.id })
+            clothingDao.updateItemColors(id, colors)
             clothingDao.updateItemSeasons(id, seasonIds)
             clothingDao.updateItemOccasions(id, occasionIds)
             clothingDao.updateItemMaterials(id, materialIds)
@@ -170,7 +182,7 @@ class ClothingRepository(
      */
     suspend fun updateItemWithAttributes(
         item: ClothingItemEntity,
-        colors: List<ColorEntity>,
+        colors: List<TaggedColor>,
         seasonIds: List<Long>,
         occasionIds: List<Long>,
         materialIds: List<Long>,
@@ -179,7 +191,7 @@ class ClothingRepository(
         val result = wrapInTransaction {
             val rowsAffected = clothingDao.updateClothingItem(item)
             if (rowsAffected == 0) return@wrapInTransaction 0
-            clothingDao.updateItemColors(item.id, colors.map { it.id })
+            clothingDao.updateItemColors(item.id, colors)
             clothingDao.updateItemSeasons(item.id, seasonIds)
             clothingDao.updateItemOccasions(item.id, occasionIds)
             clothingDao.updateItemMaterials(item.id, materialIds)
@@ -196,18 +208,18 @@ class ClothingRepository(
     /**
      * Updates an existing clothing item and its associations.
      * @param item The item entity with updated values.
-     * @param colorIds Optional list of color IDs to associate.
+     * @param colors Colors to replace the item's color rows with; null leaves them unchanged.
      * @return A [DataResult] containing the number of rows updated.
      */
     suspend fun updateItem(
         item: ClothingItemEntity,
-        colorIds: List<Long>? = null
+        colors: List<TaggedColor>? = null
     ): DataResult<Int> {
         val result = wrapInTransaction {
             val rowsAffected = clothingDao.updateClothingItem(item)
             if (rowsAffected == 0) return@wrapInTransaction 0
-            if (colorIds != null) {
-                clothingDao.updateItemColors(item.id, colorIds)
+            if (colors != null) {
+                clothingDao.updateItemColors(item.id, colors)
             }
             rowsAffected
         }
@@ -224,9 +236,9 @@ class ClothingRepository(
      */
     suspend fun updateItemWithColors(
         item: ClothingItemEntity,
-        colors: List<ColorEntity>
+        colors: List<TaggedColor>
     ): DataResult<Int> {
-        val result = updateItem(item, colors.map { it.id })
+        val result = updateItem(item, colors)
         if (result is DataResult.Success) repositoryScope.launch { vectorizeItem(item.id) }
         return result
     }
@@ -299,10 +311,52 @@ class ClothingRepository(
     /**
      * Atomically replaces color associations for an item.
      * @param itemId The ID of the clothing item.
-     * @param colorIds The list of new color IDs.
+     * @param colors The new color rows.
      */
-    suspend fun updateItemColors(itemId: Long, colorIds: List<Long>): DataResult<Unit> = wrapInTransaction {
-        clothingDao.updateItemColors(itemId, colorIds)
+    suspend fun updateItemColors(itemId: Long, colors: List<TaggedColor>): DataResult<Unit> = wrapInTransaction {
+        clothingDao.updateItemColors(itemId, colors)
+    }
+
+    /**
+     * A manual colour edit: replaces the item's colours with [colorIds], every row as
+     * [ColorSource.USER]. Colours the item already has keep their measured hex and share; new ones
+     * have neither. Nothing is written when [colorIds] is the set the item already has, so confirming
+     * the picker unchanged leaves auto rows open to later re-extraction. The read, the check and the
+     * write run in one transaction, so a concurrent re-extraction can't slip between them.
+     * @return A [DataResult] with true when the rows were replaced, false when the set was unchanged.
+     */
+    suspend fun updateColorsAsUser(itemId: Long, colorIds: List<Long>): DataResult<Boolean> = wrapInTransaction {
+        val existing = clothingDao.getItemColorRows(itemId).associateBy { it.colorId }
+        val ids = colorIds.distinct()
+        if (ids.toSet() == existing.keys) return@wrapInTransaction false
+        clothingDao.updateItemColors(
+            itemId,
+            ids.map { id ->
+                val row = existing[id]
+                TaggedColor(id, hex = row?.hex, share = row?.share, source = ColorSource.USER)
+            },
+        )
+        true
+    }
+
+    /**
+     * Replaces an item's colors with freshly [extracted] ones as [ColorSource.AUTO] rows. Nothing is
+     * written when the user has curated them (any existing row has source [ColorSource.USER]) or
+     * when [extracted] is empty (the extractor found no colour), so a failed extraction never
+     * wipes the existing rows. The check and the write run in one transaction.
+     * [ColorSource.NANO] rows are replaceable like auto rows, intentionally: Nano tagging arrives in PR 3.
+     * @return A [DataResult] with true when the rows were replaced, false when they were left
+     *   unchanged (user-curated, or nothing extracted).
+     */
+    suspend fun replaceAutoColors(itemId: Long, extracted: List<ExtractedColor>): DataResult<Boolean> = wrapInTransaction {
+        if (extracted.isEmpty()) return@wrapInTransaction false
+        val curated = clothingDao.getItemColorRows(itemId).any { it.source == ColorSource.USER }
+        if (curated) return@wrapInTransaction false
+        clothingDao.updateItemColors(
+            itemId,
+            extracted.map { TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO) },
+        )
+        true
     }
 
     /**

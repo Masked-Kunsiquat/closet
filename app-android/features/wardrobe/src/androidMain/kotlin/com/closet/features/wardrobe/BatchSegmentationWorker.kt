@@ -5,22 +5,23 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import androidx.palette.graphics.Palette
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.closet.core.data.dao.ClothingDao
+import com.closet.core.data.color.ColorExtractor
+import com.closet.core.data.color.ReferenceShade
 import com.closet.core.data.dao.LookupDao
 import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.time.AppClock
-import com.closet.core.data.util.ColorMatcher
+import com.closet.core.data.util.BitmapUtils
+import com.closet.core.data.util.DataResult
+import com.closet.core.data.util.toArgbPixels
 import com.closet.core.data.worker.BatchSegmentationWork
 import com.closet.features.wardrobe.repository.SubjectSegmenter
 import kotlinx.coroutines.CancellationException
@@ -89,6 +90,16 @@ class BatchSegmentationWorker(
         ensureNotificationChannel()
         setForeground(createForegroundInfo(0, total))
 
+        // Loaded once per run. A failed load only disables colour re-extraction, never segmentation.
+        val extractor: ColorExtractor? = try {
+            ColorExtractor(lookupDao.getAllColorShades().map { ReferenceShade(it.colorId, it.hex) })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            log.w("BatchSeg: reference shades failed to load; colours will not be re-extracted", e)
+            null
+        }
+
         var done = 0
         var failed = 0
 
@@ -97,7 +108,7 @@ class BatchSegmentationWorker(
                 val originalPath = item.imagePath ?: continue
                 val file = storageRepository.getFile(originalPath)
 
-                val bitmap = decodeSampledBitmap(file.absolutePath, maxDim = 1024)
+                val bitmap = BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 1024)
                     ?: run {
                         log.w("BatchSeg: could not decode item ${item.id} ($originalPath)")
                         failed++
@@ -124,29 +135,23 @@ class BatchSegmentationWorker(
                     throw e
                 }
 
-                // Best-effort: re-extract colours from the masked bitmap and refresh the
-                // semantic description. The Palette API skips transparent pixels so only
-                // subject colours are sampled — not the removed background.
+                // Best-effort: re-measure colours from the masked bitmap (alpha is the mask, so
+                // only subject pixels count, not the removed background) and refresh the semantic
+                // description. Writes only through replaceAutoColors, which leaves user-curated
+                // rows (and empty extractions) alone; a false result is expected, not an error.
                 // Runs inline (worker is already on IO); failure never marks the item as failed.
                 try {
-                    val palette = Palette.from(masked).generate()
-                    val extracted = listOfNotNull(
-                        palette.dominantSwatch?.rgb,
-                        palette.vibrantSwatch?.rgb,
-                        palette.mutedSwatch?.rgb,
-                    ).distinct()
-                    if (extracted.isNotEmpty()) {
-                        val availableColors = lookupDao.getAllColors()
-                        if (availableColors.isNotEmpty()) {
-                            val matched = extracted
-                                .map { ColorMatcher.findNearestColor(it, availableColors) }
-                                .distinctBy { it.id }
-                            clothingRepository.updateItemColors(item.id, matched.map { it.id })
-                            log.d("BatchSeg: item ${item.id} colours → ${matched.joinToString { it.name }}")
+                    if (extractor != null) {
+                        val extracted = extractor.extract(masked.toArgbPixels(), masked.width, masked.height)
+                        val replaced = clothingRepository.replaceAutoColors(item.id, extracted)
+                        if (replaced is DataResult.Success && replaced.data) {
+                            log.d("BatchSeg: item ${item.id} colours → ${extracted.joinToString { "${it.colorId}:${it.hex}" }}")
                             clothingRepository.revectorizeItem(item.id)
+                        } else if (replaced is DataResult.Error) {
+                            log.w("BatchSeg: colour write failed for item ${item.id} — ignored", replaced.throwable)
+                        } else {
+                            log.d("BatchSeg: item ${item.id} colours left unchanged (user-curated or none extracted)")
                         }
-                    } else {
-                        log.d("BatchSeg: item ${item.id} — no swatches extracted from masked bitmap")
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -237,18 +242,5 @@ class BatchSegmentationWorker(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .build()
-    }
-
-    /**
-     * Two-pass decode: first reads only the image bounds, then decodes at the largest
-     * power-of-two [inSampleSize] that keeps the longest side ≤ [maxDim].
-     */
-    private fun decodeSampledBitmap(path: String, maxDim: Int): Bitmap? {
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, opts)
-        val longest = maxOf(opts.outWidth, opts.outHeight)
-        var sampleSize = 1
-        while (longest / sampleSize > maxDim) sampleSize *= 2
-        return BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sampleSize })
     }
 }

@@ -12,11 +12,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.closet.core.data.color.ReferenceShade
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.model.ColorSource
 import com.closet.core.data.model.MaterialEntity
 import com.closet.core.data.model.OccasionEntity
 import com.closet.core.data.model.PatternEntity
@@ -24,6 +26,7 @@ import com.closet.core.data.model.SeasonEntity
 import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SizeValueEntity
 import com.closet.core.data.model.SubcategoryEntity
+import com.closet.core.data.model.TaggedColor
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.BrandRepository
 import com.closet.core.data.repository.ClothingRepository
@@ -114,9 +117,22 @@ private data class FormState(
     val isCaptioning: Boolean = false,
     val imageCaption: String? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
+    /**
+     * The measured row for each colour that has one: from the latest extraction (source auto,
+     * with hex and share) or, on edit, the item's stored rows as they are. Picking a new photo
+     * clears every hex and share (they measured the old photo) but keeps the rows' sources.
+     * Saving uses it for any selected colour it covers; other selected colours become plain user rows.
+     */
+    val measured: Map<Long, TaggedColor> = emptyMap(),
+    /** True after any manual colour toggle; a new extraction that replaces the selection resets it. */
+    val colorsEditedByUser: Boolean = false,
+    /** The colour selection when background removal started; undo or a failed removal restores it. */
+    val preSegmentationColors: ColorSelection? = null,
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
+    /** True when the edit load failed; the form never saves, since it would overwrite the item with partial data. */
+    val loadFailed: Boolean = false,
     val errorMessage: StringResource? = null,
     val selectedSizeSystemId: Long? = null,
     val selectedSizeValueId: Long? = null,
@@ -125,6 +141,23 @@ private data class FormState(
     val selectedOccasionIds: Set<Long> = emptySet(),
     val selectedMaterialIds: Set<Long> = emptySet(),
     val selectedPatternIds: Set<Long> = emptySet(),
+) {
+    /**
+     * True when the selection holds a user's choice: a manual toggle, a stored user row, or a selected
+     * colour with no measurement (a user pick). Re-extracting the same photo must not replace it.
+     */
+    val colorsCurated: Boolean
+        get() = colorsEditedByUser ||
+            measured.values.any { it.source == ColorSource.USER } ||
+            selectedColors.any { it.id !in measured }
+}
+
+/** A snapshot of the form's colour selection; [toggleGeneration] is the toggle count when it was taken. */
+private data class ColorSelection(
+    val selectedColors: List<ColorEntity>,
+    val measured: Map<Long, TaggedColor>,
+    val colorsEditedByUser: Boolean,
+    val toggleGeneration: Long,
 )
 
 /**
@@ -158,6 +191,13 @@ class ClothingFormViewModel(
 
     private var sizeSystemUserOverridden = false
     private var captionJob: Job? = null
+
+    /**
+     * Bumped by every manual colour toggle. The caller of an extraction captures it as soon as it
+     * publishes the image, and the extraction drops its result if it changed meanwhile, so a toggle
+     * made after the image appears (during cleanup or measuring) is never overwritten.
+     */
+    private var colorToggleGeneration = 0L
 
     private val _events = Channel<ClothingFormEvent>()
     val events = _events.receiveAsFlow()
@@ -262,7 +302,7 @@ class ClothingFormViewModel(
             categories = cats,
             subcategories = subs,
             allColors = colors,
-            canSave = form.name.isNotBlank() && !form.isSaving && !form.isSegmenting &&
+            canSave = !form.loadFailed && form.name.isNotBlank() && !form.isSaving && !form.isSegmenting &&
                     !form.isDownloadingModel &&
                     !(form.brandQuery.isNotBlank() && form.selectedBrandId == null),
             isDirty = computeIsDirty(form),
@@ -333,12 +373,16 @@ class ClothingFormViewModel(
             _form.update { it.copy(isLoading = true) }
             try {
                 val entityResult = clothingRepository.getItemEntityById(id)
-                val detail = (clothingRepository.getItemDetailOnce(id) as? DataResult.Success)?.data
+                // A failed detail read must fail the load (#126): treating it as "no colours, seasons,
+                // occasions, materials or patterns" would let a save wipe them.
+                val detail = when (val result = clothingRepository.getItemDetailOnce(id)) {
+                    is DataResult.Success -> result.data
+                    is DataResult.Error -> throw result.throwable
+                    DataResult.Loading -> null
+                }
 
                 if (entityResult is DataResult.Success) {
                     val entity = entityResult.data
-                    originalEntity = entity
-                    originalImagePath = entity.imagePath
 
                     val brandName = if (entity.brandId != null) {
                         (brandRepository.getAllBrands().first { it is DataResult.Success } as DataResult.Success).data
@@ -355,11 +399,20 @@ class ClothingFormViewModel(
                     } else null
 
                     val colors = detail?.colors ?: emptyList()
-                    originalColors = colors
-                    originalSeasonIds = detail?.seasons?.map { it.id }?.toSet() ?: emptySet()
-                    originalOccasionIds = detail?.occasions?.map { it.id }?.toSet() ?: emptySet()
-                    originalMaterialIds = detail?.materials?.map { it.id }?.toSet() ?: emptySet()
-                    originalPatternIds = detail?.patterns?.map { it.id }?.toSet() ?: emptySet()
+                    // Re-saving must keep each row's source, hex and share, so a failed read of the
+                    // rows fails the load rather than letting a save flip them to plain user rows.
+                    val colorRows = when (val rows = clothingRepository.getItemColorRows(id)) {
+                        is DataResult.Success -> rows.data
+                        is DataResult.Error -> throw rows.throwable
+                        DataResult.Loading -> emptyList()
+                    }
+                    val measured = colorRows.associate {
+                        it.colorId to TaggedColor(it.colorId, hex = it.hex, share = it.share, source = it.source)
+                    }
+                    val seasonIds = detail?.seasons?.map { it.id }?.toSet() ?: emptySet()
+                    val occasionIds = detail?.occasions?.map { it.id }?.toSet() ?: emptySet()
+                    val materialIds = detail?.materials?.map { it.id }?.toSet() ?: emptySet()
+                    val patternIds = detail?.patterns?.map { it.id }?.toSet() ?: emptySet()
 
                     var systemId: Long? = null
                     if (entity.sizeValueId != null) {
@@ -372,6 +425,15 @@ class ClothingFormViewModel(
                             }
                         }
                     }
+
+                    // Every read succeeded: only now does the form become an edit of this item.
+                    originalEntity = entity
+                    originalImagePath = entity.imagePath
+                    originalColors = colors
+                    originalSeasonIds = seasonIds
+                    originalOccasionIds = occasionIds
+                    originalMaterialIds = materialIds
+                    originalPatternIds = patternIds
 
                     _form.update { it.copy(
                         name = entity.name,
@@ -392,6 +454,8 @@ class ClothingFormViewModel(
                         category = selectedCat,
                         subcategory = selectedSub,
                         selectedColors = colors,
+                        measured = measured,
+                        colorsEditedByUser = false,
                         selectedSizeSystemId = systemId,
                         selectedSizeValueId = entity.sizeValueId,
                         imageCaption = entity.imageCaption,
@@ -405,7 +469,8 @@ class ClothingFormViewModel(
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                _form.update { it.copy(isLoading = false, errorMessage = CoreRes.string.error_database_query) }
+                log.e(e) { "edit load failed for item $id" }
+                _form.update { it.copy(isLoading = false, loadFailed = true, errorMessage = CoreRes.string.error_database_query) }
             }
         }
     }
@@ -481,6 +546,9 @@ class ClothingFormViewModel(
                 // Point the UI at the new file before any cleanup so the form always
                 // references a valid path even if a subsequent deletion fails.
                 // Reset caption fields so a stale result from a prior image can't bleed through.
+                // The measured hexes and shares belong to the previous image: drop them, keeping each
+                // row's source and the selection, so a save before (or without) a successful
+                // extraction of the new image never stores the old photo's measurements.
                 captionJob?.cancel()
                 _form.update { it.copy(
                     imagePath = path,
@@ -488,8 +556,13 @@ class ClothingFormViewModel(
                     hasSegmentedImage = false,
                     originalSegmentationImagePath = null,
                     originalSegmentationImageCaption = null,
+                    preSegmentationColors = null,
                     imageCaption = null,
+                    measured = it.measured.mapValues { (_, row) -> row.copy(hex = null, share = null) },
                 ) }
+                // A toggle from here on is a choice about the new photo; the cleanup below suspends,
+                // so capture now rather than inside extractColors.
+                val generation = colorToggleGeneration
                 // Best-effort cleanup — failures must not block the form update above.
                 if (previousPath != null && previousPath != originalImagePath) {
                     runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(previousPath) } }
@@ -500,7 +573,7 @@ class ClothingFormViewModel(
                     runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(segOrigPath) } }
                         .onFailure { log.e(it) { "onImageSelected: failed to delete seg original $segOrigPath" } }
                 }
-                extractColors(path)
+                extractColors(path, fromNewPhoto = true, generation = generation)
 
                 // At-capture captioning — best-effort, never blocks save.
                 if (photoProcessor.isCaptionSupported) {
@@ -543,6 +616,12 @@ class ClothingFormViewModel(
                 isSegmenting = true,
                 originalSegmentationImagePath = it.imagePath,
                 originalSegmentationImageCaption = it.imageCaption,
+                preSegmentationColors = ColorSelection(
+                    selectedColors = it.selectedColors,
+                    measured = it.measured,
+                    colorsEditedByUser = it.colorsEditedByUser,
+                    toggleGeneration = colorToggleGeneration,
+                ),
             ) }
             try {
                 val path = _form.value.imagePath ?: return@launch
@@ -555,9 +634,11 @@ class ClothingFormViewModel(
                     imageCaption = null,                      // old caption was for the un-segmented image
                     originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
+                val generation = colorToggleGeneration
                 // Re-extract colours from the segmented PNG. Transparent pixels are ignored,
-                // so only subject colours are sampled — not the background.
-                extractColors(savedPath)
+                // so only subject colours are sampled — not the background. Same photo, so a
+                // curated selection is kept.
+                extractColors(savedPath, fromNewPhoto = false, generation = generation)
                 // Re-caption the segmented image on Main (Image Description API requirement).
                 if (photoProcessor.isCaptionSupported) {
                     launchCaptionJob(savedPath)
@@ -566,7 +647,7 @@ class ClothingFormViewModel(
                 throw e
             } catch (e: Exception) {
                 log.e(e) { "removeBackground failed" }
-                _form.update { it.copy(
+                _form.update { it.withPreSegmentationColors().copy(
                     imagePath = it.originalSegmentationImagePath,
                     originalSegmentationImagePath = null,
                     imageCaption = it.originalSegmentationImageCaption,
@@ -585,7 +666,7 @@ class ClothingFormViewModel(
         // The stale-path guard would block its writes, but isCaptioning would
         // stay stuck true without an explicit cancel + reset here.
         captionJob?.cancel()
-        _form.update { it.copy(
+        _form.update { it.withPreSegmentationColors().copy(
             imagePath = originalPath,
             hasSegmentedImage = false,
             originalSegmentationImagePath = null,
@@ -647,24 +728,82 @@ class ClothingFormViewModel(
     }
 
     /**
-     * Replaces the selected colors with those matched from [path]; leaves them if none match,
-     * or if [path] is no longer the current image by the time extraction finishes.
+     * Replaces the selected colors with those measured from [path] (as auto rows) and clears the
+     * user-edited flag.
+     *
+     * A new photo ([fromNewPhoto] true) always replaces the selection. Re-measuring the same photo
+     * (background removal, [fromNewPhoto] false) replaces it only while it is untouched extractor
+     * output; a curated selection ([FormState.colorsCurated]) is kept, so segmenting never turns
+     * user rows into auto ones.
+     *
+     * Leaves the selection as it is if none of the colours match, if the reference shades can't be
+     * loaded, if a colour was toggled since [path] was published ([generation], the
+     * [colorToggleGeneration] the caller captured right after publishing it), or if [path] is no
+     * longer the current image by the time extraction finishes.
      */
-    private suspend fun extractColors(path: String) {
-        val matched = photoProcessor.extractColors(path, allColors.value)
-        if (matched.isNotEmpty()) {
-            _form.update { if (it.imagePath == path) it.copy(selectedColors = matched) else it }
+    private suspend fun extractColors(path: String, fromNewPhoto: Boolean, generation: Long) {
+        if (!fromNewPhoto && _form.value.colorsCurated) return
+        val shades = referenceShades() ?: return
+        val extracted = photoProcessor.extractColors(path, shades)
+        if (colorToggleGeneration != generation) return
+        val colorsById = allColors.value.associateBy { it.id }
+        val known = extracted.filter { it.colorId in colorsById }
+        if (known.isEmpty()) return
+        val measured = known.associate {
+            it.colorId to TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO)
+        }
+        _form.update {
+            if (it.imagePath != path || (!fromNewPhoto && it.colorsCurated)) it
+            else it.copy(
+                selectedColors = known.map { c -> colorsById.getValue(c.colorId) },
+                measured = measured,
+                colorsEditedByUser = false,
+            )
+        }
+    }
+
+    /**
+     * Restores the colour selection snapshotted when background removal started and drops the
+     * snapshot. A colour toggled since then is the user's choice, so the current selection is kept.
+     */
+    private fun FormState.withPreSegmentationColors(): FormState {
+        val snapshot = preSegmentationColors ?: return this
+        val restored = if (snapshot.toggleGeneration == colorToggleGeneration) {
+            copy(
+                selectedColors = snapshot.selectedColors,
+                measured = snapshot.measured,
+                colorsEditedByUser = snapshot.colorsEditedByUser,
+            )
+        } else {
+            this
+        }
+        return restored.copy(preSegmentationColors = null)
+    }
+
+    private var cachedShades: List<ReferenceShade>? = null
+
+    /** The colour namer's reference shades, loaded once; null (skip extraction) when the load fails. */
+    private suspend fun referenceShades(): List<ReferenceShade>? {
+        cachedShades?.let { return it }
+        return when (val result = lookupRepository.getReferenceShades()) {
+            is DataResult.Success -> result.data.also { cachedShades = it }
+            is DataResult.Error -> {
+                log.w(result.throwable) { "reference shades failed to load; colour extraction skipped" }
+                null
+            }
+            DataResult.Loading -> null
         }
     }
 
     fun onColorToggle(color: ColorEntity) {
+        colorToggleGeneration++
         _form.update { state ->
             val newColors = if (state.selectedColors.contains(color)) {
                 state.selectedColors - color
             } else {
                 state.selectedColors + color
             }
-            state.copy(selectedColors = newColors)
+            state.copy(selectedColors = newColors, colorsEditedByUser = true)
         }
     }
 
@@ -701,6 +840,8 @@ class ClothingFormViewModel(
 
     fun save() {
         val state = _form.value
+        // A failed edit load would save partial data over the item, whatever the user typed since.
+        if (state.loadFailed) return
         if (state.isSegmenting || state.isDownloadingModel) return
         if (state.name.isBlank()) {
             _form.update { it.copy(isNameError = true) }
@@ -734,10 +875,11 @@ class ClothingFormViewModel(
                     updatedAt = clock.now()
                 )
 
+                val colors = colorRowsToSave(state)
                 val result = if (isEditMode) {
                     clothingRepository.updateItemWithAttributes(
                         item,
-                        state.selectedColors,
+                        colors,
                         state.selectedSeasonIds.toList(),
                         state.selectedOccasionIds.toList(),
                         state.selectedMaterialIds.toList(),
@@ -746,7 +888,7 @@ class ClothingFormViewModel(
                 } else {
                     clothingRepository.insertItemWithAttributes(
                         item,
-                        state.selectedColors,
+                        colors,
                         state.selectedSeasonIds.toList(),
                         state.selectedOccasionIds.toList(),
                         state.selectedMaterialIds.toList(),
@@ -781,6 +923,17 @@ class ClothingFormViewModel(
             }
         }
     }
+
+    /**
+     * Each selected colour as its measured row when it has one, otherwise a plain user row. After
+     * a manual toggle every row becomes user (measurements kept), so a later extraction pass
+     * (`replaceAutoColors`) leaves the user's choice alone. Untouched rows are re-saved exactly.
+     */
+    private fun colorRowsToSave(state: FormState): List<TaggedColor> =
+        state.selectedColors.map { color ->
+            val row = state.measured[color.id] ?: TaggedColor(color.id, source = ColorSource.USER)
+            if (state.colorsEditedByUser) row.copy(source = ColorSource.USER) else row
+        }
 
     fun cancel() {
         val currentPath = _form.value.imagePath

@@ -6,6 +6,7 @@ import com.closet.core.data.TestDatabase
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ItemEmbeddingEntity
 import com.closet.core.data.model.OutfitLogEntity
+import com.closet.core.data.model.TaggedColor
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.time.FixedAppClock
@@ -115,7 +116,7 @@ class WardrobeToolsTest {
                 semanticDescription = description,
             ),
         )
-        db.clothingDao().updateItemColors(id, colors.map { idOf("colors", it) })
+        db.clothingDao().updateItemColors(id, colors.map { TaggedColor(idOf("colors", it)) })
         return id
     }
 

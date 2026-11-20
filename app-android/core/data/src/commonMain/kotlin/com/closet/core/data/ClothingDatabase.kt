@@ -14,6 +14,7 @@ import androidx.sqlite.execSQL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import com.closet.core.data.dao.*
+import com.closet.core.data.migrations.MIGRATION_1_2
 import com.closet.core.data.model.*
 
 /**
@@ -30,6 +31,7 @@ import com.closet.core.data.model.*
         SeasonEntity::class,
         OccasionEntity::class,
         ColorEntity::class,
+        ColorShadeEntity::class,
         MaterialEntity::class,
         PatternEntity::class,
         SizeSystemEntity::class,
@@ -46,8 +48,9 @@ import com.closet.core.data.model.*
         ItemEmbeddingEntity::class
     ],
     // Version 1 is the squashed baseline (the old 1→6 chain was reset; see migrations/AGENTS.md).
-    // Every schema change from here on needs a real migration.
-    version = 1,
+    // Version 2 (MIGRATION_1_2) adds measured item colours, basic terms, the neutral flag and
+    // reference shades. Every schema change needs a real migration.
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -103,12 +106,13 @@ expect object ClothingDatabaseConstructor : RoomDatabaseConstructor<ClothingData
 
 /**
  * Applies the settings every platform's builder shares: the bundled SQLite driver, [Dispatchers.IO]
- * for queries, and the callbacks that seed lookup data, install the category triggers and create
+ * for queries, the migrations, and the callbacks that seed lookup data, install the category triggers and create
  * the `one_ootd_per_day` partial index.
  */
 fun RoomDatabase.Builder<ClothingDatabase>.configureClosetDatabase(): RoomDatabase.Builder<ClothingDatabase> =
     setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
+        .addMigrations(MIGRATION_1_2)
         .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(connection: SQLiteConnection) {
                 connection.execSQL("PRAGMA foreign_keys = ON")

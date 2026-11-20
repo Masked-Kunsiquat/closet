@@ -1,6 +1,7 @@
 package com.closet.features.wardrobe.photo
 
-import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.color.ExtractedColor
+import com.closet.core.data.color.ReferenceShade
 
 /**
  * The platform half of the item photo pipeline: storage, background removal, color extraction
@@ -16,8 +17,11 @@ interface ItemPhotoProcessor {
     suspend fun ensureSegmentationModel()
     /** Background-removed copy saved as a new PNG; returns its relative path. Throws on failure. */
     suspend fun removeBackground(relativePath: String): String
-    /** Nearest seeded colors for the image's dominant/vibrant/muted swatches; empty on any failure. */
-    suspend fun extractColors(relativePath: String, available: List<ColorEntity>): List<ColorEntity>
+    /**
+     * The image's dominant colours, measured by the shared ColorExtractor and named by the nearest
+     * of [shades]; alpha is the mask on a segmented image. Empty on any failure.
+     */
+    suspend fun extractColors(relativePath: String, shades: List<ReferenceShade>): List<ExtractedColor>
     /** Caption, or null if the image can't be decoded. Throws if captioning fails. */
     suspend fun describe(relativePath: String): String?
 }

@@ -82,9 +82,6 @@ kotlin {
             // WorkManager for BatchSegmentationWorker
             implementation(libs.androidx.work.runtime.ktx)
 
-            // Palette (colour extraction)
-            implementation(libs.androidx.palette.ktx)
-
             // @Preview annotation (previews live in androidMain)
             implementation(project.dependencies.platform(libs.androidx.compose.bom))
             implementation(libs.androidx.ui.tooling.preview)
