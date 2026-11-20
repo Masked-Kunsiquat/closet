@@ -18,7 +18,7 @@ import com.closet.core.data.repository.AiPreferencesRepository
 import com.closet.core.data.repository.ModelDiscoveryRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.worker.BatchSegmentationScheduler
-import com.closet.core.data.worker.BatchSegmentationWork
+import com.closet.core.data.worker.ColorRedetectScheduler
 import com.closet.core.data.worker.WorkState
 import com.closet.core.data.worker.WorkStatus
 import com.closet.core.ui.preferences.PreferencesRepository
@@ -96,6 +96,13 @@ private data class SegmentationState(
     val lastHandledBatchId: String?,
 )
 
+private data class ColorRedetectState(
+    val uncuratedCount: Int,
+    val allCount: Int,
+    val workStatus: WorkStatus?,
+    val lastHandledId: String?,
+)
+
 private data class StorageState(val usedBytes: Long, val compressionWorkStatus: WorkStatus?)
 
 /**
@@ -115,6 +122,7 @@ class SettingsViewModel(
     private val batchCaptioner: BatchCaptioner,
     private val imageCompressionScheduler: ImageCompressionScheduler,
     private val imageStorageStats: ImageStorageStats,
+    private val colorRedetectScheduler: ColorRedetectScheduler,
 ) : ViewModel() {
 
     // ── Private mutable state ─────────────────────────────────────────────────
@@ -194,6 +202,15 @@ class SettingsViewModel(
         preferencesRepository.lastHandledBatchId,
     ) { eligible, workStatus, batchId -> SegmentationState(eligible, workStatus, batchId) }
 
+    private val colorRedetectStateFlow = combine(
+        clothingDao.getColorRedetectEligibleCount(onlyUncurated = true),
+        clothingDao.getColorRedetectEligibleCount(onlyUncurated = false),
+        colorRedetectScheduler.workStatus,
+        preferencesRepository.lastHandledColorRedetectId,
+    ) { uncurated, all, workStatus, lastHandled ->
+        ColorRedetectState(uncurated, all, workStatus, lastHandled)
+    }
+
     private val storageStateFlow = combine(
         _storageUsedBytes,
         imageCompressionScheduler.workStatus,
@@ -208,9 +225,11 @@ class SettingsViewModel(
         combine(anthropicPrefsFlow, geminiPrefsFlow, embeddingStateFlow) { anth, gem, emb ->
             Triple(anth, gem, emb)
         },
-        combine(captionStateFlow, segmentationStateFlow) { cap, seg -> cap to seg },
+        combine(captionStateFlow, segmentationStateFlow, colorRedetectStateFlow) { cap, seg, color ->
+            Triple(cap, seg, color)
+        },
         storageStateFlow,
-    ) { (app, ai, openAi), (anth, gem, emb), (cap, seg), storage ->
+    ) { (app, ai, openAi), (anth, gem, emb), (cap, seg, color), storage ->
         SettingsUiState(
             accent = app.accent,
             dynamicColor = app.dynamicColor,
@@ -246,6 +265,11 @@ class SettingsViewModel(
             segmentationEligibleCount = seg.eligibleCount,
             batchSegWorkStatus = seg.workStatus,
             lastHandledBatchId = seg.lastHandledBatchId,
+            colorRedetectSupported = colorRedetectScheduler.isSupported,
+            colorRedetectUncuratedCount = color.uncuratedCount,
+            colorRedetectAllCount = color.allCount,
+            colorRedetectWorkStatus = color.workStatus,
+            lastHandledColorRedetectId = color.lastHandledId,
             storageUsedBytes = storage.usedBytes,
             compressionWorkStatus = storage.compressionWorkStatus,
         )
@@ -255,6 +279,7 @@ class SettingsViewModel(
         SettingsUiState(
             captionSupported = batchCaptioner.isSupported,
             segmentationSupported = batchSegmentationScheduler.isSupported,
+            colorRedetectSupported = colorRedetectScheduler.isSupported,
         ),
     )
 
@@ -493,6 +518,20 @@ class SettingsViewModel(
         viewModelScope.launch {
             preferencesRepository.setLastHandledBatchId(id)
                 .onFailure { log.e(it) { "Failed to persist last handled batch ID" } }
+        }
+    }
+
+    // ── Bulk colour re-detect event handlers (#128) ───────────────────────────
+
+    /** Starts the bulk re-detect with the confirmation dialog's choice. */
+    fun onStartColorRedetect(onlyUncurated: Boolean) {
+        colorRedetectScheduler.schedule(onlyUncurated)
+    }
+
+    fun onColorRedetectResultHandled(id: String) {
+        viewModelScope.launch {
+            preferencesRepository.setLastHandledColorRedetectId(id)
+                .onFailure { log.e(it) { "Failed to persist last handled colour re-detect ID" } }
         }
     }
 }

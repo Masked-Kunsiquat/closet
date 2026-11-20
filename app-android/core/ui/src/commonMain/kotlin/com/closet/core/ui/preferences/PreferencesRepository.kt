@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.closet.core.ui.theme.ClosetAccent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -24,6 +25,7 @@ class PreferencesRepository(
     private val accentKey = stringPreferencesKey("accent")
     private val dynamicColorKey = booleanPreferencesKey("dynamic_color")
     private val lastHandledBatchIdKey = stringPreferencesKey("last_handled_batch_id")
+    private val lastHandledColorRedetectIdKey = stringPreferencesKey("last_handled_color_redetect_id")
 
     /**
      * Returns a [Flow] that emits the currently stored [ClosetAccent] and
@@ -77,6 +79,25 @@ class PreferencesRepository(
         }
         Result.success(Unit)
     } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        Result.failure(e)
+    }
+
+    /**
+     * The id of the last bulk colour re-detect job whose result the UI acknowledged, kept apart
+     * from [lastHandledBatchId] so the two snackbars never suppress each other. Null when unset.
+     */
+    val lastHandledColorRedetectId: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[lastHandledColorRedetectIdKey]
+    }
+
+    suspend fun setLastHandledColorRedetectId(id: String): Result<Unit> = try {
+        dataStore.edit { prefs ->
+            prefs[lastHandledColorRedetectIdKey] = id
+        }
+        Result.success(Unit)
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
         Result.failure(e)
     }
 }

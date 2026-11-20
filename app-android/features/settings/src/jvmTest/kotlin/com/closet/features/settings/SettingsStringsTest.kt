@@ -7,6 +7,8 @@ import com.closet.features.settings.resources.settings_ai_nano_failed
 import com.closet.features.settings.resources.settings_image_compress_result_with_failures
 import com.closet.features.settings.resources.settings_image_storage_used_summary
 import com.closet.features.settings.resources.settings_section_ai_tools
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_count
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_result
 import com.closet.features.settings.resources.settings_wardrobe_search_index_summary
 import com.closet.features.settings.resources.settings_weather_enabled_summary
 import kotlin.test.Test
@@ -66,6 +68,26 @@ class SettingsStringsTest {
         assertEquals(
             "1 item indexed",
             getPluralString(Res.plurals.settings_wardrobe_search_index_summary, 1, 1),
+        )
+    }
+
+    @Test
+    fun colorRedetectResultHasThreeCounts() = runTest {
+        assertEquals(
+            "Re-detected colours on 4 items; 1 unchanged; 2 failed",
+            getPluralString(Res.plurals.settings_wardrobe_color_redetect_result, 4, 4, 1, 2),
+        )
+        assertEquals(
+            "Re-detected colours on 1 item; 0 unchanged; 0 failed",
+            getPluralString(Res.plurals.settings_wardrobe_color_redetect_result, 1, 1, 0, 0),
+        )
+    }
+
+    @Test
+    fun colorRedetectConfirmCount() = runTest {
+        assertEquals(
+            "This will re-detect colours on 5 items.",
+            getPluralString(Res.plurals.settings_wardrobe_color_redetect_confirm_count, 5, 5),
         )
     }
 }

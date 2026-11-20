@@ -9,6 +9,7 @@ import com.closet.core.data.ClothingDatabase
 import com.closet.core.data.di.dataModule
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.SecretStore
+import com.closet.core.data.worker.ColorRedetectScheduler
 import com.closet.core.ui.di.uiModule
 import com.closet.features.wardrobe.repository.SubjectSegmenter
 import com.closet.features.wardrobe.repository.UnsupportedImageCaptioner
@@ -63,5 +64,7 @@ class WardrobeKoinTest {
         val koin = KoinPlatform.getKoin()
         assertTrue(koin.get<CaptionEnrichmentProvider>() is UnsupportedImageCaptioner)
         assertTrue(koin.get<SubjectSegmenter>() is UnsupportedSubjectSegmenter)
+        // Colour extraction needs no GMS, so bulk re-detect stays supported on foss (#128).
+        assertTrue(koin.get<ColorRedetectScheduler>().isSupported)
     }
 }

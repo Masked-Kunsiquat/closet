@@ -261,6 +261,17 @@ interface ClothingDao {
     @Query("SELECT ci.*, $WEAR_COUNT_SUBQUERY FROM clothing_items ci WHERE ci.id = :id")
     suspend fun getClothingItemDetailOnce(id: Long): ClothingItemDetail?
 
+    /**
+     * Items with a photo whose colours bulk re-detect may replace (#128); with [onlyUncurated],
+     * only those whose colours the user hasn't edited (`colors_curated = 0`).
+     */
+    @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND (:onlyUncurated = 0 OR colors_curated = 0)")
+    suspend fun getColorRedetectItems(onlyUncurated: Boolean): List<ClothingItemEntity>
+
+    /** Live count of [getColorRedetectItems] for the same [onlyUncurated] mode. */
+    @Query("SELECT COUNT(*) FROM clothing_items WHERE image_path IS NOT NULL AND (:onlyUncurated = 0 OR colors_curated = 0)")
+    fun getColorRedetectEligibleCount(onlyUncurated: Boolean): Flow<Int>
+
     /** Items that have an image but no caption yet — input queue for batch enrichment. */
     @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND image_caption IS NULL")
     suspend fun getItemsNeedingCaption(): List<ClothingItemEntity>

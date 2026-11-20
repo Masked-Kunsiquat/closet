@@ -4,12 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +36,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.closet.core.data.ai.BatchCaptionProgress
@@ -48,6 +51,16 @@ import com.closet.features.settings.resources.settings_image_compress_result_wit
 import com.closet.features.settings.resources.settings_wardrobe_batch_result
 import com.closet.features.settings.resources.settings_wardrobe_batch_result_with_failures
 import com.closet.features.settings.resources.settings_wardrobe_caption_result
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_count
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_ok
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_title
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_only_uncurated
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_progress
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_replaces_yours
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_result
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_summary
+import com.closet.features.settings.resources.settings_wardrobe_color_redetecting
 import com.closet.features.settings.resources.settings_wardrobe_caption_result_with_failures
 import com.closet.features.settings.resources.settings_wardrobe_enrich_descriptions_summary
 import com.closet.features.settings.resources.settings_wardrobe_remove_backgrounds_summary
@@ -188,6 +201,22 @@ fun AiSettingsScreen(
         }
     }
 
+    LaunchedEffect(uiState.colorRedetectWorkStatus?.id, uiState.colorRedetectWorkStatus?.state) {
+        val info = uiState.colorRedetectWorkStatus ?: return@LaunchedEffect
+        if (info.state == WorkState.SUCCEEDED && info.id != uiState.lastHandledColorRedetectId) {
+            viewModel.onColorRedetectResultHandled(info.id)
+            // done = re-detected, skipped = unchanged (ColorRedetectWork.KEY_UNCHANGED), failed.
+            val msg = getPluralString(
+                Res.plurals.settings_wardrobe_color_redetect_result,
+                info.done,
+                info.done,
+                info.skipped,
+                info.failed,
+            )
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
     KeepScreenOn(uiState.batchCaptionProgress != null)
 
     LaunchedEffect(uiState.captionResult) {
@@ -302,6 +331,11 @@ fun AiSettingsScreen(
         segmentationEligibleCount = uiState.segmentationEligibleCount,
         batchSegWorkStatus = uiState.batchSegWorkStatus,
         onStartBatchSegmentation = viewModel::onStartBatchSegmentation,
+        colorRedetectSupported = uiState.colorRedetectSupported,
+        colorRedetectUncuratedCount = uiState.colorRedetectUncuratedCount,
+        colorRedetectAllCount = uiState.colorRedetectAllCount,
+        colorRedetectWorkStatus = uiState.colorRedetectWorkStatus,
+        onStartColorRedetect = viewModel::onStartColorRedetect,
         captionSupported = uiState.captionSupported,
         captionEligibleCount = uiState.captionEligibleCount,
         batchCaptionProgress = uiState.batchCaptionProgress,
@@ -351,6 +385,11 @@ internal fun AiSettingsContent(
     segmentationEligibleCount: Int,
     batchSegWorkStatus: WorkStatus?,
     onStartBatchSegmentation: () -> Unit,
+    colorRedetectSupported: Boolean,
+    colorRedetectUncuratedCount: Int,
+    colorRedetectAllCount: Int,
+    colorRedetectWorkStatus: WorkStatus?,
+    onStartColorRedetect: (onlyUncurated: Boolean) -> Unit,
     captionSupported: Boolean,
     captionEligibleCount: Int,
     batchCaptionProgress: BatchCaptionProgress?,
@@ -441,6 +480,15 @@ internal fun AiSettingsContent(
                         eligibleCount = segmentationEligibleCount,
                         workStatus = batchSegWorkStatus,
                         onStart = onStartBatchSegmentation,
+                    )
+                }
+
+                if (colorRedetectSupported) {
+                    ColorRedetectItem(
+                        uncuratedCount = colorRedetectUncuratedCount,
+                        allCount = colorRedetectAllCount,
+                        workStatus = colorRedetectWorkStatus,
+                        onStart = onStartColorRedetect,
                     )
                 }
 
@@ -841,6 +889,136 @@ private fun BatchSegmentationItem(
             },
         )
     }
+}
+
+// ── Bulk colour re-detect item (#128) ──────────────────────────────────────────
+
+@Composable
+private fun ColorRedetectItem(
+    uncuratedCount: Int,
+    allCount: Int,
+    workStatus: WorkStatus?,
+    onStart: (onlyUncurated: Boolean) -> Unit,
+) {
+    val isRunning = workStatus?.state == WorkState.RUNNING ||
+        workStatus?.state == WorkState.ENQUEUED
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showConfirmDialog) {
+        ColorRedetectConfirmDialog(
+            uncuratedCount = uncuratedCount,
+            allCount = allCount,
+            onConfirm = { onlyUncurated ->
+                showConfirmDialog = false
+                onStart(onlyUncurated)
+            },
+            onDismiss = { showConfirmDialog = false },
+        )
+    }
+
+    if (isRunning) {
+        // Every item ends as re-detected (done), unchanged (skipped) or failed.
+        val processed = workStatus!!.done + workStatus.skipped + workStatus.failed
+        val total = workStatus.total
+        ListItem(
+            headlineContent = {
+                Text(stringResource(Res.string.settings_wardrobe_color_redetecting))
+            },
+            supportingContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        stringResource(
+                            Res.string.settings_wardrobe_color_redetect_progress,
+                            processed,
+                            total,
+                        ),
+                    )
+                    LinearProgressIndicator(
+                        progress = { if (total > 0) processed.toFloat() / total else 0f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+        )
+    } else {
+        // Disabled only when no item has a photo; the dialog's checkbox picks the mode.
+        val enabled = allCount > 0
+        ListItem(
+            headlineContent = {
+                Text(
+                    stringResource(Res.string.settings_wardrobe_color_redetect),
+                    color = if (enabled) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            },
+            supportingContent = {
+                Text(stringResource(Res.string.settings_wardrobe_color_redetect_summary))
+            },
+            modifier = Modifier.clickable(enabled = enabled) { showConfirmDialog = true },
+        )
+    }
+}
+
+@Composable
+private fun ColorRedetectConfirmDialog(
+    uncuratedCount: Int,
+    allCount: Int,
+    onConfirm: (onlyUncurated: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var onlyUncurated by remember { mutableStateOf(true) }
+    val count = if (onlyUncurated) uncuratedCount else allCount
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.settings_wardrobe_color_redetect_confirm_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = onlyUncurated,
+                            role = Role.Checkbox,
+                            onValueChange = { onlyUncurated = it },
+                        ),
+                ) {
+                    Checkbox(checked = onlyUncurated, onCheckedChange = null)
+                    Text(
+                        stringResource(Res.string.settings_wardrobe_color_redetect_only_uncurated),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                Text(
+                    pluralStringResource(
+                        Res.plurals.settings_wardrobe_color_redetect_confirm_count,
+                        count,
+                        count,
+                    ),
+                )
+                if (!onlyUncurated) {
+                    Text(
+                        stringResource(Res.string.settings_wardrobe_color_redetect_replaces_yours),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(onlyUncurated) }, enabled = count > 0) {
+                Text(stringResource(Res.string.settings_wardrobe_color_redetect_confirm_ok))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.settings_wardrobe_batch_confirm_cancel))
+            }
+        },
+    )
 }
 
 // ── Batch caption item ─────────────────────────────────────────────────────────

@@ -27,3 +27,10 @@ object NoOpBatchSegmentationScheduler : BatchSegmentationScheduler {
     override fun schedule() = Unit
     override val workStatus: Flow<WorkStatus?> = flowOf(null)
 }
+
+/** A [ColorRedetectScheduler] that reports bulk re-detect unsupported and never schedules. */
+object NoOpColorRedetectScheduler : ColorRedetectScheduler {
+    override val isSupported: Boolean = false
+    override fun schedule(onlyUncurated: Boolean) = Unit
+    override val workStatus: Flow<WorkStatus?> = flowOf(null)
+}

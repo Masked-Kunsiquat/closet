@@ -34,6 +34,7 @@ class PreferencesRepositoryTest {
         assertEquals(ClosetAccent.Amber, repo.getAccent().first())
         assertFalse(repo.getDynamicColor().first())
         assertNull(repo.lastHandledBatchId.first())
+        assertNull(repo.lastHandledColorRedetectId.first())
     }
 
     @Test fun accentRoundTrips() = runBlocking {
@@ -54,5 +55,11 @@ class PreferencesRepositoryTest {
     @Test fun lastHandledBatchIdRoundTrips() = runBlocking {
         assertTrue(repo.setLastHandledBatchId("b1").isSuccess)
         assertEquals("b1", repo.lastHandledBatchId.first())
+    }
+
+    @Test fun lastHandledColorRedetectIdRoundTripsSeparatelyFromBatch() = runBlocking {
+        assertTrue(repo.setLastHandledColorRedetectId("c1").isSuccess)
+        assertEquals("c1", repo.lastHandledColorRedetectId.first())
+        assertNull(repo.lastHandledBatchId.first())
     }
 }
