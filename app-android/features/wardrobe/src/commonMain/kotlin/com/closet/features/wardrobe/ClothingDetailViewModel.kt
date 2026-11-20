@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.closet.core.data.BuildFlags
+import com.closet.core.data.color.ExtractedColor
 import com.closet.core.data.dao.ItemWearLog
 import com.closet.core.data.model.*
 import com.closet.core.data.repository.ClothingRepository
@@ -16,7 +17,11 @@ import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
 import com.closet.features.wardrobe.photo.ItemPhotoProcessor
+import com.closet.features.wardrobe.resources.Res
+import com.closet.features.wardrobe.resources.wardrobe_redetect_none
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -31,6 +36,7 @@ class ClothingDetailViewModel(
     private val logRepository: LogRepository,
     private val photoProcessor: ItemPhotoProcessor,
     private val imagePathResolver: ImagePathResolver,
+    private val colorRedetector: ColorRedetector,
     buildFlags: BuildFlags,
 ) : ViewModel() {
 
@@ -241,6 +247,72 @@ class ClothingDetailViewModel(
         }
     }
 
+    // --- Re-detect colors ---
+
+    private val _redetectState = MutableStateFlow<RedetectState>(RedetectState.Idle)
+    /** The per-item colour re-detection: measuring, then a preview the user applies or cancels. */
+    val redetectState: StateFlow<RedetectState> = _redetectState.asStateFlow()
+
+    /** The extraction behind the current [RedetectState.Preview]; what [onApplyRedetect] writes. */
+    private var pendingRedetect: List<ExtractedColor> = emptyList()
+    private var redetectJob: Job? = null
+
+    /**
+     * Measures the item's photo and shows the result as a [RedetectState.Preview]. Does nothing
+     * while a re-detection is already measuring or previewing, or when the item has no photo.
+     * Nothing measured (or the reference shades failed) passes through [RedetectState.Failed]:
+     * a "Couldn't detect colours" snackbar on [actionError], then back to [RedetectState.Idle].
+     */
+    fun onRedetectColors() {
+        if (_redetectState.value != RedetectState.Idle) return
+        val state = uiState.value as? ClothingDetailUiState.Success ?: return
+        val imagePath = state.item.item.imagePath ?: return
+        _redetectState.value = RedetectState.Measuring
+        redetectJob = viewModelScope.launch {
+            val measured = colorRedetector.propose(imagePath)
+            ensureActive() // cancelled while measuring: drop the result
+            val latest = uiState.value as? ClothingDetailUiState.Success ?: state
+            val lookup = latest.colors.associateBy { it.id }
+            // Show exactly what Apply writes: an id missing from the lookup can't be named, so drop it.
+            val proposed = measured.filter { it.colorId in lookup }
+            if (proposed.isEmpty()) {
+                pendingRedetect = emptyList()
+                _redetectState.value = RedetectState.Failed
+                _actionError.emit(UserMessage(Res.string.wardrobe_redetect_none))
+                _redetectState.value = RedetectState.Idle
+                return@launch
+            }
+            pendingRedetect = proposed
+            _redetectState.value = RedetectState.Preview(
+                current = latest.item.colors,
+                proposed = proposed.map { lookup.getValue(it.colorId).copy(hex = it.hex) to it.share },
+            )
+        }
+    }
+
+    /** Writes the previewed colours (auto rows, curated flag cleared) and closes the preview. */
+    fun onApplyRedetect() {
+        if (_redetectState.value !is RedetectState.Preview) return
+        val proposed = pendingRedetect
+        pendingRedetect = emptyList()
+        _redetectState.value = RedetectState.Idle
+        viewModelScope.launch {
+            colorRedetector.apply(itemId, proposed).fold(
+                onLoading = {},
+                onSuccess = {},
+                onError = { handleActionError(it) }
+            )
+        }
+    }
+
+    /** Closes the preview (or stops a measurement) without writing anything. */
+    fun onCancelRedetect() {
+        redetectJob?.cancel()
+        redetectJob = null
+        pendingRedetect = emptyList()
+        _redetectState.value = RedetectState.Idle
+    }
+
     /** Resolves a stored relative image [path] to an absolute path, or null if [path] is null. */
     fun resolveImagePath(path: String?): String? = path?.let { imagePathResolver.absolutePath(it) }
 
@@ -250,6 +322,22 @@ class ClothingDetailViewModel(
             _actionError.emit(error.asUserMessage())
         }
     }
+}
+
+/** State of the per-item colour re-detection on the detail screen. */
+sealed interface RedetectState {
+    data object Idle : RedetectState
+    data object Measuring : RedetectState
+    /**
+     * The colours the item has now ([current], lookup swatches) and the measured proposal: each
+     * lookup colour carries the *measured* hex (for its swatch) and is paired with its share (0..1).
+     */
+    data class Preview(
+        val current: List<ColorEntity>,
+        val proposed: List<Pair<ColorEntity, Double>>,
+    ) : RedetectState
+    /** Nothing was measured; transient — the snackbar is shown and the state returns to [Idle]. */
+    data object Failed : RedetectState
 }
 
 private data class ClothingDetailLookup(

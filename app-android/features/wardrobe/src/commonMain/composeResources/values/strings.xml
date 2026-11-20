@@ -49,6 +49,18 @@
     <string name="wardrobe_occasions">Occasions</string>
     <string name="wardrobe_patterns">Patterns</string>
     <string name="wardrobe_none_selected">None selected</string>
+    <!-- Re-detect colors: the Colors-section action and the sheet's title -->
+    <string name="wardrobe_redetect_colors">Re-detect colors</string>
+    <!-- Re-detect sheet: heading over the item's colours as they are now -->
+    <string name="wardrobe_redetect_current">Current</string>
+    <!-- Re-detect sheet: heading over the colours measured from the photo -->
+    <string name="wardrobe_redetect_proposed">Proposed</string>
+    <!-- Re-detect sheet: replaces the item's colours with the proposed ones -->
+    <string name="wardrobe_redetect_apply">Apply</string>
+    <!-- Snackbar when the photo gave no colours (or the reference shades failed to load) -->
+    <string name="wardrobe_redetect_none">Couldn't detect colours</string>
+    <!-- Re-detect sheet: a proposed colour's share of the item's pixels. %1$d is a whole percent. -->
+    <string name="wardrobe_redetect_share">%1$d%</string>
     <string name="wardrobe_size">Size</string>
 
     <!-- Add/Edit Clothing Form -->

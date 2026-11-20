@@ -4,16 +4,23 @@ import com.closet.features.wardrobe.resources.Res
 import com.closet.core.ui.resources.Res as CoreRes
 import com.closet.core.ui.resources.ic_symbol_add
 import com.closet.core.ui.resources.ic_symbol_straighten
+import com.closet.features.wardrobe.resources.wardrobe_cancel
 import com.closet.features.wardrobe.resources.wardrobe_colors
 import com.closet.features.wardrobe.resources.wardrobe_edit_with_section
 import com.closet.features.wardrobe.resources.wardrobe_materials
 import com.closet.features.wardrobe.resources.wardrobe_none_selected
 import com.closet.features.wardrobe.resources.wardrobe_occasions
 import com.closet.features.wardrobe.resources.wardrobe_patterns
+import com.closet.features.wardrobe.resources.wardrobe_redetect_apply
+import com.closet.features.wardrobe.resources.wardrobe_redetect_colors
+import com.closet.features.wardrobe.resources.wardrobe_redetect_current
+import com.closet.features.wardrobe.resources.wardrobe_redetect_proposed
+import com.closet.features.wardrobe.resources.wardrobe_redetect_share
 import com.closet.features.wardrobe.resources.wardrobe_seasons
 import com.closet.features.wardrobe.resources.wardrobe_size
 import com.closet.core.ui.format.parseHexColor
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,14 +32,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,8 +57,10 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.closet.core.data.model.ClothingItemDetail
+import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.ui.util.IconMapper
+import kotlin.math.roundToInt
 
 // ─── ClothingAttributes ───────────────────────────────────────────────────────
 
@@ -63,6 +78,8 @@ import com.closet.core.ui.util.IconMapper
  * @param onEditMaterials Callback to open the material picker.
  * @param onEditPatterns Callback to open the pattern picker.
  * @param onEditSize Callback to navigate to the form for size editing.
+ * @param onRedetectColors Re-detects the colours from the photo; null hides the action (no photo).
+ * @param isRedetecting True while the photo is being measured: the action shows progress and is disabled.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -74,7 +91,9 @@ internal fun ClothingAttributes(
     onEditColors: () -> Unit,
     onEditMaterials: () -> Unit,
     onEditPatterns: () -> Unit,
-    onEditSize: () -> Unit
+    onEditSize: () -> Unit,
+    onRedetectColors: (() -> Unit)?,
+    isRedetecting: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // Size Attribute
@@ -119,7 +138,10 @@ internal fun ClothingAttributes(
 
         AttributeSection(
             title = stringResource(Res.string.wardrobe_colors),
-            onEditClick = onEditColors
+            onEditClick = onEditColors,
+            headerAction = onRedetectColors?.let { onRedetect ->
+                { RedetectColorsAction(onClick = onRedetect, isRedetecting = isRedetecting) }
+            },
         ) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (item.colors.isEmpty()) {
@@ -200,12 +222,14 @@ internal fun ClothingAttributes(
  *
  * @param title The section heading.
  * @param onEditClick Callback for the edit action.
+ * @param headerAction Optional extra action shown just before the edit button.
  * @param content The attribute-specific UI (usually a FlowRow of chips).
  */
 @Composable
 internal fun AttributeSection(
     title: String,
     onEditClick: () -> Unit,
+    headerAction: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     Column {
@@ -219,12 +243,15 @@ internal fun AttributeSection(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            IconButton(onClick = onEditClick) {
-                Icon(
-                    painter = painterResource(CoreRes.drawable.ic_symbol_add),
-                    contentDescription = stringResource(Res.string.wardrobe_edit_with_section, title),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                headerAction?.invoke()
+                IconButton(onClick = onEditClick) {
+                    Icon(
+                        painter = painterResource(CoreRes.drawable.ic_symbol_add),
+                        contentDescription = stringResource(Res.string.wardrobe_edit_with_section, title),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
@@ -294,4 +321,135 @@ private fun AttributeEmptyHint() {
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+// ─── Re-detect colors ─────────────────────────────────────────────────────────
+
+/**
+ * The Colors-section "Re-detect colors" text button. While [isRedetecting] it is disabled and
+ * shows a small progress indicator before its label.
+ */
+@Composable
+private fun RedetectColorsAction(onClick: () -> Unit, isRedetecting: Boolean) {
+    TextButton(onClick = onClick, enabled = !isRedetecting) {
+        if (isRedetecting) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text(stringResource(Res.string.wardrobe_redetect_colors))
+    }
+}
+
+/**
+ * Bottom sheet previewing a colour re-detection: the item's [current] colours above the
+ * [proposed] ones (measured swatch, name and share). Apply writes the proposal; Cancel, or
+ * dismissing the sheet, changes nothing.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RedetectColorsSheet(
+    current: List<ColorEntity>,
+    proposed: List<Pair<ColorEntity, Double>>,
+    onApply: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onCancel, sheetState = sheetState) {
+        RedetectColorsContent(current = current, proposed = proposed, onApply = onApply, onCancel = onCancel)
+    }
+}
+
+/** The body of [RedetectColorsSheet], split out so it can be previewed without a sheet. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun RedetectColorsContent(
+    current: List<ColorEntity>,
+    proposed: List<Pair<ColorEntity, Double>>,
+    onApply: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp), // Extra padding for system bars
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = stringResource(Res.string.wardrobe_redetect_colors),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        RedetectColorGroup(title = stringResource(Res.string.wardrobe_redetect_current)) {
+            if (current.isEmpty()) {
+                AttributeEmptyHint()
+            } else {
+                current.forEach { color -> RedetectColorChip(name = color.name, hex = color.hex) }
+            }
+        }
+        RedetectColorGroup(title = stringResource(Res.string.wardrobe_redetect_proposed)) {
+            proposed.forEach { (color, share) ->
+                RedetectColorChip(
+                    name = color.name,
+                    hex = color.hex,
+                    share = stringResource(Res.string.wardrobe_redetect_share, (share * 100).roundToInt()),
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        ) {
+            TextButton(onClick = onCancel) { Text(stringResource(Res.string.wardrobe_cancel)) }
+            Button(onClick = onApply) { Text(stringResource(Res.string.wardrobe_redetect_apply)) }
+        }
+    }
+}
+
+/** A labelled group of colour chips in the re-detect sheet. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RedetectColorGroup(title: String, chips: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { chips() }
+    }
+}
+
+/**
+ * A read-only colour chip: a swatch of [hex] (outlined so light colours stay visible), the
+ * colour [name], and an optional [share] label.
+ */
+@Composable
+private fun RedetectColorChip(name: String, hex: String?, share: String? = null) {
+    Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(parseHexColor(hex) ?: MaterialTheme.colorScheme.outlineVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+            )
+            Text(text = name, style = MaterialTheme.typography.labelLarge)
+            if (share != null) {
+                Text(
+                    text = share,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }
