@@ -126,6 +126,11 @@ private data class FormState(
     val measured: Map<Long, TaggedColor> = emptyMap(),
     /** True after any manual colour toggle; a new extraction that replaces the selection resets it. */
     val colorsEditedByUser: Boolean = false,
+    /**
+     * True while the selection is an extraction's output from this session (set when an extraction
+     * replaces it, cleared by any toggle). Saving then stores `colors_curated = false`.
+     */
+    val colorsFromExtraction: Boolean = false,
     /** The colour selection when background removal started; undo or a failed removal restores it. */
     val preSegmentationColors: ColorSelection? = null,
     val isNameError: Boolean = false,
@@ -145,8 +150,9 @@ private data class FormState(
     /**
      * True when the selection holds a user's choice: a manual toggle, a stored user row, or a selected
      * colour with no measurement (a user pick). Re-extracting the same photo must not replace it.
+     * Not the stored `colors_curated` flag; [ClothingFormViewModel.save] works that out.
      */
-    val colorsCurated: Boolean
+    val selectionCurated: Boolean
         get() = colorsEditedByUser ||
             measured.values.any { it.source == ColorSource.USER } ||
             selectedColors.any { it.id !in measured }
@@ -157,6 +163,7 @@ private data class ColorSelection(
     val selectedColors: List<ColorEntity>,
     val measured: Map<Long, TaggedColor>,
     val colorsEditedByUser: Boolean,
+    val colorsFromExtraction: Boolean,
     val toggleGeneration: Long,
 )
 
@@ -620,6 +627,7 @@ class ClothingFormViewModel(
                     selectedColors = it.selectedColors,
                     measured = it.measured,
                     colorsEditedByUser = it.colorsEditedByUser,
+                    colorsFromExtraction = it.colorsFromExtraction,
                     toggleGeneration = colorToggleGeneration,
                 ),
             ) }
@@ -733,8 +741,8 @@ class ClothingFormViewModel(
      *
      * A new photo ([fromNewPhoto] true) always replaces the selection. Re-measuring the same photo
      * (background removal, [fromNewPhoto] false) replaces it only while it is untouched extractor
-     * output; a curated selection ([FormState.colorsCurated]) is kept, so segmenting never turns
-     * user rows into auto ones.
+     * output; a curated selection ([FormState.selectionCurated]) is kept, so segmenting never turns
+     * user rows into auto ones. Applying a result sets [FormState.colorsFromExtraction].
      *
      * Leaves the selection as it is if none of the colours match, if the reference shades can't be
      * loaded, if a colour was toggled since [path] was published ([generation], the
@@ -742,7 +750,7 @@ class ClothingFormViewModel(
      * longer the current image by the time extraction finishes.
      */
     private suspend fun extractColors(path: String, fromNewPhoto: Boolean, generation: Long) {
-        if (!fromNewPhoto && _form.value.colorsCurated) return
+        if (!fromNewPhoto && _form.value.selectionCurated) return
         val shades = referenceShades() ?: return
         val extracted = photoProcessor.extractColors(path, shades)
         if (colorToggleGeneration != generation) return
@@ -753,11 +761,12 @@ class ClothingFormViewModel(
             it.colorId to TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO)
         }
         _form.update {
-            if (it.imagePath != path || (!fromNewPhoto && it.colorsCurated)) it
+            if (it.imagePath != path || (!fromNewPhoto && it.selectionCurated)) it
             else it.copy(
                 selectedColors = known.map { c -> colorsById.getValue(c.colorId) },
                 measured = measured,
                 colorsEditedByUser = false,
+                colorsFromExtraction = true,
             )
         }
     }
@@ -773,6 +782,7 @@ class ClothingFormViewModel(
                 selectedColors = snapshot.selectedColors,
                 measured = snapshot.measured,
                 colorsEditedByUser = snapshot.colorsEditedByUser,
+                colorsFromExtraction = snapshot.colorsFromExtraction,
             )
         } else {
             this
@@ -803,7 +813,7 @@ class ClothingFormViewModel(
             } else {
                 state.selectedColors + color
             }
-            state.copy(selectedColors = newColors, colorsEditedByUser = true)
+            state.copy(selectedColors = newColors, colorsEditedByUser = true, colorsFromExtraction = false)
         }
     }
 
@@ -871,6 +881,7 @@ class ClothingFormViewModel(
                     // If the user replaced the image, treat the old caption as stale and set null.
                     imageCaption = state.imageCaption
                         ?: if (state.imagePath == originalEntity?.imagePath) originalEntity?.imageCaption else null,
+                    colorsCurated = colorsCuratedToSave(state),
                     createdAt = originalEntity?.createdAt ?: clock.now(),
                     updatedAt = clock.now()
                 )
@@ -934,6 +945,17 @@ class ClothingFormViewModel(
             val row = state.measured[color.id] ?: TaggedColor(color.id, source = ColorSource.USER)
             if (state.colorsEditedByUser) row.copy(source = ColorSource.USER) else row
         }
+
+    /**
+     * The stored `colors_curated` flag (#128): set after a manual toggle (clear-all included),
+     * cleared when this session's extraction set the selection and it wasn't touched since,
+     * otherwise the stored value (false for a new item).
+     */
+    private fun colorsCuratedToSave(state: FormState): Boolean = when {
+        state.colorsEditedByUser -> true
+        state.colorsFromExtraction -> false
+        else -> originalEntity?.colorsCurated ?: false
+    }
 
     fun cancel() {
         val currentPath = _form.value.imagePath

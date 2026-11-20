@@ -321,8 +321,10 @@ class ClothingRepository(
      * A manual colour edit: replaces the item's colours with [colorIds], every row as
      * [ColorSource.USER]. Colours the item already has keep their measured hex and share; new ones
      * have neither. Nothing is written when [colorIds] is the set the item already has, so confirming
-     * the picker unchanged leaves auto rows open to later re-extraction. The read, the check and the
-     * write run in one transaction, so a concurrent re-extraction can't slip between them.
+     * the picker unchanged leaves auto rows open to later re-extraction. A change also sets
+     * `colors_curated`, so a cleared item (no rows left) still counts as the user's choice. The read,
+     * the check and the write run in one transaction, so a concurrent re-extraction can't slip
+     * between them.
      * @return A [DataResult] with true when the rows were replaced, false when the set was unchanged.
      */
     suspend fun updateColorsAsUser(itemId: Long, colorIds: List<Long>): DataResult<Boolean> = wrapInTransaction {
@@ -336,26 +338,47 @@ class ClothingRepository(
                 TaggedColor(id, hex = row?.hex, share = row?.share, source = ColorSource.USER)
             },
         )
+        clothingDao.setColorsCurated(itemId, true)
         true
     }
 
     /**
      * Replaces an item's colors with freshly [extracted] ones as [ColorSource.AUTO] rows. Nothing is
-     * written when the user has curated them (any existing row has source [ColorSource.USER]) or
-     * when [extracted] is empty (the extractor found no colour), so a failed extraction never
-     * wipes the existing rows. The check and the write run in one transaction.
+     * written when the user has curated them (`colors_curated` is set, or any existing row has
+     * source [ColorSource.USER]) or when [extracted] is empty (the extractor found no colour), so a
+     * failed extraction never wipes the existing rows. The flag is checked as well as the rows
+     * because a user who cleared every colour leaves no row behind. The check and the write run in
+     * one transaction, and the flag stays as it was (unset).
      * [ColorSource.NANO] rows are replaceable like auto rows, intentionally: Nano tagging arrives in PR 3.
      * @return A [DataResult] with true when the rows were replaced, false when they were left
      *   unchanged (user-curated, or nothing extracted).
      */
     suspend fun replaceAutoColors(itemId: Long, extracted: List<ExtractedColor>): DataResult<Boolean> = wrapInTransaction {
         if (extracted.isEmpty()) return@wrapInTransaction false
+        if (clothingDao.isColorsCurated(itemId) == true) return@wrapInTransaction false
         val curated = clothingDao.getItemColorRows(itemId).any { it.source == ColorSource.USER }
         if (curated) return@wrapInTransaction false
         clothingDao.updateItemColors(
             itemId,
             extracted.map { TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO) },
         )
+        true
+    }
+
+    /**
+     * Applies a re-detection the user asked for: replaces every colour row of the item, user rows
+     * included, with the [extracted] colours as [ColorSource.AUTO] rows (hex and share kept) and
+     * clears `colors_curated`. The curated flag and user rows are ignored on purpose, since the user
+     * chose to re-detect. Nothing is written when [extracted] is empty. One transaction.
+     * @return A [DataResult] with true when the rows were replaced, false when nothing was extracted.
+     */
+    suspend fun applyRedetectedColors(itemId: Long, extracted: List<ExtractedColor>): DataResult<Boolean> = wrapInTransaction {
+        if (extracted.isEmpty()) return@wrapInTransaction false
+        clothingDao.updateItemColors(
+            itemId,
+            extracted.map { TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO) },
+        )
+        clothingDao.setColorsCurated(itemId, false)
         true
     }
 

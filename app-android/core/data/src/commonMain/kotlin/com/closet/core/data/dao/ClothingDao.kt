@@ -165,6 +165,14 @@ interface ClothingDao {
     @Query("DELETE FROM clothing_item_colors WHERE clothing_item_id = :itemId")
     suspend fun deleteItemColors(itemId: Long)
 
+    /** Sets `colors_curated`: true when the item's colours are the user's choice (#128). */
+    @Query("UPDATE clothing_items SET colors_curated = :curated WHERE id = :itemId")
+    suspend fun setColorsCurated(itemId: Long, curated: Boolean)
+
+    /** The item's `colors_curated` flag, or null when the item doesn't exist. */
+    @Query("SELECT colors_curated FROM clothing_items WHERE id = :itemId")
+    suspend fun isColorsCurated(itemId: Long): Boolean?
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemColors(items: List<ClothingItemColorEntity>)
 

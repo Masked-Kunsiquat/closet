@@ -16,7 +16,9 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 
 class ClothingRepositoryColorsTest {
@@ -38,8 +40,12 @@ class ClothingRepositoryColorsTest {
         testDb.db.lookupDao().getAllColors().first { it.name == name }.id
     }
 
-    private fun newItem(): Long = runBlocking {
-        testDb.db.clothingDao().insertClothingItem(ClothingItemEntity(name = "Tee"))
+    private fun newItem(curated: Boolean = false): Long = runBlocking {
+        testDb.db.clothingDao().insertClothingItem(ClothingItemEntity(name = "Tee", colorsCurated = curated))
+    }
+
+    private fun curated(itemId: Long): Boolean = runBlocking {
+        testDb.db.clothingDao().getClothingItemEntityById(itemId)!!.colorsCurated
     }
 
     private fun rows(itemId: Long): Set<ClothingItemColorEntity> = runBlocking {
@@ -162,6 +168,102 @@ class ClothingRepositoryColorsTest {
 
         assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
         assertEquals(emptySet(), rows(item))
+    }
+
+    // ─── colors_curated (#128) ────────────────────────────────────────────────
+
+    @Test
+    fun `updateColorsAsUser with a changed set marks the item curated`() = runBlocking {
+        val item = newItem()
+        repo.updateItemColors(item, listOf(TaggedColor(colorId("Navy"), "#1F2A44", 1.0, ColorSource.AUTO)))
+
+        val result = repo.updateColorsAsUser(item, listOf(colorId("Red")))
+
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertTrue(curated(item))
+    }
+
+    @Test
+    fun `updateColorsAsUser clearing every colour marks the item curated`() = runBlocking {
+        val item = newItem()
+        repo.updateItemColors(item, listOf(TaggedColor(colorId("Navy"), "#1F2A44", 1.0, ColorSource.AUTO)))
+
+        repo.updateColorsAsUser(item, emptyList())
+
+        assertEquals(emptySet(), rows(item))
+        assertTrue(curated(item))
+    }
+
+    @Test
+    fun `updateColorsAsUser with the same set leaves the flag unchanged`() = runBlocking {
+        val auto = TaggedColor(colorId("Navy"), "#1F2A44", 1.0, ColorSource.AUTO)
+        val uncurated = newItem()
+        val flagged = newItem(curated = true)
+        repo.updateItemColors(uncurated, listOf(auto))
+        repo.updateItemColors(flagged, listOf(auto))
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(repo.updateColorsAsUser(uncurated, listOf(auto.colorId))).data)
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(repo.updateColorsAsUser(flagged, listOf(auto.colorId))).data)
+
+        assertFalse(curated(uncurated))
+        assertTrue(curated(flagged))
+        assertEquals(setOf(auto.row(uncurated)), rows(uncurated))
+    }
+
+    @Test
+    fun `replaceAutoColors skips a curated item with no colour rows`() = runBlocking {
+        // The user cleared every colour (#127 review): zero rows, so only the flag records the choice.
+        val item = newItem(curated = true)
+
+        val result = repo.replaceAutoColors(item, listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)))
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(emptySet(), rows(item))
+        assertTrue(curated(item))
+    }
+
+    @Test
+    fun `replaceAutoColors leaves an uncurated item uncurated`() = runBlocking {
+        val item = newItem()
+
+        repo.replaceAutoColors(item, listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)))
+
+        assertFalse(curated(item))
+    }
+
+    @Test
+    fun `applyRedetectedColors replaces user rows with auto rows and clears the flag`() = runBlocking {
+        val item = newItem(curated = true)
+        repo.updateItemColors(
+            item,
+            listOf(TaggedColor(colorId("Red")), TaggedColor(colorId("Navy"), "#1F2A44", 0.5, ColorSource.USER)),
+        )
+        val extracted = listOf(
+            ExtractedColor(colorId("Olive"), "#6B6B3A", 0.7),
+            ExtractedColor(colorId("Navy"), "#202B45", 0.3),
+        )
+
+        val result = repo.applyRedetectedColors(item, extracted)
+
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(
+            extracted.map { ClothingItemColorEntity(item, it.colorId, it.hex, it.share, ColorSource.AUTO) }.toSet(),
+            rows(item),
+        )
+        assertFalse(curated(item))
+    }
+
+    @Test
+    fun `applyRedetectedColors with an empty extraction writes nothing`() = runBlocking {
+        val item = newItem(curated = true)
+        val user = TaggedColor(colorId("Red"))
+        repo.updateItemColors(item, listOf(user))
+
+        val result = repo.applyRedetectedColors(item, emptyList())
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(setOf(user.row(item)), rows(item))
+        assertTrue(curated(item))
     }
 
     @Test
