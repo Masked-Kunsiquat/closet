@@ -203,7 +203,21 @@ class ClothingDetailViewModelTest {
         vm.onApplyRedetect()
 
         coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(42, measured) }
+        coVerify(exactly = 1) { clothingRepository.revectorizeItem(42) }
         assertEquals(RedetectState.Idle, vm.redetectState.value)
+    }
+
+    @Test
+    fun `apply that wrote nothing does not revectorize`() = runTest {
+        givenItem()
+        photoProcessor.colorsByPath["item.png"] = measured
+        coEvery { clothingRepository.applyRedetectedColors(42, any()) } returns DataResult.Success(false)
+        val vm = subscribedViewModel()
+
+        vm.onRedetectColors()
+        vm.onApplyRedetect()
+
+        coVerify(exactly = 0) { clothingRepository.revectorizeItem(any()) }
     }
 
     @Test
@@ -220,6 +234,7 @@ class ClothingDetailViewModelTest {
 
         assertEquals(1, errors.size)
         assertEquals(RedetectState.Idle, vm.redetectState.value)
+        coVerify(exactly = 0) { clothingRepository.revectorizeItem(any()) }
     }
 
     @Test

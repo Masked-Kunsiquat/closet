@@ -52,6 +52,6 @@ class WardrobeStringsTest {
     @Test
     fun redetectStringsFormatShareAndKeepPlainApostrophe() = runTest {
         assertEquals("62%", getString(Res.string.wardrobe_redetect_share, 62))
-        assertEquals("Couldn't detect colours", getString(Res.string.wardrobe_redetect_none))
+        assertEquals("Couldn't detect colors", getString(Res.string.wardrobe_redetect_none))
     }
 }

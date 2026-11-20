@@ -62,7 +62,9 @@ class ColorRedetectWorker(
 
         for (item in items) {
             try {
-                val proposed = colorRedetector.propose(item.imagePath)
+                // Read the path now: BatchSegmentationWorker may have replaced the photo since the queue was built.
+                val imagePath = clothingDao.getClothingItemEntityById(item.id)?.imagePath
+                val proposed = if (imagePath == null) emptyList() else colorRedetector.propose(imagePath)
                 if (proposed.isEmpty()) {
                     unchanged++
                 } else {

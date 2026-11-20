@@ -260,8 +260,8 @@ class ClothingDetailViewModel(
     /**
      * Measures the item's photo and shows the result as a [RedetectState.Preview]. Does nothing
      * while a re-detection is already measuring or previewing, or when the item has no photo.
-     * Nothing measured (or the reference shades failed) passes through [RedetectState.Failed]:
-     * a "Couldn't detect colours" snackbar on [actionError], then back to [RedetectState.Idle].
+     * Nothing measured (or the reference shades failed) shows a "Couldn't detect colors"
+     * snackbar on [actionError] and stays [RedetectState.Idle].
      */
     fun onRedetectColors() {
         if (_redetectState.value != RedetectState.Idle) return
@@ -277,7 +277,6 @@ class ClothingDetailViewModel(
             val proposed = measured.filter { it.colorId in lookup }
             if (proposed.isEmpty()) {
                 pendingRedetect = emptyList()
-                _redetectState.value = RedetectState.Failed
                 _actionError.emit(UserMessage(Res.string.wardrobe_redetect_none))
                 _redetectState.value = RedetectState.Idle
                 return@launch
@@ -299,7 +298,7 @@ class ClothingDetailViewModel(
         viewModelScope.launch {
             colorRedetector.apply(itemId, proposed).fold(
                 onLoading = {},
-                onSuccess = {},
+                onSuccess = { written -> if (written) clothingRepository.revectorizeItem(itemId) },
                 onError = { handleActionError(it) }
             )
         }
@@ -336,8 +335,6 @@ sealed interface RedetectState {
         val current: List<ColorEntity>,
         val proposed: List<Pair<ColorEntity, Double>>,
     ) : RedetectState
-    /** Nothing was measured; transient — the snackbar is shown and the state returns to [Idle]. */
-    data object Failed : RedetectState
 }
 
 private data class ClothingDetailLookup(

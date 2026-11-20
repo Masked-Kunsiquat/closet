@@ -27,7 +27,7 @@ Run all Gradle commands from the `app-android/` directory.
 ./gradlew connectedAndroidTest             # Instrumented tests
 ./gradlew :core:data:testAndroidHostTest   # core/data unit tests (Android host)
 ./gradlew :core:data:jvmTest               # core/data JVM tests: schema, DAO, repository (no device needed)
-./gradlew :core:data:connectedAndroidDeviceTest   # core/data instrumented tests (database path, existing-install upgrade)
+./gradlew :core:data:connectedAndroidDeviceTest   # core/data instrumented tests (database path, existing-install upgrade, bitmap decode color space)
 ./gradlew :core:data:compileCommonMainKotlinMetadata  # local stand-in for the iOS compile (CI only)
 ./gradlew :core:ui:jvmTest                 # core/ui JVM tests (preferences, Koin module; commonTest runs here too)
 ./gradlew :core:ui:compileCommonMainKotlinMetadata  # local stand-in for the iOS compile of core/ui (CI only)
@@ -56,7 +56,7 @@ Full verification before a PR:
 
 CI runs a subset of that on every PR and push to `main`: `.github/workflows/ci.yml` runs `test :core:data:jvmTest` (the root `test` includes every KMP module's `jvmTest`), `lint`, and `assembleFullDebug assembleFossDebug` on Ubuntu, and `ios-compile.yml` runs `iosCompileCheck` (iOS main and test sources, klib cross-compilation, no linking) on Ubuntu. `ios-link.yml` is a manual-only macOS job that links the `:shared` framework (`:shared:linkDebugFrameworkIosSimulatorArm64`); trigger it from the Actions tab when the iOS export changes. The `compileCommonMainKotlinMetadata` tasks run only locally (the iOS compile covers the same sources in CI), so run the full command above before a PR. Instrumented tests don't run in CI; run them on a device.
 
-Unit and instrumented tests exist for the stats feature. Room tests (`FreshInstallSchemaTest`, `StatsDaoTest`, the repository tests) live in `core/data/src/jvmTest/` and run on the JVM against the bundled SQLite driver with `./gradlew :core:data:jvmTest` (no device needed); run them before any PR that touches the schema. `core/data/src/androidDeviceTest/` keeps only the Android-only checks (`DatabasePathTest`, `ExistingInstallUpgradeTest`); run `./gradlew :core:data:connectedAndroidDeviceTest` when changing the database builder or driver.
+Unit and instrumented tests exist for the stats feature. Room tests (`FreshInstallSchemaTest`, `StatsDaoTest`, the repository tests) live in `core/data/src/jvmTest/` and run on the JVM against the bundled SQLite driver with `./gradlew :core:data:jvmTest` (no device needed); run them before any PR that touches the schema. `core/data/src/androidDeviceTest/` keeps only the Android-only checks (`DatabasePathTest`, `ExistingInstallUpgradeTest`, `BitmapDecodeColorSpaceTest`); run `./gradlew :core:data:connectedAndroidDeviceTest` when changing the database builder or driver.
 
 ## Architecture
 
@@ -67,7 +67,7 @@ app/                   — Android start-up (Application, MainActivity), flavors
 shared/                — KMP/CMP root: `App()` (theme, bottom bar, `NavHost`), `AppShortcut`; iOS framework export
 core/data/             — Database, DAOs, Repositories, entities, Koin data module
 core/ui/               — KMP/CMP module: Material 3 theme, shared Composable components, Compose resources, preferences
-features/wardrobe/     — KMP module: Closet screen, item detail, add/edit form, bulk wash, brand management (commonMain UI, ViewModels, routes, navigation and Koin; androidMain previews, the photo processor and shortcut pinner, `BatchSegmentationWorker`, the `expect` UI hooks' actuals and the `Bitmap`-typed flavor stubs)
+features/wardrobe/     — KMP module: Closet screen, item detail, add/edit form, bulk wash, brand management (commonMain UI, ViewModels, routes, navigation and Koin; androidMain previews, the photo processor and shortcut pinner, `BatchSegmentationWorker`, `ColorRedetectWorker`, the `expect` UI hooks' actuals and the `Bitmap`-typed flavor stubs)
 features/outfits/      — KMP module: Outfits screen, outfit builder, OOTD journal, wardrobe picker, day detail sheet (commonMain UI, ViewModels, routes, navigation and Koin)
 features/stats/        — KMP module: Stats screen, StatsViewModel, breakdown sections (commonMain UI, ViewModel and navigation; androidMain previews, Koin module)
 features/recommendations/ — KMP module: outfit recommendations (commonMain engine, AI providers (AnthropicProvider, OpenAiProvider; NanoProvider is in platform/gms), UI, ViewModel, navigation and Koin; androidMain previews)
