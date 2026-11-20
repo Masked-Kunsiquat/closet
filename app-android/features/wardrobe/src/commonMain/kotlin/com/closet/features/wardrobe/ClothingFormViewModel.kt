@@ -190,8 +190,9 @@ class ClothingFormViewModel(
     private var captionJob: Job? = null
 
     /**
-     * Bumped by every manual colour toggle. An extraction captures it before measuring and drops its
-     * result if it changed meanwhile, so a toggle made while extraction runs is never overwritten.
+     * Bumped by every manual colour toggle. The caller of an extraction captures it as soon as it
+     * publishes the image, and the extraction drops its result if it changed meanwhile, so a toggle
+     * made after the image appears (during cleanup or measuring) is never overwritten.
      */
     private var colorToggleGeneration = 0L
 
@@ -539,6 +540,9 @@ class ClothingFormViewModel(
                     preSegmentationColors = null,
                     imageCaption = null,
                 ) }
+                // A toggle from here on is a choice about the new photo; the cleanup below suspends,
+                // so capture now rather than inside extractColors.
+                val generation = colorToggleGeneration
                 // Best-effort cleanup — failures must not block the form update above.
                 if (previousPath != null && previousPath != originalImagePath) {
                     runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(previousPath) } }
@@ -549,7 +553,7 @@ class ClothingFormViewModel(
                     runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(segOrigPath) } }
                         .onFailure { log.e(it) { "onImageSelected: failed to delete seg original $segOrigPath" } }
                 }
-                extractColors(path, fromNewPhoto = true)
+                extractColors(path, fromNewPhoto = true, generation = generation)
 
                 // At-capture captioning — best-effort, never blocks save.
                 if (photoProcessor.isCaptionSupported) {
@@ -610,10 +614,11 @@ class ClothingFormViewModel(
                     imageCaption = null,                      // old caption was for the un-segmented image
                     originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
+                val generation = colorToggleGeneration
                 // Re-extract colours from the segmented PNG. Transparent pixels are ignored,
                 // so only subject colours are sampled — not the background. Same photo, so a
                 // curated selection is kept.
-                extractColors(savedPath, fromNewPhoto = false)
+                extractColors(savedPath, fromNewPhoto = false, generation = generation)
                 // Re-caption the segmented image on Main (Image Description API requirement).
                 if (photoProcessor.isCaptionSupported) {
                     launchCaptionJob(savedPath)
@@ -712,12 +717,12 @@ class ClothingFormViewModel(
      * user rows into auto ones.
      *
      * Leaves the selection as it is if none of the colours match, if the reference shades can't be
-     * loaded, if a colour was toggled while extraction ran, or if [path] is no longer the current
-     * image by the time extraction finishes.
+     * loaded, if a colour was toggled since [path] was published ([generation], the
+     * [colorToggleGeneration] the caller captured right after publishing it), or if [path] is no
+     * longer the current image by the time extraction finishes.
      */
-    private suspend fun extractColors(path: String, fromNewPhoto: Boolean) {
+    private suspend fun extractColors(path: String, fromNewPhoto: Boolean, generation: Long) {
         if (!fromNewPhoto && _form.value.colorsCurated) return
-        val generation = colorToggleGeneration
         val shades = referenceShades() ?: return
         val extracted = photoProcessor.extractColors(path, shades)
         if (colorToggleGeneration != generation) return

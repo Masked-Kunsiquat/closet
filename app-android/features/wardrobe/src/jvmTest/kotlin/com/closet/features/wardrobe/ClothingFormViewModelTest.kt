@@ -660,6 +660,26 @@ class ClothingFormViewModelTest {
     }
 
     @Test
+    fun `a toggle made while the previous image is being deleted is not overwritten`() = runTest {
+        photos.importResults.clear()
+        photos.importResults.addAll(listOf("first.jpg", "second.jpg"))
+        photos.colorsByPath["second.jpg"] = listOf(measured(red))
+        var pendingDelete: Continuation<Unit>? = null
+        photos.deleteGate = { path -> if (path == "first.jpg") suspendCoroutine { pendingDelete = it } }
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onImageSelected("content://media/picked/1")
+
+        viewModel.onImageSelected("content://media/picked/2")
+        assertEquals("second.jpg", viewModel.uiState.value.imagePath)
+        viewModel.onColorToggle(blue) // second.jpg is published; first.jpg's cleanup is still running
+        pendingDelete!!.resume(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf("second.jpg"), photos.extractCalls.filter { it == "second.jpg" })
+        assertEquals(listOf(blue), viewModel.uiState.value.selectedColors)
+    }
+
+    @Test
     fun `the edit load fails when the colour rows cannot be read`() = runTest {
         stubEditItem(rows = emptyList())
         coEvery { clothingRepository.getItemColorRows(7) } returns DataResult.Error(RuntimeException("db"))

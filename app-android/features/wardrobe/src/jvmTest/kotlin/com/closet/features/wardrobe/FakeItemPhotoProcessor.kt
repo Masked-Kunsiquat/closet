@@ -35,8 +35,12 @@ class FakeItemPhotoProcessor : ItemPhotoProcessor {
         return importResults.removeFirst()
     }
 
+    /** Runs before [deleteImage] returns; a test can suspend here to make cleanup slow. */
+    var deleteGate: suspend (String) -> Unit = {}
+
     override suspend fun deleteImage(relativePath: String) {
         deleted += relativePath
+        deleteGate(relativePath)
     }
 
     override suspend fun ensureSegmentationModel() {
