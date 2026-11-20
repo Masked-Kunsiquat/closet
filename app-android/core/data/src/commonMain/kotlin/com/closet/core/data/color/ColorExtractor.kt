@@ -12,6 +12,13 @@ data class ExtractedColor(val colorId: Long, val hex: String, val share: Double)
  * removal, or the centre box), clusters a fixed-stride sample with k-means++ in Oklab, merges near
  * clusters, and names each by the nearest [ReferenceShade]. Representative hexes are linear-RGB means.
  * Deterministic: the same input always gives the same output.
+ *
+ * @param shades the reference shades colours are named against.
+ * @param deltaEMerge clusters closer than this Oklab ΔE merge. Calibration only; production uses the
+ *   defaults ([DELTA_E_MERGE] via the one-argument constructor).
+ * @param minShare colours below this share of the item's pixels are dropped. Calibration only;
+ *   production uses the defaults ([MIN_SHARE] via the one-argument constructor).
+ * @throws IllegalArgumentException if [deltaEMerge] is negative or [minShare] is outside 0..1 (or either is NaN).
  */
 class ColorExtractor(
     shades: List<ReferenceShade>,
@@ -21,11 +28,17 @@ class ColorExtractor(
     /** Production configuration. */
     constructor(shades: List<ReferenceShade>) : this(shades, DELTA_E_MERGE, MIN_SHARE)
 
+    init {
+        require(deltaEMerge >= 0.0 && minShare in 0.0..1.0) {
+            "deltaEMerge must be >= 0 and minShare in 0..1 (got $deltaEMerge, $minShare)"
+        }
+    }
+
     private val namer = ColorNamer(shades)
 
     /**
      * [argb] is row-major, `width * height` long. Returns at most [MAX_COLORS] colours sorted by share
-     * descending (ties by colorId); empty when the item has too few pixels or nothing reaches [MIN_SHARE].
+     * descending (ties by colorId); empty when the item has too few pixels or nothing reaches [minShare].
      * Shares are fractions of the sampled item pixels and are not renormalized after filtering.
      * With no reference shades nothing can be named, so the result is empty.
      *

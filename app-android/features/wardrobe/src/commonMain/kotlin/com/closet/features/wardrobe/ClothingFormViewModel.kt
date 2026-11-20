@@ -125,6 +125,8 @@ private data class FormState(
     val measured: Map<Long, TaggedColor> = emptyMap(),
     /** True after any manual colour toggle; a new extraction that replaces the selection resets it. */
     val colorsEditedByUser: Boolean = false,
+    /** The colour selection when background removal started; undo or a failed removal restores it. */
+    val preSegmentationColors: ColorSelection? = null,
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
@@ -136,6 +138,23 @@ private data class FormState(
     val selectedOccasionIds: Set<Long> = emptySet(),
     val selectedMaterialIds: Set<Long> = emptySet(),
     val selectedPatternIds: Set<Long> = emptySet(),
+) {
+    /**
+     * True when the selection holds a user's choice: a manual toggle, a stored user row, or a selected
+     * colour with no measurement (a user pick). Re-extracting the same photo must not replace it.
+     */
+    val colorsCurated: Boolean
+        get() = colorsEditedByUser ||
+            measured.values.any { it.source == ColorSource.USER } ||
+            selectedColors.any { it.id !in measured }
+}
+
+/** A snapshot of the form's colour selection; [toggleGeneration] is the toggle count when it was taken. */
+private data class ColorSelection(
+    val selectedColors: List<ColorEntity>,
+    val measured: Map<Long, TaggedColor>,
+    val colorsEditedByUser: Boolean,
+    val toggleGeneration: Long,
 )
 
 /**
@@ -169,6 +188,12 @@ class ClothingFormViewModel(
 
     private var sizeSystemUserOverridden = false
     private var captionJob: Job? = null
+
+    /**
+     * Bumped by every manual colour toggle. An extraction captures it before measuring and drops its
+     * result if it changed meanwhile, so a toggle made while extraction runs is never overwritten.
+     */
+    private var colorToggleGeneration = 0L
 
     private val _events = Channel<ClothingFormEvent>()
     val events = _events.receiveAsFlow()
@@ -511,6 +536,7 @@ class ClothingFormViewModel(
                     hasSegmentedImage = false,
                     originalSegmentationImagePath = null,
                     originalSegmentationImageCaption = null,
+                    preSegmentationColors = null,
                     imageCaption = null,
                 ) }
                 // Best-effort cleanup — failures must not block the form update above.
@@ -523,7 +549,7 @@ class ClothingFormViewModel(
                     runCatching { withContext(NonCancellable) { photoProcessor.deleteImage(segOrigPath) } }
                         .onFailure { log.e(it) { "onImageSelected: failed to delete seg original $segOrigPath" } }
                 }
-                extractColors(path)
+                extractColors(path, fromNewPhoto = true)
 
                 // At-capture captioning — best-effort, never blocks save.
                 if (photoProcessor.isCaptionSupported) {
@@ -566,6 +592,12 @@ class ClothingFormViewModel(
                 isSegmenting = true,
                 originalSegmentationImagePath = it.imagePath,
                 originalSegmentationImageCaption = it.imageCaption,
+                preSegmentationColors = ColorSelection(
+                    selectedColors = it.selectedColors,
+                    measured = it.measured,
+                    colorsEditedByUser = it.colorsEditedByUser,
+                    toggleGeneration = colorToggleGeneration,
+                ),
             ) }
             try {
                 val path = _form.value.imagePath ?: return@launch
@@ -579,8 +611,9 @@ class ClothingFormViewModel(
                     originalSegmentationImageCaption = null,  // stash consumed; caption lifecycle restarts
                 ) }
                 // Re-extract colours from the segmented PNG. Transparent pixels are ignored,
-                // so only subject colours are sampled — not the background.
-                extractColors(savedPath)
+                // so only subject colours are sampled — not the background. Same photo, so a
+                // curated selection is kept.
+                extractColors(savedPath, fromNewPhoto = false)
                 // Re-caption the segmented image on Main (Image Description API requirement).
                 if (photoProcessor.isCaptionSupported) {
                     launchCaptionJob(savedPath)
@@ -589,7 +622,7 @@ class ClothingFormViewModel(
                 throw e
             } catch (e: Exception) {
                 log.e(e) { "removeBackground failed" }
-                _form.update { it.copy(
+                _form.update { it.withPreSegmentationColors().copy(
                     imagePath = it.originalSegmentationImagePath,
                     originalSegmentationImagePath = null,
                     imageCaption = it.originalSegmentationImageCaption,
@@ -608,7 +641,7 @@ class ClothingFormViewModel(
         // The stale-path guard would block its writes, but isCaptioning would
         // stay stuck true without an explicit cancel + reset here.
         captionJob?.cancel()
-        _form.update { it.copy(
+        _form.update { it.withPreSegmentationColors().copy(
             imagePath = originalPath,
             hasSegmentedImage = false,
             originalSegmentationImagePath = null,
@@ -671,12 +704,23 @@ class ClothingFormViewModel(
 
     /**
      * Replaces the selected colors with those measured from [path] (as auto rows) and clears the
-     * user-edited flag; leaves them if none match, if the reference shades can't be loaded, or if
-     * [path] is no longer the current image by the time extraction finishes.
+     * user-edited flag.
+     *
+     * A new photo ([fromNewPhoto] true) always replaces the selection. Re-measuring the same photo
+     * (background removal, [fromNewPhoto] false) replaces it only while it is untouched extractor
+     * output; a curated selection ([FormState.colorsCurated]) is kept, so segmenting never turns
+     * user rows into auto ones.
+     *
+     * Leaves the selection as it is if none of the colours match, if the reference shades can't be
+     * loaded, if a colour was toggled while extraction ran, or if [path] is no longer the current
+     * image by the time extraction finishes.
      */
-    private suspend fun extractColors(path: String) {
+    private suspend fun extractColors(path: String, fromNewPhoto: Boolean) {
+        if (!fromNewPhoto && _form.value.colorsCurated) return
+        val generation = colorToggleGeneration
         val shades = referenceShades() ?: return
         val extracted = photoProcessor.extractColors(path, shades)
+        if (colorToggleGeneration != generation) return
         val colorsById = allColors.value.associateBy { it.id }
         val known = extracted.filter { it.colorId in colorsById }
         if (known.isEmpty()) return
@@ -684,13 +728,31 @@ class ClothingFormViewModel(
             it.colorId to TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO)
         }
         _form.update {
-            if (it.imagePath != path) it
+            if (it.imagePath != path || (!fromNewPhoto && it.colorsCurated)) it
             else it.copy(
                 selectedColors = known.map { c -> colorsById.getValue(c.colorId) },
                 measured = measured,
                 colorsEditedByUser = false,
             )
         }
+    }
+
+    /**
+     * Restores the colour selection snapshotted when background removal started and drops the
+     * snapshot. A colour toggled since then is the user's choice, so the current selection is kept.
+     */
+    private fun FormState.withPreSegmentationColors(): FormState {
+        val snapshot = preSegmentationColors ?: return this
+        val restored = if (snapshot.toggleGeneration == colorToggleGeneration) {
+            copy(
+                selectedColors = snapshot.selectedColors,
+                measured = snapshot.measured,
+                colorsEditedByUser = snapshot.colorsEditedByUser,
+            )
+        } else {
+            this
+        }
+        return restored.copy(preSegmentationColors = null)
     }
 
     private var cachedShades: List<ReferenceShade>? = null
@@ -709,6 +771,7 @@ class ClothingFormViewModel(
     }
 
     fun onColorToggle(color: ColorEntity) {
+        colorToggleGeneration++
         _form.update { state ->
             val newColors = if (state.selectedColors.contains(color)) {
                 state.selectedColors - color

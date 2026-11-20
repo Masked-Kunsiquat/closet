@@ -204,6 +204,19 @@ class ColorExtractorTest {
     }
 
     @Test
+    fun `calibration overrides out of range are rejected`() {
+        val shades = SeededShades.shades
+        assertFailsWith<IllegalArgumentException> { ColorExtractor(shades, deltaEMerge = -0.01, minShare = 0.15) }
+        assertFailsWith<IllegalArgumentException> { ColorExtractor(shades, deltaEMerge = Double.NaN, minShare = 0.15) }
+        assertFailsWith<IllegalArgumentException> { ColorExtractor(shades, deltaEMerge = 0.07, minShare = -0.1) }
+        assertFailsWith<IllegalArgumentException> { ColorExtractor(shades, deltaEMerge = 0.07, minShare = 1.5) }
+        assertFailsWith<IllegalArgumentException> { ColorExtractor(shades, deltaEMerge = 0.07, minShare = Double.NaN) }
+        // The bounds themselves are allowed.
+        ColorExtractor(shades, deltaEMerge = 0.0, minShare = 0.0)
+        ColorExtractor(shades, deltaEMerge = 0.07, minShare = 1.0)
+    }
+
+    @Test
     fun `no reference shades gives nothing`() {
         val result = ColorExtractor(emptyList()).extract(image(64, 64) { _, _ -> opaque(0xB3202A) }, 64, 64)
 

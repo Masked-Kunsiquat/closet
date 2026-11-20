@@ -169,7 +169,9 @@ class ClothingDetailViewModel(
     /**
      * Replaces the item's color associations with [colorIds] (delete-then-insert). A manual edit:
      * every row is saved as [ColorSource.USER]; colours already on the item keep their measured
-     * hex and share, new ones have neither. Writes nothing if the existing rows can't be read.
+     * hex and share, new ones have neither. Writes nothing if the existing rows can't be read, or if
+     * [colorIds] is the same set the item already has (so confirming the picker unchanged leaves auto
+     * rows open to later re-extraction).
      */
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
@@ -181,6 +183,7 @@ class ClothingDetailViewModel(
                 }
                 DataResult.Loading -> return@launch
             }
+            if (colorIds.toSet() == existing.keys) return@launch
             val colors = colorIds.map { id ->
                 val row = existing[id]
                 TaggedColor(id, hex = row?.hex, share = row?.share, source = ColorSource.USER)

@@ -20,6 +20,8 @@ import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.DataResult
+import com.closet.core.ui.resources.error_database_query
+import com.closet.core.ui.resources.Res as CoreRes
 import com.closet.features.wardrobe.resources.Res
 import com.closet.features.wardrobe.resources.wardrobe_model_download_error
 import com.closet.features.wardrobe.resources.wardrobe_segmentation_error
@@ -517,17 +519,204 @@ class ClothingFormViewModelTest {
 
     @Test
     fun `new extraction resets the user edited flag`() = runTest {
+        photos.importResults.clear()
+        photos.importResults.addAll(listOf("first.jpg", "second.jpg"))
+        photos.colorsByPath["first.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
+        photos.colorsByPath["second.jpg"] = listOf(measured(blue, "#1A2B8C", 0.9))
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onImageSelected("content://media/picked/1")
+        viewModel.onColorToggle(red) // a user edit before the new photo
+
+        viewModel.onImageSelected("content://media/picked/2")
+        val saved = savedInsertColors(viewModel)
+
+        assertEquals(listOf(TaggedColor(blue.id, hex = "#1A2B8C", share = 0.9, source = ColorSource.AUTO)), saved)
+    }
+
+    /** Stubs edit-mode item 7 with [rows] (and their colours as the detail's colours). */
+    private fun stubEditItem(rows: List<ClothingItemColorEntity>, imagePath: String? = null) {
+        val entity = ClothingItemEntity(id = 7, name = "Shirt", imagePath = imagePath)
+        val byId = listOf(red, blue).associateBy { it.id }
+        coEvery { clothingRepository.getItemEntityById(7) } returns DataResult.Success(entity)
+        coEvery { clothingRepository.getItemDetailOnce(7) } returns DataResult.Success(
+            ClothingItemDetail(
+                item = entity, wearCount = 0, category = null, subcategory = null, sizeValue = null,
+                colors = rows.map { byId.getValue(it.colorId) }, materials = emptyList(), seasons = emptyList(),
+                occasions = emptyList(), patterns = emptyList(), brand = null,
+            )
+        )
+        coEvery { clothingRepository.getItemColorRows(7) } returns DataResult.Success(rows)
+    }
+
+    /** Saves the edit-mode item and returns the colour rows handed to the repository. */
+    private fun TestScope.savedUpdateColors(viewModel: ClothingFormViewModel): List<TaggedColor> {
+        val colors = slot<List<TaggedColor>>()
+        coEvery {
+            clothingRepository.updateItemWithAttributes(any(), capture(colors), any(), any(), any(), any())
+        } returns DataResult.Success(1)
+        viewModel.save()
+        advanceUntilIdle()
+        return colors.captured
+    }
+
+    @Test
+    fun `segmentation keeps a curated selection`() = runTest {
+        // A migrated v1 row (user, no measurement) and a user-kept measured row.
+        stubEditItem(
+            rows = listOf(
+                ClothingItemColorEntity(7, red.id, hex = null, share = null, source = ColorSource.USER),
+                ClothingItemColorEntity(7, blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.USER),
+            ),
+            imagePath = "shirt.jpg",
+        )
+        photos.colorsByPath["segmented.png"] = listOf(measured(red, "#AA0000", 1.0))
+        val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
+        advanceUntilIdle()
+
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        assertEquals("segmented.png", viewModel.uiState.value.imagePath)
+        val saved = savedUpdateColors(viewModel)
+
+        assertEquals(
+            listOf(
+                TaggedColor(red.id, hex = null, share = null, source = ColorSource.USER),
+                TaggedColor(blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.USER),
+            ),
+            saved,
+        )
+    }
+
+    @Test
+    fun `segmentation refreshes an untouched auto selection`() = runTest {
         photos.colorsByPath["picked.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
         photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 0.9))
         val viewModel = subscribed(buildViewModel())
         viewModel.onImageSelected("content://media/picked/1")
-        viewModel.onColorToggle(red) // a user edit before the new extraction
 
         viewModel.removeBackground()
         advanceUntilIdle()
         val saved = savedInsertColors(viewModel)
 
         assertEquals(listOf(TaggedColor(blue.id, hex = "#1A2B8C", share = 0.9, source = ColorSource.AUTO)), saved)
+    }
+
+    @Test
+    fun `undoing background removal restores the pre-segmentation colours`() = runTest {
+        photos.colorsByPath["picked.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
+        photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 0.9))
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onImageSelected("content://media/picked/1")
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        assertEquals(listOf(blue), viewModel.uiState.value.selectedColors)
+
+        viewModel.revertSegmentation()
+        advanceUntilIdle()
+
+        assertEquals(listOf(red), viewModel.uiState.value.selectedColors)
+        assertEquals(
+            listOf(TaggedColor(red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.AUTO)),
+            savedInsertColors(viewModel),
+        )
+    }
+
+    @Test
+    fun `undoing background removal keeps a colour edit made after it`() = runTest {
+        photos.colorsByPath["picked.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
+        photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 0.9))
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onImageSelected("content://media/picked/1")
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        viewModel.onColorToggle(red) // the user's choice on the segmented photo
+
+        viewModel.revertSegmentation()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                TaggedColor(blue.id, hex = "#1A2B8C", share = 0.9, source = ColorSource.USER),
+                TaggedColor(red.id, hex = null, share = null, source = ColorSource.USER),
+            ),
+            savedInsertColors(viewModel),
+        )
+    }
+
+    @Test
+    fun `a toggle made while extraction runs is not overwritten`() = runTest {
+        photos.colorsByPath["picked.jpg"] = listOf(measured(red))
+        var pending: Continuation<Unit>? = null
+        photos.extractGate = { path -> if (path == "picked.jpg") suspendCoroutine { pending = it } }
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onImageSelected("content://media/picked/1")
+
+        viewModel.onColorToggle(blue) // while picked.jpg is still being measured
+        pending!!.resume(Unit)
+        advanceUntilIdle()
+
+        assertEquals(listOf(blue), viewModel.uiState.value.selectedColors)
+        assertEquals(listOf(TaggedColor(blue.id, source = ColorSource.USER)), savedInsertColors(viewModel))
+    }
+
+    @Test
+    fun `the edit load fails when the colour rows cannot be read`() = runTest {
+        stubEditItem(rows = emptyList())
+        coEvery { clothingRepository.getItemColorRows(7) } returns DataResult.Error(RuntimeException("db"))
+        val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(CoreRes.string.error_database_query, state.errorMessage)
+        assertFalse(state.isLoading)
+        assertFalse(state.canSave)
+        viewModel.save()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { clothingRepository.updateItemWithAttributes(any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `editing a colour on an item with auto rows saves every row as user with its measurement`() = runTest {
+        stubEditItem(
+            rows = listOf(
+                ClothingItemColorEntity(7, red.id, hex = "#C81E1E", share = 0.6, source = ColorSource.AUTO),
+                ClothingItemColorEntity(7, blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.AUTO),
+            ),
+        )
+        val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
+        advanceUntilIdle()
+
+        viewModel.onColorToggle(blue)
+        viewModel.onColorToggle(blue) // off and on again: same set, but a manual edit
+        val saved = savedUpdateColors(viewModel)
+
+        assertEquals(
+            listOf(
+                TaggedColor(red.id, hex = "#C81E1E", share = 0.6, source = ColorSource.USER),
+                TaggedColor(blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.USER),
+            ),
+            saved,
+        )
+    }
+
+    @Test
+    fun `a reference shade load failure is not cached`() = runTest {
+        coEvery { lookupRepository.getReferenceShades() } returnsMany listOf(
+            DataResult.Error(RuntimeException("db")),
+            DataResult.Success(shades),
+        )
+        photos.importResults.clear()
+        photos.importResults.addAll(listOf("first.jpg", "second.jpg"))
+        photos.colorsByPath["second.jpg"] = listOf(measured(red))
+        val viewModel = subscribed(buildViewModel())
+
+        viewModel.onImageSelected("content://media/picked/1")
+        viewModel.onImageSelected("content://media/picked/2")
+
+        coVerify(exactly = 2) { lookupRepository.getReferenceShades() }
+        assertEquals(listOf("second.jpg"), photos.extractCalls)
+        assertEquals(listOf(shades), photos.extractShades)
+        assertEquals(listOf(red), viewModel.uiState.value.selectedColors)
     }
 
     @Test

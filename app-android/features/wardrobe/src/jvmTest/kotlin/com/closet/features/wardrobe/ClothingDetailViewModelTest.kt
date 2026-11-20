@@ -88,6 +88,20 @@ class ClothingDetailViewModelTest {
     }
 
     @Test
+    fun `updateColors writes nothing when the picked set is unchanged`() {
+        coEvery { clothingRepository.getItemColorRows(42) } returns DataResult.Success(
+            listOf(
+                ClothingItemColorEntity(42, 1, hex = "#C81E1E", share = 0.6, source = ColorSource.AUTO),
+                ClothingItemColorEntity(42, 3, hex = "#222222", share = 0.4, source = ColorSource.AUTO),
+            )
+        )
+
+        buildViewModel().updateColors(listOf(3L, 1L))
+
+        coVerify(exactly = 0) { clothingRepository.updateItemColors(any(), any()) }
+    }
+
+    @Test
     fun `updateColors writes nothing when the existing rows cannot be read`() {
         coEvery { clothingRepository.getItemColorRows(42) } returns DataResult.Error(RuntimeException("db"))
 

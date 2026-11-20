@@ -19,7 +19,10 @@ class ColorCheckReport(
     val basicTerm: Int,
     /** Photos where the extractor returned no colour. */
     val empty: Int,
-    /** Baseline: each cluster hex named by [LegacyHslMatcher], top-share name vs the mapped name. */
+    /**
+     * Baseline: the hex of the extractor's top colour (highest share, after same-name clusters are
+     * combined) re-named by [LegacyHslMatcher], compared with the mapped name.
+     */
     val baselineExact: Int,
     val baselineBasicTerm: Int,
     /** Top (mapped, got) pairs that disagree, with counts, most frequent first. */
@@ -53,9 +56,16 @@ class ColorCheckReport(
 }
 
 /**
- * Compares the shared [ColorExtractor] with the dataset's `baseColour` labels. The baseline names
- * each extracted cluster with [LegacyHslMatcher]; it measures the matcher only, since Palette's
- * swatch selection cannot run on the JVM.
+ * Compares the shared [ColorExtractor] with the dataset's `baseColour` labels.
+ *
+ * The baseline does not name every cluster. It takes only the extractor's top colour (the highest
+ * share after clusters with the same reference name are combined), and names that colour's hex
+ * with [LegacyHslMatcher]. So it measures the old matching rule on the new pixels, not the old
+ * pipeline, since Palette's swatch selection cannot run on the JVM.
+ *
+ * The baseline matches against the base hexes of all 22 current seeds, whereas the old app had
+ * only 18 (no Charcoal, Cream, Denim or Teal). Its numbers are therefore not exactly what the old
+ * app would have produced.
  */
 object ColorCheck {
 
