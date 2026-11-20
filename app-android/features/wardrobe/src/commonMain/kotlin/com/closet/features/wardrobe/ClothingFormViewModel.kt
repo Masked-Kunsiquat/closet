@@ -131,6 +131,8 @@ private data class FormState(
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
+    /** True when the edit load failed; the form never saves, since it would overwrite the item with partial data. */
+    val loadFailed: Boolean = false,
     val errorMessage: StringResource? = null,
     val selectedSizeSystemId: Long? = null,
     val selectedSizeValueId: Long? = null,
@@ -300,7 +302,7 @@ class ClothingFormViewModel(
             categories = cats,
             subcategories = subs,
             allColors = colors,
-            canSave = form.name.isNotBlank() && !form.isSaving && !form.isSegmenting &&
+            canSave = !form.loadFailed && form.name.isNotBlank() && !form.isSaving && !form.isSegmenting &&
                     !form.isDownloadingModel &&
                     !(form.brandQuery.isNotBlank() && form.selectedBrandId == null),
             isDirty = computeIsDirty(form),
@@ -371,12 +373,16 @@ class ClothingFormViewModel(
             _form.update { it.copy(isLoading = true) }
             try {
                 val entityResult = clothingRepository.getItemEntityById(id)
-                val detail = (clothingRepository.getItemDetailOnce(id) as? DataResult.Success)?.data
+                // A failed detail read must fail the load (#126): treating it as "no colours, seasons,
+                // occasions, materials or patterns" would let a save wipe them.
+                val detail = when (val result = clothingRepository.getItemDetailOnce(id)) {
+                    is DataResult.Success -> result.data
+                    is DataResult.Error -> throw result.throwable
+                    DataResult.Loading -> null
+                }
 
                 if (entityResult is DataResult.Success) {
                     val entity = entityResult.data
-                    originalEntity = entity
-                    originalImagePath = entity.imagePath
 
                     val brandName = if (entity.brandId != null) {
                         (brandRepository.getAllBrands().first { it is DataResult.Success } as DataResult.Success).data
@@ -393,7 +399,6 @@ class ClothingFormViewModel(
                     } else null
 
                     val colors = detail?.colors ?: emptyList()
-                    originalColors = colors
                     // Re-saving must keep each row's source, hex and share, so a failed read of the
                     // rows fails the load rather than letting a save flip them to plain user rows.
                     val colorRows = when (val rows = clothingRepository.getItemColorRows(id)) {
@@ -404,10 +409,10 @@ class ClothingFormViewModel(
                     val measured = colorRows.associate {
                         it.colorId to TaggedColor(it.colorId, hex = it.hex, share = it.share, source = it.source)
                     }
-                    originalSeasonIds = detail?.seasons?.map { it.id }?.toSet() ?: emptySet()
-                    originalOccasionIds = detail?.occasions?.map { it.id }?.toSet() ?: emptySet()
-                    originalMaterialIds = detail?.materials?.map { it.id }?.toSet() ?: emptySet()
-                    originalPatternIds = detail?.patterns?.map { it.id }?.toSet() ?: emptySet()
+                    val seasonIds = detail?.seasons?.map { it.id }?.toSet() ?: emptySet()
+                    val occasionIds = detail?.occasions?.map { it.id }?.toSet() ?: emptySet()
+                    val materialIds = detail?.materials?.map { it.id }?.toSet() ?: emptySet()
+                    val patternIds = detail?.patterns?.map { it.id }?.toSet() ?: emptySet()
 
                     var systemId: Long? = null
                     if (entity.sizeValueId != null) {
@@ -420,6 +425,15 @@ class ClothingFormViewModel(
                             }
                         }
                     }
+
+                    // Every read succeeded: only now does the form become an edit of this item.
+                    originalEntity = entity
+                    originalImagePath = entity.imagePath
+                    originalColors = colors
+                    originalSeasonIds = seasonIds
+                    originalOccasionIds = occasionIds
+                    originalMaterialIds = materialIds
+                    originalPatternIds = patternIds
 
                     _form.update { it.copy(
                         name = entity.name,
@@ -455,7 +469,8 @@ class ClothingFormViewModel(
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                _form.update { it.copy(isLoading = false, errorMessage = CoreRes.string.error_database_query) }
+                log.e(e) { "edit load failed for item $id" }
+                _form.update { it.copy(isLoading = false, loadFailed = true, errorMessage = CoreRes.string.error_database_query) }
             }
         }
     }
@@ -825,6 +840,8 @@ class ClothingFormViewModel(
 
     fun save() {
         val state = _form.value
+        // A failed edit load would save partial data over the item, whatever the user typed since.
+        if (state.loadFailed) return
         if (state.isSegmenting || state.isDownloadingModel) return
         if (state.name.isBlank()) {
             _form.update { it.copy(isNameError = true) }

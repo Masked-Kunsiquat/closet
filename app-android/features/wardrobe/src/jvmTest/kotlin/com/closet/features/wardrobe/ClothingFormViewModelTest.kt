@@ -727,13 +727,33 @@ class ClothingFormViewModelTest {
         val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
         advanceUntilIdle()
 
+        assertLoadFailedBlocksSave(viewModel)
+    }
+
+    @Test
+    fun `the edit load fails when the item detail cannot be read`() = runTest {
+        stubEditItem(rows = emptyList())
+        coEvery { clothingRepository.getItemDetailOnce(7) } returns DataResult.Error(RuntimeException("db"))
+        val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
+        advanceUntilIdle()
+
+        assertLoadFailedBlocksSave(viewModel)
+    }
+
+    /** After a failed edit load, typing a name must not make the form savable, and save writes nothing. */
+    private fun TestScope.assertLoadFailedBlocksSave(viewModel: ClothingFormViewModel) {
         val state = viewModel.uiState.value
         assertEquals(CoreRes.string.error_database_query, state.errorMessage)
         assertFalse(state.isLoading)
         assertFalse(state.canSave)
+
+        viewModel.onNameChange("Typed")
+        assertFalse(viewModel.uiState.value.canSave)
         viewModel.save()
         advanceUntilIdle()
+
         coVerify(exactly = 0) { clothingRepository.updateItemWithAttributes(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { clothingRepository.insertItemWithAttributes(any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
