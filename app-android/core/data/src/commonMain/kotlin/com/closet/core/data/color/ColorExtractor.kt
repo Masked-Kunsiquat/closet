@@ -9,7 +9,7 @@ data class ExtractedColor(val colorId: Long, val hex: String, val share: Double)
 
 /**
  * Pure colour-extraction pipeline: picks the item's pixels (alpha mask, uniform-border background
- * removal, or the centre box), clusters a fixed-stride sample with k-means++ in Oklab, merges near
+ * removal, or the centre box), clusters a stratified sample with k-means++ in Oklab, merges near
  * clusters, and names each by the nearest [ReferenceShade]. Representative hexes are linear-RGB means.
  * Deterministic: the same input always gives the same output.
  *
@@ -122,10 +122,22 @@ class ColorExtractor(
 
     // --- 2. Sample --------------------------------------------------------------------------------
 
+    /**
+     * Stratified sample of at most [MAX_SAMPLES]: one pixel from each block of `stride` consecutive item
+     * pixels, at a pseudo-random offset within the block. A fixed offset would alias with any pattern
+     * whose period divides the stride (e.g. 2-px stripes at stride 4). The offsets come from their own
+     * seeded stream, so the output stays deterministic and k-means++ seeding is unaffected.
+     */
     private fun sample(item: IntArray): IntArray {
-        val stride = (item.size + MAX_SAMPLES - 1) / MAX_SAMPLES
+        val n = item.size
+        val stride = (n + MAX_SAMPLES - 1) / MAX_SAMPLES
         if (stride <= 1) return item
-        return IntArray((item.size + stride - 1) / stride) { item[it * stride] }
+        val random = Random(COLOR_SEED xor SAMPLE_SEED_SALT)
+        return IntArray((n + stride - 1) / stride) { k ->
+            val start = k * stride
+            val length = minOf(stride, n - start)
+            item[start + random.nextInt(length)]
+        }
     }
 
     // --- 3. Cluster -------------------------------------------------------------------------------
@@ -304,6 +316,8 @@ class ColorExtractor(
         internal const val BG_DELTA_E = 0.05
         internal const val CENTER_FRACTION = 0.60
         internal const val COLOR_SEED = 0x5EED
+        /** Salts [COLOR_SEED] for the sampler's offset stream, distinct from k-means++ seeding. */
+        private const val SAMPLE_SEED_SALT = 0x5A5A
 
         private val CLUSTER_ORDER: Comparator<Cluster> =
             compareByDescending<Cluster> { it.size }.thenBy { it.first }

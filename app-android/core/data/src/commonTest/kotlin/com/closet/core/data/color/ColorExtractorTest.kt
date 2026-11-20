@@ -199,6 +199,27 @@ class ColorExtractorTest {
     }
 
     @Test
+    fun `fine stripes are sampled without aliasing`() {
+        // 200x200 with a 4-px transparent border (mask path): 192x192 = 36,864 item pixels, so the
+        // sampler thins by 4. 2-px vertical stripes repeat every 4 px, so a fixed-phase stride of 4
+        // would only ever see one stripe colour.
+        val red = 0xB3202A
+        val navy = 0x1F2A44
+        val pixels = image(200, 200) { x, y ->
+            when {
+                x < 4 || x >= 196 || y < 4 || y >= 196 -> 0x00000000
+                (x / 2) % 2 == 0 -> opaque(red)
+                else -> opaque(navy)
+            }
+        }
+
+        val result = extractor.extract(pixels, 200, 200)
+
+        assertEquals(setOf(id("Red"), id("Navy")), result.map { it.colorId }.toSet(), "$result")
+        result.forEach { assertEquals(0.5, it.share, 0.05, "$result") }
+    }
+
+    @Test
     fun `size mismatch is rejected`() {
         assertFailsWith<IllegalArgumentException> { extractor.extract(IntArray(10), 4, 4) }
     }
