@@ -322,6 +322,7 @@ class ClothingRepository(
      * written when the user has curated them (any existing row has source [ColorSource.USER]) or
      * when [extracted] is empty (the extractor found no colour), so a failed extraction never
      * wipes the existing rows. The check and the write run in one transaction.
+     * [ColorSource.NANO] rows are replaceable like auto rows, intentionally: Nano tagging arrives in PR 3.
      * @return A [DataResult] with true when the rows were replaced, false when they were left
      *   unchanged (user-curated, or nothing extracted).
      */

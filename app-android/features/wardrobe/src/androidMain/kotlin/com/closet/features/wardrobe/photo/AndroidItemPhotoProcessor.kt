@@ -1,15 +1,16 @@
 package com.closet.features.wardrobe.photo
 
-import android.graphics.BitmapFactory
 import android.net.Uri
-import androidx.palette.graphics.Palette
 import co.touchlab.kermit.Logger
-import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.color.ColorExtractor
+import com.closet.core.data.color.ExtractedColor
+import com.closet.core.data.color.ReferenceShade
 import com.closet.core.data.repository.CaptionEnrichmentProvider
 import com.closet.core.data.repository.StorageRepository
 import com.closet.core.data.util.BitmapUtils
-import com.closet.core.data.util.ColorMatcher
+import com.closet.core.data.util.toArgbPixels
 import com.closet.features.wardrobe.repository.SubjectSegmenter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.uuid.ExperimentalUuidApi
@@ -17,7 +18,8 @@ import kotlin.uuid.Uuid
 
 /**
  * Android [ItemPhotoProcessor]: app storage through [StorageRepository], background removal
- * through [SubjectSegmenter], Palette color extraction and captions from [CaptionEnrichmentProvider].
+ * through [SubjectSegmenter], color extraction through the shared [ColorExtractor] and captions from
+ * [CaptionEnrichmentProvider].
  */
 class AndroidItemPhotoProcessor(
     private val storageRepository: StorageRepository,
@@ -56,37 +58,30 @@ class AndroidItemPhotoProcessor(
         storageRepository.saveBitmap(masked, Uuid.random().toString())
     }
 
-    // The Palette API filters out transparent pixels, so on a segmented PNG only subject
-    // colours are sampled — not the background.
+    // Alpha is the mask: on a segmented PNG only subject pixels are measured, not the
+    // removed background. Decoded at ≤512 px in sRGB; the extractor samples a fixed stride anyway.
     override suspend fun extractColors(
         relativePath: String,
-        available: List<ColorEntity>,
-    ): List<ColorEntity> = withContext(Dispatchers.Default) {
-        val file = storageRepository.getFile(relativePath)
+        shades: List<ReferenceShade>,
+    ): List<ExtractedColor> = withContext(Dispatchers.Default) {
         try {
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-            if (bitmap != null) {
-                val palette = Palette.from(bitmap).generate()
-                val extracted = listOfNotNull(
-                    palette.dominantSwatch?.rgb,
-                    palette.vibrantSwatch?.rgb,
-                    palette.mutedSwatch?.rgb
-                ).distinct()
-
-                if (extracted.isNotEmpty()) {
-                    val matched = extracted.map { ColorMatcher.findNearestColor(it, available) }.distinct()
-                    if (matched.isNotEmpty()) {
-                        log.d { "extractColors: ${file.name} → ${matched.joinToString { it.name }}" }
-                    }
-                    matched
-                } else {
-                    log.d { "extractColors: ${file.name} → no swatches extracted" }
-                    emptyList()
-                }
-            } else {
-                log.d { "extractColors: ${file.name} → bitmap decode returned null" }
-                emptyList()
+            val file = storageRepository.getFile(relativePath)
+            val bitmap = withContext(Dispatchers.IO) {
+                BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 512)
             }
+            if (bitmap == null) {
+                log.d { "extractColors: ${file.name} → bitmap decode returned null" }
+                return@withContext emptyList()
+            }
+            try {
+                val extracted = ColorExtractor(shades).extract(bitmap.toArgbPixels(), bitmap.width, bitmap.height)
+                log.d { "extractColors: ${file.name} → ${extracted.joinToString { "${it.colorId}:${it.hex}@${it.share}" }}" }
+                extracted
+            } finally {
+                if (!bitmap.isRecycled) bitmap.recycle()
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.d(e) { "color extraction failed" }
             emptyList()

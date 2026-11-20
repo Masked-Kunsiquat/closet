@@ -12,11 +12,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.closet.core.data.color.ReferenceShade
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ClothingStatus
 import com.closet.core.data.model.ColorEntity
+import com.closet.core.data.model.ColorSource
 import com.closet.core.data.model.MaterialEntity
 import com.closet.core.data.model.OccasionEntity
 import com.closet.core.data.model.PatternEntity
@@ -115,6 +117,14 @@ private data class FormState(
     val isCaptioning: Boolean = false,
     val imageCaption: String? = null,
     val selectedColors: List<ColorEntity> = emptyList(),
+    /**
+     * The measured row for each colour that has one: from the latest extraction (source auto,
+     * with hex and share) or, on edit, the item's stored rows as they are. Saving uses it for any
+     * selected colour it covers; other selected colours become plain user rows.
+     */
+    val measured: Map<Long, TaggedColor> = emptyMap(),
+    /** True after any manual colour toggle; a new extraction that replaces the selection resets it. */
+    val colorsEditedByUser: Boolean = false,
     val isNameError: Boolean = false,
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
@@ -357,6 +367,16 @@ class ClothingFormViewModel(
 
                     val colors = detail?.colors ?: emptyList()
                     originalColors = colors
+                    // Re-saving must keep each row's source, hex and share, so a failed read of the
+                    // rows fails the load rather than letting a save flip them to plain user rows.
+                    val colorRows = when (val rows = clothingRepository.getItemColorRows(id)) {
+                        is DataResult.Success -> rows.data
+                        is DataResult.Error -> throw rows.throwable
+                        DataResult.Loading -> emptyList()
+                    }
+                    val measured = colorRows.associate {
+                        it.colorId to TaggedColor(it.colorId, hex = it.hex, share = it.share, source = it.source)
+                    }
                     originalSeasonIds = detail?.seasons?.map { it.id }?.toSet() ?: emptySet()
                     originalOccasionIds = detail?.occasions?.map { it.id }?.toSet() ?: emptySet()
                     originalMaterialIds = detail?.materials?.map { it.id }?.toSet() ?: emptySet()
@@ -393,6 +413,8 @@ class ClothingFormViewModel(
                         category = selectedCat,
                         subcategory = selectedSub,
                         selectedColors = colors,
+                        measured = measured,
+                        colorsEditedByUser = false,
                         selectedSizeSystemId = systemId,
                         selectedSizeValueId = entity.sizeValueId,
                         imageCaption = entity.imageCaption,
@@ -648,13 +670,41 @@ class ClothingFormViewModel(
     }
 
     /**
-     * Replaces the selected colors with those matched from [path]; leaves them if none match,
-     * or if [path] is no longer the current image by the time extraction finishes.
+     * Replaces the selected colors with those measured from [path] (as auto rows) and clears the
+     * user-edited flag; leaves them if none match, if the reference shades can't be loaded, or if
+     * [path] is no longer the current image by the time extraction finishes.
      */
     private suspend fun extractColors(path: String) {
-        val matched = photoProcessor.extractColors(path, allColors.value)
-        if (matched.isNotEmpty()) {
-            _form.update { if (it.imagePath == path) it.copy(selectedColors = matched) else it }
+        val shades = referenceShades() ?: return
+        val extracted = photoProcessor.extractColors(path, shades)
+        val colorsById = allColors.value.associateBy { it.id }
+        val known = extracted.filter { it.colorId in colorsById }
+        if (known.isEmpty()) return
+        val measured = known.associate {
+            it.colorId to TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO)
+        }
+        _form.update {
+            if (it.imagePath != path) it
+            else it.copy(
+                selectedColors = known.map { c -> colorsById.getValue(c.colorId) },
+                measured = measured,
+                colorsEditedByUser = false,
+            )
+        }
+    }
+
+    private var cachedShades: List<ReferenceShade>? = null
+
+    /** The colour namer's reference shades, loaded once; null (skip extraction) when the load fails. */
+    private suspend fun referenceShades(): List<ReferenceShade>? {
+        cachedShades?.let { return it }
+        return when (val result = lookupRepository.getReferenceShades()) {
+            is DataResult.Success -> result.data.also { cachedShades = it }
+            is DataResult.Error -> {
+                log.w(result.throwable) { "reference shades failed to load; colour extraction skipped" }
+                null
+            }
+            DataResult.Loading -> null
         }
     }
 
@@ -665,7 +715,7 @@ class ClothingFormViewModel(
             } else {
                 state.selectedColors + color
             }
-            state.copy(selectedColors = newColors)
+            state.copy(selectedColors = newColors, colorsEditedByUser = true)
         }
     }
 
@@ -735,8 +785,7 @@ class ClothingFormViewModel(
                     updatedAt = clock.now()
                 )
 
-                // Temporary user-source mapping; Task 4 (#81) carries extracted hex/share/source.
-                val colors = state.selectedColors.map { TaggedColor(it.id) }
+                val colors = colorRowsToSave(state)
                 val result = if (isEditMode) {
                     clothingRepository.updateItemWithAttributes(
                         item,
@@ -784,6 +833,17 @@ class ClothingFormViewModel(
             }
         }
     }
+
+    /**
+     * Each selected colour as its measured row when it has one, otherwise a plain user row. After
+     * a manual toggle every row becomes user (measurements kept), so a later extraction pass
+     * (`replaceAutoColors`) leaves the user's choice alone. Untouched rows are re-saved exactly.
+     */
+    private fun colorRowsToSave(state: FormState): List<TaggedColor> =
+        state.selectedColors.map { color ->
+            val row = state.measured[color.id] ?: TaggedColor(color.id, source = ColorSource.USER)
+            if (state.colorsEditedByUser) row.copy(source = ColorSource.USER) else row
+        }
 
     fun cancel() {
         val currentPath = _form.value.imagePath

@@ -87,9 +87,6 @@ kotlin {
             implementation(libs.androidx.core.ktx)
             implementation(libs.kotlinx.coroutines.android)
 
-            // Palette
-            implementation(libs.androidx.palette.ktx)
-
             // Encrypted storage for API keys
             implementation(libs.androidx.security.crypto)
 

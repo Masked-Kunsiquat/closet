@@ -12,6 +12,7 @@ import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.util.AppError
+import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
@@ -165,11 +166,26 @@ class ClothingDetailViewModel(
 
     // --- Junction Table Updates ---
 
-    /** Replaces the item's color associations with [colorIds] (delete-then-insert). */
+    /**
+     * Replaces the item's color associations with [colorIds] (delete-then-insert). A manual edit:
+     * every row is saved as [ColorSource.USER]; colours already on the item keep their measured
+     * hex and share, new ones have neither. Writes nothing if the existing rows can't be read.
+     */
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
-            // Temporary user-source mapping; Task 4 (#81) replaces it.
-            clothingRepository.updateItemColors(itemId, colorIds.map { TaggedColor(it) }).fold(
+            val existing = when (val rows = clothingRepository.getItemColorRows(itemId)) {
+                is DataResult.Success -> rows.data.associateBy { it.colorId }
+                is DataResult.Error -> {
+                    handleActionError(rows.throwable)
+                    return@launch
+                }
+                DataResult.Loading -> return@launch
+            }
+            val colors = colorIds.map { id ->
+                val row = existing[id]
+                TaggedColor(id, hex = row?.hex, share = row?.share, source = ColorSource.USER)
+            }
+            clothingRepository.updateItemColors(itemId, colors).fold(
                 onLoading = {},
                 onSuccess = {},
                 onError = { handleActionError(it) }
