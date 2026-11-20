@@ -131,6 +131,8 @@ private data class FormState(
      * replaces it, cleared by any toggle). Saving then stores `colors_curated = false`.
      */
     val colorsFromExtraction: Boolean = false,
+    /** The edited item's stored `colors_curated` flag (false for a new item). */
+    val storedCurated: Boolean = false,
     /** The colour selection when background removal started; undo or a failed removal restores it. */
     val preSegmentationColors: ColorSelection? = null,
     val isNameError: Boolean = false,
@@ -148,12 +150,15 @@ private data class FormState(
     val selectedPatternIds: Set<Long> = emptySet(),
 ) {
     /**
-     * True when the selection holds a user's choice: a manual toggle, a stored user row, or a selected
-     * colour with no measurement (a user pick). Re-extracting the same photo must not replace it.
-     * Not the stored `colors_curated` flag; [ClothingFormViewModel.save] works that out.
+     * True when the selection holds a user's choice: a manual toggle, a stored user row, a selected
+     * colour with no measurement (a user pick), or the item's stored curated flag (a cleared item has
+     * no rows to show it) unless this session's extraction has since replaced the selection.
+     * Re-extracting the same photo must not replace it. Not the flag that is saved;
+     * [ClothingFormViewModel.save] works that out.
      */
     val selectionCurated: Boolean
         get() = colorsEditedByUser ||
+            (storedCurated && !colorsFromExtraction) ||
             measured.values.any { it.source == ColorSource.USER } ||
             selectedColors.any { it.id !in measured }
 }
@@ -463,6 +468,7 @@ class ClothingFormViewModel(
                         selectedColors = colors,
                         measured = measured,
                         colorsEditedByUser = false,
+                        storedCurated = entity.colorsCurated,
                         selectedSizeSystemId = systemId,
                         selectedSizeValueId = entity.sizeValueId,
                         imageCaption = entity.imageCaption,

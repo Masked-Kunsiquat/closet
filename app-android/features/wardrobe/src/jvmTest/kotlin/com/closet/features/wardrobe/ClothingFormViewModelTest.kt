@@ -667,7 +667,11 @@ class ClothingFormViewModelTest {
 
     @Test
     fun `a new photo with nothing extracted keeps a curated item curated`() = runTest {
-        stubEditItem(rows = listOf(autoRed), imagePath = "shirt.jpg", curated = true)
+        stubEditItem(
+            rows = listOf(ClothingItemColorEntity(7, red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.USER)),
+            imagePath = "shirt.jpg",
+            curated = true,
+        )
         val viewModel = editViewModel()
 
         viewModel.onImageSelected("content://media/picked/1") // picked.jpg extracts nothing
@@ -677,9 +681,8 @@ class ClothingFormViewModelTest {
     }
 
     @Test
-    fun `undoing background removal restores the stored flag`() = runTest {
-        // A cleared item: curated, no rows, so segmentation's extraction applies to the empty selection.
-        stubEditItem(rows = emptyList(), imagePath = "shirt.jpg", curated = true)
+    fun `undoing background removal restores the untouched auto selection and flag`() = runTest {
+        stubEditItem(rows = listOf(autoRed), imagePath = "shirt.jpg")
         photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 1.0))
         val viewModel = editViewModel()
         viewModel.removeBackground()
@@ -689,8 +692,46 @@ class ClothingFormViewModelTest {
         viewModel.revertSegmentation()
         val (item, colors) = savedUpdate(viewModel)
 
+        assertEquals(listOf(TaggedColor(red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.AUTO)), colors)
+        assertFalse(item.colorsCurated)
+    }
+
+    @Test
+    fun `background removal keeps a cleared curated item cleared`() = runTest {
+        // The user cleared every colour: flag set, no rows. Re-measuring the same photo must not refill it.
+        stubEditItem(rows = emptyList(), imagePath = "shirt.jpg", curated = true)
+        photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 1.0))
+        val viewModel = editViewModel()
+
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        assertEquals("segmented.png", viewModel.uiState.value.imagePath)
+        assertEquals(emptyList(), viewModel.uiState.value.selectedColors)
+        val (item, colors) = savedUpdate(viewModel)
+
         assertEquals(emptyList(), colors)
         assertTrue(item.colorsCurated)
+    }
+
+    @Test
+    fun `background removal still refines a new photo's extraction on a curated item`() = runTest {
+        stubEditItem(
+            rows = listOf(ClothingItemColorEntity(7, red.id, hex = null, share = null, source = ColorSource.USER)),
+            imagePath = "shirt.jpg",
+            curated = true,
+        )
+        photos.colorsByPath["picked.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
+        photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 0.9))
+        val viewModel = editViewModel()
+        viewModel.onImageSelected("content://media/picked/1")
+
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        assertEquals(listOf(blue), viewModel.uiState.value.selectedColors)
+        val (item, colors) = savedUpdate(viewModel)
+
+        assertEquals(listOf(TaggedColor(blue.id, hex = "#1A2B8C", share = 0.9, source = ColorSource.AUTO)), colors)
+        assertFalse(item.colorsCurated)
     }
 
     @Test

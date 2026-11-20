@@ -225,10 +225,26 @@ class ClothingRepositoryColorsTest {
     @Test
     fun `replaceAutoColors leaves an uncurated item uncurated`() = runBlocking {
         val item = newItem()
+        val extracted = ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)
 
-        repo.replaceAutoColors(item, listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)))
+        val result = repo.replaceAutoColors(item, listOf(extracted))
 
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(setOf(ClothingItemColorEntity(item, extracted.colorId, extracted.hex, extracted.share, ColorSource.AUTO)), rows(item))
         assertFalse(curated(item))
+    }
+
+    @Test
+    fun `a clear-all through the picker survives a later replaceAutoColors`() = runBlocking {
+        val item = newItem()
+        repo.updateItemColors(item, listOf(TaggedColor(colorId("Navy"), "#1F2A44", 1.0, ColorSource.AUTO)))
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(repo.updateColorsAsUser(item, emptyList())).data)
+
+        val result = repo.replaceAutoColors(item, listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)))
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(emptySet(), rows(item))
+        assertTrue(curated(item))
     }
 
     @Test
