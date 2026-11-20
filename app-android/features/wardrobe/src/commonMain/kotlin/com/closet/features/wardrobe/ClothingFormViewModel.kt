@@ -119,8 +119,9 @@ private data class FormState(
     val selectedColors: List<ColorEntity> = emptyList(),
     /**
      * The measured row for each colour that has one: from the latest extraction (source auto,
-     * with hex and share) or, on edit, the item's stored rows as they are. Saving uses it for any
-     * selected colour it covers; other selected colours become plain user rows.
+     * with hex and share) or, on edit, the item's stored rows as they are. Picking a new photo
+     * clears every hex and share (they measured the old photo) but keeps the rows' sources.
+     * Saving uses it for any selected colour it covers; other selected colours become plain user rows.
      */
     val measured: Map<Long, TaggedColor> = emptyMap(),
     /** True after any manual colour toggle; a new extraction that replaces the selection resets it. */
@@ -530,6 +531,9 @@ class ClothingFormViewModel(
                 // Point the UI at the new file before any cleanup so the form always
                 // references a valid path even if a subsequent deletion fails.
                 // Reset caption fields so a stale result from a prior image can't bleed through.
+                // The measured hexes and shares belong to the previous image: drop them, keeping each
+                // row's source and the selection, so a save before (or without) a successful
+                // extraction of the new image never stores the old photo's measurements.
                 captionJob?.cancel()
                 _form.update { it.copy(
                     imagePath = path,
@@ -539,6 +543,7 @@ class ClothingFormViewModel(
                     originalSegmentationImageCaption = null,
                     preSegmentationColors = null,
                     imageCaption = null,
+                    measured = it.measured.mapValues { (_, row) -> row.copy(hex = null, share = null) },
                 ) }
                 // A toggle from here on is a choice about the new photo; the cleanup below suspends,
                 // so capture now rather than inside extractColors.

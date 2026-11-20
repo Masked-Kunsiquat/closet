@@ -680,6 +680,47 @@ class ClothingFormViewModelTest {
     }
 
     @Test
+    fun `a new photo with no extracted colours keeps the selection without the old measurements`() = runTest {
+        stubEditItem(
+            rows = listOf(
+                ClothingItemColorEntity(7, red.id, hex = "#C81E1E", share = 0.6, source = ColorSource.AUTO),
+                ClothingItemColorEntity(7, blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.AUTO),
+            ),
+            imagePath = "shirt.jpg",
+        )
+        val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
+        advanceUntilIdle()
+
+        viewModel.onImageSelected("content://media/picked/1") // picked.jpg extracts nothing
+        val saved = savedUpdateColors(viewModel)
+
+        assertEquals(
+            listOf(
+                TaggedColor(red.id, hex = null, share = null, source = ColorSource.AUTO),
+                TaggedColor(blue.id, hex = null, share = null, source = ColorSource.AUTO),
+            ),
+            saved,
+        )
+    }
+
+    @Test
+    fun `saving while a new photo is measured carries no measurement from the previous photo`() = runTest {
+        photos.importResults.clear()
+        photos.importResults.addAll(listOf("first.jpg", "second.jpg"))
+        photos.colorsByPath["first.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
+        photos.colorsByPath["second.jpg"] = listOf(measured(blue, "#1A2B8C", 1.0))
+        photos.extractGate = { path -> if (path == "second.jpg") awaitCancellation() }
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onImageSelected("content://media/picked/1")
+        assertEquals(listOf(red), viewModel.uiState.value.selectedColors)
+
+        viewModel.onImageSelected("content://media/picked/2") // second.jpg's extraction never finishes
+        val saved = savedInsertColors(viewModel)
+
+        assertEquals(listOf(TaggedColor(red.id, hex = null, share = null, source = ColorSource.AUTO)), saved)
+    }
+
+    @Test
     fun `the edit load fails when the colour rows cannot be read`() = runTest {
         stubEditItem(rows = emptyList())
         coEvery { clothingRepository.getItemColorRows(7) } returns DataResult.Error(RuntimeException("db"))

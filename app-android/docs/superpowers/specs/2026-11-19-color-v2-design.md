@@ -9,7 +9,7 @@
 - **Beige's `basic_term` is brown, and Teal's is blue.**
 - **A kept auto colour keeps its measured hex.** Any manual change to an item's colours marks its rows `user`, and `user` rows are never overwritten by re-extraction.
 - **Denim's legacy `color_family` is Neutral, so the engine treats it as neutral.**
-- **PR 2 prerequisite:** before the engine reads `clothing_item_colors.hex`, clear hex/share when the photo they were measured from is replaced and the new extraction is empty or failed. (Deferred by the PR 1 final review.)
+- **Replacing a photo clears its measurements (done in PR 1).** When the form publishes a new photo it clears every hex and share, keeping each row's source and the selection. A successful extraction then replaces the selection; an empty or failed one, or a save while extraction runs, leaves measurement-less rows. No other path can carry a stale hex: the form is the only place a photo is replaced, and background removal (in the form or `BatchSegmentationWorker`) re-measures the same photo. This was the PR 2 prerequisite for the engine reading `clothing_item_colors.hex`; nothing remains of it.
 
 ## Why
 Color is the weakest input to everything that uses it.
