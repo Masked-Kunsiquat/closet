@@ -113,7 +113,7 @@ The measured color is thrown away.
 - It falls back to the pipeline.
 
 ## Delivery
-1. **PR 1:** the schema migration, seeds and shades; the `ColorExtractor` pipeline replacing Palette; the junction helpers; the demo-wardrobe accuracy check.
+1. **PR 1:** the schema migration, seeds and shades; the `ColorExtractor` pipeline replacing Palette; the junction helpers; the demo-wardrobe accuracy check. Done in #… (PR pending).
 2. **PR 2:** engine and chat consumers, threshold re-check, weights schema bump.
 3. **PR 3 (optional):** the Nano overlay.
 

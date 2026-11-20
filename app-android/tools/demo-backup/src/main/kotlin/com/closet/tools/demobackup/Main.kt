@@ -14,6 +14,12 @@ private const val USAGE = """Usage: --dataset <dir> --out <file.hangr> [--count 
   --seed        seed for sampling and history (default 42)
   --no-history  skip the demo outfits and wear logs"""
 
+private const val COLOR_CHECK_USAGE = """Usage: color-check <datasetDir> [--limit 300] [--seed 42] [--merge <deltaE>] [--min-share <share>]
+
+  Compares the shared colour extractor with the dataset's baseColour labels, and with the
+  legacy HSL matcher as a baseline. --merge and --min-share override the extractor constants
+  (for calibration only)."""
+
 private class UsageError(message: String) : Exception(message)
 
 private fun parseArgs(args: Array<String>): Triple<File, File, BackupOptions> {
@@ -43,7 +49,37 @@ private fun parseArgs(args: Array<String>): Triple<File, File, BackupOptions> {
     )
 }
 
+private fun colorCheck(args: List<String>) {
+    var dir: File? = null
+    var limit = 300
+    var seed = 42L
+    var merge: Double? = null
+    var minShare: Double? = null
+    var i = 0
+    fun value(flag: String): String = args.getOrNull(++i) ?: throw UsageError("$flag needs a value")
+    while (i < args.size) {
+        when (val a = args[i]) {
+            "--limit" -> limit = value(a).toIntOrNull()?.takeIf { it > 0 } ?: throw UsageError("--limit must be a positive integer")
+            "--seed" -> seed = value(a).toLongOrNull() ?: throw UsageError("--seed must be an integer")
+            "--merge" -> merge = value(a).toDoubleOrNull()?.takeIf { it > 0 } ?: throw UsageError("--merge must be a positive number")
+            "--min-share" -> minShare = value(a).toDoubleOrNull()?.takeIf { it in 0.0..1.0 } ?: throw UsageError("--min-share must be between 0 and 1")
+            else -> if (a.startsWith("--") || dir != null) throw UsageError("Unknown argument: $a") else dir = File(a)
+        }
+        i++
+    }
+    println(ColorCheck.run(dir ?: throw UsageError("datasetDir is required"), limit, seed, merge, minShare).render())
+}
+
 fun main(args: Array<String>) {
+    if (args.firstOrNull() == "color-check") {
+        try {
+            colorCheck(args.drop(1))
+        } catch (e: UsageError) {
+            System.err.println("${e.message}\n\n$COLOR_CHECK_USAGE")
+            exitProcess(2)
+        }
+        exitProcess(0)
+    }
     val (dataset, out, options) = try {
         parseArgs(args)
     } catch (e: UsageError) {

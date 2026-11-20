@@ -65,10 +65,13 @@ class MappingTest {
     @Test
     fun baseColoursMapToSeededColors() {
         assertEquals("Grey", Mapping.color("Grey Melange"))
-        assertEquals("White", Mapping.color("Off White"))
+        assertEquals("Cream", Mapping.color("Off White"))
+        assertEquals("Cream", Mapping.color("Cream"))
+        assertEquals("Charcoal", Mapping.color("Charcoal"))
+        assertEquals("Teal", Mapping.color("Turquoise Blue"))
         assertEquals("Navy", Mapping.color("Navy Blue"))
         assertEquals("Royal Blue", Mapping.color("Blue"))
-        assertEquals("Sky Blue", Mapping.color("Teal"))
+        assertEquals("Teal", Mapping.color("Teal"))
         assertEquals("Burgundy", Mapping.color("Maroon"))
         assertEquals("Mint", Mapping.color("Fluorescent Green"))
         assertEquals("Tan", Mapping.color("Khaki"))

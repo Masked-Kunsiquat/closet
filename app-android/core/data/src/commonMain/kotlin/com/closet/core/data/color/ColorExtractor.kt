@@ -13,7 +13,14 @@ data class ExtractedColor(val colorId: Long, val hex: String, val share: Double)
  * clusters, and names each by the nearest [ReferenceShade]. Representative hexes are linear-RGB means.
  * Deterministic: the same input always gives the same output.
  */
-class ColorExtractor(shades: List<ReferenceShade>) {
+class ColorExtractor(
+    shades: List<ReferenceShade>,
+    private val deltaEMerge: Double,
+    private val minShare: Double,
+) {
+    /** Production configuration. */
+    constructor(shades: List<ReferenceShade>) : this(shades, DELTA_E_MERGE, MIN_SHARE)
+
     private val namer = ColorNamer(shades)
 
     /**
@@ -220,7 +227,7 @@ class ColorExtractor(shades: List<ReferenceShade>) {
                     }
                 }
             }
-            if (bestD >= DELTA_E_MERGE) break
+            if (bestD >= deltaEMerge) break
             val x = clusters[bi]
             val y = clusters[bj]
             val total = (x.size + y.size).toDouble()
@@ -264,7 +271,7 @@ class ColorExtractor(shades: List<ReferenceShade>) {
                 val c = e.count.toDouble()
                 ExtractedColor(e.colorId, Oklab.hexFromLinear(e.r / c, e.g / c, e.b / c), e.count.toDouble() / n)
             }
-            .filter { it.share >= MIN_SHARE }
+            .filter { it.share >= minShare }
             .sortedWith(compareByDescending<ExtractedColor> { it.share }.thenBy { it.colorId })
             .take(MAX_COLORS)
     }
@@ -273,8 +280,8 @@ class ColorExtractor(shades: List<ReferenceShade>) {
         internal const val MAX_SAMPLES = 10_000
         internal const val K = 4
         internal const val MAX_ITERATIONS = 20
-        internal const val DELTA_E_MERGE = 0.07
-        internal const val MIN_SHARE = 0.15
+        const val DELTA_E_MERGE = 0.07
+        const val MIN_SHARE = 0.15
         internal const val MAX_COLORS = 3
         internal const val MIN_ITEM_PIXELS = 50
         internal const val ALPHA_ITEM = 128
