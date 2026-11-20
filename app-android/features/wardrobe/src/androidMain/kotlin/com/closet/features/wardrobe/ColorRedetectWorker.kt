@@ -107,7 +107,7 @@ class ColorRedetectWorker(
     private fun ensureNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Colour re-detection",
+            "Color re-detection",
             NotificationManager.IMPORTANCE_LOW,
         ).apply { setShowBadge(false) }
         context.getSystemService(NotificationManager::class.java)
@@ -138,7 +138,7 @@ class ColorRedetectWorker(
     private fun buildLiveUpdateNotification(processed: Int, total: Int): Notification {
         val progress = if (total > 0) processed * 10_000 / total else 0
         return Notification.Builder(context, CHANNEL_ID)
-            .setContentTitle("Re-detecting colours")
+            .setContentTitle("Re-detecting colors")
             .setContentText("$processed of $total items")
             .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .setStyle(
@@ -154,7 +154,7 @@ class ColorRedetectWorker(
     /** API < 36 fallback: a determinate progress bar. */
     private fun buildLegacyNotification(processed: Int, total: Int): Notification =
         NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle("Re-detecting colours")
+            .setContentTitle("Re-detecting colors")
             .setContentText("$processed of $total items")
             .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .setProgress(total, processed, /* indeterminate= */ false)

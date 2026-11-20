@@ -2,6 +2,8 @@
 
 **Status:** approved by the owner on 2026-11-20 (Option A). **Issue:** #128, which also covers the clear-all finding from #127's review. **Parent:** #81 (color v2).
 
+**Status update:** Done in #… (PR pending).
+
 ## Why
 - **Pre-v2 items can't get measured shades.** Color v2 (#127) never lets automatic extraction overwrite colours the user chose. The v1→v2 upgrade had to mark every existing item's colours as `user`, so the demo wardrobe (298 items) has no way to get measured shades: batch background removal logged "left unchanged" for all of them.
 - **A cleared selection isn't remembered.** If a user clears every colour, zero rows looks the same as "never tagged", so `replaceAutoColors` can re-add colours.

@@ -2,6 +2,8 @@
 
 **Status:** approved for planning, 2026-11-19. Tracking issue: #81. The PR 1 plan is `docs/superpowers/plans/2026-11-19-color-v2-pr1-extraction-and-schema.md`.
 
+**Update (2026-11-20):** #128 delivered re-detect (per item and bulk) and the `colors_curated` marker; see `2026-11-20-color-redetect-design.md`.
+
 **Decisions made while planning PR 1** (they amend the sections below):
 - **Re-picking the base hexes moves to PR 2.** The engine reads `colors.hex` and `color_family`, so PR 1 leaves the 18 existing rows unchanged. Naming uses the new `color_shades` table instead.
 - **New seed names:** Charcoal, Cream, Denim and Teal. Khaki and camel become shades of Tan, and lavender a shade of Purple.
