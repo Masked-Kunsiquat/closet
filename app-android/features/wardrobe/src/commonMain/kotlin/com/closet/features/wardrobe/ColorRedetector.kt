@@ -44,10 +44,15 @@ class ColorRedetector(
 
     /**
      * Replaces the item's colours with [proposed] as auto rows and clears its curated flag.
-     * @return true when written, false when [proposed] is empty (nothing written).
+     * With [onlyIfUncurated], nothing is written when the item is curated at write time (the bulk
+     * job's only-unedited mode, so an edit made mid-run is never overwritten).
+     * @return true when written; false when [proposed] is empty or the guard skipped the item.
      */
-    suspend fun apply(itemId: Long, proposed: List<ExtractedColor>): DataResult<Boolean> =
-        clothingRepository.applyRedetectedColors(itemId, proposed)
+    suspend fun apply(
+        itemId: Long,
+        proposed: List<ExtractedColor>,
+        onlyIfUncurated: Boolean = false,
+    ): DataResult<Boolean> = clothingRepository.applyRedetectedColors(itemId, proposed, onlyIfUncurated)
 
     /** The reference shades, loaded once per instance; null when the load fails (retried next call). */
     private suspend fun referenceShades(): List<ReferenceShade>? = shadesLock.withLock {
@@ -58,7 +63,10 @@ class ColorRedetector(
                 log.w(result.throwable) { "reference shades failed to load; colour re-detection skipped" }
                 null
             }
-            DataResult.Loading -> null
+            DataResult.Loading -> {
+                log.w { "reference shades not loaded; colour re-detection skipped" }
+                null
+            }
         }
     }
 }

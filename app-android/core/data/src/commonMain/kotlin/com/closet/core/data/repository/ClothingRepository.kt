@@ -370,10 +370,19 @@ class ClothingRepository(
      * included, with the [extracted] colours as [ColorSource.AUTO] rows (hex and share kept) and
      * clears `colors_curated`. The curated flag and user rows are ignored on purpose, since the user
      * chose to re-detect. Nothing is written when [extracted] is empty. One transaction.
-     * @return A [DataResult] with true when the rows were replaced, false when nothing was extracted.
+     *
+     * With [onlyIfUncurated] (bulk re-detect in only-unedited mode), the flag is re-read inside the
+     * transaction and nothing is written when the user has curated the item since it was queued.
+     * @return A [DataResult] with true when the rows were replaced, false when nothing was extracted
+     * or the guard skipped the item.
      */
-    suspend fun applyRedetectedColors(itemId: Long, extracted: List<ExtractedColor>): DataResult<Boolean> = wrapInTransaction {
+    suspend fun applyRedetectedColors(
+        itemId: Long,
+        extracted: List<ExtractedColor>,
+        onlyIfUncurated: Boolean = false,
+    ): DataResult<Boolean> = wrapInTransaction {
         if (extracted.isEmpty()) return@wrapInTransaction false
+        if (onlyIfUncurated && clothingDao.isColorsCurated(itemId) != false) return@wrapInTransaction false
         clothingDao.updateItemColors(
             itemId,
             extracted.map { TaggedColor(it.colorId, hex = it.hex, share = it.share, source = ColorSource.AUTO) },

@@ -8,6 +8,11 @@ import com.closet.features.settings.resources.settings_image_compress_result_wit
 import com.closet.features.settings.resources.settings_image_storage_used_summary
 import com.closet.features.settings.resources.settings_section_ai_tools
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_count
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_title
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_no_photos
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_only_uncurated
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_replaces_yours
+import com.closet.features.settings.resources.settings_wardrobe_color_redetecting
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_result
 import com.closet.features.settings.resources.settings_wardrobe_search_index_summary
 import com.closet.features.settings.resources.settings_weather_enabled_summary
@@ -74,19 +79,34 @@ class SettingsStringsTest {
     @Test
     fun colorRedetectResultHasThreeCounts() = runTest {
         assertEquals(
-            "Re-detected colours on 4 items; 1 unchanged; 2 failed",
+            "Re-detected colors on 4 items; 1 unchanged; 2 failed",
             getPluralString(Res.plurals.settings_wardrobe_color_redetect_result, 4, 4, 1, 2),
         )
         assertEquals(
-            "Re-detected colours on 1 item; 0 unchanged; 0 failed",
+            "Re-detected colors on 1 item; 0 unchanged; 0 failed",
             getPluralString(Res.plurals.settings_wardrobe_color_redetect_result, 1, 1, 0, 0),
         )
     }
 
     @Test
+    fun colorRedetectStringsUseUsSpelling() = runTest {
+        assertEquals("Re-detect colors?", getString(Res.string.settings_wardrobe_color_redetect_confirm_title))
+        assertEquals("Re-detecting colors…", getString(Res.string.settings_wardrobe_color_redetecting))
+        assertEquals(
+            "Only items whose colors you haven't edited",
+            getString(Res.string.settings_wardrobe_color_redetect_only_uncurated),
+        )
+        assertEquals(
+            "This replaces colors you set yourself.",
+            getString(Res.string.settings_wardrobe_color_redetect_replaces_yours),
+        )
+        assertEquals("No items with photos", getString(Res.string.settings_wardrobe_color_redetect_no_photos))
+    }
+
+    @Test
     fun colorRedetectConfirmCount() = runTest {
         assertEquals(
-            "This will re-detect colours on 5 items.",
+            "This will re-detect colors on 5 items.",
             getPluralString(Res.plurals.settings_wardrobe_color_redetect_confirm_count, 5, 5),
         )
     }

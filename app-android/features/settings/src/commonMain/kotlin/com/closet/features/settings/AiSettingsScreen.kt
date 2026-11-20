@@ -55,6 +55,7 @@ import com.closet.features.settings.resources.settings_wardrobe_color_redetect
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_count
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_ok
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_confirm_title
+import com.closet.features.settings.resources.settings_wardrobe_color_redetect_no_photos
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_only_uncurated
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_progress
 import com.closet.features.settings.resources.settings_wardrobe_color_redetect_replaces_yours
@@ -170,6 +171,13 @@ private val StyleVibe.descriptionRes: StringResource
         StyleVibe.Formal -> Res.string.settings_style_vibe_formal_desc
     }
 
+/**
+ * Whether this bulk colour re-detect status earns the result snackbar: a finished run the UI hasn't
+ * acknowledged yet that had items to process (a run with nothing queued says nothing).
+ */
+internal fun WorkStatus.showsColorRedetectResult(lastHandledId: String?): Boolean =
+    state == WorkState.SUCCEEDED && id != lastHandledId && total > 0
+
 @Composable
 fun AiSettingsScreen(
     onNavigateUp: () -> Unit,
@@ -203,7 +211,7 @@ fun AiSettingsScreen(
 
     LaunchedEffect(uiState.colorRedetectWorkStatus?.id, uiState.colorRedetectWorkStatus?.state) {
         val info = uiState.colorRedetectWorkStatus ?: return@LaunchedEffect
-        if (info.state == WorkState.SUCCEEDED && info.id != uiState.lastHandledColorRedetectId) {
+        if (info.showsColorRedetectResult(uiState.lastHandledColorRedetectId)) {
             viewModel.onColorRedetectResultHandled(info.id)
             // done = re-detected, skipped = unchanged (ColorRedetectWork.KEY_UNCHANGED), failed.
             val msg = getPluralString(
@@ -459,7 +467,11 @@ internal fun AiSettingsContent(
                     geminiModels = geminiModels,
                     geminiModelsLoading = geminiModelsLoading,
                 )
+            }
 
+            // Wardrobe management: the AI-backed items need AI on; colour re-detect needs no AI,
+            // so it (and the header) stays reachable with AI off (#128).
+            if (aiEnabled || colorRedetectSupported) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
@@ -469,13 +481,15 @@ internal fun AiSettingsContent(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
 
-                EmbeddingIndexItem(
-                    indexSize = embeddingIndexSize,
-                    workStatus = embeddingWorkStatus,
-                    onRebuild = onRebuildEmbeddingIndex,
-                )
+                if (aiEnabled) {
+                    EmbeddingIndexItem(
+                        indexSize = embeddingIndexSize,
+                        workStatus = embeddingWorkStatus,
+                        onRebuild = onRebuildEmbeddingIndex,
+                    )
+                }
 
-                if (segmentationSupported) {
+                if (aiEnabled && segmentationSupported) {
                     BatchSegmentationItem(
                         eligibleCount = segmentationEligibleCount,
                         workStatus = batchSegWorkStatus,
@@ -492,7 +506,7 @@ internal fun AiSettingsContent(
                     )
                 }
 
-                if (captionSupported) {
+                if (aiEnabled && captionSupported) {
                     BatchCaptionItem(
                         eligibleCount = captionEligibleCount,
                         progress = batchCaptionProgress,
@@ -955,7 +969,15 @@ private fun ColorRedetectItem(
                 )
             },
             supportingContent = {
-                Text(stringResource(Res.string.settings_wardrobe_color_redetect_summary))
+                Text(
+                    stringResource(
+                        if (enabled) {
+                            Res.string.settings_wardrobe_color_redetect_summary
+                        } else {
+                            Res.string.settings_wardrobe_color_redetect_no_photos
+                        },
+                    ),
+                )
             },
             modifier = Modifier.clickable(enabled = enabled) { showConfirmDialog = true },
         )

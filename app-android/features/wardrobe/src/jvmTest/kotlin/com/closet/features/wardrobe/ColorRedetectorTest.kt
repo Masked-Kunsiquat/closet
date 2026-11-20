@@ -91,4 +91,16 @@ class ColorRedetectorTest {
         assertEquals(DataResult.Success(true), result)
         coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(7, extracted) }
     }
+
+    @Test
+    fun `apply passes the only-if-uncurated guard through`() = runTest {
+        coEvery {
+            clothingRepository.applyRedetectedColors(7, extracted, onlyIfUncurated = true)
+        } returns DataResult.Success(false)
+
+        val result = redetector().apply(7, extracted, onlyIfUncurated = true)
+
+        assertEquals(DataResult.Success(false), result)
+        coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(7, extracted, onlyIfUncurated = true) }
+    }
 }

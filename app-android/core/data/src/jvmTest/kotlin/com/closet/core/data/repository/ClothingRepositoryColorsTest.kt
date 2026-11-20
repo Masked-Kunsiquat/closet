@@ -283,6 +283,40 @@ class ClothingRepositoryColorsTest {
     }
 
     @Test
+    fun `guarded applyRedetectedColors skips an item curated after the queue was built`() = runBlocking {
+        // Queued while uncurated; the user then edits its colours mid-run.
+        val item = newItem(curated = false)
+        assertIs<DataResult.Success<Boolean>>(repo.updateColorsAsUser(item, listOf(colorId("Red"))))
+        val user = TaggedColor(colorId("Red"))
+        assertTrue(curated(item))
+
+        val result = repo.applyRedetectedColors(
+            item,
+            listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)),
+            onlyIfUncurated = true,
+        )
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(setOf(user.row(item)), rows(item))
+        assertTrue(curated(item))
+    }
+
+    @Test
+    fun `guarded applyRedetectedColors writes an uncurated item`() = runBlocking {
+        val item = newItem(curated = false)
+        val extracted = listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0))
+
+        val result = repo.applyRedetectedColors(item, extracted, onlyIfUncurated = true)
+
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(
+            extracted.map { ClothingItemColorEntity(item, it.colorId, it.hex, it.share, ColorSource.AUTO) }.toSet(),
+            rows(item),
+        )
+        assertFalse(curated(item))
+    }
+
+    @Test
     fun `getReferenceShades lists every seeded shade`() = runBlocking {
         val shades = assertIs<DataResult.Success<List<ReferenceShade>>>(
             LookupRepository(testDb.db.lookupDao()).getReferenceShades()

@@ -66,7 +66,9 @@ class ColorRedetectWorker(
                 if (proposed.isEmpty()) {
                     unchanged++
                 } else {
-                    when (val result = colorRedetector.apply(item.id, proposed)) {
+                    // In only-unedited mode the write re-checks colors_curated in its transaction,
+                    // so an item the user edits mid-run is left alone (counted unchanged).
+                    when (val result = colorRedetector.apply(item.id, proposed, onlyIfUncurated = onlyUncurated)) {
                         is DataResult.Success -> if (result.data) {
                             done++
                             clothingRepository.revectorizeItem(item.id)
