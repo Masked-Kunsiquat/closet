@@ -8,6 +8,8 @@
 - **Tan wears as neutral,** because it lies between the sourced neutrals beige and brown. This departs from point 12's "camel not neutral".
 - **Beige's `basic_term` is brown, and Teal's is blue.**
 - **A kept auto colour keeps its measured hex.** Any manual change to an item's colours marks its rows `user`, and `user` rows are never overwritten by re-extraction.
+- **Denim's legacy `color_family` is Neutral, so the engine treats it as neutral.**
+- **PR 2 prerequisite:** before the engine reads `clothing_item_colors.hex`, clear hex/share when the photo they were measured from is replaced and the new extraction is empty or failed. (Deferred by the PR 1 final review.)
 
 ## Why
 Color is the weakest input to everything that uses it.
@@ -60,7 +62,7 @@ The measured color is thrown away.
 - `source TEXT NOT NULL DEFAULT 'user'`: one of `auto` | `user` | `nano`.
 
 **`colors`** gains:
-- `wears_as_neutral INTEGER NOT NULL DEFAULT 0`: a fashion convention, so Navy, denim, olive and camel wear as neutrals even though they have chroma. It replaces "the Neutral family means neutral" in harmony scoring.
+- `wears_as_neutral INTEGER NOT NULL DEFAULT 0`: a fashion convention. The shipped set is Black, White, Grey, Charcoal, Beige, Cream, Brown, Tan and Denim; Denim and Tan wear as neutrals even though they have chroma, while Navy, Olive and Teal do not (Research point 12 and the head notes). It replaces "the Neutral family means neutral" in harmony scoring.
 - Reference shades: a child table `color_shades(color_id, hex)`, so pale yellow, yellow and mustard all name Yellow.
 - `basic_term TEXT NOT NULL`: one of the 11 Berlin & Kay basic terms, for chat search, the stats roll-up and coarse logic (see Research findings 6).
 
@@ -77,11 +79,14 @@ The measured color is thrown away.
 - **Open:** should a user *keeping* an auto-tagged color keep its hex?
 
 ### Extraction pipeline (`commonMain`, pure)
-`ColorExtractor.extract(pixels: IntArray /* ARGB */, mask: BooleanArray?, palette: List<ReferenceShade>): List<ExtractedColor(colorId, hex, share)>`
+`ColorExtractor(shades: List<ReferenceShade>).extract(argb: IntArray, width: Int, height: Int): List<ExtractedColor(colorId, hex, share)>`
+
+The mask travels in the pixels' alpha channel; there is no separate mask parameter.
 
 1. **Pixel set:**
-   - mask pixels when there is a mask (full flavor, after segmentation);
-   - otherwise a centre-weighted crop with the border dropped;
+   - the opaque pixels when enough of the image is transparent (an alpha mask: the segmented PNG, full flavor);
+   - otherwise, when the border is uniform, the pixels that differ from the border's median colour (background removal);
+   - otherwise the centre box;
    - downsample to about 10k pixels.
 2. **sRGB → linear → OKLab** (Björn Ottosson's matrices).
 3. **k-means++** in OKLab, k ≤ 4, seeded for determinism.
@@ -91,7 +96,7 @@ The measured color is thrown away.
 7. **White balance (optional):** correct the colour cast of the lighting before clustering. **Open:** decide with the reading list and the demo wardrobe.
 
 **Platform:**
-- **Android:** decodes the bitmap into sRGB (`inPreferredColorSpace`, see Research findings 5) and supplies the mask: ML Kit when present, else none.
+- **Android:** decodes the bitmap into sRGB (`inPreferredColorSpace`, see Research findings 5) and supplies the mask as alpha: the ML Kit segmented PNG when present, else an opaque photo.
 - **iOS:** the centre path now; a Vision foreground mask later.
 - AndroidX Palette and the HSL `ColorMatcher` are deleted.
 
@@ -314,6 +319,9 @@ Sources: Wikipedia *Color quantization*, *Oklab color space*, *sRGB*, *Color ter
     - The Concept Wardrobe: a colour is harmonious "if it emphasises certain aspects of your own coloring". It is about the wearer's skin, hair and eyes, not garment-to-garment pairing.
     - The app has no photo of the wearer. A user-chosen "season" palette preference is a possible later feature and a non-goal here.
 
+19. **The seed list is settled** (decided while planning PR 1; see the head notes).
+    - The seeds added are Charcoal, Cream, Denim and Teal. Khaki and camel are now shades of Tan, and lavender a shade of Purple.
+    - The ambiguous `basic_term`s: Beige and Tan are brown, Olive is green, and Teal is blue.
+
 **Still open:**
 - **Heathers and patterns:** does a striped or heathered item produce two clusters, and is that desired? To be decided on demo-wardrobe examples; `MIN_SHARE` and `ΔE_merge` govern it.
-- **The seed list itself:** which of Denim, Camel/Khaki, Cream, Charcoal and Teal to add, and the `basic_term` of the ambiguous ones (Beige, Tan, Olive).
