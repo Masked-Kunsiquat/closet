@@ -318,6 +318,28 @@ class ClothingRepository(
     }
 
     /**
+     * A manual colour edit: replaces the item's colours with [colorIds], every row as
+     * [ColorSource.USER]. Colours the item already has keep their measured hex and share; new ones
+     * have neither. Nothing is written when [colorIds] is the set the item already has, so confirming
+     * the picker unchanged leaves auto rows open to later re-extraction. The read, the check and the
+     * write run in one transaction, so a concurrent re-extraction can't slip between them.
+     * @return A [DataResult] with true when the rows were replaced, false when the set was unchanged.
+     */
+    suspend fun updateColorsAsUser(itemId: Long, colorIds: List<Long>): DataResult<Boolean> = wrapInTransaction {
+        val existing = clothingDao.getItemColorRows(itemId).associateBy { it.colorId }
+        val ids = colorIds.distinct()
+        if (ids.toSet() == existing.keys) return@wrapInTransaction false
+        clothingDao.updateItemColors(
+            itemId,
+            ids.map { id ->
+                val row = existing[id]
+                TaggedColor(id, hex = row?.hex, share = row?.share, source = ColorSource.USER)
+            },
+        )
+        true
+    }
+
+    /**
      * Replaces an item's colors with freshly [extracted] ones as [ColorSource.AUTO] rows. Nothing is
      * written when the user has curated them (any existing row has source [ColorSource.USER]) or
      * when [extracted] is empty (the extractor found no colour), so a failed extraction never

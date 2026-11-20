@@ -114,6 +114,57 @@ class ClothingRepositoryColorsTest {
     }
 
     @Test
+    fun `updateColorsAsUser with the same set writes nothing`() = runBlocking {
+        val item = newItem()
+        val auto = listOf(
+            TaggedColor(colorId("Navy"), "#1F2A44", 0.6, ColorSource.AUTO),
+            TaggedColor(colorId("White"), "#F4F4F2", 0.4, ColorSource.AUTO),
+        )
+        repo.updateItemColors(item, auto)
+
+        // Same set, different order and a duplicate: still unchanged.
+        val result = repo.updateColorsAsUser(item, listOf(colorId("White"), colorId("Navy"), colorId("White")))
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
+        // Still AUTO: a write would have turned them into USER rows.
+        assertEquals(auto.map { it.row(item) }.toSet(), rows(item))
+    }
+
+    @Test
+    fun `updateColorsAsUser with a changed set writes user rows keeping retained measurements`() = runBlocking {
+        val item = newItem()
+        repo.updateItemColors(
+            item,
+            listOf(
+                TaggedColor(colorId("Navy"), "#1F2A44", 0.6, ColorSource.AUTO),
+                TaggedColor(colorId("White"), "#F4F4F2", 0.4, ColorSource.AUTO),
+            ),
+        )
+
+        val result = repo.updateColorsAsUser(item, listOf(colorId("Navy"), colorId("Red")))
+
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(
+            setOf(
+                ClothingItemColorEntity(item, colorId("Navy"), "#1F2A44", 0.6, ColorSource.USER),
+                ClothingItemColorEntity(item, colorId("Red"), null, null, ColorSource.USER),
+            ),
+            rows(item),
+        )
+    }
+
+    @Test
+    fun `updateColorsAsUser can clear every colour`() = runBlocking {
+        val item = newItem()
+        repo.updateItemColors(item, listOf(TaggedColor(colorId("Navy"), "#1F2A44", 1.0, ColorSource.AUTO)))
+
+        val result = repo.updateColorsAsUser(item, emptyList())
+
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(emptySet(), rows(item))
+    }
+
+    @Test
     fun `getReferenceShades lists every seeded shade`() = runBlocking {
         val shades = assertIs<DataResult.Success<List<ReferenceShade>>>(
             LookupRepository(testDb.db.lookupDao()).getReferenceShades()

@@ -12,7 +12,6 @@ import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.util.AppError
-import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
@@ -169,26 +168,13 @@ class ClothingDetailViewModel(
     /**
      * Replaces the item's color associations with [colorIds] (delete-then-insert). A manual edit:
      * every row is saved as [ColorSource.USER]; colours already on the item keep their measured
-     * hex and share, new ones have neither. Writes nothing if the existing rows can't be read, or if
-     * [colorIds] is the same set the item already has (so confirming the picker unchanged leaves auto
-     * rows open to later re-extraction).
+     * hex and share, new ones have neither. Writes nothing if [colorIds] is the same set the item
+     * already has (so confirming the picker unchanged leaves auto rows open to later re-extraction).
+     * The read, check and write are one transaction in [ClothingRepository.updateColorsAsUser].
      */
     fun updateColors(colorIds: List<Long>) {
         viewModelScope.launch {
-            val existing = when (val rows = clothingRepository.getItemColorRows(itemId)) {
-                is DataResult.Success -> rows.data.associateBy { it.colorId }
-                is DataResult.Error -> {
-                    handleActionError(rows.throwable)
-                    return@launch
-                }
-                DataResult.Loading -> return@launch
-            }
-            if (colorIds.toSet() == existing.keys) return@launch
-            val colors = colorIds.map { id ->
-                val row = existing[id]
-                TaggedColor(id, hex = row?.hex, share = row?.share, source = ColorSource.USER)
-            }
-            clothingRepository.updateItemColors(itemId, colors).fold(
+            clothingRepository.updateColorsAsUser(itemId, colorIds).fold(
                 onLoading = {},
                 onSuccess = {},
                 onError = { handleActionError(it) }
