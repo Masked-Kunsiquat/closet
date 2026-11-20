@@ -120,6 +120,7 @@ object DemoBackup {
                             purchasePrice = details.price,
                             purchaseDate = details.purchaseDate,
                             isFavorite = if (details.favorite) 1 else 0,
+                            colorsCurated = true,
                             washStatus = if (details.dirty) WashStatus.Dirty else WashStatus.Clean,
                             status = details.retired?.let { label -> ClothingStatus.entries.first { it.label == label } }
                                 ?: ClothingStatus.Active,

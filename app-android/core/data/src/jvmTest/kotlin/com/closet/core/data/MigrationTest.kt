@@ -7,6 +7,7 @@ import androidx.sqlite.SQLiteStatement
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import com.closet.core.data.migrations.MIGRATION_1_2
+import com.closet.core.data.migrations.MIGRATION_2_3
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.io.path.Path
@@ -78,6 +79,44 @@ class MigrationTest {
             "every colour has at least one shade",
         )
         assertEquals(1L, db.single("SELECT COUNT(*) FROM outfit_logs"), "the outfit log survives")
+    }
+
+    @Test
+    fun `v2 to v3 backfills colors_curated from user rows`() {
+        createV1().close()
+        val v2 = helper.runMigrationsAndValidate(2, listOf(MIGRATION_1_2)).also { connections += it }
+        v2.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+        for (id in 1..3) {
+            v2.execSQL(
+                "INSERT INTO clothing_items (id, name, is_favorite, created_at, updated_at) " +
+                    "VALUES ($id, 'Item $id', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+            )
+        }
+        // (a) one user row, (b) only auto rows, (c) no rows.
+        v2.execSQL("INSERT INTO clothing_item_colors (clothing_item_id, color_id, source) VALUES (1, 5, 'user')")
+        v2.execSQL("INSERT INTO clothing_item_colors (clothing_item_id, color_id, source) VALUES (2, 5, 'auto')")
+        v2.execSQL("INSERT INTO clothing_item_colors (clothing_item_id, color_id, source) VALUES (2, 2, 'auto')")
+        v2.close()
+
+        val v3 = helper.runMigrationsAndValidate(3, listOf(MIGRATION_2_3)).also { connections += it }
+        val curated = v3.rows("SELECT id, colors_curated FROM clothing_items ORDER BY id") {
+            it.getLong(0) to it.getLong(1)
+        }
+        assertEquals(listOf(1L to 1L, 2L to 0L, 3L to 0L), curated)
+    }
+
+    @Test
+    fun `v1 to v3 marks v1 items curated`() {
+        val v1 = createV1()
+        v1.execSQL(
+            "INSERT INTO clothing_items (id, name, is_favorite, created_at, updated_at) " +
+                "VALUES (1, 'Navy tee', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        )
+        v1.execSQL("INSERT INTO clothing_item_colors (clothing_item_id, color_id) VALUES (1, 5)")
+        v1.close()
+
+        val v3 = helper.runMigrationsAndValidate(3, listOf(MIGRATION_1_2, MIGRATION_2_3)).also { connections += it }
+        assertEquals(1L, v3.single("SELECT colors_curated FROM clothing_items WHERE id = 1"))
     }
 
     @Test
