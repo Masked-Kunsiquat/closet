@@ -118,7 +118,7 @@ The mask travels in the pixels' alpha channel; there is no separate mask paramet
 - It falls back to the pipeline.
 
 ## Delivery
-1. **PR 1:** the schema migration, seeds and shades; the `ColorExtractor` pipeline replacing Palette; the junction helpers; the demo-wardrobe accuracy check. Done in #… (PR pending).
+1. **PR 1:** the schema migration, seeds and shades; the `ColorExtractor` pipeline replacing Palette; the junction helpers; the demo-wardrobe accuracy check. Done in #127 (part of #81).
 2. **PR 2:** engine and chat consumers, threshold re-check, weights schema bump.
 3. **PR 3 (optional):** the Nano overlay.
 
