@@ -29,7 +29,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -370,6 +372,34 @@ class ClothingDetailViewModelTest {
         coEvery { clothingRepository.getItemEntityById(42) } returns DataResult.Success(detailOf("item.webp").item)
         gate.complete(Unit)
 
+        assertEquals(RedetectState.Idle, vm.redetectState.value)
+        vm.onApplyRedetect()
+        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
+    }
+
+    @Test
+    fun `a photo replaced after the screen stopped collecting for over 5 s shows no preview`() = runTest {
+        givenItem()
+        val detail = MutableStateFlow(detailOf("item.png"))
+        every { clothingRepository.getItemDetail(42) } returns detail
+        photoProcessor.colorsByPath["item.png"] = measured
+        val gate = CompletableDeferred<Unit>()
+        photoProcessor.extractGate = { gate.await() }
+        val vm = buildViewModel()
+        val screen = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
+
+        vm.onRedetectColors()
+        // The screen is backgrounded: its collector stops and WhileSubscribed(5000) times out.
+        screen.cancel()
+        advanceTimeBy(5_001)
+        // Background removal then swaps the photo while item.png is still being measured.
+        detail.value = detailOf("item.webp")
+        coEvery { clothingRepository.getItemEntityById(42) } returns DataResult.Success(detailOf("item.webp").item)
+        gate.complete(Unit)
+
+        // uiState stopped tracking the item, so it still reports the old photo...
+        assertEquals("item.png", (vm.uiState.value as ClothingDetailUiState.Success).item.item.imagePath)
+        // ...yet no preview is built from the stale measurement.
         assertEquals(RedetectState.Idle, vm.redetectState.value)
         vm.onApplyRedetect()
         coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
