@@ -133,6 +133,15 @@
     <string name="settings_wardrobe_enriching_descriptions">Enriching descriptions…</string>
     <string name="settings_wardrobe_enriching_descriptions_progress">%1$d of %2$d items</string>
     <string name="settings_wardrobe_descriptions_up_to_date">All descriptions up to date</string>
+    <string name="settings_wardrobe_color_redetect">Re-detect colors</string>
+    <string name="settings_wardrobe_color_redetect_summary">Measure colors again from each item's photo</string>
+    <string name="settings_wardrobe_color_redetect_no_photos">No items with photos</string>
+    <string name="settings_wardrobe_color_redetecting">Re-detecting colors…</string>
+    <string name="settings_wardrobe_color_redetect_progress">%1$d of %2$d items</string>
+    <string name="settings_wardrobe_color_redetect_confirm_title">Re-detect colors?</string>
+    <string name="settings_wardrobe_color_redetect_only_uncurated">Only items whose colors you haven't edited</string>
+    <string name="settings_wardrobe_color_redetect_replaces_yours">This replaces colors you set yourself.</string>
+    <string name="settings_wardrobe_color_redetect_confirm_ok">Re-detect</string>
 
     <!-- Plural strings for item counts -->
     <plurals name="settings_wardrobe_remove_backgrounds_summary">
@@ -146,6 +155,14 @@
     <plurals name="settings_wardrobe_batch_result_with_failures">
         <item quantity="one">%1$d item updated, %2$d skipped</item>
         <item quantity="other">%1$d items updated, %2$d skipped</item>
+    </plurals>
+    <plurals name="settings_wardrobe_color_redetect_confirm_count">
+        <item quantity="one">This will re-detect colors on %1$d item.</item>
+        <item quantity="other">This will re-detect colors on %1$d items.</item>
+    </plurals>
+    <plurals name="settings_wardrobe_color_redetect_result">
+        <item quantity="one">Re-detected colors on %1$d item; %2$d unchanged; %3$d failed</item>
+        <item quantity="other">Re-detected colors on %1$d items; %2$d unchanged; %3$d failed</item>
     </plurals>
     <plurals name="settings_wardrobe_enrich_descriptions_summary">
         <item quantity="one">%1$d item can be enriched</item>

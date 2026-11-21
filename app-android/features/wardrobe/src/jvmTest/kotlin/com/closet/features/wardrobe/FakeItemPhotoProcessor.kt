@@ -57,7 +57,17 @@ class FakeItemPhotoProcessor : ItemPhotoProcessor {
     /** Runs before [extractColors] returns; a test can suspend here to make extraction late. */
     var extractGate: suspend (String) -> Unit = {}
 
-    override suspend fun extractColors(relativePath: String, shades: List<ReferenceShade>): List<ExtractedColor> {
+    /** Mirrors the Android contract: [extractColors] is [measureColors] with failures turned into empty. */
+    override suspend fun extractColors(relativePath: String, shades: List<ReferenceShade>): List<ExtractedColor> =
+        try {
+            measureColors(relativePath, shades)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+    override suspend fun measureColors(relativePath: String, shades: List<ReferenceShade>): List<ExtractedColor> {
         extractCalls += relativePath
         extractShades += shades
         extractGate(relativePath)

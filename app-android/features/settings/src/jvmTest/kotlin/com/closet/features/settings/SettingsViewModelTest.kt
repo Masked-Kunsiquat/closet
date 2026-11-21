@@ -17,6 +17,7 @@ import com.closet.core.data.repository.ModelDiscoveryRepository
 import com.closet.core.data.repository.WeatherPreferencesRepository
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.worker.BatchSegmentationScheduler
+import com.closet.core.data.worker.ColorRedetectScheduler
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.ImageCompressionScheduler
 import com.closet.core.data.worker.WorkState
@@ -58,6 +59,10 @@ class SettingsViewModelTest {
     private val imageStats = mockk<ImageStorageStats>()
     private val captioner = mockk<BatchCaptioner>(relaxed = true)
     private val nanoInitializer = mockk<NanoInitializer>()
+    private val prefs = mockk<PreferencesRepository>()
+    private val colorRedetect = mockk<ColorRedetectScheduler>(relaxed = true)
+    private val colorRedetectStatus = MutableStateFlow<WorkStatus?>(null)
+    private val lastHandledColorRedetectId = MutableStateFlow<String?>(null)
 
     @BeforeTest fun setUp() {
         Dispatchers.setMain(dispatcher)
@@ -76,6 +81,13 @@ class SettingsViewModelTest {
         every { captioner.result } returns captionResult
         every { nanoInitializer.initNanoFlow() } returns flowOf()
         coEvery { imageStats.usedBytes() } returns 2048L
+        every { colorRedetect.isSupported } returns true
+        every { colorRedetect.workStatus } returns colorRedetectStatus
+        every { prefs.lastHandledColorRedetectId } returns lastHandledColorRedetectId
+        coEvery { prefs.setLastHandledColorRedetectId(any()) } answers {
+            lastHandledColorRedetectId.value = firstArg()
+            Result.success(Unit)
+        }
     }
 
     @AfterTest fun tearDown() {
@@ -83,7 +95,6 @@ class SettingsViewModelTest {
     }
 
     private fun buildViewModel(): SettingsViewModel {
-        val prefs = mockk<PreferencesRepository>()
         every { prefs.getAccent() } returns flowOf(ClosetAccent.Amber)
         every { prefs.getDynamicColor() } returns flowOf(false)
         every { prefs.lastHandledBatchId } returns flowOf(null)
@@ -97,6 +108,8 @@ class SettingsViewModelTest {
         val dao = mockk<ClothingDao>()
         every { dao.getCaptionEligibleCount() } returns flowOf(0)
         every { dao.getSegmentationEligibleCount() } returns flowOf(0)
+        every { dao.getColorRedetectEligibleCount(true) } returns flowOf(3)
+        every { dao.getColorRedetectEligibleCount(false) } returns flowOf(7)
 
         val embeddingScheduler = mockk<EmbeddingScheduler>(relaxed = true)
         every { embeddingScheduler.workStatus } returns flowOf(null)
@@ -123,6 +136,7 @@ class SettingsViewModelTest {
             batchCaptioner = captioner,
             imageCompressionScheduler = compression,
             imageStorageStats = imageStats,
+            colorRedetectScheduler = colorRedetect,
         )
     }
 
@@ -196,5 +210,41 @@ class SettingsViewModelTest {
     @Test fun `captionSupported mirrors the captioner`() = runTest(dispatcher) {
         val vm = started(buildViewModel())
         assertEquals(true, vm.uiState.value.captionSupported)
+    }
+
+    @Test fun `colour re-detect counts both modes and mirrors support`() = runTest(dispatcher) {
+        val vm = started(buildViewModel())
+        val state = vm.uiState.value
+        assertEquals(true, state.colorRedetectSupported)
+        assertEquals(3, state.colorRedetectUncuratedCount)
+        assertEquals(7, state.colorRedetectAllCount)
+    }
+
+    @Test fun `colour re-detect is hidden when the scheduler is unsupported`() = runTest(dispatcher) {
+        every { colorRedetect.isSupported } returns false
+        val vm = started(buildViewModel())
+        assertEquals(false, vm.uiState.value.colorRedetectSupported)
+    }
+
+    @Test fun `starting colour re-detect passes the dialog's choice`() = runTest(dispatcher) {
+        val vm = started(buildViewModel())
+        vm.onStartColorRedetect(onlyUncurated = true)
+        verify(exactly = 1) { colorRedetect.schedule(true) }
+        vm.onStartColorRedetect(onlyUncurated = false)
+        verify(exactly = 1) { colorRedetect.schedule(false) }
+    }
+
+    @Test fun `colour re-detect status and handled result reach the ui state`() = runTest(dispatcher) {
+        val vm = started(buildViewModel())
+        val finished = WorkStatus("run-1", WorkState.SUCCEEDED, done = 4, total = 6, failed = 1, skipped = 1)
+        colorRedetectStatus.value = finished
+        advanceUntilIdle()
+        assertEquals(finished, vm.uiState.value.colorRedetectWorkStatus)
+        assertEquals(null, vm.uiState.value.lastHandledColorRedetectId)
+
+        vm.onColorRedetectResultHandled("run-1")
+        advanceUntilIdle()
+        coVerify { prefs.setLastHandledColorRedetectId("run-1") }
+        assertEquals("run-1", vm.uiState.value.lastHandledColorRedetectId)
     }
 }

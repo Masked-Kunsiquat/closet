@@ -7,6 +7,7 @@ import com.closet.core.data.ai.NanoInitializer
 import com.closet.core.data.di.dataModule
 import com.closet.core.data.repository.BatchCaptioner
 import com.closet.core.data.worker.BatchSegmentationScheduler
+import com.closet.core.data.worker.ColorRedetectScheduler
 import com.closet.core.ui.di.uiModule
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
@@ -30,6 +31,7 @@ class SettingsKoinModuleTest {
                 NanoInitializer::class,
                 BatchCaptioner::class,
                 BatchSegmentationScheduler::class,
+                ColorRedetectScheduler::class,
             )
         )
     }

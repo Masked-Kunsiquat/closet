@@ -69,4 +69,14 @@ data class SettingsUiState(
     val segmentationEligibleCount: Int = 0,
     val batchSegWorkStatus: WorkStatus? = null,
     val lastHandledBatchId: String? = null,
+
+    // ── Bulk colour re-detect (#128) ──────────────────────────────────────────
+    val colorRedetectSupported: Boolean = false,
+    /** Items with a photo whose colours the user hasn't edited (the dialog's default mode). */
+    val colorRedetectUncuratedCount: Int = 0,
+    /** Every item with a photo, curated colours included. */
+    val colorRedetectAllCount: Int = 0,
+    /** Live status of the job; `skipped` holds the unchanged count. */
+    val colorRedetectWorkStatus: WorkStatus? = null,
+    val lastHandledColorRedetectId: String? = null,
 )

@@ -26,9 +26,11 @@ import com.closet.core.data.repository.jvmPreferencesPath
 import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.UnavailableEmbeddingEncoder
 import com.closet.core.data.worker.BatchSegmentationScheduler
+import com.closet.core.data.worker.ColorRedetectScheduler
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.ImageCompressionScheduler
 import com.closet.core.data.worker.NoOpBatchSegmentationScheduler
+import com.closet.core.data.worker.NoOpColorRedetectScheduler
 import com.closet.core.data.worker.NoOpEmbeddingScheduler
 import com.closet.core.data.worker.NoOpImageCompressionScheduler
 import io.ktor.client.engine.HttpClientEngineFactory
@@ -45,7 +47,7 @@ import java.io.File
  * Stubs: keys live in an [InMemorySecretStore] (lost when the process ends) and
  * [NoLocationProvider] reports no location, so weather falls back to cached coordinates.
  * [UnavailableEmbeddingEncoder] always fails, and the no-op schedulers run nothing and
- * report no status (batch segmentation is unsupported).
+ * report no status (batch segmentation and bulk colour re-detect are unsupported).
  */
 fun jvmDataModule(dataDirectory: File): Module = module {
     single<ClothingDatabase> { getDatabaseBuilder(File(dataDirectory, "closet.db")).build() }
@@ -67,4 +69,5 @@ fun jvmDataModule(dataDirectory: File): Module = module {
     single<EmbeddingScheduler> { NoOpEmbeddingScheduler }
     single<ImageCompressionScheduler> { NoOpImageCompressionScheduler }
     single<BatchSegmentationScheduler> { NoOpBatchSegmentationScheduler }
+    single<ColorRedetectScheduler> { NoOpColorRedetectScheduler }
 }

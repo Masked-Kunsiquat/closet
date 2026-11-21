@@ -8,6 +8,9 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ## [Unreleased]
 
+### Added
+- **Re-detect colors**: re-measure an item's colours from its photo with a preview, or re-detect your whole wardrobe from Settings. Colours you set by hand, including clearing them, are never changed automatically.
+
 ### Changed
 - **Better automatic colour tags**: photos are analysed by how colours really look, with the background ignored, and each tag remembers its real shade and how much of the item it covers. Colours you set yourself are never overwritten.
 

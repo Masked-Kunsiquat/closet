@@ -497,9 +497,9 @@ class ClothingFormViewModelTest {
                 ClothingItemColorEntity(7, blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.AUTO),
             )
         )
-        val colors = slot<List<TaggedColor>>()
+        val colors = mutableListOf<List<TaggedColor>?>()
         coEvery {
-            clothingRepository.updateItemWithAttributes(any(), capture(colors), any(), any(), any(), any())
+            clothingRepository.updateItemWithAttributes(any(), captureNullable(colors), any(), any(), any(), any())
         } returns DataResult.Success(1)
         val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
         advanceUntilIdle()
@@ -508,13 +508,9 @@ class ClothingFormViewModelTest {
         viewModel.save()
         advanceUntilIdle()
 
-        assertEquals(
-            listOf(
-                TaggedColor(red.id, hex = "#C81E1E", share = 0.6, source = ColorSource.AUTO),
-                TaggedColor(blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.AUTO),
-            ),
-            colors.captured,
-        )
+        // Untouched colours are not passed, so the repository keeps the stored rows as they are
+        // (and any a re-detect wrote since the form loaded).
+        assertEquals(listOf<List<TaggedColor>?>(null), colors)
     }
 
     @Test
@@ -534,8 +530,8 @@ class ClothingFormViewModelTest {
     }
 
     /** Stubs edit-mode item 7 with [rows] (and their colours as the detail's colours). */
-    private fun stubEditItem(rows: List<ClothingItemColorEntity>, imagePath: String? = null) {
-        val entity = ClothingItemEntity(id = 7, name = "Shirt", imagePath = imagePath)
+    private fun stubEditItem(rows: List<ClothingItemColorEntity>, imagePath: String? = null, curated: Boolean = false) {
+        val entity = ClothingItemEntity(id = 7, name = "Shirt", imagePath = imagePath, colorsCurated = curated)
         val byId = listOf(red, blue).associateBy { it.id }
         coEvery { clothingRepository.getItemEntityById(7) } returns DataResult.Success(entity)
         coEvery { clothingRepository.getItemDetailOnce(7) } returns DataResult.Success(
@@ -549,14 +545,213 @@ class ClothingFormViewModelTest {
     }
 
     /** Saves the edit-mode item and returns the colour rows handed to the repository. */
-    private fun TestScope.savedUpdateColors(viewModel: ClothingFormViewModel): List<TaggedColor> {
-        val colors = slot<List<TaggedColor>>()
+    private fun TestScope.savedUpdateColors(viewModel: ClothingFormViewModel): List<TaggedColor>? {
+        val colors = mutableListOf<List<TaggedColor>?>()
         coEvery {
-            clothingRepository.updateItemWithAttributes(any(), capture(colors), any(), any(), any(), any())
+            clothingRepository.updateItemWithAttributes(any(), captureNullable(colors), any(), any(), any(), any())
         } returns DataResult.Success(1)
         viewModel.save()
         advanceUntilIdle()
-        return colors.captured
+        return colors.single()
+    }
+
+    // ─── colors_curated on save (#128) ────────────────────────────────────────
+
+    private val autoRed = ClothingItemColorEntity(7, red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.AUTO)
+
+    /** Saves the edit-mode item and returns the entity and colour rows handed to the repository. */
+    private fun TestScope.savedUpdate(viewModel: ClothingFormViewModel): Pair<ClothingItemEntity, List<TaggedColor>?> {
+        val item = slot<ClothingItemEntity>()
+        val colors = mutableListOf<List<TaggedColor>?>()
+        coEvery {
+            clothingRepository.updateItemWithAttributes(capture(item), captureNullable(colors), any(), any(), any(), any())
+        } returns DataResult.Success(1)
+        viewModel.save()
+        advanceUntilIdle()
+        return item.captured to colors.single()
+    }
+
+    /** Saves a new item and returns the entity handed to the repository. */
+    private fun TestScope.savedInsertEntity(viewModel: ClothingFormViewModel): ClothingItemEntity {
+        val item = slot<ClothingItemEntity>()
+        coEvery {
+            clothingRepository.insertItemWithAttributes(capture(item), any(), any(), any(), any(), any())
+        } returns DataResult.Success(1L)
+        viewModel.onNameChange("Shirt")
+        viewModel.save()
+        advanceUntilIdle()
+        return item.captured
+    }
+
+    private fun TestScope.editViewModel(): ClothingFormViewModel =
+        subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L)))).also { advanceUntilIdle() }
+
+    @Test
+    fun `a colour toggle then save marks the item curated`() = runTest {
+        stubEditItem(rows = listOf(autoRed))
+        val viewModel = editViewModel()
+
+        viewModel.onColorToggle(blue)
+        val (item, colors) = savedUpdate(viewModel)
+
+        // A colour edit still writes its rows (all user) along with the flag.
+        assertEquals(
+            listOf(
+                TaggedColor(red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.USER),
+                TaggedColor(blue.id, source = ColorSource.USER),
+            ),
+            colors,
+        )
+        assertTrue(item.colorsCurated)
+    }
+
+    @Test
+    fun `clearing every colour then save marks the item curated with no rows`() = runTest {
+        stubEditItem(rows = listOf(autoRed))
+        val viewModel = editViewModel()
+
+        viewModel.onColorToggle(red)
+        val (item, colors) = savedUpdate(viewModel)
+
+        assertEquals(emptyList(), colors)
+        assertTrue(item.colorsCurated)
+    }
+
+    @Test
+    fun `a new photo's untouched extraction clears the flag of a curated item`() = runTest {
+        stubEditItem(
+            rows = listOf(ClothingItemColorEntity(7, red.id, hex = null, share = null, source = ColorSource.USER)),
+            imagePath = "shirt.jpg",
+            curated = true,
+        )
+        photos.colorsByPath["picked.jpg"] = listOf(measured(blue, "#1A2B8C", 1.0))
+        val viewModel = editViewModel()
+
+        viewModel.onImageSelected("content://media/picked/1")
+        val (item, colors) = savedUpdate(viewModel)
+
+        assertEquals(listOf(TaggedColor(blue.id, hex = "#1A2B8C", share = 1.0, source = ColorSource.AUTO)), colors)
+        assertFalse(item.colorsCurated)
+    }
+
+    @Test
+    fun `a toggle after a new photo's extraction marks the item curated`() = runTest {
+        stubEditItem(rows = listOf(autoRed), imagePath = "shirt.jpg")
+        photos.colorsByPath["picked.jpg"] = listOf(measured(blue, "#1A2B8C", 1.0))
+        val viewModel = editViewModel()
+
+        viewModel.onImageSelected("content://media/picked/1")
+        viewModel.onColorToggle(red)
+        val (item, _) = savedUpdate(viewModel)
+
+        assertTrue(item.colorsCurated)
+    }
+
+    @Test
+    fun `editing a curated item without touching colours keeps it curated`() = runTest {
+        stubEditItem(rows = listOf(autoRed), curated = true)
+        val viewModel = editViewModel()
+
+        viewModel.onNameChange("Renamed shirt")
+        val (item, _) = savedUpdate(viewModel)
+
+        assertTrue(item.colorsCurated)
+    }
+
+    @Test
+    fun `editing an uncurated item without touching colours keeps it uncurated`() = runTest {
+        stubEditItem(rows = listOf(autoRed))
+        val viewModel = editViewModel()
+
+        viewModel.onNameChange("Renamed shirt")
+        val (item, _) = savedUpdate(viewModel)
+
+        assertFalse(item.colorsCurated)
+    }
+
+    @Test
+    fun `a new photo with nothing extracted keeps a curated item curated`() = runTest {
+        stubEditItem(
+            rows = listOf(ClothingItemColorEntity(7, red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.USER)),
+            imagePath = "shirt.jpg",
+            curated = true,
+        )
+        val viewModel = editViewModel()
+
+        viewModel.onImageSelected("content://media/picked/1") // picked.jpg extracts nothing
+        val (item, _) = savedUpdate(viewModel)
+
+        assertTrue(item.colorsCurated)
+    }
+
+    @Test
+    fun `undoing background removal restores the untouched auto selection and flag`() = runTest {
+        stubEditItem(rows = listOf(autoRed), imagePath = "shirt.jpg")
+        photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 1.0))
+        val viewModel = editViewModel()
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        assertEquals(listOf(blue), viewModel.uiState.value.selectedColors)
+
+        viewModel.revertSegmentation()
+        val (item, colors) = savedUpdate(viewModel)
+
+        // Back on the original photo with the original selection: nothing to write, so the stored
+        // auto row is kept as it is.
+        assertEquals(listOf(red), viewModel.uiState.value.selectedColors)
+        assertEquals(null, colors)
+        assertFalse(item.colorsCurated)
+    }
+
+    @Test
+    fun `background removal keeps a cleared curated item cleared`() = runTest {
+        // The user cleared every colour: flag set, no rows. Re-measuring the same photo must not refill it.
+        stubEditItem(rows = emptyList(), imagePath = "shirt.jpg", curated = true)
+        photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 1.0))
+        val viewModel = editViewModel()
+
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        assertEquals("segmented.png", viewModel.uiState.value.imagePath)
+        assertEquals(emptyList(), viewModel.uiState.value.selectedColors)
+        val (item, colors) = savedUpdate(viewModel)
+
+        assertEquals(emptyList(), colors)
+        assertTrue(item.colorsCurated)
+    }
+
+    @Test
+    fun `background removal still refines a new photo's extraction on a curated item`() = runTest {
+        stubEditItem(
+            rows = listOf(ClothingItemColorEntity(7, red.id, hex = null, share = null, source = ColorSource.USER)),
+            imagePath = "shirt.jpg",
+            curated = true,
+        )
+        photos.colorsByPath["picked.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
+        photos.colorsByPath["segmented.png"] = listOf(measured(blue, "#1A2B8C", 0.9))
+        val viewModel = editViewModel()
+        viewModel.onImageSelected("content://media/picked/1")
+
+        viewModel.removeBackground()
+        advanceUntilIdle()
+        assertEquals(listOf(blue), viewModel.uiState.value.selectedColors)
+        val (item, colors) = savedUpdate(viewModel)
+
+        assertEquals(listOf(TaggedColor(blue.id, hex = "#1A2B8C", share = 0.9, source = ColorSource.AUTO)), colors)
+        assertFalse(item.colorsCurated)
+    }
+
+    @Test
+    fun `a new item is curated only after a colour toggle`() = runTest {
+        photos.colorsByPath["picked.jpg"] = listOf(measured(red, "#C81E1E", 1.0))
+        val extracted = subscribed(buildViewModel())
+        extracted.onImageSelected("content://media/picked/1")
+        assertFalse(savedInsertEntity(extracted).colorsCurated)
+
+        val toggled = subscribed(buildViewModel())
+        toggled.onImageSelected("content://media/picked/1")
+        toggled.onColorToggle(blue)
+        assertTrue(savedInsertEntity(toggled).colorsCurated)
     }
 
     @Test

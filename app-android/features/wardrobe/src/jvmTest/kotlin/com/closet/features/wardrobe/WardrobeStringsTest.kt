@@ -3,6 +3,8 @@ package com.closet.features.wardrobe
 import com.closet.features.wardrobe.resources.Res
 import com.closet.features.wardrobe.resources.brand_management_delete_blocked_message
 import com.closet.features.wardrobe.resources.bulk_wash_apply_error
+import com.closet.features.wardrobe.resources.wardrobe_redetect_none
+import com.closet.features.wardrobe.resources.wardrobe_redetect_share
 import com.closet.features.wardrobe.resources.wardrobe_worn_times
 import java.util.Locale
 import kotlin.test.Test
@@ -45,5 +47,11 @@ class WardrobeStringsTest {
     @Test
     fun bulkWashApplyErrorKeepsPlainApostrophe() = runTest {
         assertEquals("Couldn't update some items. Please try again.", getString(Res.string.bulk_wash_apply_error))
+    }
+
+    @Test
+    fun redetectStringsFormatShareAndKeepPlainApostrophe() = runTest {
+        assertEquals("62%", getString(Res.string.wardrobe_redetect_share, 62))
+        assertEquals("Couldn't detect colors", getString(Res.string.wardrobe_redetect_none))
     }
 }

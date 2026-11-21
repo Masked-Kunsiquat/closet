@@ -94,6 +94,7 @@ fun ClothingDetailScreen(
     viewModel: ClothingDetailViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val redetectState by viewModel.redetectState.collectAsStateWithLifecycle()
 
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -347,7 +348,13 @@ fun ClothingDetailScreen(
                             onEditColors = { activePicker = AttributePicker.COLORS },
                             onEditMaterials = { activePicker = AttributePicker.MATERIALS },
                             onEditPatterns = { activePicker = AttributePicker.PATTERNS },
-                            onEditSize = { onEdit(detail.item.id) }
+                            onEditSize = { onEdit(detail.item.id) },
+                            onRedetectColors = if (detail.item.imagePath != null) {
+                                { viewModel.onRedetectColors() }
+                            } else {
+                                null
+                            },
+                            isRedetecting = redetectState == RedetectState.Measuring,
                         )
 
                         // Notes
@@ -386,6 +393,16 @@ fun ClothingDetailScreen(
                 }
             }
         }
+    }
+
+    // Re-detect colors preview sheet — driven by the ViewModel's redetectState
+    (redetectState as? RedetectState.Preview)?.let { preview ->
+        RedetectColorsSheet(
+            current = preview.current,
+            proposed = preview.proposed,
+            onApply = viewModel::onApplyRedetect,
+            onCancel = viewModel::onCancelRedetect,
+        )
     }
 
     // Attribute picker sheet — driven by activePicker state

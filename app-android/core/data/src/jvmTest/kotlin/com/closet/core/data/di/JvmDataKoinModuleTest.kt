@@ -13,6 +13,8 @@ import com.closet.core.data.util.EmbeddingEncoder
 import com.closet.core.data.util.EmbeddingIndex
 import com.closet.core.data.util.UnavailableEmbeddingEncoder
 import com.closet.core.data.worker.BatchSegmentationScheduler
+import com.closet.core.data.worker.ColorRedetectScheduler
+import com.closet.core.data.worker.NoOpColorRedetectScheduler
 import com.closet.core.data.worker.EmbeddingScheduler
 import com.closet.core.data.worker.ImageCompressionScheduler
 import com.closet.core.data.worker.NoOpBatchSegmentationScheduler
@@ -68,5 +70,10 @@ class JvmDataKoinModuleTest {
         assertNull(koin.get<EmbeddingScheduler>().workStatus.first())
         assertNull(koin.get<ImageCompressionScheduler>().workStatus.first())
         assertNull(segmentation.workStatus.first())
+
+        val colorRedetect = koin.get<ColorRedetectScheduler>()
+        assertSame(NoOpColorRedetectScheduler, colorRedetect)
+        assertFalse(colorRedetect.isSupported)
+        assertNull(colorRedetect.workStatus.first())
     }
 }

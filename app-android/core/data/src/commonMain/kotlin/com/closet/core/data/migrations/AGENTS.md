@@ -15,7 +15,7 @@ package (`commonMain`).
 
 ## Where things stand
 
-**The database is at version 2.** Version 1 is a squashed baseline: the old 1→6 migration chain
+**The database is at version 3.** Version 1 is a squashed baseline: the old 1→6 migration chain
 was reset on 2026-11-15 (KMP Phase 3), when hangr had no users, and version 1 is the v6 shape
 exactly. The schema exports are `core/data/schemas/com.closet.core.data.ClothingDatabase/<N>.json`.
 
@@ -24,6 +24,8 @@ Migrations in this package:
   `clothing_item_colors` (`hex`, `share`, `source`), `basic_term` and `wears_as_neutral` on
   `colors`, the 4 new colours and the seeded `color_shades` table. Tested by `jvmTest`'s
   `MigrationTest`.
+- `MIGRATION_2_3` (`Migration2To3.kt`, re-detect colours, #128): `clothing_items.colors_curated`,
+  backfilled to 1 for items with a `user` colour row. Tested by `MigrationTest`.
 
 **Every schema change needs a real migration** — the reset was a one-off.
 

@@ -217,7 +217,7 @@ class BatchSegmentationWorker(
      */
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     private fun buildLiveUpdateNotification(done: Int, total: Int): Notification {
-        val progress = if (total > 0) done * 10_000 / total else 0
+        val progress = liveUpdateProgress(done, total)
         return Notification.Builder(context, CHANNEL_ID)
             .setContentTitle("Removing backgrounds")
             .setContentText("$done of $total items")

@@ -165,6 +165,14 @@ interface ClothingDao {
     @Query("DELETE FROM clothing_item_colors WHERE clothing_item_id = :itemId")
     suspend fun deleteItemColors(itemId: Long)
 
+    /** Sets `colors_curated`: true when the item's colours are the user's choice (#128). */
+    @Query("UPDATE clothing_items SET colors_curated = :curated WHERE id = :itemId")
+    suspend fun setColorsCurated(itemId: Long, curated: Boolean)
+
+    /** The item's `colors_curated` flag, or null when the item doesn't exist. */
+    @Query("SELECT colors_curated FROM clothing_items WHERE id = :itemId")
+    suspend fun isColorsCurated(itemId: Long): Boolean?
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertItemColors(items: List<ClothingItemColorEntity>)
 
@@ -252,6 +260,17 @@ interface ClothingDao {
     @Transaction
     @Query("SELECT ci.*, $WEAR_COUNT_SUBQUERY FROM clothing_items ci WHERE ci.id = :id")
     suspend fun getClothingItemDetailOnce(id: Long): ClothingItemDetail?
+
+    /**
+     * Items with a photo whose colours bulk re-detect may replace (#128); with [onlyUncurated],
+     * only those whose colours the user hasn't edited (`colors_curated = 0`).
+     */
+    @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND (:onlyUncurated = 0 OR colors_curated = 0)")
+    suspend fun getColorRedetectItems(onlyUncurated: Boolean): List<ClothingItemEntity>
+
+    /** Live count of [getColorRedetectItems] for the same [onlyUncurated] mode. */
+    @Query("SELECT COUNT(*) FROM clothing_items WHERE image_path IS NOT NULL AND (:onlyUncurated = 0 OR colors_curated = 0)")
+    fun getColorRedetectEligibleCount(onlyUncurated: Boolean): Flow<Int>
 
     /** Items that have an image but no caption yet — input queue for batch enrichment. */
     @Query("SELECT * FROM clothing_items WHERE image_path IS NOT NULL AND image_caption IS NULL")

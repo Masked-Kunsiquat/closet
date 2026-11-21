@@ -97,7 +97,9 @@ private fun ClothingAttributesFilledPreview() {
                     onEditColors = {},
                     onEditMaterials = {},
                     onEditPatterns = {},
-                    onEditSize = {}
+                    onEditSize = {},
+                    onRedetectColors = {},
+                    isRedetecting = false,
                 )
             }
         }
@@ -118,7 +120,10 @@ private fun ClothingAttributesEmptyPreview() {
                     onEditColors = {},
                     onEditMaterials = {},
                     onEditPatterns = {},
-                    onEditSize = {}
+                    onEditSize = {},
+                    // No photo: the re-detect action is hidden.
+                    onRedetectColors = null,
+                    isRedetecting = false,
                 )
             }
         }
@@ -174,6 +179,50 @@ private fun AttributeSectionPreview() {
                     }
                 }
             }
+        }
+    }
+}
+
+// ─── Re-detect colors previews ────────────────────────────────────────────────
+
+@Preview(showBackground = true, name = "Re-detect - Measuring")
+@Composable
+private fun ClothingAttributesRedetectingPreview() {
+    ClosetTheme {
+        Surface {
+            Column(modifier = Modifier.padding(16.dp)) {
+                ClothingAttributes(
+                    item = previewDetailItem,
+                    sizeSystems = emptyList(),
+                    onEditSeasons = {},
+                    onEditOccasions = {},
+                    onEditColors = {},
+                    onEditMaterials = {},
+                    onEditPatterns = {},
+                    onEditSize = {},
+                    onRedetectColors = {},
+                    isRedetecting = true,
+                )
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, name = "Re-detect sheet - Light")
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Re-detect sheet - Dark")
+@Composable
+private fun RedetectColorsContentPreview() {
+    ClosetTheme {
+        Surface {
+            RedetectColorsContent(
+                current = previewDetailItem.colors,
+                proposed = listOf(
+                    ColorEntity(id = 5L, name = "Navy", hex = "#27345A") to 0.71,
+                    ColorEntity(id = 2L, name = "White", hex = "#F2F0EA") to 0.29,
+                ),
+                onApply = {},
+                onCancel = {},
+            )
         }
     }
 }

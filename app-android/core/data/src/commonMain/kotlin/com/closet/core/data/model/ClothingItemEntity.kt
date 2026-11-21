@@ -89,6 +89,10 @@ data class ClothingItemEntity(
     
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Int = 0, // 0 | 1
+
+    /** True once the user chose this item's colours; automatic re-detection must not override them. */
+    @ColumnInfo(name = "colors_curated", defaultValue = "0")
+    val colorsCurated: Boolean = false,
     
     @ColumnInfo(name = "semantic_description")
     val semanticDescription: String? = null,

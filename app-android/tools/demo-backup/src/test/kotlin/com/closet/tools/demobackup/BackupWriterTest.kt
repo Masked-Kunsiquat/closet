@@ -126,7 +126,7 @@ class BackupWriterTest {
         }
         // Pinned to BackupManifest(schemaVersion, appVersion, createdAt, imageCount, apiKeysExcluded).
         assertEquals(setOf("schemaVersion", "appVersion", "createdAt", "imageCount", "apiKeysExcluded"), manifest.keys)
-        assertEquals(2, manifest.getValue("schemaVersion").jsonPrimitive.int)
+        assertEquals(3, manifest.getValue("schemaVersion").jsonPrimitive.int)
         assertEquals("demo-backup", manifest.getValue("appVersion").jsonPrimitive.content)
         assertTrue(manifest.getValue("createdAt").jsonPrimitive.long > 0)
         assertEquals(4, manifest.getValue("imageCount").jsonPrimitive.int)
@@ -148,7 +148,7 @@ class BackupWriterTest {
         val (out, _) = build(history = false)
         val root = unzip(out)
         val details: List<ClothingItemDetail> = withDb(File(root, "closet.db")) { db ->
-            assertEquals(2, db.databaseVersion())
+            assertEquals(3, db.databaseVersion())
             db.clothingDao().getAllClothingItemDetails().first()
         }
         assertEquals(4, details.size)
