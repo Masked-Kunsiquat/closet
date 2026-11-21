@@ -145,7 +145,7 @@ class ColorRedetectWorker(
     /** API 36+: [Notification.ProgressStyle] Live Update, as in [BatchSegmentationWorker]. */
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     private fun buildLiveUpdateNotification(processed: Int, total: Int): Notification {
-        val progress = if (total > 0) processed * 10_000 / total else 0
+        val progress = liveUpdateProgress(processed, total)
         return Notification.Builder(context, CHANNEL_ID)
             .setContentTitle("Re-detecting colors")
             .setContentText("$processed of $total items")
