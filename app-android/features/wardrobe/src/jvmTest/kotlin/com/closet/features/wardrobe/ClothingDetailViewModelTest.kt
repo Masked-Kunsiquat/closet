@@ -12,8 +12,10 @@ import com.closet.core.data.repository.ClothingRepository
 import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.LookupRepository
+import com.closet.core.data.util.AppError
 import com.closet.core.data.util.DataResult
 import com.closet.core.ui.util.UserMessage
+import com.closet.core.ui.util.asUserMessage
 import com.closet.features.wardrobe.resources.Res
 import com.closet.features.wardrobe.resources.wardrobe_redetect_none
 import io.mockk.every
@@ -271,19 +273,50 @@ class ClothingDetailViewModelTest {
     }
 
     @Test
-    fun `a failed shades load fails like an empty measurement`() = runTest {
+    fun `a failed shades load shows the error snackbar, not nothing-detected`() = runTest {
         givenItem()
         photoProcessor.colorsByPath["item.png"] = measured
-        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Error(RuntimeException("db"))
+        val cause = AppError.DatabaseError.QueryError(RuntimeException("db"))
+        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Error(cause)
         val vm = subscribedViewModel()
         val errors = mutableListOf<UserMessage>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.actionError.toList(errors) }
 
         vm.onRedetectColors()
 
-        assertEquals(listOf(UserMessage(Res.string.wardrobe_redetect_none)), errors)
+        assertEquals(listOf(cause.asUserMessage()), errors)
         assertEquals(RedetectState.Idle, vm.redetectState.value)
         assertTrue(photoProcessor.extractCalls.isEmpty())
+    }
+
+    @Test
+    fun `a throwing extraction shows the generic error snackbar and writes nothing`() = runTest {
+        givenItem()
+        val cause = IllegalStateException("decode")
+        photoProcessor.extractGate = { throw cause }
+        val vm = subscribedViewModel()
+        val errors = mutableListOf<UserMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.actionError.toList(errors) }
+
+        vm.onRedetectColors()
+
+        assertEquals(listOf(AppError.Unexpected(cause).asUserMessage()), errors)
+        assertEquals(RedetectState.Idle, vm.redetectState.value)
+        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
+    }
+
+    @Test
+    fun `shades not loaded shows the generic error snackbar`() = runTest {
+        givenItem()
+        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Loading
+        val vm = subscribedViewModel()
+        val errors = mutableListOf<UserMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.actionError.toList(errors) }
+
+        vm.onRedetectColors()
+
+        assertEquals(listOf(AppError.Unexpected(null).asUserMessage()), errors)
+        assertEquals(RedetectState.Idle, vm.redetectState.value)
     }
 
     @Test

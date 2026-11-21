@@ -263,8 +263,9 @@ class ClothingDetailViewModel(
     /**
      * Measures the item's photo and shows the result as a [RedetectState.Preview]. Does nothing
      * while a re-detection is already measuring or previewing, or when the item has no photo.
-     * Nothing measured (or the reference shades failed) shows a "Couldn't detect colors"
-     * snackbar on [actionError] and stays [RedetectState.Idle].
+     * Nothing detected shows a "Couldn't detect colors" snackbar on [actionError]; a failed
+     * measurement (reference shades or extraction) shows the generic error snackbar. Either way
+     * it returns to [RedetectState.Idle].
      */
     fun onRedetectColors() {
         if (_redetectState.value != RedetectState.Idle) return
@@ -272,8 +273,18 @@ class ClothingDetailViewModel(
         val imagePath = state.item.item.imagePath ?: return
         _redetectState.value = RedetectState.Measuring
         redetectJob = viewModelScope.launch {
-            val measured = colorRedetector.propose(imagePath)
+            val proposal = colorRedetector.propose(imagePath)
             ensureActive() // cancelled while measuring: drop the result
+            val measured = when (proposal) {
+                is ColorRedetector.Proposal.Found -> proposal.colors
+                ColorRedetector.Proposal.Empty -> emptyList()
+                is ColorRedetector.Proposal.Failed -> {
+                    pendingRedetect = null
+                    _redetectState.value = RedetectState.Idle
+                    handleActionError(proposal.cause ?: AppError.Unexpected(null))
+                    return@launch
+                }
+            }
             val latest = uiState.value as? ClothingDetailUiState.Success ?: state
             val lookup = latest.colors.associateBy { it.id }
             // Show exactly what Apply writes: an id missing from the lookup can't be named, so drop it.

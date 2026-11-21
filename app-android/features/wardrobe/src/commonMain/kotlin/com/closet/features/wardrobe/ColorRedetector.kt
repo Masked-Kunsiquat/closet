@@ -25,21 +25,38 @@ class ColorRedetector(
     private val shadesLock = Mutex()
     private var cachedShades: List<ReferenceShade>? = null
 
+    /** The outcome of [propose]: colours found, nothing detected, or a failure to measure. */
+    sealed interface Proposal {
+        /** The measured colours; never empty. */
+        data class Found(val colors: List<ExtractedColor>) : Proposal
+        /** Nothing to propose: no image, or the photo was measured and no colour was detected. */
+        data object Empty : Proposal
+        /** The measurement could not run: the reference shades failed to load, or extraction threw. */
+        data class Failed(val cause: Throwable?) : Proposal
+    }
+
     /**
-     * The colours measured from the image at [imagePath] (relative), named by the reference shades.
-     * Empty when there is no image, the shades fail to load, or the extraction finds nothing or fails.
+     * Measures the image at [imagePath] (relative) against the reference shades.
+     * [Proposal.Empty] when there is no image or nothing is detected; [Proposal.Failed] when the
+     * shades fail to load or the extraction throws. [ItemPhotoProcessor.extractColors] itself
+     * reports a photo it cannot decode as no colours, so an undecodable photo is [Proposal.Empty].
+     * Cancellation propagates.
      */
-    suspend fun propose(imagePath: String?): List<ExtractedColor> {
-        val path = imagePath ?: return emptyList()
-        val shades = referenceShades() ?: return emptyList()
-        return try {
+    suspend fun propose(imagePath: String?): Proposal {
+        val path = imagePath ?: return Proposal.Empty
+        val shades = when (val result = referenceShades()) {
+            is ShadesResult.Loaded -> result.shades
+            is ShadesResult.Unavailable -> return Proposal.Failed(result.cause)
+        }
+        val colors = try {
             photoProcessor.extractColors(path, shades)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             log.w(e) { "colour extraction failed" }
-            emptyList()
+            return Proposal.Failed(e)
         }
+        return if (colors.isEmpty()) Proposal.Empty else Proposal.Found(colors)
     }
 
     /**
@@ -59,18 +76,23 @@ class ColorRedetector(
     ): DataResult<Boolean> =
         clothingRepository.applyRedetectedColors(itemId, proposed, measuredImagePath, onlyIfUncurated)
 
-    /** The reference shades, loaded once per instance; null when the load fails (retried next call). */
-    private suspend fun referenceShades(): List<ReferenceShade>? = shadesLock.withLock {
-        cachedShades?.let { return@withLock it }
+    private sealed interface ShadesResult {
+        data class Loaded(val shades: List<ReferenceShade>) : ShadesResult
+        data class Unavailable(val cause: Throwable?) : ShadesResult
+    }
+
+    /** The reference shades, loaded once per instance; [ShadesResult.Unavailable] when the load fails (retried next call). */
+    private suspend fun referenceShades(): ShadesResult = shadesLock.withLock {
+        cachedShades?.let { return@withLock ShadesResult.Loaded(it) }
         when (val result = lookupRepository.getReferenceShades()) {
-            is DataResult.Success -> result.data.also { cachedShades = it }
+            is DataResult.Success -> ShadesResult.Loaded(result.data.also { cachedShades = it })
             is DataResult.Error -> {
                 log.w(result.throwable) { "reference shades failed to load; colour re-detection skipped" }
-                null
+                ShadesResult.Unavailable(result.throwable)
             }
             DataResult.Loading -> {
                 log.w { "reference shades not loaded; colour re-detection skipped" }
-                null
+                ShadesResult.Unavailable(null)
             }
         }
     }

@@ -30,8 +30,8 @@ private val log = Logger.withTag("ColorRedetectWorker")
  *
  * Input: [ColorRedetectWork.KEY_ONLY_UNCURATED] (default true) limits the queue to items whose
  * colours the user hasn't edited. Each item ends as re-detected ([ColorRedetectWork.KEY_DONE]),
- * unchanged because nothing was detected ([ColorRedetectWork.KEY_UNCHANGED]) or failed
- * ([ColorRedetectWork.KEY_FAILED]); progress and output carry all three plus
+ * unchanged because nothing was detected ([ColorRedetectWork.KEY_UNCHANGED]) or failed (the
+ * measurement or the write failed, [ColorRedetectWork.KEY_FAILED]); progress and output carry all three plus
  * [ColorRedetectWork.KEY_TOTAL].
  */
 class ColorRedetectWorker(
@@ -64,16 +64,18 @@ class ColorRedetectWorker(
             try {
                 // Read the path now: BatchSegmentationWorker may have replaced the photo since the queue was built.
                 val imagePath = clothingDao.getClothingItemEntityById(item.id)?.imagePath
-                val proposed = if (imagePath == null) emptyList() else colorRedetector.propose(imagePath)
-                if (proposed.isEmpty()) {
-                    unchanged++
-                } else {
+                when (val proposal = colorRedetector.propose(imagePath)) {
+                    ColorRedetector.Proposal.Empty -> unchanged++
+                    is ColorRedetector.Proposal.Failed -> {
+                        log.w(proposal.cause) { "colour measurement failed for item ${item.id}" }
+                        failed++
+                    }
                     // The write re-checks, in its transaction, that the photo is still the one
                     // measured and (in only-unedited mode) colors_curated, so an item whose photo is
                     // replaced or whose colours the user edits mid-run is left alone (counted unchanged).
-                    when (
+                    is ColorRedetector.Proposal.Found -> when (
                         val result = colorRedetector.apply(
-                            item.id, proposed, measuredImagePath = imagePath, onlyIfUncurated = onlyUncurated,
+                            item.id, proposal.colors, measuredImagePath = imagePath, onlyIfUncurated = onlyUncurated,
                         )
                     ) {
                         is DataResult.Success -> if (result.data) {

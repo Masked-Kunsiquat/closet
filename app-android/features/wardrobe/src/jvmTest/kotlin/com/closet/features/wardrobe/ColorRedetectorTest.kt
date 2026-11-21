@@ -8,9 +8,11 @@ import com.closet.core.data.util.DataResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ColorRedetectorTest {
@@ -28,7 +30,7 @@ class ColorRedetectorTest {
 
     @Test
     fun `no image proposes nothing and measures nothing`() = runTest {
-        assertEquals(emptyList(), redetector().propose(null))
+        assertEquals(ColorRedetector.Proposal.Empty, redetector().propose(null))
         assertTrue(photoProcessor.extractCalls.isEmpty())
     }
 
@@ -36,18 +38,36 @@ class ColorRedetectorTest {
     fun `an image is measured against the reference shades`() = runTest {
         photoProcessor.colorsByPath["item.png"] = extracted
 
-        assertEquals(extracted, redetector().propose("item.png"))
+        assertEquals(ColorRedetector.Proposal.Found(extracted), redetector().propose("item.png"))
         assertEquals(listOf("item.png"), photoProcessor.extractCalls)
         assertEquals(listOf(shades), photoProcessor.extractShades)
     }
 
     @Test
-    fun `a shades error proposes nothing and does not measure`() = runTest {
-        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Error(RuntimeException("db"))
+    fun `a shades error fails with its cause and does not measure`() = runTest {
+        val cause = RuntimeException("db")
+        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Error(cause)
         photoProcessor.colorsByPath["item.png"] = extracted
 
-        assertEquals(emptyList(), redetector().propose("item.png"))
+        assertEquals(ColorRedetector.Proposal.Failed(cause), redetector().propose("item.png"))
         assertTrue(photoProcessor.extractCalls.isEmpty())
+    }
+
+    @Test
+    fun `shades not loaded fails without a cause`() = runTest {
+        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Loading
+        photoProcessor.colorsByPath["item.png"] = extracted
+
+        assertEquals(ColorRedetector.Proposal.Failed(null), redetector().propose("item.png"))
+        assertTrue(photoProcessor.extractCalls.isEmpty())
+    }
+
+    @Test
+    fun `an extraction that finds nothing is empty`() = runTest {
+        // No colours registered for a.png. ItemPhotoProcessor also reports an undecodable photo
+        // this way, so that stays Empty too.
+        assertEquals(ColorRedetector.Proposal.Empty, redetector().propose("a.png"))
+        assertEquals(listOf("a.png"), photoProcessor.extractCalls)
     }
 
     @Test
@@ -71,15 +91,23 @@ class ColorRedetectorTest {
         photoProcessor.colorsByPath["a.png"] = extracted
         val redetector = redetector()
 
-        assertEquals(emptyList(), redetector.propose("a.png"))
-        assertEquals(extracted, redetector.propose("a.png"))
+        assertTrue(redetector.propose("a.png") is ColorRedetector.Proposal.Failed)
+        assertEquals(ColorRedetector.Proposal.Found(extracted), redetector.propose("a.png"))
     }
 
     @Test
-    fun `an extraction that throws proposes nothing`() = runTest {
-        photoProcessor.extractGate = { throw IllegalStateException("decode") }
+    fun `an extraction that throws fails with its cause`() = runTest {
+        val cause = IllegalStateException("decode")
+        photoProcessor.extractGate = { throw cause }
 
-        assertEquals(emptyList(), redetector().propose("a.png"))
+        assertEquals(ColorRedetector.Proposal.Failed(cause), redetector().propose("a.png"))
+    }
+
+    @Test
+    fun `a cancelled extraction propagates`() = runTest {
+        photoProcessor.extractGate = { throw CancellationException("stop") }
+
+        assertFailsWith<CancellationException> { redetector().propose("a.png") }
     }
 
     @Test
