@@ -2,7 +2,12 @@ package com.closet.features.settings
 
 import com.closet.core.data.worker.WorkState
 import com.closet.core.data.worker.WorkStatus
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -27,5 +32,30 @@ class ColorRedetectResultTest {
     @Test fun `an unfinished or failed run shows nothing`() {
         assertFalse(status(state = WorkState.RUNNING).showsColorRedetectResult(lastHandledId = null))
         assertFalse(status(state = WorkState.FAILED).showsColorRedetectResult(lastHandledId = null))
+    }
+
+    @Test fun `the result is acknowledged once its snackbar has shown`() = runTest {
+        val events = mutableListOf<String>()
+
+        showThenAcknowledge(show = { events += "shown" }, acknowledge = { events += "acknowledged" })
+
+        assertEquals(listOf("shown", "acknowledged"), events)
+    }
+
+    @Test fun `a snackbar cancelled while showing leaves the result unacknowledged`() = runTest {
+        var acknowledged = false
+        val showing = CompletableDeferred<Unit>()
+
+        val effect = launch {
+            showThenAcknowledge(
+                show = { showing.complete(Unit); awaitCancellation() },
+                acknowledge = { acknowledged = true },
+            )
+        }
+        showing.await()
+        effect.cancel() // the screen leaves composition while the snackbar is up
+
+        effect.join()
+        assertFalse(acknowledged)
     }
 }

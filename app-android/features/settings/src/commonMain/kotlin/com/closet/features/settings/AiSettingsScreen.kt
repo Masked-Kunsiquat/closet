@@ -178,6 +178,16 @@ private val StyleVibe.descriptionRes: StringResource
 internal fun WorkStatus.showsColorRedetectResult(lastHandledId: String?): Boolean =
     state == WorkState.SUCCEEDED && id != lastHandledId && total > 0
 
+/**
+ * Shows a result with [show] (a snackbar), then marks it handled with [acknowledge]. A [show]
+ * cancelled before it returns (the screen left while the snackbar was up) leaves the result
+ * unacknowledged, so it shows again on the next visit.
+ */
+internal suspend fun showThenAcknowledge(show: suspend () -> Unit, acknowledge: () -> Unit) {
+    show()
+    acknowledge()
+}
+
 @Composable
 fun AiSettingsScreen(
     onNavigateUp: () -> Unit,
@@ -212,7 +222,6 @@ fun AiSettingsScreen(
     LaunchedEffect(uiState.colorRedetectWorkStatus?.id, uiState.colorRedetectWorkStatus?.state) {
         val info = uiState.colorRedetectWorkStatus ?: return@LaunchedEffect
         if (info.showsColorRedetectResult(uiState.lastHandledColorRedetectId)) {
-            viewModel.onColorRedetectResultHandled(info.id)
             // done = re-detected, skipped = unchanged (ColorRedetectWork.KEY_UNCHANGED), failed.
             val msg = getPluralString(
                 Res.plurals.settings_wardrobe_color_redetect_result,
@@ -221,7 +230,10 @@ fun AiSettingsScreen(
                 info.skipped,
                 info.failed,
             )
-            snackbarHostState.showSnackbar(msg)
+            showThenAcknowledge(
+                show = { snackbarHostState.showSnackbar(msg) },
+                acknowledge = { viewModel.onColorRedetectResultHandled(info.id) },
+            )
         }
     }
 
