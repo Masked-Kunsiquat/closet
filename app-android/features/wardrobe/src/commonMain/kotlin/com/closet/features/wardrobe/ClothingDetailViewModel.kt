@@ -265,7 +265,8 @@ class ClothingDetailViewModel(
      * while a re-detection is already measuring or previewing, or when the item has no photo.
      * Nothing detected shows a "Couldn't detect colors" snackbar on [actionError]; a failed
      * measurement (reference shades or extraction) shows the generic error snackbar. Either way
-     * it returns to [RedetectState.Idle].
+     * it returns to [RedetectState.Idle]. When the item's photo changed while it was measured,
+     * there is no preview and it returns to [RedetectState.Idle] silently.
      */
     fun onRedetectColors() {
         if (_redetectState.value != RedetectState.Idle) return
@@ -286,6 +287,13 @@ class ClothingDetailViewModel(
                 }
             }
             val latest = uiState.value as? ClothingDetailUiState.Success ?: state
+            if (latest.item.item.imagePath != imagePath) {
+                // The photo was replaced (background removal) while it was measured: the colours
+                // describe a photo the item no longer has, so show no preview.
+                pendingRedetect = null
+                _redetectState.value = RedetectState.Idle
+                return@launch
+            }
             val lookup = latest.colors.associateBy { it.id }
             // Show exactly what Apply writes: an id missing from the lookup can't be named, so drop it.
             val proposed = measured.filter { it.colorId in lookup }

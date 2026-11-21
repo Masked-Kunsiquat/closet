@@ -25,6 +25,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.flow.toList
@@ -82,7 +83,20 @@ class ClothingDetailViewModelTest {
 
     /** Stubs the item (image [imagePath], colours [current]) and the lookups the detail screen reads. */
     private fun givenItem(imagePath: String? = "item.png", current: List<ColorEntity> = listOf(green)) {
-        val detail = ClothingItemDetail(
+        val detail = detailOf(imagePath, current)
+        every { clothingRepository.getItemDetail(42) } returns flowOf(detail)
+        every { lookupRepository.getColors() } returns flowOf(listOf(red, blue, green))
+        every { lookupRepository.getMaterials() } returns flowOf(emptyList())
+        every { lookupRepository.getSeasons() } returns flowOf(emptyList())
+        every { lookupRepository.getOccasions() } returns flowOf(emptyList())
+        every { lookupRepository.getPatterns() } returns flowOf(emptyList())
+        every { lookupRepository.getSizeSystems() } returns flowOf(emptyList())
+        every { logRepository.getLogsForItem(42) } returns flowOf(emptyList())
+        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Success(shades)
+    }
+
+    private fun detailOf(imagePath: String?, current: List<ColorEntity> = listOf(green)) =
+        ClothingItemDetail(
             item = ClothingItemEntity(id = 42, name = "Shirt", imagePath = imagePath),
             wearCount = 0,
             category = CategoryEntity(id = 1, name = "Tops", sortOrder = 1),
@@ -95,16 +109,6 @@ class ClothingDetailViewModelTest {
             occasions = emptyList(),
             patterns = emptyList(),
         )
-        every { clothingRepository.getItemDetail(42) } returns flowOf(detail)
-        every { lookupRepository.getColors() } returns flowOf(listOf(red, blue, green))
-        every { lookupRepository.getMaterials() } returns flowOf(emptyList())
-        every { lookupRepository.getSeasons() } returns flowOf(emptyList())
-        every { lookupRepository.getOccasions() } returns flowOf(emptyList())
-        every { lookupRepository.getPatterns() } returns flowOf(emptyList())
-        every { lookupRepository.getSizeSystems() } returns flowOf(emptyList())
-        every { logRepository.getLogsForItem(42) } returns flowOf(emptyList())
-        coEvery { lookupRepository.getReferenceShades() } returns DataResult.Success(shades)
-    }
 
     /** A ViewModel whose uiState is collected, as the screen does, so it reaches Success. */
     private fun TestScope.subscribedViewModel(): ClothingDetailViewModel {
@@ -328,6 +332,26 @@ class ClothingDetailViewModelTest {
 
         assertEquals(RedetectState.Idle, vm.redetectState.value)
         assertTrue(photoProcessor.extractCalls.isEmpty())
+    }
+
+    @Test
+    fun `a photo replaced while measuring shows no preview`() = runTest {
+        givenItem()
+        val detail = MutableStateFlow(detailOf("item.png"))
+        every { clothingRepository.getItemDetail(42) } returns detail
+        photoProcessor.colorsByPath["item.png"] = measured
+        val gate = CompletableDeferred<Unit>()
+        photoProcessor.extractGate = { gate.await() }
+        val vm = subscribedViewModel()
+
+        vm.onRedetectColors()
+        // Background removal swaps the photo while item.png is being measured.
+        detail.value = detailOf("item.webp")
+        gate.complete(Unit)
+
+        assertEquals(RedetectState.Idle, vm.redetectState.value)
+        vm.onApplyRedetect()
+        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
     }
 
     @Test
