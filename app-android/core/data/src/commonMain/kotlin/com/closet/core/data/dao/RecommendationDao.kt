@@ -192,11 +192,17 @@ data class ItemOccasionName(
     @ColumnInfo(name = "occasion_name") val occasionName: String
 )
 
-/** One non-null color hex tagged on an item, with that color's `color_family`. */
+/**
+ * One non-null color tagged on an item: the named color's [hex] and `color_family`, plus the
+ * tag's measured hex and share (null for user-picked rows) and whether the color wears as neutral.
+ */
 data class ItemColorHex(
     @ColumnInfo(name = "clothing_item_id") val clothingItemId: Long,
     @ColumnInfo(name = "hex") val hex: String,
+    @ColumnInfo(name = "measured_hex") val measuredHex: String?,
+    @ColumnInfo(name = "share") val share: Double?,
     @ColumnInfo(name = "color_family") val colorFamily: String,
+    @ColumnInfo(name = "wears_as_neutral") val wearsAsNeutral: Boolean,
 )
 
 /** Pre-computed item embedding blob from `item_embeddings`. */
@@ -567,9 +573,10 @@ interface RecommendationDao {
     """)
     suspend fun getItemOccasionNames(itemIds: List<Long>): List<ItemOccasionName>
 
-    /** Non-null color hexes tagged on [itemIds] with their families, in a stable order. */
+    /** Non-null color hexes tagged on [itemIds] with family, measured hex, share and neutrality, in a stable order. */
     @Query("""
-        SELECT cic.clothing_item_id, co.hex AS hex, co.color_family AS color_family
+        SELECT cic.clothing_item_id, co.hex AS hex, cic.hex AS measured_hex, cic.share AS share,
+               co.color_family AS color_family, co.wears_as_neutral AS wears_as_neutral
         FROM clothing_item_colors cic
         JOIN colors co ON cic.color_id = co.id
         WHERE cic.clothing_item_id IN (:itemIds) AND co.hex IS NOT NULL

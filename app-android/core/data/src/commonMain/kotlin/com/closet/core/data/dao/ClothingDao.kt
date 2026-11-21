@@ -162,6 +162,13 @@ interface ClothingDao {
     @Query("SELECT * FROM clothing_item_colors WHERE clothing_item_id = :itemId ORDER BY share IS NULL, share DESC, color_id")
     suspend fun getItemColorRows(itemId: Long): List<ClothingItemColorEntity>
 
+    /** Raw colour rows for every item in [itemIds], grouped by item and ordered like [getItemColorRows]. */
+    @Query(
+        "SELECT * FROM clothing_item_colors WHERE clothing_item_id IN (:itemIds) " +
+            "ORDER BY clothing_item_id, share IS NULL, share DESC, color_id"
+    )
+    suspend fun getItemColorRowsForItems(itemIds: List<Long>): List<ClothingItemColorEntity>
+
     @Query("DELETE FROM clothing_item_colors WHERE clothing_item_id = :itemId")
     suspend fun deleteItemColors(itemId: Long)
 

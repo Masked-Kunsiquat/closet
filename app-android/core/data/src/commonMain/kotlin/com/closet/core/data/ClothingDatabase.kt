@@ -16,6 +16,7 @@ import kotlinx.coroutines.IO
 import com.closet.core.data.dao.*
 import com.closet.core.data.migrations.MIGRATION_1_2
 import com.closet.core.data.migrations.MIGRATION_2_3
+import com.closet.core.data.migrations.MIGRATION_3_4
 import com.closet.core.data.model.*
 
 /**
@@ -51,8 +52,9 @@ import com.closet.core.data.model.*
     // Version 1 is the squashed baseline (the old 1→6 chain was reset; see migrations/AGENTS.md).
     // Version 2 (MIGRATION_1_2) adds measured item colours, basic terms, the neutral flag and
     // reference shades. Version 3 (MIGRATION_2_3) adds clothing_items.colors_curated.
+    // Version 4 (MIGRATION_3_4) re-picks ten base colour hexes and makes Navy Cool.
     // Every schema change needs a real migration.
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -114,7 +116,7 @@ expect object ClothingDatabaseConstructor : RoomDatabaseConstructor<ClothingData
 fun RoomDatabase.Builder<ClothingDatabase>.configureClosetDatabase(): RoomDatabase.Builder<ClothingDatabase> =
     setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
         .addCallback(object : RoomDatabase.Callback() {
             override fun onCreate(connection: SQLiteConnection) {
                 connection.execSQL("PRAGMA foreign_keys = ON")

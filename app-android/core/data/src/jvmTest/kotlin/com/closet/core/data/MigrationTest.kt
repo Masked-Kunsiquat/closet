@@ -8,6 +8,7 @@ import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
 import com.closet.core.data.migrations.MIGRATION_1_2
 import com.closet.core.data.migrations.MIGRATION_2_3
+import com.closet.core.data.migrations.MIGRATION_3_4
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.io.path.Path
@@ -120,6 +121,34 @@ class MigrationTest {
     }
 
     @Test
+    fun `v3 to v4 re-picks base hexes and makes Navy cool`() {
+        createV1().close()
+        val v3 = helper.runMigrationsAndValidate(3, listOf(MIGRATION_1_2, MIGRATION_2_3)).also { connections += it }
+        v3.execSQL(
+            "INSERT INTO clothing_items (id, name, is_favorite, created_at, updated_at) " +
+                "VALUES (1, 'Brown tee', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        )
+        val brownId = v3.single("SELECT id FROM colors WHERE name = 'Brown'")
+        v3.execSQL(
+            "INSERT INTO clothing_item_colors (clothing_item_id, color_id, hex, share, source) " +
+                "VALUES (1, $brownId, '#5C4033', 0.8, 'user')"
+        )
+        v3.close()
+
+        val v4 = helper.runMigrationsAndValidate(4, listOf(MIGRATION_3_4)).also { connections += it }
+        fun hexOf(name: String) = v4.rows("SELECT hex FROM colors WHERE name = '$name'") { it.getText(0) }.single()
+        fun familyOf(name: String) = v4.rows("SELECT color_family FROM colors WHERE name = '$name'") { it.getText(0) }.single()
+        assertEquals("#6B4423", hexOf("Brown"))
+        assertEquals("#1F2A44", hexOf("Navy"))
+        assertEquals("Cool", familyOf("Navy"))
+        assertEquals("#FFFFFF", hexOf("White"))
+        val row = v4.rows("SELECT color_id, hex, share, source FROM clothing_item_colors WHERE clothing_item_id = 1") {
+            listOf(it.getLong(0), it.getText(1), it.getDouble(2), it.getText(3))
+        }
+        assertEquals(listOf(listOf(brownId, "#5C4033", 0.8, "user")), row)
+    }
+
+    @Test
     fun `migrated and fresh databases have identical colours`() {
         createV1().close()
         val migrated = migrate()
@@ -157,7 +186,8 @@ class MigrationTest {
     }
 
     private fun migrate(): SQLiteConnection =
-        helper.runMigrationsAndValidate(2, listOf(MIGRATION_1_2)).also { connections += it }
+        helper.runMigrationsAndValidate(4, listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4))
+            .also { connections += it }
 
     private fun <T> SQLiteConnection.rows(sql: String, map: (SQLiteStatement) -> T): List<T> =
         prepare(sql).use { it.collect(map) }

@@ -157,7 +157,7 @@ class RecommendationViewModelSessionTest {
                 ItemOccasionName(1, "My Gala"), ItemOccasionName(2, "My Gala"),
             )
         )
-        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233", "Cool")))
+        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233", null, null, "Cool", false)))
         val v1 = floatArrayOf(1.0f, 0.0f, 0.0f)
         val v2 = floatArrayOf(0.9f, 0.43588989f, 0.0f)
         coEvery { repo.getItemEmbeddings(any()) } returns DataResult.Success(mapOf(1L to v1, 2L to v2))
