@@ -13,6 +13,7 @@ import com.closet.core.data.repository.ImagePathResolver
 import com.closet.core.data.repository.LogRepository
 import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.util.AppError
+import com.closet.core.data.util.DataResult
 import com.closet.core.data.util.fold
 import com.closet.core.ui.util.UserMessage
 import com.closet.core.ui.util.asUserMessage
@@ -287,9 +288,17 @@ class ClothingDetailViewModel(
                 }
             }
             val latest = uiState.value as? ClothingDetailUiState.Success ?: state
-            if (latest.item.item.imagePath != imagePath) {
-                // The photo was replaced (background removal) while it was measured: the colours
-                // describe a photo the item no longer has, so show no preview.
+            // uiState stops tracking the item once nothing has collected it for 5 s (the screen is
+            // backgrounded), so the current photo comes from the repository, not from uiState.
+            val currentPath = when (val current = clothingRepository.getItemEntityById(itemId)) {
+                is DataResult.Success -> current.data.imagePath
+                else -> null
+            }
+            ensureActive()
+            if (currentPath != imagePath) {
+                // The photo was replaced (background removal) while it was measured, or the item
+                // can no longer be read: the colours describe a photo the item may not have, so
+                // show no preview.
                 pendingRedetect = null
                 _redetectState.value = RedetectState.Idle
                 return@launch

@@ -93,6 +93,7 @@ class ClothingDetailViewModelTest {
         every { lookupRepository.getSizeSystems() } returns flowOf(emptyList())
         every { logRepository.getLogsForItem(42) } returns flowOf(emptyList())
         coEvery { lookupRepository.getReferenceShades() } returns DataResult.Success(shades)
+        coEvery { clothingRepository.getItemEntityById(42) } returns DataResult.Success(detail.item)
     }
 
     private fun detailOf(imagePath: String?, current: List<ColorEntity> = listOf(green)) =
@@ -347,11 +348,43 @@ class ClothingDetailViewModelTest {
         vm.onRedetectColors()
         // Background removal swaps the photo while item.png is being measured.
         detail.value = detailOf("item.webp")
+        coEvery { clothingRepository.getItemEntityById(42) } returns DataResult.Success(detailOf("item.webp").item)
         gate.complete(Unit)
 
         assertEquals(RedetectState.Idle, vm.redetectState.value)
         vm.onApplyRedetect()
         coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
+    }
+
+    @Test
+    fun `a photo replaced while uiState is not updating shows no preview`() = runTest {
+        // uiState stops tracking the item once unsubscribed for 5 s, so it still reports item.png;
+        // the repository is the source of truth for the current photo.
+        givenItem()
+        photoProcessor.colorsByPath["item.png"] = measured
+        val gate = CompletableDeferred<Unit>()
+        photoProcessor.extractGate = { gate.await() }
+        val vm = subscribedViewModel()
+
+        vm.onRedetectColors()
+        coEvery { clothingRepository.getItemEntityById(42) } returns DataResult.Success(detailOf("item.webp").item)
+        gate.complete(Unit)
+
+        assertEquals(RedetectState.Idle, vm.redetectState.value)
+        vm.onApplyRedetect()
+        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
+    }
+
+    @Test
+    fun `an item that cannot be re-read after measuring shows no preview`() = runTest {
+        givenItem()
+        photoProcessor.colorsByPath["item.png"] = measured
+        coEvery { clothingRepository.getItemEntityById(42) } returns DataResult.Error(RuntimeException("gone"))
+        val vm = subscribedViewModel()
+
+        vm.onRedetectColors()
+
+        assertEquals(RedetectState.Idle, vm.redetectState.value)
     }
 
     @Test
