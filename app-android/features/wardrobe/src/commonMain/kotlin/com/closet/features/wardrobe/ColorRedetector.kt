@@ -31,15 +31,14 @@ class ColorRedetector(
         data class Found(val colors: List<ExtractedColor>) : Proposal
         /** Nothing to propose: no image, or the photo was measured and no colour was detected. */
         data object Empty : Proposal
-        /** The measurement could not run: the reference shades failed to load, or extraction threw. */
+        /** The measurement could not run: the reference shades failed to load, or the photo could not be measured. */
         data class Failed(val cause: Throwable?) : Proposal
     }
 
     /**
      * Measures the image at [imagePath] (relative) against the reference shades.
      * [Proposal.Empty] when there is no image or nothing is detected; [Proposal.Failed] when the
-     * shades fail to load or the extraction throws. [ItemPhotoProcessor.extractColors] itself
-     * reports a photo it cannot decode as no colours, so an undecodable photo is [Proposal.Empty].
+     * shades fail to load or the measurement throws, including a photo that cannot be decoded ([ItemPhotoProcessor.measureColors] throws for it).
      * Cancellation propagates.
      */
     suspend fun propose(imagePath: String?): Proposal {
@@ -49,7 +48,7 @@ class ColorRedetector(
             is ShadesResult.Unavailable -> return Proposal.Failed(result.cause)
         }
         val colors = try {
-            photoProcessor.extractColors(path, shades)
+            photoProcessor.measureColors(path, shades)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

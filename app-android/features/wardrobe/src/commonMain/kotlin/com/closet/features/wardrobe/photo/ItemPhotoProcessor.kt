@@ -19,9 +19,16 @@ interface ItemPhotoProcessor {
     suspend fun removeBackground(relativePath: String): String
     /**
      * The image's dominant colours, measured by the shared ColorExtractor and named by the nearest
-     * of [shades]; alpha is the mask on a segmented image. Empty on any failure.
+     * of [shades]; alpha is the mask on a segmented image. Empty on any failure, so the add/edit
+     * form can treat "no colours" and "could not measure" alike. Use [measureColors] to tell them apart.
      */
     suspend fun extractColors(relativePath: String, shades: List<ReferenceShade>): List<ExtractedColor>
+    /**
+     * Like [extractColors], but a failure is not hidden: throws when the image cannot be decoded
+     * (missing file, undecodable) or the extraction fails. Returns a possibly empty list only when
+     * the measurement genuinely ran. Cancellation propagates.
+     */
+    suspend fun measureColors(relativePath: String, shades: List<ReferenceShade>): List<ExtractedColor>
     /** Caption, or null if the image can't be decoded. Throws if captioning fails. */
     suspend fun describe(relativePath: String): String?
 }

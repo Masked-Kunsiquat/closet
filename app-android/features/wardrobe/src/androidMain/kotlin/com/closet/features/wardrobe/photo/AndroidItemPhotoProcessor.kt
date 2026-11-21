@@ -60,32 +60,33 @@ class AndroidItemPhotoProcessor(
 
     // Alpha is the mask: on a segmented PNG only subject pixels are measured, not the
     // removed background. Decoded at ≤512 px in sRGB; the extractor samples a fixed stride anyway.
-    override suspend fun extractColors(
+    override suspend fun measureColors(
         relativePath: String,
         shades: List<ReferenceShade>,
     ): List<ExtractedColor> = withContext(Dispatchers.Default) {
+        val file = storageRepository.getFile(relativePath)
+        val bitmap = withContext(Dispatchers.IO) {
+            BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 512)
+        } ?: throw IllegalStateException("image could not be decoded: $relativePath")
         try {
-            val file = storageRepository.getFile(relativePath)
-            val bitmap = withContext(Dispatchers.IO) {
-                BitmapUtils.decodeSampledBitmap(file.absolutePath, maxDim = 512)
-            }
-            if (bitmap == null) {
-                log.d { "extractColors: ${file.name} → bitmap decode returned null" }
-                return@withContext emptyList()
-            }
-            try {
-                val extracted = ColorExtractor(shades).extract(bitmap.toArgbPixels(), bitmap.width, bitmap.height)
-                log.d { "extractColors: ${file.name} → ${extracted.joinToString { "${it.colorId}:${it.hex}@${it.share}" }}" }
-                extracted
-            } finally {
-                if (!bitmap.isRecycled) bitmap.recycle()
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.d(e) { "color extraction failed" }
-            emptyList()
+            val extracted = ColorExtractor(shades).extract(bitmap.toArgbPixels(), bitmap.width, bitmap.height)
+            log.d { "measureColors: ${file.name} → ${extracted.joinToString { "${it.colorId}:${it.hex}@${it.share}" }}" }
+            extracted
+        } finally {
+            if (!bitmap.isRecycled) bitmap.recycle()
         }
+    }
+
+    override suspend fun extractColors(
+        relativePath: String,
+        shades: List<ReferenceShade>,
+    ): List<ExtractedColor> = try {
+        measureColors(relativePath, shades)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        log.d(e) { "color extraction failed" }
+        emptyList()
     }
 
     override suspend fun describe(relativePath: String): String? {

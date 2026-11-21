@@ -64,8 +64,7 @@ class ColorRedetectorTest {
 
     @Test
     fun `an extraction that finds nothing is empty`() = runTest {
-        // No colours registered for a.png. ItemPhotoProcessor also reports an undecodable photo
-        // this way, so that stays Empty too.
+        // No colours registered for a.png: the measurement ran and found nothing.
         assertEquals(ColorRedetector.Proposal.Empty, redetector().propose("a.png"))
         assertEquals(listOf("a.png"), photoProcessor.extractCalls)
     }
@@ -101,6 +100,21 @@ class ColorRedetectorTest {
         photoProcessor.extractGate = { throw cause }
 
         assertEquals(ColorRedetector.Proposal.Failed(cause), redetector().propose("a.png"))
+    }
+
+    @Test
+    fun `a measurement that throws is a failure, not empty`() = runTest {
+        val cause = IllegalStateException("image could not be decoded: a.png")
+        photoProcessor.extractGate = { throw cause }
+
+        assertEquals(ColorRedetector.Proposal.Failed(cause), redetector().propose("a.png"))
+    }
+
+    @Test
+    fun `a measurement that genuinely finds nothing is empty`() = runTest {
+        photoProcessor.colorsByPath["a.png"] = emptyList()
+
+        assertEquals(ColorRedetector.Proposal.Empty, redetector().propose("a.png"))
     }
 
     @Test
