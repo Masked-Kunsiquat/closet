@@ -178,20 +178,30 @@ class ClothingRepository(
 
     /**
      * Updates an existing clothing item with all junction table associations in a single transaction.
+     * [colors] null means the caller left the colours untouched: the colour rows are kept and the
+     * stored `colors_curated` flag is kept over [item]'s, both read inside the transaction, so a
+     * re-detect that ran while the caller held a stale copy is not undone. Non-null [colors]
+     * replace the rows, and [item]'s flag is written.
      * Best-effort: re-runs ItemVectorizer after a successful update.
      */
     suspend fun updateItemWithAttributes(
         item: ClothingItemEntity,
-        colors: List<TaggedColor>,
+        colors: List<TaggedColor>?,
         seasonIds: List<Long>,
         occasionIds: List<Long>,
         materialIds: List<Long>,
         patternIds: List<Long>,
     ): DataResult<Int> {
         val result = wrapInTransaction {
-            val rowsAffected = clothingDao.updateClothingItem(item)
+            val toWrite = if (colors == null) {
+                val storedCurated = clothingDao.isColorsCurated(item.id) ?: return@wrapInTransaction 0
+                item.copy(colorsCurated = storedCurated)
+            } else {
+                item
+            }
+            val rowsAffected = clothingDao.updateClothingItem(toWrite)
             if (rowsAffected == 0) return@wrapInTransaction 0
-            clothingDao.updateItemColors(item.id, colors)
+            if (colors != null) clothingDao.updateItemColors(item.id, colors)
             clothingDao.updateItemSeasons(item.id, seasonIds)
             clothingDao.updateItemOccasions(item.id, occasionIds)
             clothingDao.updateItemMaterials(item.id, materialIds)

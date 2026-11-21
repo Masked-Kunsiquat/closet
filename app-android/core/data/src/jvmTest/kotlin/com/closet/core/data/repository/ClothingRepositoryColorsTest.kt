@@ -352,6 +352,50 @@ class ClothingRepositoryColorsTest {
         assertFalse(curated(item))
     }
 
+    // ─── updateItemWithAttributes and colours (#128) ───────────────────────────
+
+    private fun entity(itemId: Long): ClothingItemEntity = runBlocking {
+        testDb.db.clothingDao().getClothingItemEntityById(itemId)!!
+    }
+
+    private fun save(item: ClothingItemEntity, colors: List<TaggedColor>?): DataResult<Int> = runBlocking {
+        repo.updateItemWithAttributes(item, colors, emptyList(), emptyList(), emptyList(), emptyList())
+    }
+
+    @Test
+    fun `a save without colours keeps rows and the flag a re-detect wrote meanwhile`() = runBlocking {
+        val item = newItem(curated = true, imagePath = "item.webp")
+        repo.updateItemColors(item, listOf(TaggedColor(colorId("Red"))))
+        val stale = entity(item) // the edit form loads the item (curated, a user row)
+        val extracted = listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0))
+        assertEquals(
+            true,
+            assertIs<DataResult.Success<Boolean>>(repo.applyRedetectedColors(item, extracted, "item.webp")).data,
+        )
+
+        // A name-only save from the stale form: colours untouched, so none are passed.
+        assertIs<DataResult.Success<Int>>(save(stale.copy(name = "Renamed"), colors = null))
+
+        assertEquals(
+            setOf(ClothingItemColorEntity(item, colorId("Navy"), "#1F2A44", 1.0, ColorSource.AUTO)),
+            rows(item),
+        )
+        assertFalse(curated(item))
+        assertEquals("Renamed", entity(item).name)
+    }
+
+    @Test
+    fun `a save with colours replaces the rows and writes the flag`() = runBlocking {
+        val item = newItem()
+        repo.updateItemColors(item, listOf(TaggedColor(colorId("Navy"), "#1F2A44", 1.0, ColorSource.AUTO)))
+        val user = TaggedColor(colorId("Red"))
+
+        assertIs<DataResult.Success<Int>>(save(entity(item).copy(colorsCurated = true), listOf(user)))
+
+        assertEquals(setOf(user.row(item)), rows(item))
+        assertTrue(curated(item))
+    }
+
     @Test
     fun `getReferenceShades lists every seeded shade`() = runBlocking {
         val shades = assertIs<DataResult.Success<List<ReferenceShade>>>(

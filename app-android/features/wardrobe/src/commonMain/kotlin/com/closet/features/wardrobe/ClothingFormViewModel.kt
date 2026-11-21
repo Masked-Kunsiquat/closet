@@ -896,7 +896,10 @@ class ClothingFormViewModel(
                 val result = if (isEditMode) {
                     clothingRepository.updateItemWithAttributes(
                         item,
-                        colors,
+                        // Untouched colours aren't written back: a re-detect (or the bulk job) may
+                        // have changed them since the form loaded, and the repository then keeps
+                        // the stored rows and curated flag.
+                        if (colorsUntouched(state)) null else colors,
                         state.selectedSeasonIds.toList(),
                         state.selectedOccasionIds.toList(),
                         state.selectedMaterialIds.toList(),
@@ -951,6 +954,13 @@ class ClothingFormViewModel(
             val row = state.measured[color.id] ?: TaggedColor(color.id, source = ColorSource.USER)
             if (state.colorsEditedByUser) row.copy(source = ColorSource.USER) else row
         }
+
+    /**
+     * True when this session changed nothing about the colours: no manual toggle, no extraction
+     * applied, and no new photo (picking or segmenting one drops the old measurements).
+     */
+    private fun colorsUntouched(state: FormState): Boolean =
+        !state.colorsEditedByUser && !state.colorsFromExtraction && state.imagePath == originalImagePath
 
     /**
      * The stored `colors_curated` flag (#128): set after a manual toggle (clear-all included),

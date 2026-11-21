@@ -497,9 +497,9 @@ class ClothingFormViewModelTest {
                 ClothingItemColorEntity(7, blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.AUTO),
             )
         )
-        val colors = slot<List<TaggedColor>>()
+        val colors = mutableListOf<List<TaggedColor>?>()
         coEvery {
-            clothingRepository.updateItemWithAttributes(any(), capture(colors), any(), any(), any(), any())
+            clothingRepository.updateItemWithAttributes(any(), captureNullable(colors), any(), any(), any(), any())
         } returns DataResult.Success(1)
         val viewModel = subscribed(buildViewModel(SavedStateHandle(mapOf("itemId" to 7L))))
         advanceUntilIdle()
@@ -508,13 +508,9 @@ class ClothingFormViewModelTest {
         viewModel.save()
         advanceUntilIdle()
 
-        assertEquals(
-            listOf(
-                TaggedColor(red.id, hex = "#C81E1E", share = 0.6, source = ColorSource.AUTO),
-                TaggedColor(blue.id, hex = "#1A2B8C", share = 0.4, source = ColorSource.AUTO),
-            ),
-            colors.captured,
-        )
+        // Untouched colours are not passed, so the repository keeps the stored rows as they are
+        // (and any a re-detect wrote since the form loaded).
+        assertEquals(listOf<List<TaggedColor>?>(null), colors)
     }
 
     @Test
@@ -549,14 +545,14 @@ class ClothingFormViewModelTest {
     }
 
     /** Saves the edit-mode item and returns the colour rows handed to the repository. */
-    private fun TestScope.savedUpdateColors(viewModel: ClothingFormViewModel): List<TaggedColor> {
-        val colors = slot<List<TaggedColor>>()
+    private fun TestScope.savedUpdateColors(viewModel: ClothingFormViewModel): List<TaggedColor>? {
+        val colors = mutableListOf<List<TaggedColor>?>()
         coEvery {
-            clothingRepository.updateItemWithAttributes(any(), capture(colors), any(), any(), any(), any())
+            clothingRepository.updateItemWithAttributes(any(), captureNullable(colors), any(), any(), any(), any())
         } returns DataResult.Success(1)
         viewModel.save()
         advanceUntilIdle()
-        return colors.captured
+        return colors.single()
     }
 
     // ─── colors_curated on save (#128) ────────────────────────────────────────
@@ -564,15 +560,15 @@ class ClothingFormViewModelTest {
     private val autoRed = ClothingItemColorEntity(7, red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.AUTO)
 
     /** Saves the edit-mode item and returns the entity and colour rows handed to the repository. */
-    private fun TestScope.savedUpdate(viewModel: ClothingFormViewModel): Pair<ClothingItemEntity, List<TaggedColor>> {
+    private fun TestScope.savedUpdate(viewModel: ClothingFormViewModel): Pair<ClothingItemEntity, List<TaggedColor>?> {
         val item = slot<ClothingItemEntity>()
-        val colors = slot<List<TaggedColor>>()
+        val colors = mutableListOf<List<TaggedColor>?>()
         coEvery {
-            clothingRepository.updateItemWithAttributes(capture(item), capture(colors), any(), any(), any(), any())
+            clothingRepository.updateItemWithAttributes(capture(item), captureNullable(colors), any(), any(), any(), any())
         } returns DataResult.Success(1)
         viewModel.save()
         advanceUntilIdle()
-        return item.captured to colors.captured
+        return item.captured to colors.single()
     }
 
     /** Saves a new item and returns the entity handed to the repository. */
@@ -596,8 +592,16 @@ class ClothingFormViewModelTest {
         val viewModel = editViewModel()
 
         viewModel.onColorToggle(blue)
-        val (item, _) = savedUpdate(viewModel)
+        val (item, colors) = savedUpdate(viewModel)
 
+        // A colour edit still writes its rows (all user) along with the flag.
+        assertEquals(
+            listOf(
+                TaggedColor(red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.USER),
+                TaggedColor(blue.id, source = ColorSource.USER),
+            ),
+            colors,
+        )
         assertTrue(item.colorsCurated)
     }
 
@@ -692,7 +696,10 @@ class ClothingFormViewModelTest {
         viewModel.revertSegmentation()
         val (item, colors) = savedUpdate(viewModel)
 
-        assertEquals(listOf(TaggedColor(red.id, hex = "#C81E1E", share = 1.0, source = ColorSource.AUTO)), colors)
+        // Back on the original photo with the original selection: nothing to write, so the stored
+        // auto row is kept as it is.
+        assertEquals(listOf(red), viewModel.uiState.value.selectedColors)
+        assertEquals(null, colors)
         assertFalse(item.colorsCurated)
     }
 
