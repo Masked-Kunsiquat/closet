@@ -371,17 +371,24 @@ class ClothingRepository(
      * clears `colors_curated`. The curated flag and user rows are ignored on purpose, since the user
      * chose to re-detect. Nothing is written when [extracted] is empty. One transaction.
      *
+     * [measuredImagePath] is the photo [extracted] was measured from. The item's stored image path
+     * is re-read inside the transaction and nothing is written when it differs (background removal
+     * replaced the photo while it was being measured), or when the item no longer exists.
+     *
      * With [onlyIfUncurated] (bulk re-detect in only-unedited mode), the flag is re-read inside the
      * transaction and nothing is written when the user has curated the item since it was queued.
-     * @return A [DataResult] with true when the rows were replaced, false when nothing was extracted
-     * or the guard skipped the item.
+     * @return A [DataResult] with true when the rows were replaced, false when nothing was extracted,
+     * the photo changed, or the guard skipped the item.
      */
     suspend fun applyRedetectedColors(
         itemId: Long,
         extracted: List<ExtractedColor>,
+        measuredImagePath: String?,
         onlyIfUncurated: Boolean = false,
     ): DataResult<Boolean> = wrapInTransaction {
         if (extracted.isEmpty()) return@wrapInTransaction false
+        val stored = clothingDao.getClothingItemEntityById(itemId) ?: return@wrapInTransaction false
+        if (stored.imagePath != measuredImagePath) return@wrapInTransaction false
         if (onlyIfUncurated && clothingDao.isColorsCurated(itemId) != false) return@wrapInTransaction false
         clothingDao.updateItemColors(
             itemId,

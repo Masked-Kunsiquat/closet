@@ -68,9 +68,14 @@ class ColorRedetectWorker(
                 if (proposed.isEmpty()) {
                     unchanged++
                 } else {
-                    // In only-unedited mode the write re-checks colors_curated in its transaction,
-                    // so an item the user edits mid-run is left alone (counted unchanged).
-                    when (val result = colorRedetector.apply(item.id, proposed, onlyIfUncurated = onlyUncurated)) {
+                    // The write re-checks, in its transaction, that the photo is still the one
+                    // measured and (in only-unedited mode) colors_curated, so an item whose photo is
+                    // replaced or whose colours the user edits mid-run is left alone (counted unchanged).
+                    when (
+                        val result = colorRedetector.apply(
+                            item.id, proposed, measuredImagePath = imagePath, onlyIfUncurated = onlyUncurated,
+                        )
+                    ) {
                         is DataResult.Success -> if (result.data) {
                             done++
                             clothingRepository.revectorizeItem(item.id)

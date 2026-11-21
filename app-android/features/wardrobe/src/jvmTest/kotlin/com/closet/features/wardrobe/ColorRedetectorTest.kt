@@ -83,24 +83,26 @@ class ColorRedetectorTest {
     }
 
     @Test
-    fun `apply delegates to applyRedetectedColors`() = runTest {
-        coEvery { clothingRepository.applyRedetectedColors(7, extracted) } returns DataResult.Success(true)
+    fun `apply delegates to applyRedetectedColors with the measured photo`() = runTest {
+        coEvery { clothingRepository.applyRedetectedColors(7, extracted, "item.png") } returns DataResult.Success(true)
 
-        val result = redetector().apply(7, extracted)
+        val result = redetector().apply(7, extracted, measuredImagePath = "item.png")
 
         assertEquals(DataResult.Success(true), result)
-        coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(7, extracted) }
+        coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(7, extracted, "item.png") }
     }
 
     @Test
     fun `apply passes the only-if-uncurated guard through`() = runTest {
         coEvery {
-            clothingRepository.applyRedetectedColors(7, extracted, onlyIfUncurated = true)
+            clothingRepository.applyRedetectedColors(7, extracted, "item.png", onlyIfUncurated = true)
         } returns DataResult.Success(false)
 
-        val result = redetector().apply(7, extracted, onlyIfUncurated = true)
+        val result = redetector().apply(7, extracted, measuredImagePath = "item.png", onlyIfUncurated = true)
 
         assertEquals(DataResult.Success(false), result)
-        coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(7, extracted, onlyIfUncurated = true) }
+        coVerify(exactly = 1) {
+            clothingRepository.applyRedetectedColors(7, extracted, "item.png", onlyIfUncurated = true)
+        }
     }
 }

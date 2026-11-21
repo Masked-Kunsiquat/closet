@@ -44,15 +44,20 @@ class ColorRedetector(
 
     /**
      * Replaces the item's colours with [proposed] as auto rows and clears its curated flag.
+     * [measuredImagePath] is the photo [proposed] was measured from: nothing is written when the
+     * item's photo is no longer that one at write time (background removal replaced it).
      * With [onlyIfUncurated], nothing is written when the item is curated at write time (the bulk
      * job's only-unedited mode, so an edit made mid-run is never overwritten).
-     * @return true when written; false when [proposed] is empty or the guard skipped the item.
+     * @return true when written; false when [proposed] is empty, the photo changed, or the guard
+     *   skipped the item.
      */
     suspend fun apply(
         itemId: Long,
         proposed: List<ExtractedColor>,
+        measuredImagePath: String?,
         onlyIfUncurated: Boolean = false,
-    ): DataResult<Boolean> = clothingRepository.applyRedetectedColors(itemId, proposed, onlyIfUncurated)
+    ): DataResult<Boolean> =
+        clothingRepository.applyRedetectedColors(itemId, proposed, measuredImagePath, onlyIfUncurated)
 
     /** The reference shades, loaded once per instance; null when the load fails (retried next call). */
     private suspend fun referenceShades(): List<ReferenceShade>? = shadesLock.withLock {

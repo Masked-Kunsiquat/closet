@@ -40,8 +40,10 @@ class ClothingRepositoryColorsTest {
         testDb.db.lookupDao().getAllColors().first { it.name == name }.id
     }
 
-    private fun newItem(curated: Boolean = false): Long = runBlocking {
-        testDb.db.clothingDao().insertClothingItem(ClothingItemEntity(name = "Tee", colorsCurated = curated))
+    private fun newItem(curated: Boolean = false, imagePath: String? = null): Long = runBlocking {
+        testDb.db.clothingDao().insertClothingItem(
+            ClothingItemEntity(name = "Tee", imagePath = imagePath, colorsCurated = curated)
+        )
     }
 
     private fun curated(itemId: Long): Boolean = runBlocking {
@@ -259,7 +261,7 @@ class ClothingRepositoryColorsTest {
             ExtractedColor(colorId("Navy"), "#202B45", 0.3),
         )
 
-        val result = repo.applyRedetectedColors(item, extracted)
+        val result = repo.applyRedetectedColors(item, extracted, measuredImagePath = null)
 
         assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
         assertEquals(
@@ -275,7 +277,7 @@ class ClothingRepositoryColorsTest {
         val user = TaggedColor(colorId("Red"))
         repo.updateItemColors(item, listOf(user))
 
-        val result = repo.applyRedetectedColors(item, emptyList())
+        val result = repo.applyRedetectedColors(item, emptyList(), measuredImagePath = null)
 
         assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
         assertEquals(setOf(user.row(item)), rows(item))
@@ -293,6 +295,7 @@ class ClothingRepositoryColorsTest {
         val result = repo.applyRedetectedColors(
             item,
             listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)),
+            measuredImagePath = null,
             onlyIfUncurated = true,
         )
 
@@ -306,7 +309,40 @@ class ClothingRepositoryColorsTest {
         val item = newItem(curated = false)
         val extracted = listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0))
 
-        val result = repo.applyRedetectedColors(item, extracted, onlyIfUncurated = true)
+        val result = repo.applyRedetectedColors(item, extracted, measuredImagePath = null, onlyIfUncurated = true)
+
+        assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(
+            extracted.map { ClothingItemColorEntity(item, it.colorId, it.hex, it.share, ColorSource.AUTO) }.toSet(),
+            rows(item),
+        )
+        assertFalse(curated(item))
+    }
+
+    @Test
+    fun `applyRedetectedColors writes nothing when the photo changed since it was measured`() = runBlocking {
+        // Measured from old.png; background removal then replaced the photo with new.webp.
+        val item = newItem(imagePath = "new.webp")
+        val auto = TaggedColor(colorId("Red"), "#D62B2B", 1.0, ColorSource.AUTO)
+        repo.updateItemColors(item, listOf(auto))
+
+        val result = repo.applyRedetectedColors(
+            item,
+            listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0)),
+            measuredImagePath = "old.png",
+        )
+
+        assertEquals(false, assertIs<DataResult.Success<Boolean>>(result).data)
+        assertEquals(setOf(auto.row(item)), rows(item))
+    }
+
+    @Test
+    fun `applyRedetectedColors writes when the photo is the one measured`() = runBlocking {
+        val item = newItem(curated = true, imagePath = "item.webp")
+        repo.updateItemColors(item, listOf(TaggedColor(colorId("Red"))))
+        val extracted = listOf(ExtractedColor(colorId("Navy"), "#1F2A44", 1.0))
+
+        val result = repo.applyRedetectedColors(item, extracted, measuredImagePath = "item.webp")
 
         assertEquals(true, assertIs<DataResult.Success<Boolean>>(result).data)
         assertEquals(

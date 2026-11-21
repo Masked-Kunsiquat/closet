@@ -253,8 +253,11 @@ class ClothingDetailViewModel(
     /** The per-item colour re-detection: measuring, then a preview the user applies or cancels. */
     val redetectState: StateFlow<RedetectState> = _redetectState.asStateFlow()
 
-    /** The extraction behind the current [RedetectState.Preview]; what [onApplyRedetect] writes. */
-    private var pendingRedetect: List<ExtractedColor> = emptyList()
+    /**
+     * The extraction behind the current [RedetectState.Preview] and the photo it was measured from;
+     * what [onApplyRedetect] writes (only while the item still has that photo).
+     */
+    private var pendingRedetect: PendingRedetect? = null
     private var redetectJob: Job? = null
 
     /**
@@ -276,12 +279,12 @@ class ClothingDetailViewModel(
             // Show exactly what Apply writes: an id missing from the lookup can't be named, so drop it.
             val proposed = measured.filter { it.colorId in lookup }
             if (proposed.isEmpty()) {
-                pendingRedetect = emptyList()
+                pendingRedetect = null
                 _actionError.emit(UserMessage(Res.string.wardrobe_redetect_none))
                 _redetectState.value = RedetectState.Idle
                 return@launch
             }
-            pendingRedetect = proposed
+            pendingRedetect = PendingRedetect(proposed, imagePath)
             _redetectState.value = RedetectState.Preview(
                 current = latest.item.colors,
                 proposed = proposed.map { lookup.getValue(it.colorId).copy(hex = it.hex) to it.share },
@@ -292,11 +295,11 @@ class ClothingDetailViewModel(
     /** Writes the previewed colours (auto rows, curated flag cleared) and closes the preview. */
     fun onApplyRedetect() {
         if (_redetectState.value !is RedetectState.Preview) return
-        val proposed = pendingRedetect
-        pendingRedetect = emptyList()
+        val pending = pendingRedetect ?: return
+        pendingRedetect = null
         _redetectState.value = RedetectState.Idle
         viewModelScope.launch {
-            colorRedetector.apply(itemId, proposed).fold(
+            colorRedetector.apply(itemId, pending.colors, pending.measuredImagePath).fold(
                 onLoading = {},
                 onSuccess = { written -> if (written) clothingRepository.revectorizeItem(itemId) },
                 onError = { handleActionError(it) }
@@ -308,7 +311,7 @@ class ClothingDetailViewModel(
     fun onCancelRedetect() {
         redetectJob?.cancel()
         redetectJob = null
-        pendingRedetect = emptyList()
+        pendingRedetect = null
         _redetectState.value = RedetectState.Idle
     }
 
@@ -322,6 +325,9 @@ class ClothingDetailViewModel(
         }
     }
 }
+
+/** A previewed re-detection: the measured [colors] and the photo ([measuredImagePath]) they came from. */
+private data class PendingRedetect(val colors: List<ExtractedColor>, val measuredImagePath: String)
 
 /** State of the per-item colour re-detection on the detail screen. */
 sealed interface RedetectState {

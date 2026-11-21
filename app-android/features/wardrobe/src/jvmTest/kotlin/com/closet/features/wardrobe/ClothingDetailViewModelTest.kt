@@ -189,20 +189,21 @@ class ClothingDetailViewModelTest {
             ),
             vm.redetectState.value,
         )
-        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any()) }
+        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
     }
 
     @Test
     fun `apply writes the proposed colours and returns to Idle`() = runTest {
         givenItem()
         photoProcessor.colorsByPath["item.png"] = measured
-        coEvery { clothingRepository.applyRedetectedColors(42, any()) } returns DataResult.Success(true)
+        coEvery { clothingRepository.applyRedetectedColors(42, any(), any()) } returns DataResult.Success(true)
         val vm = subscribedViewModel()
 
         vm.onRedetectColors()
         vm.onApplyRedetect()
 
-        coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(42, measured) }
+        // Apply carries the photo that was measured, so the write can refuse a replaced photo.
+        coVerify(exactly = 1) { clothingRepository.applyRedetectedColors(42, measured, "item.png") }
         coVerify(exactly = 1) { clothingRepository.revectorizeItem(42) }
         assertEquals(RedetectState.Idle, vm.redetectState.value)
     }
@@ -211,7 +212,7 @@ class ClothingDetailViewModelTest {
     fun `apply that wrote nothing does not revectorize`() = runTest {
         givenItem()
         photoProcessor.colorsByPath["item.png"] = measured
-        coEvery { clothingRepository.applyRedetectedColors(42, any()) } returns DataResult.Success(false)
+        coEvery { clothingRepository.applyRedetectedColors(42, any(), any()) } returns DataResult.Success(false)
         val vm = subscribedViewModel()
 
         vm.onRedetectColors()
@@ -224,7 +225,7 @@ class ClothingDetailViewModelTest {
     fun `a failed apply is reported`() = runTest {
         givenItem()
         photoProcessor.colorsByPath["item.png"] = measured
-        coEvery { clothingRepository.applyRedetectedColors(42, any()) } returns DataResult.Error(RuntimeException("db"))
+        coEvery { clothingRepository.applyRedetectedColors(42, any(), any()) } returns DataResult.Error(RuntimeException("db"))
         val vm = subscribedViewModel()
         val errors = mutableListOf<UserMessage>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.actionError.toList(errors) }
@@ -250,7 +251,7 @@ class ClothingDetailViewModelTest {
         assertEquals(RedetectState.Idle, vm.redetectState.value)
         // After a cancel there is no preview left to apply.
         vm.onApplyRedetect()
-        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any()) }
+        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
     }
 
     @Test
@@ -266,7 +267,7 @@ class ClothingDetailViewModelTest {
         assertEquals(listOf("item.png"), photoProcessor.extractCalls)
         assertEquals(listOf(UserMessage(Res.string.wardrobe_redetect_none)), errors)
         assertEquals(RedetectState.Idle, vm.redetectState.value)
-        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any()) }
+        coVerify(exactly = 0) { clothingRepository.applyRedetectedColors(any(), any(), any()) }
     }
 
     @Test
