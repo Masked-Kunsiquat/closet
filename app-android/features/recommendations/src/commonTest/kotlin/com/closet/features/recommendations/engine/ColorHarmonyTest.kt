@@ -156,7 +156,7 @@ class ColorHarmonyTest {
     }
 
     @Test
-    fun `lowercase, padded and ARGB hexes parse`() {
+    fun `lowercase and padded and ARGB hexes parse`() {
         val plain = assertNotNull(ColorHarmony.harmonyColor(itemOf(tag("Red"))))
         assertEquals(plain, ColorHarmony.harmonyColor(itemOf(ColorHex(" #c41e3a ", "Warm", 1.0))))
         assertEquals(plain, ColorHarmony.harmonyColor(itemOf(ColorHex("#FFC41E3A", "Warm", 1.0))))
