@@ -77,12 +77,37 @@ private fun errorResult(message: String, validValues: List<String>? = null) = To
     emptySet(),
 )
 
-private fun ClothingItemDetail.toJson(): JsonObject = buildJsonObject {
+/** Colour id to share for each item id; one batched query for the items being returned. */
+private typealias ColorShares = Map<Long, Map<Long, Double>>
+
+private suspend fun ClothingDao.sharesFor(ids: List<Long>): ColorShares {
+    if (ids.isEmpty()) return emptyMap()
+    return getItemColorRowsForItems(ids)
+        .filter { it.share != null }
+        .groupBy({ it.clothingItemId }, { it.colorId to it.share!! })
+        .mapValues { (_, v) -> v.toMap() }
+}
+
+private fun roundShare(share: Double): Double = kotlin.math.round(share * 100.0) / 100.0
+
+private fun ClothingItemDetail.toJson(shares: Map<Long, Double> = emptyMap()): JsonObject = buildJsonObject {
     put("id", item.id)
     put("name", item.name)
     put("category", category?.name ?: "Uncategorized")
     subcategory?.let { put("subcategory", it.name) }
-    putJsonArray("colors") { colors.forEach { add(JsonPrimitive(it.name)) } }
+    // Shared colours first by descending share; the rest keep the relation order.
+    val withShare = colors.filter { it.id in shares }.sortedByDescending { shares.getValue(it.id) }
+    val ordered = withShare + colors.filter { it.id !in shares }
+    putJsonArray("colors") {
+        ordered.forEach { c ->
+            add(
+                buildJsonObject {
+                    put("name", c.name)
+                    shares[c.id]?.let { put("share", roundShare(it)) }
+                },
+            )
+        }
+    }
     put("wash_status", item.washStatus.label)
     put("wear_count", wearCount)
 }
@@ -105,25 +130,29 @@ private fun containsWholeWord(text: String, word: String): Boolean {
 }
 
 /** [matchKinds], when given, adds a `match` label to each item. */
-private fun itemsResult(
+private suspend fun ClothingDao.itemsResult(
     items: List<ClothingItemDetail>,
     extra: Map<String, JsonElement> = emptyMap(),
     matchKinds: Map<Long, String>? = null,
-) = ToolResult(
-    buildJsonObject {
-        put(
-            "items",
-            JsonArray(
-                items.map { d ->
-                    val kind = matchKinds?.get(d.item.id)
-                    if (kind == null) d.toJson() else JsonObject(d.toJson() + ("match" to JsonPrimitive(kind)))
-                },
-            ),
-        )
-        extra.forEach { (k, v) -> put(k, v) }
-    },
-    items.map { it.item.id }.toSet(),
-)
+): ToolResult {
+    val shares = sharesFor(items.map { it.item.id })
+    return ToolResult(
+        buildJsonObject {
+            put(
+                "items",
+                JsonArray(
+                    items.map { d ->
+                        val json = d.toJson(shares[d.item.id].orEmpty())
+                        val kind = matchKinds?.get(d.item.id)
+                        if (kind == null) json else JsonObject(json + ("match" to JsonPrimitive(kind)))
+                    },
+                ),
+            )
+            extra.forEach { (k, v) -> put(k, v) }
+        },
+        items.map { it.item.id }.toSet(),
+    )
+}
 
 /** Details for [ids], in [ids] order. Ids that no longer exist are skipped. */
 private suspend fun ClothingDao.detailsInOrder(ids: List<Long>): List<ClothingItemDetail> {
@@ -172,17 +201,20 @@ private class LookupResolver(private val lookupDao: LookupDao) {
 
     /** Validates [values] against the color table: exact, or as a whole word of a name. */
     suspend fun colors(values: List<String>): Resolved<ColorFilter> {
-        val names = lookupDao.getAllColors().map { it.name }
+        val all = lookupDao.getAllColors()
+        val names = all.map { it.name }
+        val terms = all.map { it.basicTerm }.filter { it.isNotEmpty() }.distinct()
         val matched = mutableSetOf<String>()
         val words = mutableListOf<String>()
         for (value in values) {
             val v = value.lowercase()
-            val hits = names.filter { name ->
-                val lower = name.lowercase()
-                lower == v || lower.split(' ', '-').contains(v)
+            val term = if (v == "grey") "gray" else v
+            val hits = all.filter { c ->
+                val lower = c.name.lowercase()
+                lower == v || lower.split(' ', '-').contains(v) || c.basicTerm.lowercase() == term
             }
-            if (hits.isEmpty()) return Resolved.Bad(errorResult("Unknown color '$value'.", names))
-            hits.forEach { matched += it.lowercase() }
+            if (hits.isEmpty()) return Resolved.Bad(errorResult("Unknown color '$value'.", names + terms))
+            hits.forEach { matched += it.name.lowercase() }
             words += v
         }
         return Resolved.Ok(ColorFilter(matched, words))
@@ -215,7 +247,7 @@ class SearchItemsTool(
         description = "Find items by text, color, category, season or occasion. Colors match tags or description text. Up to 20 items with id, name, category, colors, wash status, wear count.",
         params = listOf(
             ToolParam("query", ToolParamType.STRING, "Free text, e.g. 'warm wool sweater'. Ranks the results."),
-            ToolParam("colors", ToolParamType.STRING_ARRAY, "Color names; an item matching any of them is kept. 'blue' covers Royal Blue and Sky Blue."),
+            ToolParam("colors", ToolParamType.STRING_ARRAY, "Color names or basic terms; any match is kept. 'blue' covers Navy, Royal Blue, Sky Blue, Denim and Teal."),
             ToolParam("category", ToolParamType.STRING, "Category or subcategory name, e.g. 'Outerwear' or 'Jacket'."),
             ToolParam("season", ToolParamType.STRING, "Season name, e.g. 'Winter'."),
             ToolParam("occasion", ToolParamType.STRING, "Occasion name, e.g. 'Casual'."),
@@ -279,7 +311,7 @@ class SearchItemsTool(
             val (tagged, described) = ranked.partition { matchKind[it.item.id] == MATCH_TAGGED }
             tagged + described
         }
-        return itemsResult(
+        return clothingDao.itemsResult(
             ordered.take(limit),
             mapOf("total_matches" to JsonPrimitive(ordered.size)),
             if (colors == null) null else matchKind,
@@ -349,7 +381,7 @@ class GetItemsTool(private val clothingDao: ClothingDao) : WardrobeTool {
         if (raw.isEmpty()) return errorResult("item_ids is required.")
         val ids = raw.map { it.toLongOrNull() ?: return errorResult("Item id '$it' is not numeric.") }
             .distinct().take(MAX_ITEMS)
-        return itemsResult(clothingDao.detailsInOrder(ids))
+        return clothingDao.itemsResult(clothingDao.detailsInOrder(ids))
     }
 }
 
@@ -370,7 +402,7 @@ class WearHistoryTool(
         val logs = logRepository.getLogsForItem(id).first()
         return ToolResult(
             buildJsonObject {
-                put("item", detail.toJson())
+                put("item", detail.toJson(clothingDao.sharesFor(listOf(id))[id].orEmpty()))
                 put("wear_count", detail.wearCount)
                 put("last_worn", logs.firstOrNull()?.date?.let { JsonPrimitive(it) } ?: JsonNull)
                 putJsonArray("recent_dates") { logs.map { it.date }.distinct().take(5).forEach { add(JsonPrimitive(it)) } }
@@ -410,7 +442,7 @@ class ItemsNotWornSinceTool(
         val matching = clothingDao.detailsInOrder(ids).filter {
             it.item.status == ClothingStatus.Active && (category == null || it.category?.name == category)
         }
-        return itemsResult(
+        return clothingDao.itemsResult(
             matching.take(MAX_ITEMS),
             mapOf("total_matches" to JsonPrimitive(matching.size), "cutoff_date" to JsonPrimitive(cutoff)),
         )
@@ -448,7 +480,7 @@ class MostWornTool(
         val items = clothingDao.detailsInOrder(ids)
             .filter { category == null || it.category?.name == category }
             .take(limit)
-        return itemsResult(items)
+        return clothingDao.itemsResult(items)
     }
 }
 
@@ -471,14 +503,15 @@ class OutfitsWornOnTool(
         }
         val logs = logDao.getLogsForDateOnce(date)
         val allIds = mutableSetOf<Long>()
-        val outfits = logs.map { log ->
-            // Same 20-item cap as every other item list; ids come from the capped list.
-            val items = clothingDao.detailsInOrder(logDao.getItemIdsForLog(log.id)).take(MAX_ITEMS)
+        // Same 20-item cap as every other item list; ids come from the capped list.
+        val perLog = logs.map { log -> log to clothingDao.detailsInOrder(logDao.getItemIdsForLog(log.id)).take(MAX_ITEMS) }
+        val shares = clothingDao.sharesFor(perLog.flatMap { (_, items) -> items.map { it.item.id } }.distinct())
+        val outfits = perLog.map { (log, items) ->
             allIds += items.map { it.item.id }
             buildJsonObject {
                 put("outfit_name", log.outfitName?.let { JsonPrimitive(it) } ?: JsonNull)
                 put("is_ootd", log.isOotd == 1)
-                put("items", JsonArray(items.map { it.toJson() }))
+                put("items", JsonArray(items.map { it.toJson(shares[it.item.id].orEmpty()) }))
             }
         }
         return ToolResult(
@@ -500,7 +533,7 @@ class LaundryListTool(private val clothingDao: ClothingDao) : WardrobeTool {
 
     override suspend fun run(args: JsonObject): ToolResult {
         val items = clothingDao.detailsInOrder(clothingDao.getItemsNeedingWash().map { it.id })
-        return itemsResult(
+        return clothingDao.itemsResult(
             items.take(MAX_ITEMS),
             mapOf("total_matches" to JsonPrimitive(items.size)),
         )

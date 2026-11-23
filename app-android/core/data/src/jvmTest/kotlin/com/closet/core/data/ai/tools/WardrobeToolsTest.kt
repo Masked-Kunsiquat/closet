@@ -144,6 +144,70 @@ class WardrobeToolsTest {
         assertEquals(setOf(sneakersId), r.itemIds)
     }
 
+    // ─── Basic terms and shares ───────────────────────────────────────────────
+
+    private fun ToolResult.colorsOf(id: Long): List<JsonObject> =
+        obj()["items"]!!.jsonArray.first { it.jsonObject["id"]!!.jsonPrimitive.content.toLong() == id }
+            .jsonObject["colors"]!!.jsonArray.map { it.jsonObject }
+
+    private fun insertShared(name: String, vararg colors: Pair<String, Double?>): Long = runBlocking {
+        val id = insertItem(name, "Tops", "T-Shirt", emptyList())
+        db.clothingDao().updateItemColors(
+            id,
+            colors.map { (c, share) -> TaggedColor(idOf("colors", c), hex = null, share = share, source = "auto") },
+        )
+        id
+    }
+
+    @Test
+    fun blueFindsANavyItemAsATaggedMatch() {
+        val navyId = insertShared("Navy tee", "Navy" to 0.9)
+        val r = search(buildJsonObject { put("colors", strings("blue")) })
+        assertEquals("tagged", r.matches()[navyId])
+    }
+
+    @Test
+    fun basicTermsResolveCaseInsensitivelyAndGreyMeansGray() {
+        val navyId = insertShared("Navy tee", "Navy" to 0.9)
+        val charcoalId = insertShared("Charcoal tee", "Charcoal" to 1.0)
+        assertTrue(navyId in search(buildJsonObject { put("colors", strings("BLUE")) }).itemIdsInJson())
+        assertTrue(charcoalId in search(buildJsonObject { put("colors", strings("grey")) }).itemIdsInJson())
+        assertTrue(charcoalId in search(buildJsonObject { put("colors", strings("gray")) }).itemIdsInJson())
+    }
+
+    @Test
+    fun colorsCarrySharesOrderedByShare() {
+        val id = insertShared("Two tone", "White" to 0.38, "Navy" to 0.62)
+        val colors = search(buildJsonObject { put("colors", strings("navy")) }).colorsOf(id)
+        assertEquals("Navy", colors[0]["name"]!!.jsonPrimitive.content)
+        assertEquals(0.62, colors[0]["share"]!!.jsonPrimitive.content.toDouble())
+        assertEquals("White", colors[1]["name"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun aColorWithoutAShareHasNoShareKeyAndComesLast() {
+        val id = insertShared("Mixed", "Tan" to null, "Navy" to 0.5)
+        val colors = run("get_items", buildJsonObject { put("item_ids", strings(id.toString())) }).colorsOf(id)
+        assertEquals(listOf("Navy", "Tan"), colors.map { it["name"]!!.jsonPrimitive.content })
+        assertTrue("share" in colors[0].keys)
+        assertTrue("share" !in colors[1].keys)
+    }
+
+    @Test
+    fun wearHistoryItemCarriesShares() {
+        val id = insertShared("Two tone", "Navy" to 0.62)
+        val item = run("wear_history", buildJsonObject { put("item_id", id) }).obj()["item"]!!.jsonObject
+        assertEquals(0.62, item["colors"]!!.jsonArray[0].jsonObject["share"]!!.jsonPrimitive.content.toDouble())
+    }
+
+    @Test
+    fun unknownColorListsBasicTermsInValidValues() {
+        val r = search(buildJsonObject { put("colors", strings("chartreuse")) })
+        val valid = r.obj()["valid_values"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue("blue" in valid)
+        assertTrue("Navy" in valid)
+    }
+
     @Test
     fun searchItemShapeHasDocumentedFields() {
         val r = search(buildJsonObject { put("colors", strings("grey")) })

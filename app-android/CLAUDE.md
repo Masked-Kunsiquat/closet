@@ -164,7 +164,7 @@ Provider details:
 - **Forced tools-off final step:** Nano and Gemini flatten tool history to text; Anthropic keeps `tools` with `tool_choice: none`; OpenAI omits tools.
 - **OpenAI-compatible rejection** of tools is remembered per base URL + model, and that message is retried on router + RAG.
 - **Malformed arguments** (unparseable, or not a JSON object) carry `ARGS_PARSE_ERROR_KEY`, so the runner returns an error without running the tool. Absent or null arguments mean `{}`.
-- **Color matching** in `search_items` uses tagged colors or whole-word mentions in `semanticDescription` / `imageCaption`; each item carries `match: "tagged" | "description"` and tagged matches come first.
+- **Color matching** in `search_items` uses tagged colors or whole-word mentions in `semanticDescription` / `imageCaption`; each item carries `match: "tagged" | "description"` and tagged matches come first. Basic terms resolve as tagged matches ("blue" covers Navy, Royal Blue, Sky Blue, Denim, Teal; "grey" is treated as "gray"), and item results carry `colors: [{name, share}]` (share omitted when null, shared colours first by descending share).
 
 `CancellationException` must be rethrown at every `getOrElse` / `Result` unwrap point - never swallow it.
 
