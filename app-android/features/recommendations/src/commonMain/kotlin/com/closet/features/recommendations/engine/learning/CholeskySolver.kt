@@ -6,7 +6,7 @@ import kotlin.math.sqrt
  * Pure-Kotlin Cholesky solver ($A = L L^\top$) for small symmetric positive-definite (SPD)
  * systems $A x = b$.
  *
- * Used by [ConditionalLogitOptimizer] to solve the $8 \times 8$ Newton-Raphson system
+ * Used by [ConditionalLogitOptimizer] to solve the $10 \times 10$ Newton-Raphson system
  * $(\sum_d \text{Cov}_d(\tilde{x}) + \lambda I) \Delta\tilde{\beta} = g(\tilde{\beta})$
  * in microseconds without external linear algebra dependencies.
  */

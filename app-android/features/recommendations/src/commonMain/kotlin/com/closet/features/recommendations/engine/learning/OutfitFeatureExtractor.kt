@@ -12,13 +12,13 @@ import kotlin.math.ln
 import kotlin.math.pow
 
 /**
- * Pure feature extractor that maps a candidate (or partial) outfit into the 8-dimensional
- * log-feature vector $x \in \mathbb{R}^8$ consumed by [TasteWeights] and the conditional logit solver.
+ * Pure feature extractor that maps a candidate (or partial) outfit into the 10-dimensional
+ * log-feature vector $x \in \mathbb{R}^{10}$ consumed by [TasteWeights] and the conditional logit solver.
  */
 internal object OutfitFeatureExtractor {
 
     /**
-     * Extracts the 8-dimensional feature vector $x$ for [items]:
+     * Extracts the 10-dimensional feature vector $x$ for [items]:
      * - $x_0 = \ln(\text{meanItem})$
      * - $x_1 = (1 - W) \ln(\text{hueMultiplier})$
      * - $x_2 = (1 - W) \ln(\text{familyMultiplier})$
@@ -27,6 +27,8 @@ internal object OutfitFeatureExtractor {
      * - $x_5 = W \ln(H)$
      * - $x_6 = \ln(\text{layeringMultiplier})$
      * - $x_7 = \ln(\text{footwearMultiplier})$
+     * - $x_8 = (1 - W) \cdot \text{chromaMatch}$ (mean chroma gap over 0.1)
+     * - $x_9 = (1 - W) \cdot \text{lightnessSpread}$ (mean lightness gap of same-hue pairs over 0.1)
      */
     fun extract(
         items: List<EngineItem>,
@@ -79,6 +81,8 @@ internal object OutfitFeatureExtractor {
         features[TasteWeights.IDX_HISTORY_LIFT] = w * logH
         features[TasteWeights.IDX_LAYERING] = ln(layeringMultiplier)
         features[TasteWeights.IDX_FOOTWEAR] = ln(footwearMultiplier)
+        features[TasteWeights.IDX_CHROMA_MATCH] = ruleWeight * ColorHarmony.chromaMatchFeature(items)
+        features[TasteWeights.IDX_LIGHTNESS_SPREAD] = ruleWeight * ColorHarmony.lightnessSpreadFeature(items)
         return features
     }
 

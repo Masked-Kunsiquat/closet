@@ -9,8 +9,8 @@ import kotlin.math.sqrt
 /**
  * One logged choice stratum $d$ for conditional logistic regression (McFadden choice model).
  *
- * - [chosenFeatures]: feature vector $x_{\text{worn}, d} \in \mathbb{R}^8$ of the case ($y = 1$).
- * - [controlFeatures]: feature vectors $x_{d, k} \in \mathbb{R}^8$ of competing control candidates ($y = 0$).
+ * - [chosenFeatures]: feature vector $x_{\text{worn}, d} \in \mathbb{R}^{10}$ of the case ($y = 1$).
+ * - [controlFeatures]: feature vectors $x_{d, k} \in \mathbb{R}^{10}$ of competing control candidates ($y = 0$).
  *
  * The full candidate set $C_d$ is $\{x_{\text{worn}, d}\} \cup \text{controlFeatures}$.
  */

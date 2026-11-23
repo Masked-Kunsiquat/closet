@@ -490,7 +490,7 @@ class OutfitRecommendationEngine {
      *
      * When [tasteWeights] is not [com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT],
      * scales the baseline default score by the personalized log-linear conditional logit deviation
-     * $\exp((\beta - \beta_0)^\top x)$ over the 8 features extracted by
+     * $\exp((\beta - \beta_0)^\top x)$ over the 10 features extracted by
      * [com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor].
      */
     internal fun scoreCombo(

@@ -33,7 +33,7 @@ data class HistoricalWearLog(
  *
  * ### Core-Level IIA Mitigation
  * For a wear log on date $d$:
- * - **Case ($y = 1$):** The 8-dimensional feature vector of the actual worn outfit.
+ * - **Case ($y = 1$):** The 10-dimensional feature vector of the actual worn outfit.
  * - **Controls ($y = 0$):** Competing cores (Top × Bottom or OnePiece) available on date $d$,
  *   excluding the worn core and any other core worn in another log on the same date $d$.
  *   Each competing core is represented by its **single highest-default-scoring completion**

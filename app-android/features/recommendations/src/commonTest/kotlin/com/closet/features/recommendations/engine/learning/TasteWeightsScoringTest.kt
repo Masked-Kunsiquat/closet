@@ -45,6 +45,44 @@ class TasteWeightsScoringTest {
     }
 
     @Test
+    fun `default weights give the new features no effect`() {
+        val x = DoubleArray(TasteWeights.FEATURE_COUNT).apply { this[8] = 3.0; this[9] = 2.0 }
+        assertEquals(0.0, TasteWeights.DEFAULT.deltaDot(x), 0.0)
+        assertFalse(TasteWeights(chromaMatch = 1.5).isDefault)
+        assertTrue(TasteWeights(chromaMatch = 1.5).deltaDot(x) > 0.0)
+    }
+
+    @Test
+    fun `an 8-value stored string deserializes to DEFAULT`() {
+        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1.5,1,1,1,1,1,1,1"))
+    }
+
+    @Test
+    fun `a 10-value string round-trips`() {
+        val w = TasteWeights(meanItem = 1.2, chromaMatch = 0.7, lightnessSpread = 1.9)
+        assertEquals(w, TasteWeights.deserialize(w.serialize()))
+        assertEquals(10, w.toDoubleArray().size)
+    }
+
+    @Test
+    fun `extract fills indices 8 and 9 scaled by the rule weight`() {
+        val a = item(1L, colorHexes = listOf(ColorHex("#000080", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val b = item(2L, colorHexes = listOf(ColorHex("#4169E1", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val items = listOf(a, b)
+        val x = OutfitFeatureExtractor.extract(
+            items = items,
+            itemScores = emptyMap(),
+            weather = null,
+            hasFootwearInPool = false,
+            coWear = CoWearStats.EMPTY,
+        )
+        assertEquals(10, x.size)
+        assertEquals(com.closet.features.recommendations.engine.ColorHarmony.chromaMatchFeature(items), x[8], 1e-12)
+        assertEquals(com.closet.features.recommendations.engine.ColorHarmony.lightnessSpreadFeature(items), x[9], 1e-12)
+        assertTrue(x[8] > 0.0 && x[9] > 0.0)
+    }
+
+    @Test
     fun `colorHarmonyFactors product equals legacy colorHarmonyMultiplier across mixed hex and family pairs`() {
         val redHex = item(
             id = 1L,
@@ -74,7 +112,9 @@ class TasteWeightsScoringTest {
             hasFootwearInPool = true,
             coWear = CoWearStats.EMPTY,
         )
-        val logLinearScore = exp(TasteWeights.DEFAULT.dot(features))
+        // The learned-only features (8, 9) are outside the legacy blend; the offset in baselineOffset absorbs them.
+        val legacyFeatures = features.copyOf().also { it[TasteWeights.IDX_CHROMA_MATCH] = 0.0; it[TasteWeights.IDX_LIGHTNESS_SPREAD] = 0.0 }
+        val logLinearScore = exp(TasteWeights.DEFAULT.dot(legacyFeatures))
         val legacyScore = engine.scoreCombo(
             items = items,
             itemScores = itemScores,

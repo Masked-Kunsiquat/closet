@@ -2,6 +2,7 @@ package com.closet.features.recommendations.engine
 
 import com.closet.core.data.color.Lab
 import com.closet.core.data.color.Oklab
+import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
 
@@ -155,7 +156,45 @@ internal object ColorHarmony {
         )
     }
 
-    private val NO_EFFECT = ColorHarmonyFactors(1.0, 1.0)
+    /**
+     * Learned feature: the mean `|ΔC|` over every pair of harmony colors, divided by
+     * [FEATURE_SCALE]. 0.0 with fewer than two harmony colors. It only matters once its weight is
+     * learned away from 1.0.
+     */
+    fun chromaMatchFeature(items: List<EngineItem>): Double {
+        val colors = items.mapNotNull { harmonyColor(it) }
+        var sum = 0.0
+        var pairCount = 0
+        for (i in colors.indices) {
+            for (j in i + 1 until colors.size) {
+                sum += abs(colors[i].chroma - colors[j].chroma)
+                pairCount++
+            }
+        }
+        return if (pairCount == 0) 0.0 else sum / pairCount / FEATURE_SCALE
+    }
+
+    /**
+     * Learned feature: the mean `|ΔL|`, divided by [FEATURE_SCALE], over the harmony-color pairs
+     * whose warped wheel gap is at most 60 degrees. 0.0 when no pair qualifies.
+     */
+    fun lightnessSpreadFeature(items: List<EngineItem>): Double {
+        val colors = items.mapNotNull { harmonyColor(it) }
+        var sum = 0.0
+        var pairCount = 0
+        for (i in colors.indices) {
+            for (j in i + 1 until colors.size) {
+                if (ColorWheel.gap(colors[i].wheelHue, colors[j].wheelHue) > ANALOGOUS_MAX_DEG) continue
+                sum += abs(colors[i].lightness - colors[j].lightness)
+                pairCount++
+            }
+        }
+        return if (pairCount == 0) 0.0 else sum / pairCount / FEATURE_SCALE
+    }
+
+    private const val FEATURE_SCALE = 0.1
+
+    private val NO_EFFECT =ColorHarmonyFactors(1.0, 1.0)
 
     /**
      * Each tag's share clamped to [0, 1]. When any share is missing (a manual tag) or NaN, every

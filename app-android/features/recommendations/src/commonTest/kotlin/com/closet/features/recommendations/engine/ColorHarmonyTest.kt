@@ -160,4 +160,32 @@ class ColorHarmonyTest {
         assertEquals(plain, ColorHarmony.harmonyColor(itemOf(ColorHex(" #c41e3a ", "Warm", 1.0))))
         assertEquals(plain, ColorHarmony.harmonyColor(itemOf(ColorHex("#FFC41E3A", "Warm", 1.0))))
     }
+
+    @Test
+    fun `chroma match is the mean chroma gap over 0_1`() {
+        val ch = listOf("Red", "Forest Green", "Navy").map {
+            com.closet.core.data.color.Oklab.chroma(com.closet.core.data.color.Oklab.fromHex(seeded(it).hex))
+        }
+        val expected = (
+            kotlin.math.abs(ch[0] - ch[1]) + kotlin.math.abs(ch[0] - ch[2]) + kotlin.math.abs(ch[1] - ch[2])
+            ) / 3.0 / 0.1
+        val items = listOf(itemOf(tag("Red")), itemOf(tag("Forest Green")), itemOf(tag("Navy")))
+        assertEquals(expected, ColorHarmony.chromaMatchFeature(items), 1e-9)
+        assertEquals(0.0, ColorHarmony.chromaMatchFeature(items.take(1)), 0.0)
+        assertEquals(0.0, ColorHarmony.chromaMatchFeature(listOf(itemOf(tag("Red")), itemOf(tag("Grey")))), 0.0)
+    }
+
+    @Test
+    fun `lightness spread counts only pairs within 60 degrees`() {
+        val navy = com.closet.core.data.color.Oklab.fromHex(seeded("Navy").hex).l
+        val royal = com.closet.core.data.color.Oklab.fromHex(seeded("Royal Blue").hex).l
+        val within = ColorHarmony.lightnessSpreadFeature(listOf(itemOf(tag("Navy")), itemOf(tag("Royal Blue"))))
+        assertEquals(kotlin.math.abs(navy - royal) / 0.1, within, 1e-9)
+        assertEquals(true, within > 0.0)
+        assertEquals(
+            0.0,
+            ColorHarmony.lightnessSpreadFeature(listOf(itemOf(tag("Red")), itemOf(tag("Forest Green")))),
+            0.0,
+        )
+    }
 }
