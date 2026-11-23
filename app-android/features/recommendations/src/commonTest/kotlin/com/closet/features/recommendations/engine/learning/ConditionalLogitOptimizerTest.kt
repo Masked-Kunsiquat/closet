@@ -86,9 +86,10 @@ class ConditionalLogitOptimizerTest {
     @Test
     fun `synthetic clash lover learns negative color and pattern harmony weights`() {
         val rnd = Random(7)
-        // Generate 45 strata where the worn outfit deliberately chooses clashing hue (ln(0.90) < 0),
-        // clashing Bright+Bright family (ln(0.70) < 0), and multi-patterned clash (ln(0.75) < 0),
-        // while controls have harmonious positive log-multipliers.
+        // Synthetic feature values: the engine's own colour features are never negative (harmony
+        // is a bonus only), so these test the optimizer, not the engine. 45 strata where the worn
+        // outfit has negative hue and family features and a multi-patterned clash (ln(0.75) < 0),
+        // while controls have positive ones.
         val strata = List(45) {
             val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
                 this[TasteWeights.IDX_HUE_HARMONY] = ln(0.90) + rnd.nextDouble(-0.01, 0.01)

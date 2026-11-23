@@ -646,16 +646,6 @@ class OutfitRecommendationEngine {
     }
 }
 
-private val FAMILY_PRIORITY = listOf("Bright", "Warm", "Cool", "Earth", "Neutral")
-
-/**
- * The dominant color family of an item: the highest-priority family present
- * (Bright > Warm > Cool > Earth > Neutral), Neutral when none is tagged. Color harmony does not
- * use it: it reads the family of [ColorHarmony.harmonyColor].
- */
-internal fun dominantFamilyOf(families: Set<String>): String =
-    FAMILY_PRIORITY.firstOrNull { it in families } ?: "Neutral"
-
 /** The combo's core: its Top + Bottom IDs, or its OnePiece ID. Two combos with the same core
  *  differ only in outerwear, footwear or accessories. */
 internal fun OutfitCombo.core(): Set<Long> =

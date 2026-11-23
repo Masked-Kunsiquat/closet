@@ -1,6 +1,7 @@
 package com.closet.features.recommendations.engine
 
 import com.closet.core.data.DatabaseSeeder
+import com.closet.core.data.color.Oklab
 import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -164,7 +165,7 @@ class ColorHarmonyTest {
     @Test
     fun `chroma match is the mean chroma gap over 0_1`() {
         val ch = listOf("Red", "Forest Green", "Navy").map {
-            com.closet.core.data.color.Oklab.chroma(com.closet.core.data.color.Oklab.fromHex(seeded(it).hex))
+            Oklab.chroma(Oklab.fromHex(seeded(it).hex))
         }
         val expected = (
             kotlin.math.abs(ch[0] - ch[1]) + kotlin.math.abs(ch[0] - ch[2]) + kotlin.math.abs(ch[1] - ch[2])
@@ -177,8 +178,8 @@ class ColorHarmonyTest {
 
     @Test
     fun `lightness spread counts only pairs within 60 degrees`() {
-        val navy = com.closet.core.data.color.Oklab.fromHex(seeded("Navy").hex).l
-        val royal = com.closet.core.data.color.Oklab.fromHex(seeded("Royal Blue").hex).l
+        val navy = Oklab.fromHex(seeded("Navy").hex).l
+        val royal = Oklab.fromHex(seeded("Royal Blue").hex).l
         val within = ColorHarmony.lightnessSpreadFeature(listOf(itemOf(tag("Navy")), itemOf(tag("Royal Blue"))))
         assertEquals(kotlin.math.abs(navy - royal) / 0.1, within, 1e-9)
         assertEquals(true, within > 0.0)

@@ -1,9 +1,11 @@
 package com.closet.features.recommendations.engine.learning
 
 import com.closet.features.recommendations.engine.CoWearStats
+import com.closet.features.recommendations.engine.ColorHarmony
 import com.closet.features.recommendations.engine.ColorHex
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
+import com.closet.features.recommendations.engine.PairScorer
 import com.closet.features.recommendations.engine.engineInput
 import com.closet.features.recommendations.engine.inColors
 import com.closet.features.recommendations.engine.item
@@ -40,8 +42,8 @@ class TasteWeightsScoringTest {
         assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize(null))
         assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize(""))
         assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3"))
-        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,NaN"))
-        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,Infinity"))
+        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,8,9,NaN"))
+        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,8,9,Infinity"))
     }
 
     @Test
@@ -77,9 +79,30 @@ class TasteWeightsScoringTest {
             coWear = CoWearStats.EMPTY,
         )
         assertEquals(10, x.size)
-        assertEquals(com.closet.features.recommendations.engine.ColorHarmony.chromaMatchFeature(items), x[8], 1e-12)
-        assertEquals(com.closet.features.recommendations.engine.ColorHarmony.lightnessSpreadFeature(items), x[9], 1e-12)
+        assertEquals(ColorHarmony.chromaMatchFeature(items), x[8], 1e-12)
+        assertEquals(ColorHarmony.lightnessSpreadFeature(items), x[9], 1e-12)
         assertTrue(x[8] > 0.0 && x[9] > 0.0)
+    }
+
+    @Test
+    fun `extract scales indices 8 and 9 by one minus the history weight`() {
+        val a = item(1L, colorHexes = listOf(ColorHex("#000080", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val b = item(2L, colorHexes = listOf(ColorHex("#4169E1", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val items = listOf(a, b)
+        // Worn together 3 times, each worn 3 of 10 times: direct evidence 3, so 0 < W < 1.
+        val coWear = CoWearStats(
+            pairCounts = mapOf((1L to 2L) to 3.0),
+            itemCounts = mapOf(1L to 3.0, 2L to 3.0),
+            total = 10.0,
+        )
+        val w = PairScorer.history(a, b, coWear).weight
+        assertTrue(w > 0.0 && w < 1.0, "W must be strictly between 0 and 1, was $w")
+
+        val none = OutfitFeatureExtractor.extract(items, emptyMap(), null, false, CoWearStats.EMPTY)
+        val x = OutfitFeatureExtractor.extract(items, emptyMap(), null, false, coWear)
+        assertTrue(none[8] > 0.0 && none[9] > 0.0)
+        assertEquals((1.0 - w) * none[8], x[8], 1e-12)
+        assertEquals((1.0 - w) * none[9], x[9], 1e-12)
     }
 
     @Test
@@ -96,12 +119,16 @@ class TasteWeightsScoringTest {
             colorFamilies = setOf("Cool"),
             colorHexes = listOf(ColorHex("#00FFFF", "Cool")), // complementary to red (180 deg -> 1.05)
         )
-        val warmNoHex = item(
+        val blueHex = item(
             id = 3L,
             role = "Footwear",
-            colorFamilies = setOf("Warm"),
+            colorFamilies = setOf("Cool"),
+            // Cool + Cool with cyan: the same-family +0.10 beats their analogous hue (1.05), so the
+            // family side of the split is exercised.
+            colorHexes = listOf(ColorHex("#4169E1", "Cool")),
         )
-        val items = listOf(redHex, cyanHex, warmNoHex)
+        val items = listOf(redHex, cyanHex, blueHex)
+        assertTrue(OutfitFeatureExtractor.colorHarmonyFactors(items).familyMultiplier > 1.0)
         val itemScores = items.associate { it.id to 1.0 }
 
         // With W = 0, exp(DEFAULT.dot(features)) must equal legacy scoreCombo exactly

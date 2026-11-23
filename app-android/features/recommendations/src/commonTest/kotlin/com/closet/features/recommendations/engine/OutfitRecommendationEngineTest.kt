@@ -459,12 +459,12 @@ class OutfitRecommendationEngineTest {
     fun `Earth plus Warm takes the hue band not the family bonus`() {
         val items = listOf(
             item(id = 1, role = "Top").inColors("Olive"),
-            item(id = 2, role = "Bottom").inColors("Red")
+            item(id = 2, role = "Bottom").inColors("Orange")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // mean = 1.0; different families use the hue: about 150 degrees apart, just under the
-        // complementary band → 1.0 (the old Earth + Warm rule gave 1.05)
+        // mean = 1.0; different families use the hue: Olive and Orange are about 98 degrees apart,
+        // well clear of both bands → 1.0 (the old Earth + Warm rule gave 1.05)
         assertEquals(1.0, result[0].score, 0.001)
     }
 
@@ -496,24 +496,24 @@ class OutfitRecommendationEngineTest {
     @Test
     fun `Neutral plus anything has no effect`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Neutral")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"))
+            item(id = 1, role = "Top").inColors("Grey"),
+            item(id = 2, role = "Bottom").inColors("Red")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // Neutral skipped in pairwise check → no effect → score = 1.0
+        // Grey has no harmony color, so Red has no partner → no effect → score = 1.0
         assertEquals(1.0, result[0].score, 0.001)
     }
 
     @Test
     fun `item with no colors tagged treated as Neutral`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = emptySet()),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"))
+            item(id = 1, role = "Top"),
+            item(id = 2, role = "Bottom").inColors("Red")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // No-color item treated as Neutral → no pairwise effect → score = 1.0
+        // No-color item has no harmony color → no pairwise effect → score = 1.0
         assertEquals(1.0, result[0].score, 0.001)
     }
 

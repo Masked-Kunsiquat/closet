@@ -632,7 +632,7 @@ class RecommendationViewModel(
     /**
      * Resolves the user's personalized [TasteWeights] from [AiPreferencesRepository], retraining
      * on [computationDispatcher] when `totalLogCount >= 20` and the database log watermark
-     * (`"v1:$totalLogCount:$maxLogId"`) differs from the stored watermark.
+     * (`"$TASTE_WEIGHTS_SCHEMA_VERSION:$totalLogCount:$maxLogId"`) differs from the stored watermark.
      *
      * Any failure during training logs a warning and falls back to the stored or [TasteWeights.DEFAULT]
      * weights so recommendation generation is never blocked.

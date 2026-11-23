@@ -107,9 +107,6 @@ internal object OutfitFeatureExtractor {
      */
     fun colorHarmonyFactors(items: List<EngineItem>): ColorHarmonyFactors = ColorHarmony.factors(items)
 
-    /** The color-family rule for a pair of families; delegates to [ColorHarmony.familyRule]. */
-    fun pairHarmonyMultiplier(a: String, b: String): Double = ColorHarmony.familyRule(a, b)
-
     fun patternMixingMultiplier(items: List<EngineItem>): Double {
         val patternedCount = items.count { !it.isPatternSolid }
         return when {
