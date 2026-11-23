@@ -204,6 +204,7 @@ private class LookupResolver(private val lookupDao: LookupDao) {
         val all = lookupDao.getAllColors()
         val names = all.map { it.name }
         val terms = all.map { it.basicTerm }.filter { it.isNotEmpty() }.distinct()
+            .filter { term -> names.none { it.equals(term, ignoreCase = true) } }
         val matched = mutableSetOf<String>()
         val words = mutableListOf<String>()
         for (value in values) {
@@ -215,7 +216,13 @@ private class LookupResolver(private val lookupDao: LookupDao) {
             }
             if (hits.isEmpty()) return Resolved.Bad(errorResult("Unknown color '$value'.", names + terms))
             hits.forEach { matched += it.name.lowercase() }
-            words += v
+            // Descriptions may spell either way, so a grey/gray query matches both.
+            if (term == "gray") {
+                words += "grey"
+                words += "gray"
+            } else {
+                words += v
+            }
         }
         return Resolved.Ok(ColorFilter(matched, words))
     }

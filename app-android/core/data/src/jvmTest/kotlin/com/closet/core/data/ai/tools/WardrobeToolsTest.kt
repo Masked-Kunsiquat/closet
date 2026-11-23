@@ -206,6 +206,9 @@ class WardrobeToolsTest {
         val valid = r.obj()["valid_values"]!!.jsonArray.map { it.jsonPrimitive.content }
         assertTrue("blue" in valid)
         assertTrue("Navy" in valid)
+        // A basic term that is also a colour name (Black, Brown, Red...) is listed once, as the name.
+        assertTrue("black" !in valid)
+        assertTrue("Black" in valid)
     }
 
     @Test
@@ -248,12 +251,26 @@ class WardrobeToolsTest {
     }
 
     @Test
-    fun searchBlueMatchesRoyalAndSkyBlueButNavyOnlyByName() {
+    fun searchBlueMatchesTaggedBlueFamilyAndFindsNavyItemsToo() {
+        val navyId = insertShared("Navy tee", "Navy" to 0.9)
         val blue = search(buildJsonObject { put("colors", strings("blue")) })
-        assertEquals(listOf(shirtId), blue.itemIdsInJson())
+        assertEquals(setOf(shirtId, navyId), blue.itemIdsInJson().toSet())
+        // Narrowing to the name still works.
         val navy = search(buildJsonObject { put("colors", strings("navy")) })
-        assertTrue(navy.itemIdsInJson().isEmpty())
+        assertEquals(listOf(navyId), navy.itemIdsInJson())
         assertNull(navy.obj()["error"])
+    }
+
+    @Test
+    fun greyQueryAlsoMatchesGrayInDescriptions() {
+        val grayId = runBlocking { insertItem("Hoodie", "Tops", "T-Shirt", listOf("Tan"), description = "A soft gray hoodie") }
+        val greyId = runBlocking { insertItem("Cardigan", "Tops", "T-Shirt", listOf("Tan"), description = "A grey cardigan") }
+        for (q in listOf("grey", "gray")) {
+            val r = search(buildJsonObject { put("colors", strings(q)) })
+            assertEquals(setOf(overcoatId, grayId, greyId), r.itemIdsInJson().toSet())
+            assertEquals("description", r.matches()[grayId])
+            assertEquals("description", r.matches()[greyId])
+        }
     }
 
     private fun ToolResult.matches(): Map<Long, String> = obj()["items"]!!.jsonArray.associate {
@@ -430,6 +447,23 @@ class WardrobeToolsTest {
         val r = run("outfits_worn_on", buildJsonObject { put("date", "2026-03-03") })
         assertEquals(1, r.obj()["outfits"]!!.jsonArray.size)
         assertEquals(setOf(overcoatId), r.itemIds)
+    }
+
+    @Test
+    fun outfitsWornOnCarriesSharesAcrossSeveralLogsOfTheSameDay() {
+        val a = insertShared("Two tone", "Navy" to 0.62, "White" to 0.38)
+        val b = insertShared("Solid", "Red" to 1.0)
+        runBlocking {
+            db.logDao().insertAdHocLogAndSnapshot(OutfitLogEntity(date = "2026-05-05"), listOf(a))
+            db.logDao().insertAdHocLogAndSnapshot(OutfitLogEntity(date = "2026-05-05"), listOf(b))
+        }
+        val r = run("outfits_worn_on", buildJsonObject { put("date", "2026-05-05") })
+        val byId = r.obj()["outfits"]!!.jsonArray.flatMap { it.jsonObject["items"]!!.jsonArray }
+            .associate { it.jsonObject["id"]!!.jsonPrimitive.content.toLong() to it.jsonObject["colors"]!!.jsonArray.map { c -> c.jsonObject } }
+        assertEquals(setOf(a, b), byId.keys)
+        assertEquals(0.62, byId.getValue(a)[0]["share"]!!.jsonPrimitive.content.toDouble())
+        assertEquals(0.38, byId.getValue(a)[1]["share"]!!.jsonPrimitive.content.toDouble())
+        assertEquals(1.0, byId.getValue(b)[0]["share"]!!.jsonPrimitive.content.toDouble())
     }
 
     @Test
