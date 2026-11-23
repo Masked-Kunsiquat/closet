@@ -186,33 +186,37 @@ class EngineBeamTest {
      * layering waited for the complete outfit, the jacket-less partials with shoes would fill
      * the beam (cold) or the flattering jackets would (warm).
      */
-    private fun layeringPlacementItems(topFamily: String, jacketFamily: String) =
+    private fun layeringPlacementItems(topColor: String, jacketColor: String, patterned: Boolean = false) =
         listOf(
-            item(id = 1, role = "Top", warmthLayer = "Base", colorFamilies = setOf(topFamily), subcategoryId = 1),
+            item(id = 1, role = "Top", warmthLayer = "Base", isPatternSolid = !patterned, subcategoryId = 1)
+                .inColors(topColor),
             item(id = 2, role = "Bottom", warmthLayer = "Base", colorFamilies = setOf("Neutral"), subcategoryId = 2),
         ) + (3L..7L).map {
-            item(id = it, role = "Outerwear", warmthLayer = "Outer", colorFamilies = setOf(jacketFamily), subcategoryId = it)
+            item(id = it, role = "Outerwear", warmthLayer = "Outer", isPatternSolid = !patterned, subcategoryId = it)
+                .inColors(jacketColor)
         } + (8L..11L).map {
             item(id = it, role = "Footwear", colorFamilies = setOf("Neutral"), subcategoryId = it)
         } + item(id = 12, role = "Accessory", colorFamilies = setOf("Neutral"), subcategoryId = 12)
 
     @Test
     fun `cold weather keeps a mediocre jacket through a full footwear beam`() {
-        // Bright top + Bright jacket clash (x 0.70), still better than no layer (x 0.50).
+        // Patterned top + patterned jacket (x 0.75), still better than no layer (x 1.10 for the
+        // one pattern, x 0.50 for the cold = 0.55).
         val input = engineInput(
-            candidates = layeringPlacementItems(topFamily = "Bright", jacketFamily = "Bright"),
+            candidates = layeringPlacementItems(topColor = "Grey", jacketColor = "Grey", patterned = true),
             weather = weather(tempLow = -2.0, tempHigh = 3.0),
         )
         val top = engine.recommend(input).first()
         assertTrue(top.items.any { it.outfitRole == "Outerwear" }, "top was ${top.key()}")
-        assertEquals(0.70, top.score, 0.001)
+        assertEquals(0.75, top.score, 0.001)
     }
 
     @Test
     fun `warm weather drops a flattering jacket through a full footwear beam`() {
-        // Warm top + Warm jacket (x 1.10) loses to no layer once the warm penalty (x 0.75) applies.
+        // Red top + Burgundy jacket (same family, x 1.10) loses to no layer once the warm
+        // penalty (x 0.75) applies.
         val input = engineInput(
-            candidates = layeringPlacementItems(topFamily = "Warm", jacketFamily = "Warm"),
+            candidates = layeringPlacementItems(topColor = "Red", jacketColor = "Burgundy"),
             weather = weather(tempLow = 22.0, tempHigh = 30.0),
         )
         val top = engine.recommend(input).first()

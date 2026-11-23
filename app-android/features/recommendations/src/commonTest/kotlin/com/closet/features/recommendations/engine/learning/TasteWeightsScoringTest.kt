@@ -5,6 +5,7 @@ import com.closet.features.recommendations.engine.ColorHex
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.engineInput
+import com.closet.features.recommendations.engine.inColors
 import com.closet.features.recommendations.engine.item
 import com.closet.features.recommendations.engine.weather
 import kotlin.math.abs
@@ -167,27 +168,26 @@ class TasteWeightsScoringTest {
     }
 
     @Test
-    fun `negative familyHarmony weight flips ranking in favor of Bright+Bright clash`() {
-        val brightTop = item(1L, role = "Top", colorFamilies = setOf("Bright"))
-        val brightBottom = item(2L, role = "Bottom", colorFamilies = setOf("Bright"))
-        val earthTop = item(3L, role = "Top", colorFamilies = setOf("Earth"))
-        val earthBottom = item(4L, role = "Bottom", colorFamilies = setOf("Earth"))
+    fun `negative familyHarmony weight flips ranking against the same-family bonus`() {
+        val redTop = item(1L, role = "Top").inColors("Red")
+        val burgundyBottom = item(2L, role = "Bottom").inColors("Burgundy")
+        val oliveBottom = item(3L, role = "Bottom").inColors("Olive")
 
-        val candidates = listOf(brightTop, brightBottom, earthTop, earthBottom)
+        val candidates = listOf(redTop, burgundyBottom, oliveBottom)
 
-        // Default weights: Earth+Earth (1.10) beats Bright+Bright (0.70)
+        // Default weights: Red + Burgundy (Warm + Warm, 1.10) beats Red + Olive (hue only, 1.0)
         val defaultResults = engine.recommend(
             engineInput(candidates = candidates, tasteWeights = TasteWeights.DEFAULT),
             topN = 2,
         )
-        assertEquals(setOf(3L, 4L), defaultResults.first().items.map { it.id }.toSet())
+        assertEquals(setOf(1L, 2L), defaultResults.first().items.map { it.id }.toSet())
 
-        // Clash lover: negative familyHarmony weight makes Bright+Bright win
+        // Negative familyHarmony weight turns the same-family bonus into a penalty
         val clashWeights = TasteWeights(familyHarmony = -1.0)
         val clashResults = engine.recommend(
             engineInput(candidates = candidates, tasteWeights = clashWeights),
             topN = 2,
         )
-        assertEquals(setOf(1L, 2L), clashResults.first().items.map { it.id }.toSet())
+        assertEquals(setOf(1L, 3L), clashResults.first().items.map { it.id }.toSet())
     }
 }

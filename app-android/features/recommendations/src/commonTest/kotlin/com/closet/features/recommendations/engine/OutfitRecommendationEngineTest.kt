@@ -1,5 +1,6 @@
 package com.closet.features.recommendations.engine
 
+import com.closet.core.data.DatabaseSeeder
 import com.closet.core.data.dao.ItemLastWorn
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
@@ -445,49 +446,51 @@ class OutfitRecommendationEngineTest {
     @Test
     fun `same color family bonus applies plus 0_10`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Cool")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
+            item(id = 1, role = "Top").inColors("Royal Blue"),
+            item(id = 2, role = "Bottom").inColors("Sky Blue")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // mean = 1.0; same-family bonus = +0.10 → multiplier = 1.10
+        // mean = 1.0; Cool + Cool: the same-family +0.10 beats the analogous hue 1.05 → 1.10
         assertEquals(1.10, result[0].score, 0.001)
     }
 
     @Test
-    fun `Earth plus Warm bonus applies plus 0_05`() {
+    fun `Earth plus Warm takes the hue band not the family bonus`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Earth")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Warm"))
+            item(id = 1, role = "Top").inColors("Olive"),
+            item(id = 2, role = "Bottom").inColors("Red")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // mean = 1.0; Earth+Warm bonus = +0.05 → multiplier = 1.05
+        // mean = 1.0; different families use the hue: about 150 degrees apart, just under the
+        // complementary band → 1.0 (the old Earth + Warm rule gave 1.05)
+        assertEquals(1.0, result[0].score, 0.001)
+    }
+
+    @Test
+    fun `Bright plus Bright takes the hue band over the 0_70 clash`() {
+        val red = DatabaseSeeder.SEEDED_COLORS.single { it.name == "Red" }.hex
+        val items = listOf(
+            item(id = 1, role = "Top", colorFamilies = setOf("Bright"), colorHexes = listOf(ColorHex(red, "Bright"))),
+            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"), colorHexes = listOf(ColorHex(red, "Bright")))
+        )
+        val result = engine.recommend(engineInput(candidates = items))
+        assertEquals(1, result.size)
+        // mean = 1.0; same hue (analogous 1.05) beats the Bright + Bright family rule (0.70)
         assertEquals(1.05, result[0].score, 0.001)
     }
 
     @Test
-    fun `Bright plus Bright applies 0_70 multiplier`() {
+    fun `Warm plus Cool takes the hue band not the 0_85 clash`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Bright")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"))
+            item(id = 1, role = "Top").inColors("Red"),
+            item(id = 2, role = "Bottom").inColors("Royal Blue")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // mean = 1.0; Bright+Bright = × 0.70
-        assertEquals(0.70, result[0].score, 0.001)
-    }
-
-    @Test
-    fun `Warm plus Cool applies 0_85 multiplier`() {
-        val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
-        )
-        val result = engine.recommend(engineInput(candidates = items))
-        assertEquals(1, result.size)
-        // mean = 1.0; Warm+Cool = × 0.85
-        assertEquals(0.85, result[0].score, 0.001)
+        // mean = 1.0; about 110 degrees apart → 1.0 (the old Warm + Cool rule gave 0.85)
+        assertEquals(1.0, result[0].score, 0.001)
     }
 
     @Test
@@ -687,9 +690,9 @@ class OutfitRecommendationEngineTest {
     // =========================================================================
 
     @Test
-    fun `cold day with no outer and warm cool color clash combines multipliers`() {
-        val top = item(id = 1, role = "Top", colorFamilies = setOf("Warm"))
-        val bottom = item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
+    fun `cold day with no outer and a complementary pair combines multipliers`() {
+        val top = item(id = 1, role = "Top").inColors("Red")
+        val bottom = item(id = 2, role = "Bottom").inColors("Forest Green")
 
         val input = engineInput(
             candidates = listOf(top, bottom),
@@ -697,7 +700,7 @@ class OutfitRecommendationEngineTest {
         )
         val result = engine.recommend(input)
         assertEquals(1, result.size)
-        // mean = 1.0; cold-no-outer = × 0.50; warm+cool = × 0.85
-        assertEquals(1.0 * 0.50 * 0.85, result[0].score, 0.001)
+        // mean = 1.0; cold-no-outer = × 0.50; red + forest green (complementary) = × 1.05
+        assertEquals(1.0 * 0.50 * 1.05, result[0].score, 0.001)
     }
 }
