@@ -664,19 +664,22 @@ class OutfitRecommendationEngineTest {
 
     @Test
     fun `results are sorted descending by score`() {
-        // Create scenario where different combos have different scores
-        val highScoreTop = item(id = 1, role = "Top", colorFamilies = setOf("Cool"))
-        val highScoreBottom = item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
-        val lowScoreTop = item(id = 3, role = "Top", colorFamilies = setOf("Warm"))
-        val lowScoreBottom = item(id = 4, role = "Bottom", colorFamilies = setOf("Cool"))
+        // Two combos with different scores, driven by colour harmony (which reads the colour tags)
+        val top = item(id = 1, role = "Top").inColors("Red")
+        val complementaryBottom = item(id = 2, role = "Bottom").inColors("Forest Green")
+        val plainBottom = item(id = 3, role = "Bottom").inColors("Grey")
 
-        // highScore combo: Cool+Cool = same-family bonus +0.10 → score = 1.10
-        // lowScore combo: Warm+Cool = slight clash × 0.85 → score = 0.85
+        // Red + Forest Green: complementary → 1.05
+        // Red + Grey: Grey has no harmony colour → no effect → 1.0
         val result = engine.recommend(engineInput(
-            candidates = listOf(highScoreTop, highScoreBottom, lowScoreTop, lowScoreBottom)
+            candidates = listOf(top, plainBottom, complementaryBottom)
         ))
 
         assertTrue(result.isNotEmpty())
+        assertTrue(
+            result.map { it.score }.distinct().size >= 2,
+            "The scenario must produce at least two distinct scores, or the order check proves nothing"
+        )
         for (i in 0 until result.size - 1) {
             assertTrue(
                 result[i].score >= result[i + 1].score,
