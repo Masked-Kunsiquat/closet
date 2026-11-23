@@ -1,6 +1,6 @@
 # Color v2 PR 2: engine and chat read measured color (design)
 
-**Status:** draft for owner approval, 2026-11-20. Part of #81. The parent spec is `2026-11-19-color-v2-design.md`; this document settles that spec's PR 2 open points and does not repeat its research. The numbers below come from the spec's Oklab matrices and were recomputed by the controller.
+**Status:** approved 2026-11-20; done in PR #134. Part of #81. The parent spec is `2026-11-19-color-v2-design.md`; this document settles that spec's PR 2 open points and does not repeat its research. The numbers below come from the spec's Oklab matrices and were recomputed by the controller.
 
 ## Scope
 **In:**

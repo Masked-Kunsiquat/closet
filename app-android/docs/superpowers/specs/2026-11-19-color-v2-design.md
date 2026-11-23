@@ -1,6 +1,6 @@
 # Color v2 — design
 
-**Status:** approved for planning, 2026-11-19. Tracking issue: #81. The PR 1 plan is `docs/superpowers/plans/2026-11-19-color-v2-pr1-extraction-and-schema.md`.
+**Status:** approved for planning, 2026-11-19. Tracking issue: #81. PR 1 done in #127; PR 2 done in PR #134. The PR 1 plan is `docs/superpowers/plans/2026-11-19-color-v2-pr1-extraction-and-schema.md`.
 
 **Update (2026-11-20):** #128 delivered re-detect (per item and bulk) and the `colors_curated` marker; see `2026-11-20-color-redetect-design.md`.
 
@@ -121,7 +121,7 @@ The mask travels in the pixels' alpha channel; there is no separate mask paramet
 
 ## Delivery
 1. **PR 1:** the schema migration, seeds and shades; the `ColorExtractor` pipeline replacing Palette; the junction helpers; the demo-wardrobe accuracy check. Done in #127 (part of #81).
-2. **PR 2:** engine and chat consumers, threshold re-check, weights schema bump.
+2. **PR 2:** engine and chat consumers, threshold re-check, weights schema bump. Done in PR #134 (design: `2026-11-20-color-v2-pr2-design.md`).
 3. **PR 3 (optional):** the Nano overlay.
 
 ## Done when
