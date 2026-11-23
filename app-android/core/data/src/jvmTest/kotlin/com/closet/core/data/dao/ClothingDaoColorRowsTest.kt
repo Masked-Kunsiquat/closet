@@ -10,7 +10,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The batched colour-row read used by the colour-aware recommendation engine. */
+/** The batched colour-row read used by the chat tools (item results carry each colour's share). */
 class ClothingDaoColorRowsTest {
     private lateinit var testDb: TestDatabase
     private val dao: ClothingDao get() = testDb.db.clothingDao()
@@ -34,5 +34,19 @@ class ClothingDaoColorRowsTest {
         val rows = dao.getItemColorRowsForItems(listOf(b, a))
 
         assertEquals(listOf(a to 2L, a to 1L, b to 4L, b to 3L), rows.map { it.clothingItemId to it.colorId })
+    }
+
+    @Test fun `a row without a share sorts after the rows that have one`() = runBlocking {
+        val a = dao.insertClothingItem(ClothingItemEntity(name = "A"))
+        // Lowest colour id and no share: only the NULL ordering can put it last.
+        dao.updateItemColors(a, listOf(
+            TaggedColor(1, "#111111", null, ColorSource.USER),
+            TaggedColor(2, "#222222", 0.1, ColorSource.AUTO),
+            TaggedColor(3, "#333333", 0.9, ColorSource.AUTO),
+        ))
+
+        val rows = dao.getItemColorRowsForItems(listOf(a))
+
+        assertEquals(listOf(3L, 2L, 1L), rows.map { it.colorId })
     }
 }
