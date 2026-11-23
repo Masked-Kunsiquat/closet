@@ -461,22 +461,16 @@ class OutfitRecommendationEngine {
 
     /**
      * Within a list of candidates for the same role slot, remove items that share
-     * the same (color + subcategoryId) combination. Keeps the first occurrence
+     * the same [colorDedupKey] (colour names + subcategoryId). Keeps the first occurrence
      * (highest-ranked after sorting by score).
      *
-     * An item with no colors tagged is treated as having a unique key (its own ID),
-     * so it is never deduplicated against another item.
+     * Colour names, not families: harmony reads each item's colour, so Navy and Royal Blue
+     * (both Cool) or a Black and a White tee (both Neutral) must stay distinct. An item with
+     * neither hexes nor families has a unique key (its own ID), so it is never deduplicated.
      */
     private fun List<EngineItem>.deduplicateByColorAndSubcategory(): List<EngineItem> {
         val seen = mutableSetOf<String>()
-        return filter { item ->
-            val key = if (item.colorFamilies.isEmpty()) {
-                "no-color-${item.id}"
-            } else {
-                "${item.colorFamilies.sorted().joinToString(",")}::${item.subcategoryId}"
-            }
-            seen.add(key)
-        }
+        return filter { item -> seen.add(item.colorDedupKey()) }
     }
 
     // -------------------------------------------------------------------------

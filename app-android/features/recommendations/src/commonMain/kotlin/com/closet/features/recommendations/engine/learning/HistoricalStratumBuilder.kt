@@ -10,6 +10,7 @@ import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.ItemNeighbor
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
+import com.closet.features.recommendations.engine.colorDedupKey
 import kotlinx.datetime.LocalDate
 
 /**
@@ -532,16 +533,13 @@ internal object HistoricalStratumBuilder {
         )
     }
 
+    /**
+     * Keeps the first item per [colorDedupKey] (colour names + subcategory), the same key serving
+     * uses, so training controls match what the engine would show.
+     */
     private fun List<EngineItem>.deduplicateByColorAndSubcategory(): List<EngineItem> {
         val seen = mutableSetOf<String>()
-        return filter { item ->
-            val key = if (item.colorFamilies.isEmpty()) {
-                "no-color-${item.id}"
-            } else {
-                "${item.colorFamilies.sorted().joinToString(",")}::${item.subcategoryId}"
-            }
-            seen.add(key)
-        }
+        return filter { item -> seen.add(item.colorDedupKey()) }
     }
 
     private fun tieBreakKey(items: List<EngineItem>, lastWornDates: Map<Long, ItemLastWorn>): String =

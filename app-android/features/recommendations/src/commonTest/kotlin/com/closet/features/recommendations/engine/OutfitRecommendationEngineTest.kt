@@ -706,4 +706,55 @@ class OutfitRecommendationEngineTest {
         // mean = 1.0; cold-no-outer = × 0.50; red + forest green (complementary) = × 1.05
         assertEquals(1.0 * 0.50 * 1.05, result[0].score, 0.001)
     }
+
+    // =========================================================================
+    // Near-duplicate trimming
+    // =========================================================================
+
+    private fun topIds(candidates: List<EngineItem>): Set<Long> =
+        engine.recommend(engineInput(candidates = candidates), topN = 10)
+            .flatMap { combo -> combo.items.filter { it.outfitRole == "Top" }.map { it.id } }
+            .toSet()
+
+    @Test
+    fun `Navy and Royal Blue of one subcategory both survive trimming`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Grey")
+        val navy = item(id = 1, role = "Top", subcategoryId = 1).inColors("Navy")
+        val royal = item(id = 2, role = "Top", subcategoryId = 1).inColors("Royal Blue")
+        assertEquals(setOf(1L, 2L), topIds(listOf(navy, royal, bottom)))
+    }
+
+    @Test
+    fun `a Black tee and a White tee both survive trimming`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Red")
+        val black = item(id = 1, role = "Top", subcategoryId = 1).inColors("Black")
+        val white = item(id = 2, role = "Top", subcategoryId = 1).inColors("White")
+        assertEquals(setOf(1L, 2L), topIds(listOf(black, white, bottom)))
+    }
+
+    @Test
+    fun `two items tagged Navy with different measured shades collapse`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Grey")
+        val navy = item(id = 1, role = "Top", subcategoryId = 1).inColors("Navy")
+        val measured = item(id = 2, role = "Top", subcategoryId = 1).inColors("Navy").let { base ->
+            base.copy(colorHexes = base.colorHexes.map { it.copy(hex = "#202A5A", fallbackHex = it.hex) })
+        }
+        assertEquals(1, topIds(listOf(navy, measured, bottom)).size)
+    }
+
+    @Test
+    fun `items with only colour families still trim by family`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2, colorFamilies = setOf("Neutral"))
+        val a = item(id = 1, role = "Top", subcategoryId = 1, colorFamilies = setOf("Cool"))
+        val b = item(id = 2, role = "Top", subcategoryId = 1, colorFamilies = setOf("Cool"))
+        assertEquals(1, topIds(listOf(a, b, bottom)).size)
+    }
+
+    @Test
+    fun `the same colour in different subcategories never collapses`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Grey")
+        val a = item(id = 1, role = "Top", subcategoryId = 1).inColors("Navy")
+        val b = item(id = 2, role = "Top", subcategoryId = 3).inColors("Navy")
+        assertEquals(setOf(1L, 2L), topIds(listOf(a, b, bottom)))
+    }
 }
