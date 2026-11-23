@@ -159,8 +159,8 @@ internal object PairScorer {
      * [ColorHarmony.factors] weights pairs by share. Null when either item has no harmony color.
      */
     fun hueTerm(a: EngineItem, b: EngineItem): Double? {
-        val ca = ColorHarmony.harmonyColor(a) ?: return null
-        val cb = ColorHarmony.harmonyColor(b) ?: return null
+        val ca = a.harmony ?: return null
+        val cb = b.harmony ?: return null
         return ColorHarmony.hueMultiplier(ColorWheel.gap(ca.wheelHue, cb.wheelHue))
     }
 }

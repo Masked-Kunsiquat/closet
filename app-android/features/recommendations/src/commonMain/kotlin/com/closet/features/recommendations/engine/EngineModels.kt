@@ -26,7 +26,8 @@ import kotlinx.datetime.LocalDate
  * @property warmthLayer    Value of categories.warmth_layer
  *                          (None / Base / Mid / Outer). Null when uncategorised.
  * @property colorFamilies  Set of color_family strings for the item's tagged colors.
- *                          Empty when no colors are tagged; engine treats as Neutral.
+ *                          Empty when no colors are tagged. Color harmony does not read it (it
+ *                          reads [colorHexes]); it is kept for the family-level signals.
  * @property isPatternSolid True when the item's pattern junction is empty OR every
  *                          tagged pattern name is "Solid". False = patterned.
  * @property colorHexes     The item's tagged colors that have a hex (measured or named), each with
@@ -50,7 +51,13 @@ data class EngineItem(
     val formalityLevel: Double? = null,
     val subcategoryName: String? = null,
     val materials: Set<String> = emptySet(),
-)
+) {
+    /**
+     * This item's [ColorHarmony.harmonyColor], computed once. It lives in the body so it stays out
+     * of `equals`, `hashCode` and `copy`.
+     */
+    internal val harmony: HarmonyColor? by lazy { ColorHarmony.harmonyColor(this) }
+}
 
 /**
  * One tagged color, as color harmony ([ColorHarmony]) reads it.

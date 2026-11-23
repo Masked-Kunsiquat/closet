@@ -107,6 +107,10 @@ internal object ColorHarmony {
     /**
      * The coarse color-family rule for a pair of families. Bonuses are additive on 1.0; Bright +
      * Bright is a clash (× 0.70) and takes priority over the same-family bonus (+0.10).
+     *
+     * In [factors] only the same-family branch can win over the hue term, because a pair of
+     * different families always uses the hue term. Harmony is therefore a bonus only, in
+     * [1.0, 1.10]; the clash constants stay as they are (D7).
      */
     fun familyRule(a: String, b: String): Double {
         val pair = setOf(a, b)
@@ -130,7 +134,7 @@ internal object ColorHarmony {
      * are 1.0.
      */
     fun factors(items: List<EngineItem>): ColorHarmonyFactors {
-        val colors = items.mapNotNull { harmonyColor(it) }
+        val colors = items.mapNotNull { it.harmony }
         if (colors.size < 2) return NO_EFFECT
         var hueLog = 0.0
         var familyLog = 0.0
@@ -162,7 +166,7 @@ internal object ColorHarmony {
      * learned away from 1.0.
      */
     fun chromaMatchFeature(items: List<EngineItem>): Double {
-        val colors = items.mapNotNull { harmonyColor(it) }
+        val colors = items.mapNotNull { it.harmony }
         var sum = 0.0
         var pairCount = 0
         for (i in colors.indices) {
@@ -179,7 +183,7 @@ internal object ColorHarmony {
      * whose warped wheel gap is at most 60 degrees. 0.0 when no pair qualifies.
      */
     fun lightnessSpreadFeature(items: List<EngineItem>): Double {
-        val colors = items.mapNotNull { harmonyColor(it) }
+        val colors = items.mapNotNull { it.harmony }
         var sum = 0.0
         var pairCount = 0
         for (i in colors.indices) {
@@ -194,16 +198,16 @@ internal object ColorHarmony {
 
     private const val FEATURE_SCALE = 0.1
 
-    private val NO_EFFECT =ColorHarmonyFactors(1.0, 1.0)
+    private val NO_EFFECT = ColorHarmonyFactors(1.0, 1.0)
 
     /**
      * Each tag's share clamped to [0, 1]. When any share is missing (a manual tag) or NaN, every
      * tag counts `1 / n`.
      */
     private fun sharesOf(tags: List<ColorHex>): DoubleArray {
-        val even = 1.0 / tags.size
-        if (tags.any { it.share == null || it.share.isNaN() }) return DoubleArray(tags.size) { even }
-        return DoubleArray(tags.size) { (tags[it].share ?: even).coerceIn(0.0, 1.0) }
+        val raw = tags.map { it.share }
+        if (raw.any { it == null || it.isNaN() }) return DoubleArray(tags.size) { 1.0 / tags.size }
+        return DoubleArray(tags.size) { raw[it]!!.coerceIn(0.0, 1.0) }
     }
 
     /**
