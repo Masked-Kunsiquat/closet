@@ -83,6 +83,8 @@ kotlin {
             implementation(libs.androidx.ui.tooling.preview)
         }
         jvmTest.dependencies {
+            // The scoreboard builds a real ClothingDatabase, so Room types must be on the test classpath.
+            implementation(libs.room.runtime)
             implementation(libs.mockk)
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.test)
