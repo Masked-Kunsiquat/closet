@@ -30,8 +30,11 @@ jobs:
       matrix:
         include:
           - name: test
-            tasks: test :core:data:jvmTest
-            reports: app-android/**/build/reports/tests/
+            tasks: test :core:data:jvmTest :features:recommendations:scoreboard
+            # A multi-line value: upload-artifact's `path` takes one glob per line.
+            reports: |
+              app-android/**/build/reports/tests/
+              app-android/**/build/reports/scoreboard/
           - name: lint
             tasks: lint
             reports: app-android/**/build/reports/lint-results-*.html
