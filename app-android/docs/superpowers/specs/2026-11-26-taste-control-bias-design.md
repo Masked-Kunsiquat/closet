@@ -1,6 +1,6 @@
 # Taste learning: unbiased control outfits (design)
 
-**Status:** approved 2026-11-26 (drift bound ±3). Issue: #135. Follow-up issue: #136 (recency weighting).
+**Status:** approved 2026-11-26 (drift bound revised to [β₀−3, β₀+6]; stricter gate; replay tolerance). Issue: #135. Follow-up issue: #136 (recency weighting).
 
 ## Problem
 Taste learning (#118) fits a conditional logit. Each logged outfit, the *chosen* one, is compared against *controls*: outfits the user could have worn that day instead. `HistoricalStratumBuilder` builds those controls by **maximising the same default rules whose weights are being learned**, at three levels:
@@ -42,10 +42,22 @@ For a conditional logit fitted on a **sample** of alternatives, sampling the alt
 - `findBestCompletion` and `BEAM_PER_CORE_COMPLETION` are deleted. **Training gets cheaper,** because no completion search is scored.
 
 ### D3. A drift bound at every data size (safety net)
-- **The bound:** every learned weight is clamped to `β₀ ± MAX_DRIFT = 1 ± 3.0`, at any data size. The existing ±0.5 clamp for fewer than 30 strata stays.
-- **Why ±3:** a multiplier-type feature still moves at most to the cube of its effect. For example, the formality penalty × 0.85 could range between about × 0.61 and × 1.63.
+- **The bound (revised by the owner, 2026-11-26):** every learned weight is clamped to the **asymmetric** range `[β₀ − 3, β₀ + 6]`, which is `[−2, 7]`, at any data size. The existing ±0.5 clamp for fewer than 30 strata stays.
+- **Why asymmetric:** the failure that hurt users was a weight swinging hard **negative**, turning a rule into an anti-rule. So inversions are capped tightly at −3, while genuine preferences may strengthen up to +6.
+- **Measured on the planted replay fixture**, where the default scores hit 0.15 and LL −66.7 (learned hit / held-out LL):
+
+  | Bound | Hit | LL |
+  |---|---|---|
+  | ±3 | 0.20 | −59.6 |
+  | ±6 | 0.20 | −52.9 |
+  | **[−3, +6]** | 0.20 | −53.3 |
+  | none | 0.25 | −28.7 |
+
+  The unbounded fit needs `historyLift` around 31, which means "only re-suggest favourites". That runaway magnitude is exactly what the bound exists to stop.
 - **Why a bound at all:** it guards against model misspecification left over after D1–D2. It's not a fix for bias.
-- **Alternatives:** no bound (pure maximum likelihood), or ±2. Recommended: ±3.
+
+### D3b. A stricter acceptance gate (controller ruling, kept by the owner)
+`TasteWeightTrainer` accepts learned weights only when the chosen λ's mean held-out Δℓ is greater than its standard error. Otherwise it returns `DEFAULT`, so a user whose logs carry no real taste gets the defaults more often. About 16% of pure-noise sets still pass the gate, which is expected for a one-SE gate.
 
 ### D4. Retrain everyone
 - `TASTE_WEIGHTS_SCHEMA_VERSION` goes from `"v3"` to `"v4"`, so the inverted stored weights are discarded and retrained on next use.
@@ -62,6 +74,7 @@ Each test builds its fixture in a learning test, not in the replay fixture. #133
 | **Determinism** | the same logs twice, and with a different `today` | identical weights |
 
 - **Controls are uniform:** across many strata, the colour-harmony distribution of the controls matches that of all competing cores. Sample means agree within tolerance; under the old builder they were clearly above.
+- **Replay, no planted taste (revised by the owner):** the old strict check (learned LL ≥ fixed LL on random choices) is a coin flip once the controls are unbiased: both models sit at chance. It becomes **learned ≥ fixed − 0.05 × the number of held-out strata**, about 1 nat for 20, which is the expected optimism of a 10-parameter fit. The "no inversion" and "shoe-less" tests carry the real protection.
 - **Replay:** `ReplayCheckTest` floors hold. Report fixed and learned hit rate, and held-out log-likelihood, before and after. The likelihood comparison is now scored on unbiased controls, so its absolute value changes. That's expected.
 - **Performance:** training time on the large-wardrobe performance fixture must not regress.
 
