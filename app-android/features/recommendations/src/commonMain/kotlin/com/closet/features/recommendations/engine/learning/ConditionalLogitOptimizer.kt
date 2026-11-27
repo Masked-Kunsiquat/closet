@@ -4,7 +4,6 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
@@ -195,8 +194,8 @@ internal object ConditionalLogitOptimizer {
         //    THIN_DATA_MAX_DRIFT each way when N_strata < 30. The fallback comes first because
         //    coerceIn passes NaN through.
         val thinData = validStrata.size < THIN_DATA_STRATA_THRESHOLD
-        val driftDown = if (thinData) min(THIN_DATA_MAX_DRIFT, MAX_DRIFT_DOWN) else MAX_DRIFT_DOWN
-        val driftUp = if (thinData) min(THIN_DATA_MAX_DRIFT, MAX_DRIFT_UP) else MAX_DRIFT_UP
+        val driftDown = if (thinData) THIN_DATA_MAX_DRIFT else MAX_DRIFT_DOWN
+        val driftUp = if (thinData) THIN_DATA_MAX_DRIFT else MAX_DRIFT_UP
         val unstdBeta = DoubleArray(p) { j ->
             val rawWeight = if (active[j]) tildeBeta[j] / sigma[j] else beta0[j]
             val safeWeight = if (rawWeight.isFinite()) rawWeight else beta0[j]
