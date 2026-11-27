@@ -351,7 +351,7 @@ class RecommendationViewModelSessionTest {
                     every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
                     every { getOpenAiApiKey() } returns flowOf("test-key")
                     every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
-                    every { getTasteWeightsWatermark() } returns flowOf("v3:25:42")
+                    every { getTasteWeightsWatermark() } returns flowOf("v4:25:42")
                     every { getTasteWeightsRaw() } returns flowOf(customWeights.serialize())
                 },
                 computationDispatcher = UnconfinedTestDispatcher(),

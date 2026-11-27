@@ -57,9 +57,14 @@ class ReplayCheckTest {
             learnedRandom.hitRateAt10 >= fixedRandom.hitRateAt10,
             "Expected no regression on random fixture: learned hit-rate@10 (${learnedRandom.hitRateAt10}) vs fixed (${fixedRandom.hitRateAt10})"
         )
+        // With unbiased controls (#135) both models sit at chance on this fixture (about
+        // heldOutCount * ln 31), so a strict comparison is a coin flip. About 1 nat is the expected
+        // optimism of a 10-parameter fit; 0.05 nats per held-out stratum (1 nat at 20) allows that
+        // and still catches a real regression.
+        val tolerance = NO_TASTE_LOG_LIK_SLACK_PER_STRATUM * learnedRandom.heldOutCount
         assertTrue(
-            learnedRandom.heldOutLogLik >= fixedRandom.heldOutLogLik - 1e-6,
-            "Expected no log-likelihood regression on random fixture: learned (${learnedRandom.heldOutLogLik}) vs fixed (${fixedRandom.heldOutLogLik})"
+            learnedRandom.heldOutLogLik >= fixedRandom.heldOutLogLik - tolerance,
+            "Expected no log-likelihood regression on random fixture: learned (${learnedRandom.heldOutLogLik}) vs fixed (${fixedRandom.heldOutLogLik}), tolerance $tolerance"
         )
     }
 
@@ -72,5 +77,8 @@ class ReplayCheckTest {
          * The second no-regression floor for later PRs.
          */
         const val IMPROVED_HIT_RATE = 0.15
+
+        /** Held-out log-likelihood slack per stratum on the no-planted-taste fixture (#135). */
+        const val NO_TASTE_LOG_LIK_SLACK_PER_STRATUM = 0.05
     }
 }

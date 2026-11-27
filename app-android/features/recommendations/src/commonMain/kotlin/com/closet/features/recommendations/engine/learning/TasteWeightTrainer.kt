@@ -15,12 +15,15 @@ import kotlin.math.sqrt
  * @property selectedLambda     Chosen $L_2$ regularization strength $\lambda^*$, or `null` if cold start / fallback.
  * @property meanLogLikDelta    Mean per-stratum held-out conditional log-likelihood improvement over [TasteWeights.DEFAULT].
  * @property strataCount        Total valid choice strata constructed from the wear logs.
+ * @property meanLogLikDeltaStandardError Standard error of [meanLogLikDelta] across the held-out strata
+ *                              (0.0 when cross-validation did not run).
  */
 data class TasteTrainingResult(
     val weights: TasteWeights,
     val selectedLambda: Double?,
     val meanLogLikDelta: Double,
     val strataCount: Int,
+    val meanLogLikDeltaStandardError: Double = 0.0,
 )
 
 /**
@@ -31,8 +34,10 @@ data class TasteTrainingResult(
  * 3. Evaluates the log-spaced regularization path $\lambda \in \{100.0, 30.0, 10.0, 3.0, 1.0, 0.3, 0.1\}$
  *    from $\lambda_{\max}$ down to $\lambda_{\min}$ using warm starts across expanding time-ordered folds.
  * 4. Selects $\lambda^*$ using the **one-standard-error rule** toward stronger regularization (larger $\lambda$).
- * 5. If held-out log-likelihood does not improve over [TasteWeights.DEFAULT] ($\overline{\Delta\ell}(\lambda^*) \le 0$),
- *    falls back to [TasteWeights.DEFAULT]; otherwise refits on all $N_{\text{strata}}$ at $\lambda^*$.
+ * 5. If the held-out improvement over [TasteWeights.DEFAULT] does not exceed twice its standard
+ *    error ($\overline{\Delta\ell}(\lambda^*) \le 2\,\text{SE}(\lambda^*)$, or $\le 0$; see
+ *    [GATE_SE_MULTIPLIER]), falls back to
+ *    [TasteWeights.DEFAULT]; otherwise refits on all $N_{\text{strata}}$ at $\lambda^*$.
  */
 internal object TasteWeightTrainer {
 
@@ -41,6 +46,14 @@ internal object TasteWeightTrainer {
      * enabling warm starts along the path (Reid & Tibshirani 2014, §2.6).
      */
     internal val LAMBDA_PATH = doubleArrayOf(100.0, 30.0, 10.0, 3.0, 1.0, 0.3, 0.1)
+
+    /**
+     * The acceptance gate's multiple of the standard error (#135, design D3b): learned weights are
+     * kept only when the chosen lambda's mean held-out gain exceeds this many standard errors. At
+     * one SE about 15% of pure-noise histories passed, and their fits inverted rules down to the
+     * drift floor; at two SE none of the 20 noise seeds in `LearningOutcomeTest` passes.
+     */
+    internal const val GATE_SE_MULTIPLIER = 2.0
 
     private const val MIN_INITIAL_TRAIN_STRATA = 10
     private const val MAX_EXPANDING_FOLDS = 5
@@ -190,13 +203,14 @@ internal object TasteWeightTrainer {
         }
 
         val selectedMeanDelta = meanDeltas[selectedIdx]
-        if (selectedMeanDelta <= 0.0) {
-            // Learned weights did not improve out-of-sample log-likelihood over the prior
+        if (!passesImprovementGate(selectedMeanDelta, seDeltas[selectedIdx])) {
+            // The held-out gain over the prior is not distinguishable from noise
             return TasteTrainingResult(
                 weights = prior,
                 selectedLambda = null,
                 meanLogLikDelta = selectedMeanDelta,
                 strataCount = n,
+                meanLogLikDeltaStandardError = seDeltas[selectedIdx],
             )
         }
 
@@ -219,6 +233,15 @@ internal object TasteWeightTrainer {
             selectedLambda = chosenLambda,
             meanLogLikDelta = selectedMeanDelta,
             strataCount = n,
+            meanLogLikDeltaStandardError = seDeltas[selectedIdx],
         )
     }
+
+    /**
+     * The learned weights are kept only when the chosen $\lambda$'s mean held-out gain beats
+     * [GATE_SE_MULTIPLIER] (2) times its own standard error (the one the one-SE rule uses), so a
+     * gain at noise level falls back to the prior (#135, D3b). A non-positive gain always fails, including when the standard error is 0.
+     */
+    private fun passesImprovementGate(meanDelta: Double, standardError: Double): Boolean =
+        meanDelta > 0.0 && meanDelta > GATE_SE_MULTIPLIER * standardError
 }

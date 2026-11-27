@@ -18,11 +18,13 @@ import com.closet.features.recommendations.engine.learning.TasteWeights
  * @property hitRateAt10        Fraction of held-out logs whose worn core appeared in the top-10 results.
  * @property heldOutLogLik      Total conditional log-likelihood across the held-out strata.
  * @property finalLearnedWeights The [TasteWeights] fitted on the history preceding the last held-out log.
+ * @property heldOutCount       Number of held-out strata evaluated (those [heldOutLogLik] sums over).
  */
 internal data class ReplayEvaluation(
     val hitRateAt10: Double,
     val heldOutLogLik: Double,
     val finalLearnedWeights: TasteWeights,
+    val heldOutCount: Int,
 )
 
 /**
@@ -97,6 +99,7 @@ internal fun evaluateReplay(
         hitRateAt10 = if (evaluatedCount == 0) 0.0 else hits.toDouble() / evaluatedCount,
         heldOutLogLik = totalHeldOutLL,
         finalLearnedWeights = lastWeights,
+        heldOutCount = evaluatedCount,
     )
 }
 

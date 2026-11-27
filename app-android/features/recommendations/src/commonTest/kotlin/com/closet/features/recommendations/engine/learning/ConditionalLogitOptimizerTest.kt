@@ -146,6 +146,57 @@ class ConditionalLogitOptimizerTest {
     }
 
     @Test
+    fun `drift bound clamps every data size and keeps the non-finite fallback`() {
+        // 50 strata (>= 30, so the thin-data clamp is off) with complete separation on three
+        // features at the smallest lambda: maximum likelihood runs far past both edges of
+        // [1 - 3, 1 + 6]. Formality separates downward and hue harmony upward.
+        val separable = List(50) { d ->
+            val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                this[TasteWeights.IDX_FORMALITY_GAP] = ln(0.85) * (1.0 + (d % 3) * 0.1)
+                this[TasteWeights.IDX_HUE_HARMONY] = ln(1.05) * (1.0 + (d % 2) * 0.1)
+                this[TasteWeights.IDX_PATTERN_MIX] = ln(0.75)
+            }
+            val controls = List(4) { k ->
+                DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                    this[TasteWeights.IDX_FORMALITY_GAP] = -0.01 * k
+                    this[TasteWeights.IDX_PATTERN_MIX] = ln(1.10) * (k % 2)
+                }
+            }
+            ChoiceStratum(chosen, controls)
+        }
+        val lower = 1.0 - ConditionalLogitOptimizer.MAX_DRIFT_DOWN
+        val upper = 1.0 + ConditionalLogitOptimizer.MAX_DRIFT_UP
+        val bounded = ConditionalLogitOptimizer.fit(separable, lambda = ConditionalLogitOptimizer.MIN_LAMBDA)
+        for ((j, w) in bounded.toDoubleArray().withIndex()) {
+            assertTrue(w >= lower && w <= upper, "Weight $j = $w is outside [$lower, $upper]")
+        }
+        // Both edges are reached, so the bound is what holds the separated features.
+        assertEquals(lower, bounded.formalityGap, 1e-9)
+        assertEquals(upper, bounded.hueHarmony, 1e-9)
+
+        // A feature whose spread overflows to infinity standardises to NaN: it falls back to beta0
+        // before the clamp, which would otherwise pass NaN through.
+        val overflowing = List(40) { d ->
+            val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                this[TasteWeights.IDX_HISTORY_LIFT] = 1e200
+                this[TasteWeights.IDX_FORMALITY_GAP] = ln(0.85) * (1.0 + (d % 3) * 0.1)
+            }
+            val controls = List(4) { k ->
+                DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                    this[TasteWeights.IDX_HISTORY_LIFT] = -1e200
+                    this[TasteWeights.IDX_FORMALITY_GAP] = -0.01 * k
+                }
+            }
+            ChoiceStratum(chosen, controls)
+        }
+        val fallback = ConditionalLogitOptimizer.fit(overflowing, lambda = 1.0)
+        assertEquals(1.0, fallback.historyLift, 0.0)
+        for ((j, w) in fallback.toDoubleArray().withIndex()) {
+            assertTrue(w.isFinite(), "Weight $j should be finite, was $w")
+        }
+    }
+
+    @Test
     fun `determinism - identical inputs yield bit-for-bit identical TasteWeights`() {
         val rnd = Random(99)
         val strata = List(32) {
