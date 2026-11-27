@@ -87,4 +87,27 @@ class FixtureWriterTest {
             }
         }
     }
+
+    // Two swatches the app names the same colour become one tag, as ColorExtractor does: shares
+    // add, and the hex is the share-weighted mean in linear RGB.
+    @Test
+    fun `swatches named the same colour merge into one row`() = runTest {
+        ScoreboardDatabase().use { env ->
+            val base = MiniPersona.build()
+            val namer = ColorNamer(env.db.lookupDao().getAllColorShades().map { ReferenceShade(it.colorId, it.hex) })
+            val dark = "#1F2A44"
+            val near = "#222D47"
+            assertEquals(namer.nearest(Oklab.fromHex(dark)), namer.nearest(Oklab.fromHex(near)))
+            val item = base.items.first().copy(colors = listOf(dark to 0.5, near to 0.25))
+            val written = FixtureWriter.write(env.db, base.copy(items = listOf(item) + base.items.drop(1)))
+
+            val rows = env.db.clothingDao().getItemColorRows(written.itemIds.getValue(item.key))
+            assertEquals(1, rows.size)
+            assertEquals(namer.nearest(Oklab.fromHex(dark)), rows.single().colorId)
+            assertEquals(0.75, rows.single().share!!, 1e-9)
+            val lin = { hex: String, i: Int -> Oklab.srgbToLinear(hex.substring(1 + 2 * i, 3 + 2 * i).toInt(16) / 255.0) }
+            val mean = DoubleArray(3) { i -> (0.5 * lin(dark, i) + 0.25 * lin(near, i)) / 0.75 }
+            assertEquals(Oklab.hexFromLinear(mean[0], mean[1], mean[2]), rows.single().hex)
+        }
+    }
 }

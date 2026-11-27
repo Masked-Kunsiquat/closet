@@ -76,8 +76,15 @@ data class Persona(
         chance("homeNoShoesChance", homeNoShoesChance)
         require(weekSchedule.size == 7) { "Persona $name: weekSchedule needs 7 entries, has ${weekSchedule.size}" }
         require(wearsBeforeWash >= 1) { "Persona $name: wearsBeforeWash must be at least 1, is $wearsBeforeWash" }
+        fun requireUnique(kind: String, keys: List<String>) {
+            val duplicates = keys.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+            require(duplicates.isEmpty()) { "Persona $name: duplicate $kind key(s) $duplicates" }
+        }
+        requireUnique("item", items.map { it.key })
+        requireUnique("outfit", outfits.map { it.key })
         val keys = items.map { it.key }.toSet()
         for (outfit in outfits) {
+            require(outfit.itemKeys.isNotEmpty()) { "Persona $name: outfit ${outfit.key} has no items" }
             require(outfit.favouriteWeight > 0.0) {
                 "Persona $name: outfit ${outfit.key} favouriteWeight must be > 0, is ${outfit.favouriteWeight}"
             }

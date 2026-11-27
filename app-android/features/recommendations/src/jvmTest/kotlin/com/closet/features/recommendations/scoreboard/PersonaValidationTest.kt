@@ -38,6 +38,18 @@ class PersonaValidationTest {
     }
 
     @Test
+    fun `a duplicate item key is rejected`() =
+        assertRejected(base.copy(items = base.items + base.items.first()), "duplicate item key")
+
+    @Test
+    fun `a duplicate outfit key is rejected`() =
+        assertRejected(base.copy(outfits = base.outfits + base.outfits.first()), "duplicate outfit key")
+
+    @Test
+    fun `an outfit with no items is rejected`() =
+        assertRejected(base.copy(outfits = base.outfits + base.outfits.first().copy(key = "empty", itemKeys = emptyList())), "has no items")
+
+    @Test
     fun `wears before wash below one is rejected`() =
         assertRejected(base.copy(wearsBeforeWash = 0), "wearsBeforeWash")
 

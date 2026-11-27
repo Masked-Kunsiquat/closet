@@ -67,9 +67,7 @@ object FixtureWriter {
                 item = item,
                 categoryId = categoryId,
                 subcategoryId = item.subcategory?.let { subcategoryId(categoryId, it) },
-                colors = item.colors.map { (hex, share) ->
-                    TaggedColor(colorFor(hex), hex = hex, share = share, source = ColorSource.AUTO)
-                },
+                colors = mergeByColor(item.colors, ::colorFor),
                 seasonIds = item.seasons.map { id(seasons, "season", it) },
                 occasionIds = item.occasions.map { id(occasions, "occasion", it) },
                 materialIds = item.materials.map { id(materials, "material", it) },
@@ -111,5 +109,25 @@ object FixtureWriter {
             }
         }
         return WrittenFixture(itemIds, outfitIds)
+    }
+
+    /**
+     * One tag per named colour, the way `ColorExtractor` combines clusters: swatches that name the
+     * same colour add their shares, and the stored hex is their share-weighted mean in linear RGB.
+     * Tags keep the order in which each colour first appears.
+     */
+    private fun mergeByColor(swatches: List<Pair<String, Double>>, colorFor: (String) -> Long): List<TaggedColor> {
+        class Acc(var share: Double = 0.0, val linear: DoubleArray = DoubleArray(3))
+        val byColor = LinkedHashMap<Long, Acc>()
+        for ((hex, share) in swatches) {
+            val acc = byColor.getOrPut(colorFor(hex)) { Acc() }
+            val rgb = Oklab.linearRgb(hex.removePrefix("#").toInt(16))
+            acc.share += share
+            for (i in 0..2) acc.linear[i] += share * rgb[i]
+        }
+        return byColor.map { (colorId, acc) ->
+            val l = acc.linear.map { it / acc.share }
+            TaggedColor(colorId, hex = Oklab.hexFromLinear(l[0], l[1], l[2]), share = acc.share, source = ColorSource.AUTO)
+        }
     }
 }
