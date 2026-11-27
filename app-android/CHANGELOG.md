@@ -18,6 +18,9 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 - **Clothing-realistic base colours**: ten base colour swatches were re-picked so they look like clothes (Brown is brown, Navy is navy), and Navy is no longer treated as a neutral.
 - **Outfit colour harmony uses each item's measured shade**: suggestions use the painter's colour wheel (complementary and analogous pairs get a small boost), neutrals sit out, and accent colours are weighted by their share of the item. Harmony is now a bonus only; there are no colour-clash penalties.
 
+### Fixed
+- Learned taste no longer inverts the rules (suggestions without shoes); weights retrain once.
+
 ---
 
 ## [0.9.0] — 2026-11-18

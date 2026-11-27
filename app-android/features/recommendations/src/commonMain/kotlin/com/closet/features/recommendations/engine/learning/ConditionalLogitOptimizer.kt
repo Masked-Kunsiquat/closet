@@ -4,6 +4,7 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
@@ -50,6 +51,20 @@ internal object ConditionalLogitOptimizer {
 
     /** Maximum $|\hat{\beta}_j - \beta_{0, j}|$ allowed when $N_{\text{strata}} < [THIN_DATA_STRATA_THRESHOLD]$. */
     internal const val THIN_DATA_MAX_DRIFT = 0.5
+
+    /**
+     * Maximum $|\hat{\beta}_j - \beta_{0, j}|$ at every data size (#135, D3): a safety net against
+     * misspecification, not a fix for biased controls. Applied downward: a rule can weaken at most
+     * to $\beta_0 - 3$. [THIN_DATA_MAX_DRIFT] is tighter and wins below [THIN_DATA_STRATA_THRESHOLD] strata.
+     */
+    internal const val MAX_DRIFT_DOWN = 3.0
+
+    /**
+     * Maximum upward drift at every data size (#135, D3). Wider than [MAX_DRIFT_DOWN], so a strong
+     * genuine taste (a habit, a colour rule) can be amplified further than a rule can be inverted.
+     * [THIN_DATA_MAX_DRIFT] wins below [THIN_DATA_STRATA_THRESHOLD] strata.
+     */
+    internal const val MAX_DRIFT_UP = 6.0
 
     /** Floor on regularization strength $\lambda$ to guarantee strict concavity under complete separation. */
     internal const val MIN_LAMBDA = 0.1
@@ -175,16 +190,17 @@ internal object ConditionalLogitOptimizer {
             if (maxStep < STEP_TOL) break
         }
 
-        // 4. Unstandardize and apply thin-data drift clamping if N_strata < 30
-        val clampDrift = validStrata.size < THIN_DATA_STRATA_THRESHOLD
+        // 4. Unstandardize, fall back to the prior on a non-finite weight, then clamp the drift to
+        //    [beta0 - MAX_DRIFT_DOWN, beta0 + MAX_DRIFT_UP] at every data size, tightened to
+        //    THIN_DATA_MAX_DRIFT each way when N_strata < 30. The fallback comes first because
+        //    coerceIn passes NaN through.
+        val thinData = validStrata.size < THIN_DATA_STRATA_THRESHOLD
+        val driftDown = if (thinData) min(THIN_DATA_MAX_DRIFT, MAX_DRIFT_DOWN) else MAX_DRIFT_DOWN
+        val driftUp = if (thinData) min(THIN_DATA_MAX_DRIFT, MAX_DRIFT_UP) else MAX_DRIFT_UP
         val unstdBeta = DoubleArray(p) { j ->
             val rawWeight = if (active[j]) tildeBeta[j] / sigma[j] else beta0[j]
             val safeWeight = if (rawWeight.isFinite()) rawWeight else beta0[j]
-            if (clampDrift) {
-                safeWeight.coerceIn(beta0[j] - THIN_DATA_MAX_DRIFT, beta0[j] + THIN_DATA_MAX_DRIFT)
-            } else {
-                safeWeight
-            }
+            safeWeight.coerceIn(beta0[j] - driftDown, beta0[j] + driftUp)
         }
 
         return TasteWeights.fromDoubleArray(unstdBeta)

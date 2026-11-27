@@ -10,6 +10,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TasteWeightTrainerTest {
@@ -60,6 +61,51 @@ class TasteWeightTrainerTest {
         // Either falls back to DEFAULT directly (if meanLogLikDelta <= 0) or chooses strong regularization
         val maxDrift = result.weights.toDoubleArray().maxOf { kotlin.math.abs(it - 1.0) }
         assertTrue(maxDrift <= 0.6, "Expected noisy data weights to stay close to 1.0, maxDrift = $maxDrift")
+    }
+
+    @Test
+    fun `a held-out gain below its standard error falls back to DEFAULT and a clear gain is kept`() {
+        // Seed 5 of this noise generator: its chosen lambda gains a tiny positive mean held-out
+        // log-likelihood (about 3e-4 per stratum) that is far below its standard error (about 0.015).
+        val rnd = Random(5)
+        val noise = List(40) {
+            fun noisyVec() = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                this[TasteWeights.IDX_FAMILY_HARMONY] = rnd.nextDouble(-0.2, 0.2)
+                this[TasteWeights.IDX_PATTERN_MIX] = rnd.nextDouble(-0.2, 0.2)
+            }
+            ChoiceStratum(noisyVec(), List(5) { noisyVec() })
+        }
+        val noiseResult = TasteWeightTrainer.trainOnStrata(noise)
+        assertTrue(
+            noiseResult.meanLogLikDelta > 0.0 &&
+                noiseResult.meanLogLikDelta < noiseResult.meanLogLikDeltaStandardError,
+            "Fixture precondition: 0 < mean (${noiseResult.meanLogLikDelta}) < SE (${noiseResult.meanLogLikDeltaStandardError})",
+        )
+        assertEquals(TasteWeights.DEFAULT, noiseResult.weights)
+        assertNull(noiseResult.selectedLambda)
+
+        // The consistent clash preference: its gain is several standard errors, so it is kept.
+        val prefRnd = Random(42)
+        val preference = List(40) {
+            val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                this[TasteWeights.IDX_FAMILY_HARMONY] = ln(0.70) + prefRnd.nextDouble(-0.01, 0.01)
+                this[TasteWeights.IDX_PATTERN_MIX] = ln(0.75) + prefRnd.nextDouble(-0.01, 0.01)
+            }
+            val controls = List(5) { k ->
+                DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                    this[TasteWeights.IDX_FAMILY_HARMONY] = if (k % 2 == 0) ln(1.10) else 0.0
+                    this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
+                }
+            }
+            ChoiceStratum(chosen, controls)
+        }
+        val prefResult = TasteWeightTrainer.trainOnStrata(preference)
+        assertTrue(
+            prefResult.meanLogLikDelta > prefResult.meanLogLikDeltaStandardError,
+            "Expected mean (${prefResult.meanLogLikDelta}) > SE (${prefResult.meanLogLikDeltaStandardError})",
+        )
+        assertNotNull(prefResult.selectedLambda)
+        assertTrue(prefResult.weights != TasteWeights.DEFAULT, "Expected learned weights, got DEFAULT")
     }
 
     @Test
