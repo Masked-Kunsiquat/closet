@@ -10,8 +10,8 @@ import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.ItemNeighbor
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
-import com.closet.features.recommendations.engine.colorDedupKey
 import kotlinx.datetime.LocalDate
+import kotlin.random.Random
 
 /**
  * One historical wear log entry used to construct training choice strata.
@@ -37,8 +37,16 @@ data class HistoricalWearLog(
  * - **Case ($y = 1$):** The 10-dimensional feature vector of the actual worn outfit.
  * - **Controls ($y = 0$):** Competing cores (Top × Bottom or OnePiece) available on date $d$,
  *   excluding the worn core and any other core worn in another log on the same date $d$.
- *   Each competing core is represented by its **single highest-default-scoring completion**
- *   (best optional outerwear, footwear, and accessory combination under [TasteWeights.DEFAULT]).
+ *   Up to [MAX_CONTROLS_PER_STRATUM] of them are drawn **uniformly** (seeded by the log id), and
+ *   each is completed with the worn outfit's number of outerwear, footwear and accessory items,
+ *   drawn uniformly from each role's pool. See [sampleControlOutfits].
+ *
+ * ### Why uniform
+ * A conditional logit fitted on a uniform sample of alternatives is consistent without a
+ * correction term; controls ranked or completed by the default rules invert the learned weights
+ * (#135). Matching the optional slots holds the footwear feature, and the layering feature when
+ * only outerwear carries the `Outer` warmth layer, constant within a stratum, so they are never
+ * learned.
  */
 internal object HistoricalStratumBuilder {
 
@@ -49,8 +57,17 @@ internal object HistoricalStratumBuilder {
     internal const val MAX_TRAINING_STRATA = 120
 
     private const val MAX_CORE_ROLE_CANDIDATES = 20
-    private const val MAX_OPTIONAL_ROLE_CANDIDATES = 6
-    private const val BEAM_PER_CORE_COMPLETION = 1
+
+    private val CORE_ROLE_ORDER = listOf(
+        OutfitRecommendationEngine.ROLE_TOP,
+        OutfitRecommendationEngine.ROLE_BOTTOM,
+        OutfitRecommendationEngine.ROLE_ONEPIECE,
+    )
+    private val OPTIONAL_ROLE_ORDER = listOf(
+        OutfitRecommendationEngine.ROLE_OUTERWEAR,
+        OutfitRecommendationEngine.ROLE_FOOTWEAR,
+        OutfitRecommendationEngine.ROLE_ACCESSORY,
+    )
 
     /**
      * Builds the chronological list of [ChoiceStratum] from [items] and [logs].
@@ -62,7 +79,7 @@ internal object HistoricalStratumBuilder {
      *                       `min(createdDates[id], firstWornDate[id]) <= d`.
      *                       Items absent from [createdDates] are treated as always available.
      * @param itemNeighbors  Optional pre-computed cosine neighbor map for Level 1 history backoff.
-     * @param engine         Engine instance used for per-item suitability scoring and default completion scoring.
+     * @param engine         Engine instance used for per-item suitability scoring and each candidate's default score (baseline offset).
      * @param maxControls    Maximum number of competing control cores per stratum.
      */
     fun buildStrata(
@@ -198,91 +215,25 @@ internal object HistoricalStratumBuilder {
             tasteWeights = TasteWeights.DEFAULT,
         )
 
+        val controlOutfits = sampleControlOutfits(
+            logId = logId,
+            wornItems = wornItems,
+            wornCore = wornCore,
+            sameDayWornCores = sameDayWornCores,
+            availableItems = availableItems,
+            maxControls = maxControls,
+        )
+        if (controlOutfits.isEmpty()) return null
+
         val itemScores: Map<Long, Double> = availableItems.associate { item ->
             item.id to engine.itemScore(item, input)
         }
-
-        // For core candidates (Top / Bottom / OnePiece), select up to MAX_CORE_ROLE_CANDIDATES
-        // stratified across itemScores so large wardrobes remain fast while preserving both
-        // high-scoring and baseline/unworn candidates.
-        // For optional slots (Outerwear / Footwear / Accessory), deduplicate by color + subcategory
-        // and cap to MAX_OPTIONAL_ROLE_CANDIDATES to keep completion search fast.
-        val byRole: Map<String, List<EngineItem>> = availableItems
-            .groupBy { it.outfitRole ?: "Other" }
-            .mapValues { (role, roleItems) ->
-                val sorted = roleItems.sortedByDescending { itemScores[it.id] ?: 1.0 }
-                if (role in OutfitRecommendationEngine.CORE_ROLES) {
-                    selectStratifiedControls(sorted, MAX_CORE_ROLE_CANDIDATES)
-                } else {
-                    sorted.deduplicateByColorAndSubcategory().take(MAX_OPTIONAL_ROLE_CANDIDATES)
-                }
-            }
-
         val hasFootwearInPool = availableItems.any { it.outfitRole == OutfitRecommendationEngine.ROLE_FOOTWEAR }
-        val optionalSlots = listOf(
-            OutfitRecommendationEngine.ROLE_OUTERWEAR,
-            OutfitRecommendationEngine.ROLE_FOOTWEAR,
-            OutfitRecommendationEngine.ROLE_ACCESSORY,
-        ).filter { byRole[it].orEmpty().isNotEmpty() }
 
-        // Enumerate competing cores (excluding the worn core and any other same-day worn core)
-        val rawCompetingCores = ArrayList<List<EngineItem>>()
-        for (top in byRole[OutfitRecommendationEngine.ROLE_TOP].orEmpty()) {
-            for (bottom in byRole[OutfitRecommendationEngine.ROLE_BOTTOM].orEmpty()) {
-                val coreIds = setOf(top.id, bottom.id)
-                if (coreIds in sameDayWornCores || coreIds == wornCore) continue
-                rawCompetingCores.add(listOf(top, bottom))
-            }
-        }
-        for (onePiece in byRole[OutfitRecommendationEngine.ROLE_ONEPIECE].orEmpty()) {
-            val coreIds = setOf(onePiece.id)
-            if (coreIds in sameDayWornCores || coreIds == wornCore) continue
-            rawCompetingCores.add(listOf(onePiece))
-        }
-
-        if (rawCompetingCores.isEmpty()) return null
-
-        // Score cores under default weights and pick a balanced set of competing controls:
-        // half from the top-scoring cores (hard negatives) and half sampled evenly across the
-        // remaining ranked cores (so controls span both worn and unworn/low-habit items).
-        val weatherForCoreOnly = if (OutfitRecommendationEngine.ROLE_OUTERWEAR !in optionalSlots) weather else null
-        val rankedCores = rawCompetingCores
-            .map { coreItems ->
-                val s = engine.scoreCombo(
-                    items = coreItems,
-                    itemScores = itemScores,
-                    weather = weatherForCoreOnly,
-                    hasFootwearInPool = false,
-                    coWear = historyStats.coWear,
-                    itemNeighbors = itemNeighbors,
-                    subcategoryCoWear = historyStats.subcategoryCoWear,
-                    tasteWeights = TasteWeights.DEFAULT,
-                )
-                coreItems to s
-            }
-            .sortedWith(
-                compareByDescending<Pair<List<EngineItem>, Double>> { it.second }
-                    .thenBy { tieBreakKey(it.first, historyStats.lastWornDates) }
-            )
-
-        val selectedCores = selectStratifiedControls(rankedCores, maxControls)
-
-        // Extend each competing core to its single best default-scoring completion
-        val controlBaselineOffsets = DoubleArray(selectedCores.size)
-        val controlFeatures = selectedCores.mapIndexed { idx, (coreItems, _) ->
-            val bestCompletion = findBestCompletion(
-                coreItems = coreItems,
-                optionalSlots = optionalSlots,
-                byRole = byRole,
-                itemScores = itemScores,
-                weather = weather,
-                hasFootwearInPool = hasFootwearInPool,
-                historyStats = historyStats,
-                itemNeighbors = itemNeighbors,
-                engine = engine,
-            )
+        val controlBaselineOffsets = DoubleArray(controlOutfits.size)
+        val controlFeatures = controlOutfits.mapIndexed { idx, controlItems ->
             val features = OutfitFeatureExtractor.extract(
-                items = bestCompletion,
+                items = controlItems,
                 itemScores = itemScores,
                 weather = weather,
                 hasFootwearInPool = hasFootwearInPool,
@@ -291,7 +242,7 @@ internal object HistoricalStratumBuilder {
                 subcategoryCoWear = historyStats.subcategoryCoWear,
             )
             val defaultScore = engine.scoreCombo(
-                items = bestCompletion,
+                items = controlItems,
                 itemScores = itemScores,
                 weather = weather,
                 hasFootwearInPool = hasFootwearInPool,
@@ -335,78 +286,69 @@ internal object HistoricalStratumBuilder {
     }
 
     /**
-     * Selects up to [maxControls] competing cores from [rankedCores]: takes the top half as hard
-     * negatives and spaces the remaining half evenly across the rest of the distribution so the
-     * control set includes both high-scoring and baseline/unworn cores.
+     * Draws the control outfits for one stratum: uniform, seeded samples that are never ranked by
+     * the rules being learned (McFadden's uniform-conditioning property; design D1 and D2, #135).
+     *
+     * In this order, from one `Random(logId)`:
+     * 1. Each core role (Top, Bottom, OnePiece) is capped at [MAX_CORE_ROLE_CANDIDATES] items,
+     *    drawn uniformly from the available pool.
+     * 2. Competing cores (Top × Bottom, then OnePiece) exclude [wornCore] and [sameDayWornCores].
+     * 3. At most [maxControls] of them are drawn uniformly without replacement.
+     * 4. Each sampled core, in sampled order, gets the worn outfit's item count for each optional
+     *    role (Outerwear, Footwear, Accessory, in that order), drawn uniformly without replacement
+     *    from that role's full available pool. So whether to wear shoes or a layer is matched,
+     *    never learned.
+     *
+     * Every pool is sorted by id before it is shuffled, so the input order never reaches the draws.
+     * A control may reuse a worn item; only the worn core itself is excluded.
+     *
+     * @return The control outfits' items (core first, then the optional slots); empty when no
+     *         competing core exists.
      */
-    private fun <T> selectStratifiedControls(rankedCores: List<T>, maxControls: Int): List<T> {
-        if (rankedCores.size <= maxControls) return rankedCores
-        val topHalf = maxControls / 2
-        val restNeeded = maxControls - topHalf
-        val result = ArrayList<T>(maxControls)
-        for (i in 0 until topHalf) {
-            result.add(rankedCores[i])
+    internal fun sampleControlOutfits(
+        logId: Long,
+        wornItems: List<EngineItem>,
+        wornCore: Set<Long>,
+        sameDayWornCores: Set<Set<Long>>,
+        availableItems: List<EngineItem>,
+        maxControls: Int,
+    ): List<List<EngineItem>> {
+        val rnd = Random(logId)
+        val poolByRole: Map<String?, List<EngineItem>> = availableItems
+            .sortedBy { it.id }
+            .groupBy { it.outfitRole }
+
+        val corePools = CORE_ROLE_ORDER.associateWith { role ->
+            poolByRole[role].orEmpty().shuffled(rnd).take(MAX_CORE_ROLE_CANDIDATES)
         }
-        val remaining = rankedCores.size - topHalf
-        for (k in 0 until restNeeded) {
-            val idx = topHalf + (k * remaining) / restNeeded
-            result.add(rankedCores[idx])
-        }
-        return result
-    }
 
-    /**
-     * Finds the single highest-default-scoring completion for [coreItems] across [optionalSlots].
-     */
-    private fun findBestCompletion(
-        coreItems: List<EngineItem>,
-        optionalSlots: List<String>,
-        byRole: Map<String, List<EngineItem>>,
-        itemScores: Map<Long, Double>,
-        weather: EngineWeather?,
-        hasFootwearInPool: Boolean,
-        historyStats: PriorHistoryStats,
-        itemNeighbors: Map<Long, List<ItemNeighbor>>,
-        engine: OutfitRecommendationEngine,
-    ): List<EngineItem> {
-        if (optionalSlots.isEmpty()) return coreItems
-        var partials: List<Pair<List<EngineItem>, Double>> = listOf(coreItems to 1.0)
-
-        optionalSlots.forEachIndexed { index, role ->
-            val options: List<EngineItem?> = listOf(null) + byRole[role].orEmpty()
-            val decided = optionalSlots.subList(0, index + 1).toSet()
-            val slotWeather = if (
-                OutfitRecommendationEngine.ROLE_OUTERWEAR in decided ||
-                OutfitRecommendationEngine.ROLE_OUTERWEAR !in optionalSlots
-            ) weather else null
-            val slotHasFootwear = hasFootwearInPool && OutfitRecommendationEngine.ROLE_FOOTWEAR in decided
-
-            val extended = ArrayList<Pair<List<EngineItem>, Double>>(partials.size * options.size)
-            for ((partialItems, _) in partials) {
-                for (option in options) {
-                    val items = if (option == null) partialItems else partialItems + option
-                    val s = engine.scoreCombo(
-                        items = items,
-                        itemScores = itemScores,
-                        weather = slotWeather,
-                        hasFootwearInPool = slotHasFootwear,
-                        coWear = historyStats.coWear,
-                        itemNeighbors = itemNeighbors,
-                        subcategoryCoWear = historyStats.subcategoryCoWear,
-                        tasteWeights = TasteWeights.DEFAULT,
-                    )
-                    extended.add(items to s)
-                }
+        val competingCores = ArrayList<List<EngineItem>>()
+        for (top in corePools.getValue(OutfitRecommendationEngine.ROLE_TOP)) {
+            for (bottom in corePools.getValue(OutfitRecommendationEngine.ROLE_BOTTOM)) {
+                val coreIds = setOf(top.id, bottom.id)
+                if (coreIds == wornCore || coreIds in sameDayWornCores) continue
+                competingCores.add(listOf(top, bottom))
             }
-            partials = extended
-                .sortedWith(
-                    compareByDescending<Pair<List<EngineItem>, Double>> { it.second }
-                        .thenBy { tieBreakKey(it.first, historyStats.lastWornDates) }
-                )
-                .take(BEAM_PER_CORE_COMPLETION)
         }
+        for (onePiece in corePools.getValue(OutfitRecommendationEngine.ROLE_ONEPIECE)) {
+            val coreIds = setOf(onePiece.id)
+            if (coreIds == wornCore || coreIds in sameDayWornCores) continue
+            competingCores.add(listOf(onePiece))
+        }
+        if (competingCores.isEmpty()) return emptyList()
 
-        return partials.first().first
+        val sampledCores = competingCores.shuffled(rnd).take(maxControls)
+
+        val wornCounts = OPTIONAL_ROLE_ORDER.associateWith { role -> wornItems.count { it.outfitRole == role } }
+        return sampledCores.map { core ->
+            val outfit = ArrayList<EngineItem>(core)
+            for (role in OPTIONAL_ROLE_ORDER) {
+                val count = wornCounts.getValue(role)
+                if (count == 0) continue
+                outfit.addAll(poolByRole[role].orEmpty().shuffled(rnd).take(count))
+            }
+            outfit
+        }
     }
 
     /**
@@ -532,16 +474,4 @@ internal object HistoricalStratumBuilder {
             windSuitability = windSuitability,
         )
     }
-
-    /**
-     * Keeps the first item per [colorDedupKey] (colour names + subcategory), the same key serving
-     * uses, so training controls match what the engine would show.
-     */
-    private fun List<EngineItem>.deduplicateByColorAndSubcategory(): List<EngineItem> {
-        val seen = mutableSetOf<String>()
-        return filter { item -> seen.add(item.colorDedupKey()) }
-    }
-
-    private fun tieBreakKey(items: List<EngineItem>, lastWornDates: Map<Long, ItemLastWorn>): String =
-        items.maxOfOrNull { lastWornDates[it.id]?.lastWornDate ?: "" } ?: ""
 }
