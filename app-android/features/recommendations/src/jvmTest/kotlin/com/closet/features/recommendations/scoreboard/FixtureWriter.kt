@@ -22,7 +22,8 @@ class WrittenFixture(val itemIds: Map<String, Long>, val savedOutfitIds: Map<Str
  * whose vectorizer side effect needs an embedding encoder.
  *
  * Category, subcategory, material, season and occasion names resolve to the seeded lookup rows;
- * an unknown name throws [IllegalArgumentException] naming it, before anything is written. Outfit
+ * an unknown name throws [IllegalArgumentException] naming it, before anything is written, and so
+ * does a persona that fails [Persona.validate]. Outfit
  * role and warmth layer live on the category, so they are not set per item. Each fixture hex is
  * named by the app's [ColorNamer] over the seeded `color_shades` (Oklab nearest, ties to the lower id),
  * and stored with its share and [ColorSource.AUTO].
@@ -74,13 +75,9 @@ object FixtureWriter {
                 materialIds = item.materials.map { id(materials, "material", it) },
             )
         }
+        // After name resolution (so an unknown lookup name is reported first), before any write.
+        persona.validate()
         val savedOutfits = persona.outfits.filter { it.saved }
-        val knownKeys = persona.items.map { it.key }.toSet()
-        savedOutfits.forEach { outfit ->
-            outfit.itemKeys.forEach { key ->
-                require(key in knownKeys) { "Unknown item key: $key in outfit ${outfit.key}" }
-            }
-        }
 
         val clothing = db.clothingDao()
         val outfitDao = db.outfitDao()

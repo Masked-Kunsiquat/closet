@@ -99,23 +99,37 @@ object Checks {
 
     private fun pass(ok: Boolean) = if (ok) Outcome.PASS else Outcome.FAIL
 
+    /**
+     * COMPLETE: a core, plus footwear when the persona owns clean footwear suiting the day's calendar
+     * season. A failure can come from the pipeline's candidate filter (the requested occasion or the
+     * season removed every shoe), not only from ranking.
+     */
     private fun complete(items: List<FixtureItem>, ctx: CheckContext): Outcome {
         val categories = items.map { it.category }.toSet()
         val body = ONE_PIECE in categories || (TOPS in categories && BOTTOMS in categories)
         if (!body) return Outcome.FAIL
-        val season = seasonFor(Month(ctx.day.date.monthValue))
         val shoesAvailable = ctx.persona.items.any {
-            it.category == FOOTWEAR && it.key !in ctx.day.dirtyAtMorning &&
-                (season in it.seasons || ALL_SEASON in it.seasons)
+            it.category == FOOTWEAR && it.key !in ctx.day.dirtyAtMorning && suitsSeason(it, ctx)
         }
         return pass(!shoesAvailable || FOOTWEAR in categories)
     }
 
+    private fun suitsSeason(item: FixtureItem, ctx: CheckContext): Boolean {
+        val season = seasonFor(Month(ctx.day.date.monthValue))
+        return season in item.seasons || ALL_SEASON in item.seasons
+    }
+
+    /**
+     * RAIN_READY: on a rainy day, when the persona owns clean rain-ready footwear or outerwear whose
+     * seasons include the day's calendar season (or "All Season"), the outfit includes one. A failure
+     * can come from the pipeline's candidate filter (the requested occasion removed the rain gear),
+     * not only from ranking.
+     */
     private fun rainReady(items: List<FixtureItem>, ctx: CheckContext): Outcome {
         if (!ctx.day.weather.raining) return Outcome.NOT_APPLICABLE
         val gearExists = ctx.persona.items.any {
             it.rainReady && (it.category == FOOTWEAR || it.category == OUTERWEAR) &&
-                it.key !in ctx.day.dirtyAtMorning
+                it.key !in ctx.day.dirtyAtMorning && suitsSeason(it, ctx)
         }
         if (!gearExists) return Outcome.NOT_APPLICABLE
         return pass(items.any { it.rainReady && (it.category == FOOTWEAR || it.category == OUTERWEAR) })

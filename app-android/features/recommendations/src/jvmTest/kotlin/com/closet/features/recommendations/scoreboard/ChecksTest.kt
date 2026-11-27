@@ -126,6 +126,13 @@ class ChecksTest {
     }
 
     @Test
+    fun `rain ready is not applicable when the only clean rain gear is out of season`() {
+        // April is Spring: the wool coat is Winter only, so with the boots dirty no gear suits the day.
+        val c = ctx(day(raining = true, dirty = setOf("rain-boots")))
+        assertEquals(Outcome.NOT_APPLICABLE, run(basic, c)[CheckId.RAIN_READY])
+    }
+
+    @Test
     fun `rain ready passes with waterproof boots`() {
         val c = ctx(day(raining = true))
         assertEquals(Outcome.PASS, run(listOf("white-oxford", "navy-chinos", "rain-boots"), c)[CheckId.RAIN_READY])

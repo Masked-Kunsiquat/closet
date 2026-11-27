@@ -36,6 +36,9 @@ data class SimDay(
  * the engine's own constants.
  */
 class Simulator(private val persona: Persona) {
+    init {
+        persona.validate()
+    }
 
     /**
      * A day is attempted with probability [LOG_CHANCE] (real users skip days) and logged when a clean outfit exists.

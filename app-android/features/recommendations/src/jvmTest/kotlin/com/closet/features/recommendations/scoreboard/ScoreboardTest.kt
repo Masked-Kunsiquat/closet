@@ -117,6 +117,38 @@ class ScoreboardTest {
     }
 
     @Test
+    fun `a worn core without a top and bottom pair is unreachable and a miss`() = runTest(timeout = 5.minutes) {
+        val persona = MiniPersona.build()
+        ScoreboardDatabase().use { env ->
+            val fixture = FixtureWriter.write(env.db, persona)
+            // Gym shorts are Activewear, so the worn core is the tee alone.
+            val worn = listOf("gym-shorts", "blue-tee", "sneakers")
+            val day = SimDay(
+                date = Scoreboard.DEFAULT_START.plusDays(150),
+                kind = DayKind.OFFICE,
+                occasion = "Work/Business",
+                weather = DayWeather(lowC = 15.0, highC = 24.0, raining = false, windy = false),
+                logged = true,
+                wornItemKeys = worn,
+                viaSavedOutfit = null,
+                dirtyAtMorning = emptySet(),
+                dirtyAtNight = emptySet(),
+            )
+            val evaluation = Scoreboard.evaluateDay(
+                env.db, persona, fixture, day, requestedOccasion = null, yesterdayWornKeys = null,
+            )
+            assertFalse(evaluation.noResults)
+            assertTrue(evaluation.unreachableCore)
+            assertFalse(evaluation.layeredCore)
+            assertFalse(evaluation.hitAt10)
+
+            val result = Scoreboard.tally(persona, listOf(evaluation))
+            assertEquals(1, result.unreachableCoreDays)
+            assertEquals(0, result.hitsAt10)
+        }
+    }
+
+    @Test
     fun `report is written`() = runTest(timeout = 5.minutes) {
         val result = Scoreboard.run(MiniPersona.build())
         val file = Report.write(listOf(result))
@@ -125,5 +157,7 @@ class ScoreboardTest {
         val text = file.readText()
         assertTrue("## mini" in text, text)
         assertTrue("neighbour backoff off: no JVM embeddings" in text, text)
+        assertTrue(Report.RATES_NOTE in text, text)
+        assertTrue("| Unreachable-core days |" in text, text)
     }
 }
