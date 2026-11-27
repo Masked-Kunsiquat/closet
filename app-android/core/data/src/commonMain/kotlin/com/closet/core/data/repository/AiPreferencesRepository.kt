@@ -248,7 +248,7 @@ class AiPreferencesRepository(
     /**
      * Watermark of the wear log history on which [getTasteWeightsRaw] was last trained
      * (format: `"$TASTE_WEIGHTS_SCHEMA_VERSION:$totalLogCount:$maxLogId"`, where the schema version
-     * is `RecommendationViewModel.TASTE_WEIGHTS_SCHEMA_VERSION`, currently `"v4"`), or `null` when
+     * is `RecommendationViewModel.TASTE_WEIGHTS_SCHEMA_VERSION`, currently `"v5"`), or `null` when
      * not yet trained.
      */
     fun getTasteWeightsWatermark(): Flow<String?> = aiDataStore.data

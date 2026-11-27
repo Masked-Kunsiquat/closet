@@ -23,7 +23,7 @@ enum class TasteTrainingStage {
 /**
  * Result of time-ordered cross-validation and final conditional logit fitting.
  *
- * @property weights            Final learned [TasteWeights] (or [TasteWeights.DEFAULT] on cold start / no improvement).
+ * @property weights            Final learned [TasteWeights] (or the `prior`, normally [TasteWeights.DEFAULT], on cold start / no improvement).
  * @property selectedLambda     $L_2$ regularization strength $\lambda^*$ of the stage that won ([acceptedStage]),
  *                              or `null` when nothing was accepted.
  * @property meanLogLikDelta    Mean per-stratum held-out conditional log-likelihood gain of the winning stage
