@@ -33,23 +33,30 @@ object Checks {
     /** A hot day: from this high up the NOT_TOO_WARM check applies. */
     private const val HOT_HIGH_C = 24.0
     private const val MAX_FORMALITY_SPREAD = 2
+    private val CORE_CATEGORIES = setOf(TOPS, BOTTOMS, ONE_PIECE)
 
     /**
-     * Total item warmth (each item 0..3) an outfit needs for a day whose low is [lowC]:
-     * 16 and above 0, 10 up to 16 needs 2, 5 up to 10 needs 3, 0 up to 5 needs 4, below 0 needs 5.
+     * Total item warmth (each item 0..3) an outfit needs for a day whose mean temperature
+     * (`(low + high) / 2`) is [meanC]: 18 and above 0, 12 up to 18 needs 1, 6 up to 12 needs 2,
+     * 0 up to 6 needs 3, -6 up to 0 needs 4, below -6 needs 5. The mean, not the low, because people
+     * dress for the day and the personas' own choices follow it.
      */
-    fun warmthNeeded(lowC: Double): Int = when {
-        lowC >= 16.0 -> 0
-        lowC >= 10.0 -> 2
-        lowC >= 5.0 -> 3
-        lowC >= 0.0 -> 4
+    fun warmthNeeded(meanC: Double): Int = when {
+        meanC >= 18.0 -> 0
+        meanC >= 12.0 -> 1
+        meanC >= 6.0 -> 2
+        meanC >= 0.0 -> 3
+        meanC >= -6.0 -> 4
         else -> 5
     }
 
-    /** Inclusive formality (1..5) band an occasion allows, by seeded occasion name. */
+    /**
+     * Inclusive formality (1..5) band an occasion allows, by seeded occasion name. It applies to core
+     * items only. Work/Business is 2..5 because business casual is normal office wear.
+     */
     private val OCCASION_BANDS: Map<String, IntRange> = mapOf(
         "Casual" to 1..4,
-        "Work/Business" to 3..5,
+        "Work/Business" to 2..5,
         "Formal" to 4..5,
         "Athletic" to 1..2,
         "Loungewear" to 1..2,
@@ -69,16 +76,15 @@ object Checks {
 
         return mapOf(
             CheckId.COMPLETE to complete(items, ctx),
-            CheckId.WARM_ENOUGH to pass(items.sumOf { it.warmth } >= warmthNeeded(day.weather.lowC)),
+            CheckId.WARM_ENOUGH to pass(items.sumOf { it.warmth } >= warmthNeeded((day.weather.lowC + day.weather.highC) / 2)),
             CheckId.NOT_TOO_WARM to if (day.weather.highC < HOT_HIGH_C) Outcome.NOT_APPLICABLE
             else pass(items.none { it.warmth == 3 }),
             CheckId.RAIN_READY to rainReady(items, ctx),
             CheckId.FORMALITY to formality(items, ctx.requestedOccasion),
             CheckId.CLEAN to pass(suggestion.none { it in dirty }),
+            // Only footwear and belts: outerwear may layer (a blazer under a coat).
             CheckId.NO_DOUBLED_SLOTS to pass(
-                items.count { it.category == FOOTWEAR } <= 1 &&
-                    items.count { it.category == OUTERWEAR } <= 1 &&
-                    items.count { it.subcategory == BELT } <= 1,
+                items.count { it.category == FOOTWEAR } <= 1 && items.count { it.subcategory == BELT } <= 1,
             ),
             CheckId.NOT_ON_REPEAT to notOnRepeat(suggestion, ctx),
         )
@@ -101,7 +107,8 @@ object Checks {
 
     /**
      * COMPLETE: a core, plus footwear when the persona owns clean footwear suiting the day's calendar
-     * season. A failure can come from the pipeline's candidate filter (the requested occasion or the
+     * season. Footwear is not required on [DayKind.HOME] days (people go barefoot or in socks at
+     * home); the core still is. A failure can come from the pipeline's candidate filter (the requested occasion or the
      * season removed every shoe), not only from ranking.
      */
     private fun complete(items: List<FixtureItem>, ctx: CheckContext): Outcome {
@@ -111,7 +118,7 @@ object Checks {
         val shoesAvailable = ctx.persona.items.any {
             it.category == FOOTWEAR && it.key !in ctx.day.dirtyAtMorning && suitsSeason(it, ctx)
         }
-        return pass(!shoesAvailable || FOOTWEAR in categories)
+        return pass(!shoesAvailable || ctx.day.kind == DayKind.HOME || FOOTWEAR in categories)
     }
 
     private fun suitsSeason(item: FixtureItem, ctx: CheckContext): Boolean {
@@ -123,10 +130,11 @@ object Checks {
      * RAIN_READY: on a rainy day, when the persona owns clean rain-ready footwear or outerwear whose
      * seasons include the day's calendar season (or "All Season"), the outfit includes one. A failure
      * can come from the pipeline's candidate filter (the requested occasion removed the rain gear),
-     * not only from ranking.
+     * not only from ranking. Not applicable on [DayKind.HOME] and [DayKind.GYM] days: they are indoors.
      */
     private fun rainReady(items: List<FixtureItem>, ctx: CheckContext): Outcome {
         if (!ctx.day.weather.raining) return Outcome.NOT_APPLICABLE
+        if (ctx.day.kind == DayKind.HOME || ctx.day.kind == DayKind.GYM) return Outcome.NOT_APPLICABLE
         val gearExists = ctx.persona.items.any {
             it.rainReady && (it.category == FOOTWEAR || it.category == OUTERWEAR) &&
                 it.key !in ctx.day.dirtyAtMorning && suitsSeason(it, ctx)
@@ -135,13 +143,21 @@ object Checks {
         return pass(items.any { it.rainReady && (it.category == FOOTWEAR || it.category == OUTERWEAR) })
     }
 
+    /**
+     * FORMALITY: the occasion band applies to core items (tops, bottoms, one-pieces) only, and the
+     * coherence rule (max minus min at most [MAX_FORMALITY_SPREAD]) to core items plus footwear only.
+     * Outerwear and accessories are excluded: a rain jacket or a watch over office clothes is not a
+     * formality clash.
+     */
     private fun formality(items: List<FixtureItem>, occasion: String?): Outcome {
-        if (items.isEmpty()) return Outcome.PASS
-        val levels = items.map { it.formality }
+        val core = items.filter { it.category in CORE_CATEGORIES }
+        val coherent = items.filter { it.category in CORE_CATEGORIES || it.category == FOOTWEAR }
+        if (coherent.isEmpty()) return Outcome.PASS
+        val levels = coherent.map { it.formality }
         if (levels.max() - levels.min() > MAX_FORMALITY_SPREAD) return Outcome.FAIL
         if (occasion == null) return Outcome.PASS
         val band = OCCASION_BANDS[occasion] ?: error("Unknown occasion: $occasion")
-        return pass(levels.all { it in band })
+        return pass(core.all { it.formality in band })
     }
 
     private fun notOnRepeat(suggestion: List<String>, ctx: CheckContext): Outcome {

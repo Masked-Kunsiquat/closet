@@ -42,7 +42,7 @@ class Simulator(private val persona: Persona) {
 
     /**
      * A day is attempted with probability [LOG_CHANCE] (real users skip days) and logged when a clean outfit exists.
-     * An outfit suits the weather when the day's low-to-high range overlaps its band.
+     * An outfit suits the weather when the day's mean temperature, `(low + high) / 2`, lies within its band (inclusive).
      * Every random draw is made on every day, so a change in one day's branch never shifts later days.
      */
     fun plan(start: LocalDate, days: Int): List<SimDay> {
@@ -116,13 +116,14 @@ class Simulator(private val persona: Persona) {
 
     /**
      * The persona's pick for the day, or null when nothing clean exists. Candidates are outfits with
-     * every item clean; the strict set also suits the occasion, the temperature band and the rain.
+     * every item clean; the strict set also suits the occasion, the temperature band (the day's mean
+     * temperature within `minTempC..maxTempC`, inclusive) and the rain.
      * When it is empty the rules relax in order: ignore rain, then temperature, then occasion.
      */
     private fun chooseOutfit(occasion: String, weather: DayWeather, dirty: Set<String>, roll: Double): FixtureOutfit? {
         val clean = persona.outfits.filter { o -> o.itemKeys.none { it in dirty } }
         fun suitsOccasion(o: FixtureOutfit) = occasion in o.occasions
-        fun suitsTemperature(o: FixtureOutfit) = o.minTempC <= weather.highC && weather.lowC <= o.maxTempC
+        fun suitsTemperature(o: FixtureOutfit) = (weather.lowC + weather.highC) / 2 in o.minTempC..o.maxTempC
         fun suitsRain(o: FixtureOutfit) = !weather.raining || o.rainOk
 
         val tiers = listOf(
