@@ -16,7 +16,7 @@
 ## Global Constraints
 - **Seeding:** use `Random(seed = logId)` per stratum, created once and used for every draw in that stratum, in a fixed order. Never use the clock or an unseeded `Random`.
 - **Sampling is uniform, without replacement:**
-  - core role candidates: at most `MAX_CORE_ROLE_CANDIDATES = 20` per core role;
+  - competing cores: drawn uniformly by index over all competing cores (Top×Bottom plus OnePiece), with no per-role cap (final-review fix I1);
   - competing cores: at most `MAX_CONTROLS_PER_STRATUM = 30`.
   - Nothing may rank or filter controls by a default score.
 - **Exclusions:** the worn core and other cores worn on the same day stay excluded.
@@ -28,7 +28,7 @@
 - **Commits:** signed. Never bypass signing; report BLOCKED on a signing error. Never stage `.claude/settings.json`.
 
 ## Review Focus
-1. **A wardrobe with fewer competing cores than 30, or fewer role items than 20,** uses all of them, with no crash and no duplicates. Test: Task 1, `small pools use every candidate once`.
+1. **A wardrobe with fewer competing cores than 30** uses all of them, with no crash and no duplicates. Test: Task 1, `small pools use every candidate once`.
 2. **A worn outfit with two accessories** gets controls with two accessories each. When the pool has only one accessory, the control gets that one and nothing crashes. Test: Task 1, `slot counts match the chosen outfit`.
 3. **A worn outfit that is a OnePiece core** is handled the same way as a Top + Bottom core. Test: Task 1, `one-piece strata sample one-piece and top-bottom cores alike`.
 4. **Determinism under reordering:** feeding the same logs in a different list order gives identical strata. The builder already sorts logs, so seeds tie to `logId`. Test: Task 1, `strata are identical for shuffled log order`.
