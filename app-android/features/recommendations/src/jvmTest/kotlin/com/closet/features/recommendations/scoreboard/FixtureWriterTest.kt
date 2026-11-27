@@ -1,5 +1,8 @@
 package com.closet.features.recommendations.scoreboard
 
+import com.closet.core.data.color.ColorNamer
+import com.closet.core.data.color.Oklab
+import com.closet.core.data.color.ReferenceShade
 import com.closet.core.data.model.WashStatus
 import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.util.DataResult
@@ -67,6 +70,20 @@ class FixtureWriterTest {
                 val stored = env.db.outfitDao().getOutfitWithItems(written.savedOutfitIds.getValue(outfit.key)).first()
                 val ids = stored!!.items.map { it.outfitItem.clothingItemId }.toSet()
                 assertEquals(outfit.itemKeys.map { written.itemIds.getValue(it) }.toSet(), ids)
+            }
+        }
+    }
+
+    @Test
+    fun `colours are named by the app colour namer`() = runTest {
+        ScoreboardDatabase().use { env ->
+            val persona = MiniPersona.build()
+            val written = FixtureWriter.write(env.db, persona)
+            val namer = ColorNamer(env.db.lookupDao().getAllColorShades().map { ReferenceShade(it.colorId, it.hex) })
+            for (item in persona.items) {
+                val rows = env.db.clothingDao().getItemColorRows(written.itemIds.getValue(item.key))
+                val expected = item.colors.map { (hex, _) -> namer.nearest(Oklab.fromHex(hex)) }
+                assertEquals(expected, rows.map { it.colorId }, item.key)
             }
         }
     }

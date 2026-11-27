@@ -3,6 +3,9 @@ package com.closet.features.recommendations.scoreboard
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
 import com.closet.core.data.ClothingDatabase
+import com.closet.core.data.color.ColorNamer
+import com.closet.core.data.color.Oklab
+import com.closet.core.data.color.ReferenceShade
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ColorSource
 import com.closet.core.data.model.OutfitEntity
@@ -21,7 +24,7 @@ class WrittenFixture(val itemIds: Map<String, Long>, val savedOutfitIds: Map<Str
  * Category, subcategory, material, season and occasion names resolve to the seeded lookup rows;
  * an unknown name throws [IllegalArgumentException] naming it, before anything is written. Outfit
  * role and warmth layer live on the category, so they are not set per item. Each fixture hex is
- * named by the closest seeded colour reference shade (squared RGB distance over `color_shades`),
+ * named by the app's [ColorNamer] over the seeded `color_shades` (Oklab nearest, ties to the lower id),
  * and stored with its share and [ColorSource.AUTO].
  */
 object FixtureWriter {
@@ -41,7 +44,7 @@ object FixtureWriter {
         val seasons = lookup.getSeasons().first().associate { it.name to it.id }
         val occasions = lookup.getOccasions().first().associate { it.name to it.id }
         val materials = lookup.getMaterials().first().associate { it.name to it.id }
-        val shades = lookup.getAllColorShades()
+        val namer = ColorNamer(lookup.getAllColorShades().map { ReferenceShade(it.colorId, it.hex) })
 
         fun id(map: Map<String, Long>, kind: String, name: String): Long =
             map[name] ?: throw IllegalArgumentException("Unknown $kind: $name")
@@ -54,11 +57,8 @@ object FixtureWriter {
             return subs[name] ?: throw IllegalArgumentException("Unknown subcategory: $name")
         }
 
-        fun colorFor(hex: String): Long {
-            val target = rgb(hex)
-            return shades.minByOrNull { distance(rgb(it.hex), target) }?.colorId
-                ?: throw IllegalArgumentException("No seeded colour shades to name $hex")
-        }
+        fun colorFor(hex: String): Long =
+            namer.nearest(Oklab.fromHex(hex)) ?: throw IllegalArgumentException("No seeded colour shades to name $hex")
 
         val resolved = persona.items.map { item ->
             val categoryId = id(categories, "category", item.category)
@@ -115,12 +115,4 @@ object FixtureWriter {
         }
         return WrittenFixture(itemIds, outfitIds)
     }
-
-    private fun rgb(hex: String): IntArray {
-        val v = hex.removePrefix("#").toInt(16)
-        return intArrayOf((v shr 16) and 0xFF, (v shr 8) and 0xFF, v and 0xFF)
-    }
-
-    private fun distance(a: IntArray, b: IntArray): Int =
-        (0..2).sumOf { (a[it] - b[it]).let { d -> d * d } }
 }
