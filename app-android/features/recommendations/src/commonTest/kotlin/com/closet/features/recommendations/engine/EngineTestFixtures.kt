@@ -1,5 +1,6 @@
 package com.closet.features.recommendations.engine
 
+import com.closet.core.data.DatabaseSeeder
 import com.closet.core.data.dao.ItemLastWorn
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
@@ -34,6 +35,19 @@ internal fun item(
     subcategoryName = subcategoryName,
     materials = materials,
 )
+
+/**
+ * This item tagged with the seeded colours [names] (`DatabaseSeeder.SEEDED_COLORS`), each at its
+ * seeded hex, family and neutrality with share 1 / n, and [EngineItem.colorFamilies] to match.
+ * Color harmony reads only the tags, so a test of a colour effect needs them.
+ */
+internal fun EngineItem.inColors(vararg names: String): EngineItem {
+    val tags = names.map { name ->
+        val seed = DatabaseSeeder.SEEDED_COLORS.single { it.name == name }
+        ColorHex(seed.hex, seed.family, share = 1.0 / names.size, wearsAsNeutral = seed.wearsAsNeutral)
+    }
+    return copy(colorFamilies = tags.map { it.family }.toSet(), colorHexes = tags)
+}
 
 internal fun weather(
     tempLow: Double? = null,

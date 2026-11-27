@@ -3,6 +3,7 @@ package com.closet.features.recommendations.engine
 import com.closet.core.data.DatabaseSeeder
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -328,103 +329,113 @@ class PairScorerTest {
     }
 
     // =========================================================================
-    // Hue
+    // Hue (OKLCh hue on the painter's wheel)
     // =========================================================================
 
-    /** A Warm item whose tagged colors are all Warm with these hexes. */
+    private fun seeded(name: String) = DatabaseSeeder.SEEDED_COLORS.single { it.name == name }
+
+    /** A Warm item whose tags are these hexes, with no shares (each counts 1 / n). */
     private fun h(vararg hexes: String) =
         item(id = 1, colorFamilies = setOf("Warm")).copy(colorHexes = hexes.map { ColorHex(it, "Warm") })
 
-    private fun tagged(vararg colors: Pair<String, String>) = item(
+    /** A solid item of the seeded colour [name], at its seeded hex, family and neutrality. */
+    private fun s(name: String, share: Double? = 1.0) = seeded(name).let {
+        item(id = 1, colorFamilies = setOf(it.family))
+            .copy(colorHexes = listOf(ColorHex(it.hex, it.family, share, it.wearsAsNeutral)))
+    }
+
+    private fun tagged(vararg colors: ColorHex) = item(
         id = 1,
-        colorFamilies = colors.map { it.second }.toSet(),
-    ).copy(colorHexes = colors.map { (hex, family) -> ColorHex(hex, family) })
+        colorFamilies = colors.map { it.family }.toSet(),
+    ).copy(colorHexes = colors.toList())
+
+    private fun tag(name: String, share: Double?) =
+        seeded(name).let { ColorHex(it.hex, it.family, share, it.wearsAsNeutral) }
 
     @Test
     fun `complementary hues get 1_05`() {
-        assertEquals(1.05, PairScorer.hueTerm(h("#FF0000"), h("#00FFFF")))  // 180 degrees
-        assertEquals(1.05, PairScorer.hueTerm(h("#FF0000"), h("#00FF80")))  // about 150 degrees
+        assertEquals(1.05, PairScorer.hueTerm(s("Red"), s("Forest Green")))  // about 168 degrees
+        assertEquals(1.05, PairScorer.hueTerm(s("Yellow"), s("Purple")))     // about 177 degrees
+        assertEquals(1.05, PairScorer.hueTerm(s("Orange"), s("Navy")))       // about 163 degrees
     }
 
     @Test
-    fun `analogous hues get 1_05`() {
-        assertEquals(1.05, PairScorer.hueTerm(h("#FF0000"), h("#FF4000")))  // about 15 degrees
-        assertEquals(1.05, PairScorer.hueTerm(h("#FF0010"), h("#FF1000")))  // across 0, about 8 degrees
-    }
-
-    @Test
-    fun `clashing hues get 0_90`() {
-        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#80FF00")))  // about 90 degrees
-        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#A0FF00")))  // about 82 degrees
-        assertEquals(0.90, PairScorer.hueTerm(h("#FF0000"), h("#5EFF00")))  // about 98 degrees
+    fun `analogous hues up to 60 degrees get 1_05`() {
+        assertEquals(1.05, PairScorer.hueTerm(s("Red"), s("Pink")))                 // about 12 degrees
+        assertEquals(1.05, PairScorer.hueTerm(s("Red"), s("Orange")))               // about 52, across 0
+        assertEquals(1.05, PairScorer.hueTerm(s("Royal Blue"), s("Forest Green")))  // about 58 degrees
     }
 
     @Test
     fun `other hue gaps are neutral`() {
-        assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#FFAA00")))  // 40 degrees
-        assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#FFFF00")))  // 60 degrees
-        assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#00FF00")))  // 120 degrees
-        assertEquals(1.0, PairScorer.hueTerm(h("#FF0000"), h("#00FF40")))  // 135 degrees
+        assertEquals(1.0, PairScorer.hueTerm(s("Red"), s("Purple")))      // about 71 degrees
+        assertEquals(1.0, PairScorer.hueTerm(s("Forest Green"), s("Yellow")))  // about 85: no clash band
+        assertEquals(1.0, PairScorer.hueTerm(s("Red"), s("Royal Blue")))  // about 110 degrees
+        assertEquals(1.0, PairScorer.hueTerm(s("Red"), s("Teal")))        // about 145 degrees
+    }
+
+    @Test
+    fun `hue terms are unweighted by share`() {
+        assertEquals(1.05, PairScorer.hueTerm(s("Red", 0.3), s("Forest Green", 0.2)))
     }
 
     @Test
     fun `achromatic or missing hex gives null`() {
-        assertNull(PairScorer.hueTerm(h("#FF0000"), h("#808080")))  // grey, saturation 0
-        assertNull(PairScorer.hueTerm(h("#FF0000"), h("#000000")))  // black
-        assertNull(PairScorer.hueTerm(h("#FFFFFF"), h("#FF0000")))  // white
-        assertNull(PairScorer.hueTerm(h("#FF0000"), h("#8C7F80")))  // muted, saturation under 0_15
-        assertNull(PairScorer.hueTerm(h("#FF0000"), h()))           // no hex
-        assertNull(PairScorer.hueTerm(h("#FF0000"), h("not a hex")))
-        assertNull(PairScorer.hueTerm(h("#FF0000"), h("#ZZ00FFFF"))) // malformed alpha in 8-digit hex
+        val red = seeded("Red").hex
+        assertNull(PairScorer.hueTerm(h(red), h("#808080")))  // grey, chroma 0
+        assertNull(PairScorer.hueTerm(h(red), h("#000000")))  // black
+        assertNull(PairScorer.hueTerm(h("#FFFFFF"), h(red)))  // white
+        assertNull(PairScorer.hueTerm(h(red), h()))           // no hex
+        assertNull(PairScorer.hueTerm(h(red), h("not a hex")))
+        assertNull(PairScorer.hueTerm(h(red), h("#ZZ00FFFF"))) // malformed alpha in 8-digit hex
     }
 
     @Test
-    fun `the first chromatic hex sets the hue`() {
-        // A grey first swatch is skipped; the cyan one is complementary to red.
-        assertEquals(1.05, PairScorer.hueTerm(h("#FF0000"), h("#808080", "#00FFFF")))
+    fun `the first chromatic hex sets the hue when shares are missing`() {
+        val red = seeded("Red").hex
+        val green = seeded("Forest Green").hex
+        // A grey first swatch is neutral; the green one is complementary to red.
+        assertEquals(1.05, PairScorer.hueTerm(h(red), h("#808080", green)))
         // ARGB form is accepted.
-        assertEquals(1.05, PairScorer.hueTerm(h("#FFFF0000"), h("#FF00FFFF")))
-    }
-
-    private val cyan = tagged("#00FFFF" to "Cool")  // 180 degrees: complementary to red, 60 from navy
-
-    @Test
-    fun `a Navy and Red item takes its hue from Red not the Neutral Navy`() {
-        // Navy (#000080) is chromatic but Neutral-family; it comes first in color-id order.
-        val navyRed = tagged("#000080" to "Neutral", "#FF0000" to "Warm")
-        assertEquals(1.05, PairScorer.hueTerm(navyRed, cyan))  // Red vs cyan; Navy would give 1_0
-        val redNavy = tagged("#FF0000" to "Warm", "#000080" to "Neutral")
-        assertEquals(PairScorer.hueTerm(navyRed, cyan), PairScorer.hueTerm(redNavy, cyan))
+        assertEquals(1.05, PairScorer.hueTerm(h("#FF" + red.drop(1)), h("#FF" + green.drop(1))))
     }
 
     @Test
-    fun `the dominant family's hex is preferred over an earlier one`() {
-        // Warm outranks Cool, so the Red hex is used even though Royal Blue comes first.
-        val blueRed = tagged("#4169E1" to "Cool", "#FF0000" to "Warm")
-        assertEquals(1.05, PairScorer.hueTerm(blueRed, cyan))  // Royal Blue vs cyan would be 1_0
+    fun `a wears_as_neutral tag never sets the hue`() {
+        // Denim (chroma above C_FLOOR) wears as neutral; it has the larger share but Red leads.
+        // Red + Purple is about 71 degrees (1_0); Denim + Purple would be about 47 (1_05).
+        val denimRed = tagged(tag("Denim", 0.6), tag("Red", 0.4))
+        assertEquals(1.0, PairScorer.hueTerm(denimRed, s("Purple")))
+        // An item tagged only with wears-as-neutral colours has no hue.
+        assertNull(PairScorer.hueTerm(s("Denim"), s("Purple")))
+        assertNull(PairScorer.hueTerm(s("Brown"), s("Purple")))
     }
 
     @Test
-    fun `only Neutral-family hexes give null`() {
-        val navy = item(id = 1, colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#000080", "Neutral")))
-        assertNull(PairScorer.hueTerm(navy, cyan))
+    fun `a chromatic-family hex below C_FLOOR gives null`() {
+        // Lavender is a Purple shade with chroma about 0_027, under C_FLOOR = 0_03.
+        val lavender = tagged(ColorHex("#E6E6FA", "Cool", 1.0, wearsAsNeutral = false))
+        assertNull(PairScorer.hueTerm(lavender, s("Purple")))
+        // Re-picked Navy (chroma about 0_05) is chromatic.
+        assertEquals(1.05, PairScorer.hueTerm(s("Navy"), s("Royal Blue")))
     }
 
     @Test
-    fun `no seeded same-family pair scores below 1 on hue`() {
+    fun `every seeded same-family pair keeps the same-family bonus`() {
         val seeded = DatabaseSeeder.SEEDED_COLORS
-            .filter { it.family != "Neutral" }
-            .map { it.name to tagged(it.hex to it.family) }
+            .filter { !it.wearsAsNeutral }
+            .map { it.name to s(it.name) }
         var checked = 0
         for (i in seeded.indices) for (j in i + 1 until seeded.size) {
             val (nameA, a) = seeded[i]
             val (nameB, b) = seeded[j]
             if (a.colorFamilies != b.colorFamilies) continue
-            val term = PairScorer.hueTerm(a, b) ?: continue
+            val term = assertNotNull(PairScorer.hueTerm(a, b), "$nameA + $nameB has no hue")
             assertTrue(term >= 1.0, "$nameA + $nameB scores $term")
+            assertEquals(1.10, ColorHarmony.factors(listOf(a, b)).combined, 1e-9, "$nameA + $nameB")
             checked++
         }
-        // 23 pairs from the v1 palette, plus Teal (Cool) with the 5 other Cool colours.
-        assertEquals(28, checked, "every seeded same-family chromatic pair was checked")
+        // 7 Cool colours (21 pairs) and 5 Warm (10); Olive is the only chromatic Earth colour.
+        assertEquals(31, checked, "every seeded same-family chromatic pair was checked")
     }
 }

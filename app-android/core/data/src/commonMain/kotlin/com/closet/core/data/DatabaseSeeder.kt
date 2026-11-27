@@ -185,26 +185,28 @@ object DatabaseSeeder {
     /**
      * The seeded colors, in insert order (Black = 1 … Teal = 22 on a fresh install). Public so the
      * recommendation engine's hue thresholds and the colour namer can be tested against the real
-     * palette. The first 18 rows are the v1 palette, unchanged; v2 appended the last 4.
+     * palette. The first 18 rows are the v1 palette; v2 appended the last 4, and v4 (`MIGRATION_3_4`)
+     * re-picked ten base hexes (Brown, Navy, Red, Orange, Yellow, Purple, Olive, Mint, Forest
+     * Green, Beige) and made Navy Cool.
      */
     val SEEDED_COLORS: List<SeedColor> = listOf(
         SeedColor("Black",        "#000000", "Neutral", "black",  true,  listOf("#000000", "#1A1A1A", "#2B2B2B")),
         SeedColor("White",        "#FFFFFF", "Neutral", "white",  true,  listOf("#FFFFFF", "#F4F4F2", "#EDEDE8")),
         SeedColor("Grey",         "#808080", "Neutral", "gray",   true,  listOf("#808080", "#A0A0A0", "#6E6E6E", "#BEBEBE")),
-        SeedColor("Beige",        "#F5F5DC", "Neutral", "brown",  true,  listOf("#F5F5DC", "#E8DCC4", "#D9C8A9")),
-        SeedColor("Navy",         "#000080", "Neutral", "blue",   false, listOf("#000080", "#1F2A44", "#202A5A", "#2C3E63")),
-        SeedColor("Red",          "#FF0000", "Warm",    "red",    false, listOf("#FF0000", "#B3202A", "#D62B2B", "#C41E3A")),
+        SeedColor("Beige",        "#E8DCC4", "Neutral", "brown",  true,  listOf("#F5F5DC", "#E8DCC4", "#D9C8A9")),
+        SeedColor("Navy",         "#1F2A44", "Cool",    "blue",   false, listOf("#000080", "#1F2A44", "#202A5A", "#2C3E63")),
+        SeedColor("Red",          "#C41E3A", "Warm",    "red",    false, listOf("#FF0000", "#B3202A", "#D62B2B", "#C41E3A")),
         SeedColor("Royal Blue",   "#4169E1", "Cool",    "blue",   false, listOf("#4169E1", "#2E50A8", "#3A5FCD")),
         SeedColor("Sky Blue",     "#87CEEB", "Cool",    "blue",   false, listOf("#87CEEB", "#8DB8DE", "#A7C7E7")),
-        SeedColor("Forest Green", "#228B22", "Cool",    "green",  false, listOf("#228B22", "#2E5E3A", "#355E3B", "#4F7942")),
-        SeedColor("Olive",        "#808000", "Earth",   "green",  false, listOf("#808000", "#6B6B3A", "#708238")),
-        SeedColor("Mint",         "#98FF98", "Cool",    "green",  false, listOf("#98FF98", "#A8DCC0", "#B2E0C8")),
+        SeedColor("Forest Green", "#355E3B", "Cool",    "green",  false, listOf("#228B22", "#2E5E3A", "#355E3B", "#4F7942")),
+        SeedColor("Olive",        "#708238", "Earth",   "green",  false, listOf("#808000", "#6B6B3A", "#708238")),
+        SeedColor("Mint",         "#A8DCC0", "Cool",    "green",  false, listOf("#98FF98", "#A8DCC0", "#B2E0C8")),
         SeedColor("Burgundy",     "#800020", "Warm",    "red",    false, listOf("#800020", "#6D1A2B", "#7B2D3A")),
         SeedColor("Pink",         "#FFC0CB", "Warm",    "pink",   false, listOf("#FFC0CB", "#F2A7B8", "#E75480", "#F4C2C2")),
-        SeedColor("Orange",       "#FFA500", "Warm",    "orange", false, listOf("#FFA500", "#E8742A", "#F28C28", "#FF7F50")),
-        SeedColor("Yellow",       "#FFFF00", "Warm",    "yellow", false, listOf("#FFFF00", "#F2CF3A", "#FFFACD", "#FFF59D", "#E1AD01", "#FFD300", "#F6E7A5")),
-        SeedColor("Purple",       "#800080", "Cool",    "purple", false, listOf("#800080", "#6A3D8F", "#9B59B6", "#B57EDC", "#CDB4E0", "#E6E6FA")),
-        SeedColor("Brown",        "#A52A2A", "Earth",   "brown",  true,  listOf("#6B4423", "#5C4033", "#7B5B3A", "#4E342E")),
+        SeedColor("Orange",       "#F28C28", "Warm",    "orange", false, listOf("#FFA500", "#E8742A", "#F28C28", "#FF7F50")),
+        SeedColor("Yellow",       "#F2CF3A", "Warm",    "yellow", false, listOf("#FFFF00", "#F2CF3A", "#FFFACD", "#FFF59D", "#E1AD01", "#FFD300", "#F6E7A5")),
+        SeedColor("Purple",       "#6A3D8F", "Cool",    "purple", false, listOf("#800080", "#6A3D8F", "#9B59B6", "#B57EDC", "#CDB4E0", "#E6E6FA")),
+        SeedColor("Brown",        "#6B4423", "Earth",   "brown",  true,  listOf("#6B4423", "#5C4033", "#7B5B3A", "#4E342E")),
         SeedColor("Tan",          "#D2B48C", "Earth",   "brown",  true,  listOf("#D2B48C", "#C8A47E", "#C3B091", "#C19A6B")),
         SeedColor("Charcoal",     "#36454F", "Neutral", "gray",   true,  listOf("#36454F", "#3C3C3C", "#4A4A4A")),
         SeedColor("Cream",        "#F3EBD3", "Neutral", "white",  true,  listOf("#FFFDD0", "#F3EBD3", "#FAF3E0", "#FFF5DC")),

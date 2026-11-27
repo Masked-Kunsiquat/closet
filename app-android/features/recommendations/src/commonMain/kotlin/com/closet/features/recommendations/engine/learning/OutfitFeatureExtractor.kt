@@ -1,38 +1,24 @@
 package com.closet.features.recommendations.engine.learning
 
 import com.closet.features.recommendations.engine.CoWearStats
+import com.closet.features.recommendations.engine.ColorHarmony
+import com.closet.features.recommendations.engine.ColorHarmonyFactors
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.ItemNeighbor
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.PairScorer
-import com.closet.features.recommendations.engine.dominantFamilyOf
 import kotlin.math.ln
 import kotlin.math.pow
 
 /**
- * Decomposed color harmony multipliers for an outfit:
- * - [hueMultiplier]: geometric mean of hue-rule contributions across non-Neutral item pairs.
- * - [familyMultiplier]: geometric mean of coarse family-rule contributions across non-Neutral item pairs.
- *
- * By construction, `hueMultiplier * familyMultiplier` equals the legacy combined
- * `colorHarmonyMultiplier` identically.
- */
-internal data class ColorHarmonyFactors(
-    val hueMultiplier: Double,
-    val familyMultiplier: Double,
-) {
-    val combined: Double get() = hueMultiplier * familyMultiplier
-}
-
-/**
- * Pure feature extractor that maps a candidate (or partial) outfit into the 8-dimensional
- * log-feature vector $x \in \mathbb{R}^8$ consumed by [TasteWeights] and the conditional logit solver.
+ * Pure feature extractor that maps a candidate (or partial) outfit into the 10-dimensional
+ * log-feature vector $x \in \mathbb{R}^{10}$ consumed by [TasteWeights] and the conditional logit solver.
  */
 internal object OutfitFeatureExtractor {
 
     /**
-     * Extracts the 8-dimensional feature vector $x$ for [items]:
+     * Extracts the 10-dimensional feature vector $x$ for [items]:
      * - $x_0 = \ln(\text{meanItem})$
      * - $x_1 = (1 - W) \ln(\text{hueMultiplier})$
      * - $x_2 = (1 - W) \ln(\text{familyMultiplier})$
@@ -41,6 +27,8 @@ internal object OutfitFeatureExtractor {
      * - $x_5 = W \ln(H)$
      * - $x_6 = \ln(\text{layeringMultiplier})$
      * - $x_7 = \ln(\text{footwearMultiplier})$
+     * - $x_8 = (1 - W) \cdot \text{chromaMatch}$ (mean chroma gap over 0.1)
+     * - $x_9 = (1 - W) \cdot \text{lightnessSpread}$ (mean lightness gap of same-hue pairs over 0.1)
      */
     fun extract(
         items: List<EngineItem>,
@@ -93,6 +81,8 @@ internal object OutfitFeatureExtractor {
         features[TasteWeights.IDX_HISTORY_LIFT] = w * logH
         features[TasteWeights.IDX_LAYERING] = ln(layeringMultiplier)
         features[TasteWeights.IDX_FOOTWEAR] = ln(footwearMultiplier)
+        features[TasteWeights.IDX_CHROMA_MATCH] = ruleWeight * ColorHarmony.chromaMatchFeature(items)
+        features[TasteWeights.IDX_LIGHTNESS_SPREAD] = ruleWeight * ColorHarmony.lightnessSpreadFeature(items)
         return features
     }
 
@@ -111,54 +101,11 @@ internal object OutfitFeatureExtractor {
     }
 
     /**
-     * Decomposes color harmony across non-Neutral item pairs into [ColorHarmonyFactors.hueMultiplier]
-     * and [ColorHarmonyFactors.familyMultiplier] such that their product equals the legacy
-     * `colorHarmonyMultiplier` identically.
+     * Color harmony split into [ColorHarmonyFactors.hueMultiplier] and
+     * [ColorHarmonyFactors.familyMultiplier]; delegates to [ColorHarmony.factors], so their product
+     * is the engine's color harmony multiplier identically.
      */
-    fun colorHarmonyFactors(items: List<EngineItem>): ColorHarmonyFactors {
-        val nonNeutral = items
-            .map { it to dominantFamilyOf(it.colorFamilies) }
-            .filter { (_, family) -> family != OutfitRecommendationEngine.FAMILY_NEUTRAL }
-        if (nonNeutral.size < 2) return ColorHarmonyFactors(1.0, 1.0)
-
-        var hueProduct = 1.0
-        var familyProduct = 1.0
-        var pairCount = 0
-        for (i in nonNeutral.indices) {
-            for (j in i + 1 until nonNeutral.size) {
-                val (a, familyA) = nonNeutral[i]
-                val (b, familyB) = nonNeutral[j]
-                val hue = PairScorer.hueTerm(a, b)
-                val familyRule = pairHarmonyMultiplier(familyA, familyB)
-                val usesHue = hue != null && (familyA != familyB || hue >= familyRule)
-                if (usesHue) {
-                    hueProduct *= hue
-                } else {
-                    familyProduct *= familyRule
-                }
-                pairCount++
-            }
-        }
-        val invCount = 1.0 / pairCount
-        return ColorHarmonyFactors(
-            hueMultiplier = hueProduct.pow(invCount),
-            familyMultiplier = familyProduct.pow(invCount),
-        )
-    }
-
-    fun pairHarmonyMultiplier(a: String, b: String): Double {
-        val pair = setOf(a, b)
-        return when {
-            a == OutfitRecommendationEngine.FAMILY_BRIGHT && b == OutfitRecommendationEngine.FAMILY_BRIGHT ->
-                OutfitRecommendationEngine.MULTIPLIER_BRIGHT_BRIGHT
-            pair == setOf(OutfitRecommendationEngine.FAMILY_WARM, OutfitRecommendationEngine.FAMILY_COOL) ->
-                OutfitRecommendationEngine.MULTIPLIER_WARM_COOL
-            pair == setOf(OutfitRecommendationEngine.FAMILY_EARTH, OutfitRecommendationEngine.FAMILY_WARM) ->
-                1.0 + OutfitRecommendationEngine.BONUS_EARTH_WARM
-            a == b -> 1.0 + OutfitRecommendationEngine.BONUS_SAME_FAMILY
-            else -> 1.0
-        }
-    }
+    fun colorHarmonyFactors(items: List<EngineItem>): ColorHarmonyFactors = ColorHarmony.factors(items)
 
     fun patternMixingMultiplier(items: List<EngineItem>): Double {
         val patternedCount = items.count { !it.isPatternSolid }

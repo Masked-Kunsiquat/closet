@@ -26,11 +26,13 @@ import kotlinx.datetime.LocalDate
  * @property warmthLayer    Value of categories.warmth_layer
  *                          (None / Base / Mid / Outer). Null when uncategorised.
  * @property colorFamilies  Set of color_family strings for the item's tagged colors.
- *                          Empty when no colors are tagged; engine treats as Neutral.
+ *                          Empty when no colors are tagged. Color harmony does not read it (it
+ *                          reads [colorHexes]); it is kept for the family-level signals.
  * @property isPatternSolid True when the item's pattern junction is empty OR every
  *                          tagged pattern name is "Solid". False = patterned.
- * @property colorHexes     The item's tagged colors that have a hex, each with its color family,
- *                          in color-id order.
+ * @property colorHexes     The item's tagged colors that have a hex (measured or named), each with
+ *                          its family, share and neutrality, in color-id order. Color harmony
+ *                          reads only these, never [colorFamilies].
  * @property formalityLevel Median formality (1 to 5) of the item's occasions, or null if unknown.
  * @property subcategoryName Human-readable subcategory name (e.g. "Sweater", "Shorts"), or null if none.
  * @property materials      Set of tagged material names (e.g. "Wool", "Linen"). Empty when none tagged.
@@ -49,10 +51,31 @@ data class EngineItem(
     val formalityLevel: Double? = null,
     val subcategoryName: String? = null,
     val materials: Set<String> = emptySet(),
-)
+) {
+    /**
+     * This item's [ColorHarmony.harmonyColor], computed once. It lives in the body so it stays out
+     * of `equals`, `hashCode` and `copy`.
+     */
+    internal val harmony: HarmonyColor? by lazy { ColorHarmony.harmonyColor(this) }
+}
 
-/** One tagged color's hex code and its `color_family` (Neutral / Earth / Cool / Warm / Bright). */
-data class ColorHex(val hex: String, val family: String)
+/**
+ * One tagged color, as color harmony ([ColorHarmony]) reads it.
+ *
+ * @property hex            The tag's measured hex (`clothing_item_colors.hex`), or the named
+ *                          color's hex when there is no measurement.
+ * @property family         The named color's `color_family` (Neutral / Earth / Cool / Warm / Bright).
+ * @property share          The tag's measured share of the item, or null when unknown (manual tags).
+ * @property wearsAsNeutral The named color's `wears_as_neutral`.
+ * @property fallbackHex    The named color's hex, read when [hex] does not parse; null for none.
+ */
+data class ColorHex(
+    val hex: String,
+    val family: String,
+    val share: Double? = null,
+    val wearsAsNeutral: Boolean = false,
+    val fallbackHex: String? = null,
+)
 
 // ---------------------------------------------------------------------------
 // Engine input — all pre-fetched signals

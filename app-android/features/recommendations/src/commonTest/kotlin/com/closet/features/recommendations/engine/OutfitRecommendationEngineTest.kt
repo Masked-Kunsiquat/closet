@@ -1,5 +1,6 @@
 package com.closet.features.recommendations.engine
 
+import com.closet.core.data.DatabaseSeeder
 import com.closet.core.data.dao.ItemLastWorn
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
@@ -445,72 +446,74 @@ class OutfitRecommendationEngineTest {
     @Test
     fun `same color family bonus applies plus 0_10`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Cool")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
+            item(id = 1, role = "Top").inColors("Royal Blue"),
+            item(id = 2, role = "Bottom").inColors("Sky Blue")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // mean = 1.0; same-family bonus = +0.10 → multiplier = 1.10
+        // mean = 1.0; Cool + Cool: the same-family +0.10 beats the analogous hue 1.05 → 1.10
         assertEquals(1.10, result[0].score, 0.001)
     }
 
     @Test
-    fun `Earth plus Warm bonus applies plus 0_05`() {
+    fun `Earth plus Warm takes the hue band not the family bonus`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Earth")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Warm"))
+            item(id = 1, role = "Top").inColors("Olive"),
+            item(id = 2, role = "Bottom").inColors("Orange")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // mean = 1.0; Earth+Warm bonus = +0.05 → multiplier = 1.05
+        // mean = 1.0; different families use the hue: Olive and Orange are about 98 degrees apart,
+        // well clear of both bands → 1.0 (the old Earth + Warm rule gave 1.05)
+        assertEquals(1.0, result[0].score, 0.001)
+    }
+
+    @Test
+    fun `Bright plus Bright takes the hue band over the 0_70 clash`() {
+        val red = DatabaseSeeder.SEEDED_COLORS.single { it.name == "Red" }.hex
+        val items = listOf(
+            item(id = 1, role = "Top", colorFamilies = setOf("Bright"), colorHexes = listOf(ColorHex(red, "Bright"))),
+            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"), colorHexes = listOf(ColorHex(red, "Bright")))
+        )
+        val result = engine.recommend(engineInput(candidates = items))
+        assertEquals(1, result.size)
+        // mean = 1.0; same hue (analogous 1.05) beats the Bright + Bright family rule (0.70)
         assertEquals(1.05, result[0].score, 0.001)
     }
 
     @Test
-    fun `Bright plus Bright applies 0_70 multiplier`() {
+    fun `Warm plus Cool takes the hue band not the 0_85 clash`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Bright")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"))
+            item(id = 1, role = "Top").inColors("Red"),
+            item(id = 2, role = "Bottom").inColors("Royal Blue")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // mean = 1.0; Bright+Bright = × 0.70
-        assertEquals(0.70, result[0].score, 0.001)
-    }
-
-    @Test
-    fun `Warm plus Cool applies 0_85 multiplier`() {
-        val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
-        )
-        val result = engine.recommend(engineInput(candidates = items))
-        assertEquals(1, result.size)
-        // mean = 1.0; Warm+Cool = × 0.85
-        assertEquals(0.85, result[0].score, 0.001)
+        // mean = 1.0; about 110 degrees apart → 1.0 (the old Warm + Cool rule gave 0.85)
+        assertEquals(1.0, result[0].score, 0.001)
     }
 
     @Test
     fun `Neutral plus anything has no effect`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Neutral")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"))
+            item(id = 1, role = "Top").inColors("Grey"),
+            item(id = 2, role = "Bottom").inColors("Red")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // Neutral skipped in pairwise check → no effect → score = 1.0
+        // Grey has no harmony color, so Red has no partner → no effect → score = 1.0
         assertEquals(1.0, result[0].score, 0.001)
     }
 
     @Test
     fun `item with no colors tagged treated as Neutral`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = emptySet()),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright"))
+            item(id = 1, role = "Top"),
+            item(id = 2, role = "Bottom").inColors("Red")
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1, result.size)
-        // No-color item treated as Neutral → no pairwise effect → score = 1.0
+        // No-color item has no harmony color → no pairwise effect → score = 1.0
         assertEquals(1.0, result[0].score, 0.001)
     }
 
@@ -661,19 +664,22 @@ class OutfitRecommendationEngineTest {
 
     @Test
     fun `results are sorted descending by score`() {
-        // Create scenario where different combos have different scores
-        val highScoreTop = item(id = 1, role = "Top", colorFamilies = setOf("Cool"))
-        val highScoreBottom = item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
-        val lowScoreTop = item(id = 3, role = "Top", colorFamilies = setOf("Warm"))
-        val lowScoreBottom = item(id = 4, role = "Bottom", colorFamilies = setOf("Cool"))
+        // Two combos with different scores, driven by colour harmony (which reads the colour tags)
+        val top = item(id = 1, role = "Top").inColors("Red")
+        val complementaryBottom = item(id = 2, role = "Bottom").inColors("Forest Green")
+        val plainBottom = item(id = 3, role = "Bottom").inColors("Grey")
 
-        // highScore combo: Cool+Cool = same-family bonus +0.10 → score = 1.10
-        // lowScore combo: Warm+Cool = slight clash × 0.85 → score = 0.85
+        // Red + Forest Green: complementary → 1.05
+        // Red + Grey: Grey has no harmony colour → no effect → 1.0
         val result = engine.recommend(engineInput(
-            candidates = listOf(highScoreTop, highScoreBottom, lowScoreTop, lowScoreBottom)
+            candidates = listOf(top, plainBottom, complementaryBottom)
         ))
 
         assertTrue(result.isNotEmpty())
+        assertTrue(
+            result.map { it.score }.distinct().size >= 2,
+            "The scenario must produce at least two distinct scores, or the order check proves nothing"
+        )
         for (i in 0 until result.size - 1) {
             assertTrue(
                 result[i].score >= result[i + 1].score,
@@ -687,9 +693,9 @@ class OutfitRecommendationEngineTest {
     // =========================================================================
 
     @Test
-    fun `cold day with no outer and warm cool color clash combines multipliers`() {
-        val top = item(id = 1, role = "Top", colorFamilies = setOf("Warm"))
-        val bottom = item(id = 2, role = "Bottom", colorFamilies = setOf("Cool"))
+    fun `cold day with no outer and a complementary pair combines multipliers`() {
+        val top = item(id = 1, role = "Top").inColors("Red")
+        val bottom = item(id = 2, role = "Bottom").inColors("Forest Green")
 
         val input = engineInput(
             candidates = listOf(top, bottom),
@@ -697,7 +703,58 @@ class OutfitRecommendationEngineTest {
         )
         val result = engine.recommend(input)
         assertEquals(1, result.size)
-        // mean = 1.0; cold-no-outer = × 0.50; warm+cool = × 0.85
-        assertEquals(1.0 * 0.50 * 0.85, result[0].score, 0.001)
+        // mean = 1.0; cold-no-outer = × 0.50; red + forest green (complementary) = × 1.05
+        assertEquals(1.0 * 0.50 * 1.05, result[0].score, 0.001)
+    }
+
+    // =========================================================================
+    // Near-duplicate trimming
+    // =========================================================================
+
+    private fun topIds(candidates: List<EngineItem>): Set<Long> =
+        engine.recommend(engineInput(candidates = candidates), topN = 10)
+            .flatMap { combo -> combo.items.filter { it.outfitRole == "Top" }.map { it.id } }
+            .toSet()
+
+    @Test
+    fun `Navy and Royal Blue of one subcategory both survive trimming`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Grey")
+        val navy = item(id = 1, role = "Top", subcategoryId = 1).inColors("Navy")
+        val royal = item(id = 2, role = "Top", subcategoryId = 1).inColors("Royal Blue")
+        assertEquals(setOf(1L, 2L), topIds(listOf(navy, royal, bottom)))
+    }
+
+    @Test
+    fun `a Black tee and a White tee both survive trimming`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Red")
+        val black = item(id = 1, role = "Top", subcategoryId = 1).inColors("Black")
+        val white = item(id = 2, role = "Top", subcategoryId = 1).inColors("White")
+        assertEquals(setOf(1L, 2L), topIds(listOf(black, white, bottom)))
+    }
+
+    @Test
+    fun `two items tagged Navy with different measured shades collapse`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Grey")
+        val navy = item(id = 1, role = "Top", subcategoryId = 1).inColors("Navy")
+        val measured = item(id = 2, role = "Top", subcategoryId = 1).inColors("Navy").let { base ->
+            base.copy(colorHexes = base.colorHexes.map { it.copy(hex = "#202A5A", fallbackHex = it.hex) })
+        }
+        assertEquals(1, topIds(listOf(navy, measured, bottom)).size)
+    }
+
+    @Test
+    fun `items with only colour families still trim by family`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2, colorFamilies = setOf("Neutral"))
+        val a = item(id = 1, role = "Top", subcategoryId = 1, colorFamilies = setOf("Cool"))
+        val b = item(id = 2, role = "Top", subcategoryId = 1, colorFamilies = setOf("Cool"))
+        assertEquals(1, topIds(listOf(a, b, bottom)).size)
+    }
+
+    @Test
+    fun `the same colour in different subcategories never collapses`() {
+        val bottom = item(id = 9, role = "Bottom", subcategoryId = 2).inColors("Grey")
+        val a = item(id = 1, role = "Top", subcategoryId = 1).inColors("Navy")
+        val b = item(id = 2, role = "Top", subcategoryId = 3).inColors("Navy")
+        assertEquals(setOf(1L, 2L), topIds(listOf(a, b, bottom)))
     }
 }

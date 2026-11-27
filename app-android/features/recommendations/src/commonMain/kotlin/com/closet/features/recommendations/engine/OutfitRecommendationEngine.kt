@@ -43,11 +43,12 @@ import kotlin.random.Random
  *    when there is no optional slot), outfits whose [key] is in `exclude` (already shown this
  *    session) are dropped *before* the selection, so shown outfits never take a beam place.
  * 7. Outfit-level score — `meanItem × [W·H + (1 − W)·R] × layering × footwear`:
- *    - `R`, the taste rules: color harmony (the geometric mean over non-Neutral item pairs of
- *      the hue rule when both items have a chromatic hex of their dominant family — analogous
- *      ≤ 30° or complementary 150°–210° × 1.05, an 80°–100° clash × 0.90 — otherwise the
- *      color-family rule; same-family pairs use max(familyRule, hueTerm) so same-family
- *      cohesion keeps its bonus) × pattern
+ *    - `R`, the taste rules: color harmony ([ColorHarmony]: each item is judged by its
+ *      harmony color, the largest-share tag that neither wears as neutral nor falls below
+ *      [ColorHarmony.C_FLOOR] chroma, read from the measured hex; over pairs of such items, the
+ *      share-weighted geometric mean of the hue band on the painter's wheel — analogous ≤ 60°
+ *      or complementary ≥ 150° × 1.05, else 1.0 — with same-family pairs using
+ *      max(familyRule, hueTerm) so same-family cohesion keeps its bonus) × pattern
  *      mixing × the geometric mean over all item pairs of the formality term (× 0.85 when the
  *      two levels differ by 2 or more, 1.0 when either is unknown).
  *    - `H`, the habit: the geometric mean over all item pairs of the co-wear lift
@@ -460,22 +461,16 @@ class OutfitRecommendationEngine {
 
     /**
      * Within a list of candidates for the same role slot, remove items that share
-     * the same (color + subcategoryId) combination. Keeps the first occurrence
+     * the same [colorDedupKey] (colour names + subcategoryId). Keeps the first occurrence
      * (highest-ranked after sorting by score).
      *
-     * An item with no colors tagged is treated as having a unique key (its own ID),
-     * so it is never deduplicated against another item.
+     * Colour names, not families: harmony reads each item's colour, so Navy and Royal Blue
+     * (both Cool) or a Black and a White tee (both Neutral) must stay distinct. An item with
+     * neither hexes nor families has a unique key (its own ID), so it is never deduplicated.
      */
     private fun List<EngineItem>.deduplicateByColorAndSubcategory(): List<EngineItem> {
         val seen = mutableSetOf<String>()
-        return filter { item ->
-            val key = if (item.colorFamilies.isEmpty()) {
-                "no-color-${item.id}"
-            } else {
-                "${item.colorFamilies.sorted().joinToString(",")}::${item.subcategoryId}"
-            }
-            seen.add(key)
-        }
+        return filter { item -> seen.add(item.colorDedupKey()) }
     }
 
     // -------------------------------------------------------------------------
@@ -489,7 +484,7 @@ class OutfitRecommendationEngine {
      *
      * When [tasteWeights] is not [com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT],
      * scales the baseline default score by the personalized log-linear conditional logit deviation
-     * $\exp((\beta - \beta_0)^\top x)$ over the 8 features extracted by
+     * $\exp((\beta - \beta_0)^\top x)$ over the 10 features extracted by
      * [com.closet.features.recommendations.engine.learning.OutfitFeatureExtractor].
      */
     internal fun scoreCombo(
@@ -582,77 +577,18 @@ class OutfitRecommendationEngine {
     // -------------------------------------------------------------------------
 
     /**
-     * Computes the combined color harmony multiplier for an outfit by evaluating
-     * all distinct pairs of items whose dominant color family is not Neutral and returning the
-     * **geometric mean** of the pair multipliers, `(∏ pair)^(1/pairCount)`, so the effect
-     * does not compound with outfit size. With one pair this is that pair's value.
+     * The outfit's color harmony multiplier, [ColorHarmony.factors]' combined value (color v2,
+     * #81): over every pair of items with a harmony color (their largest-share tag that neither
+     * wears as neutral nor has chroma below [ColorHarmony.C_FLOOR]), the share-weighted geometric
+     * mean of each pair's term, so the effect does not compound with outfit size.
      *
-     * Per pair, the hue rule ([PairScorer.hueTerm]) applies when both items have a chromatic
-     * hex; otherwise the family rules below. For same-family pairs, `max(familyRule, hueTerm)`
-     * applies so that same-family cohesion retains its bonus.
-     *
-     * Family rules (per pair):
-     * - Neutral + anything → no effect (skip Neutral items in pairwise check)
-     * - Same family + same family → +0.10 bonus (additive to base multiplier 1.0)
-     * - Earth + Warm → +0.05 bonus
-     * - Bright + Bright → × 0.70
-     * - Warm + Cool → × 0.85
-     * - All other pairings → no effect
-     *
-     * Multi-color items: the dominant family is determined by the highest-priority
-     * non-Neutral family present (priority: Bright > Warm > Cool > Earth > Neutral).
-     * Items with no color tagged are treated as Neutral.
+     * A pair's term is its hue band on the painter's wheel ([ColorHarmony.hueMultiplier]:
+     * analogous ≤ 60° or complementary ≥ 150° × 1.05, else 1.0); a same-family pair takes
+     * `max(familyRule, hueTerm)` ([ColorHarmony.familyRule]) so same-family cohesion keeps its
+     * +0.10. Items with no harmony color (all neutral, untagged or unparseable) sit out.
      */
-    private fun colorHarmonyMultiplier(items: List<EngineItem>): Double {
-        val nonNeutral = items
-            .map { it to dominantColorFamily(it.colorFamilies) }
-            .filter { (_, family) -> family != FAMILY_NEUTRAL }
-        if (nonNeutral.size < 2) return 1.0
-
-        var product = 1.0
-        var pairCount = 0
-        for (i in nonNeutral.indices) {
-            for (j in i + 1 until nonNeutral.size) {
-                val (a, familyA) = nonNeutral[i]
-                val (b, familyB) = nonNeutral[j]
-                val hue = PairScorer.hueTerm(a, b)
-                val familyMultiplier = pairHarmonyMultiplier(familyA, familyB)
-                val pairMultiplier = if (hue != null && familyA == familyB) {
-                    maxOf(familyMultiplier, hue)
-                } else {
-                    hue ?: familyMultiplier
-                }
-                product *= pairMultiplier
-                pairCount++
-            }
-        }
-        return product.pow(1.0 / pairCount)
-    }
-
-    /**
-     * Returns the multiplier contribution for a single color family pair.
-     * Bonuses are represented as additive adjustments on top of 1.0.
-     *
-     * Bright+Bright is a clash (× 0.70) and takes priority over the general
-     * same-family bonus (+0.10) — evaluated first.
-     */
-    private fun pairHarmonyMultiplier(a: String, b: String): Double {
-        val pair = setOf(a, b)
-        return when {
-            a == FAMILY_BRIGHT && b == FAMILY_BRIGHT -> MULTIPLIER_BRIGHT_BRIGHT   // clash takes priority
-            pair == setOf(FAMILY_WARM, FAMILY_COOL) -> MULTIPLIER_WARM_COOL        // slight clash
-            pair == setOf(FAMILY_EARTH, FAMILY_WARM) -> 1.0 + BONUS_EARTH_WARM    // +0.05 compatible
-            a == b -> 1.0 + BONUS_SAME_FAMILY                                      // same family → +0.10
-            else -> 1.0
-        }
-    }
-
-    /**
-     * Picks the dominant color family from the set of families assigned to an item.
-     * Priority (highest first): Bright > Warm > Cool > Earth > Neutral.
-     * Items with no colors tagged return Neutral.
-     */
-    private fun dominantColorFamily(families: Set<String>): String = dominantFamilyOf(families)
+    private fun colorHarmonyMultiplier(items: List<EngineItem>): Double =
+        ColorHarmony.factors(items).combined
 
     // -------------------------------------------------------------------------
     // Pattern mixing scoring
@@ -703,16 +639,6 @@ class OutfitRecommendationEngine {
         return dates.maxOrNull() ?: NEVER_WORN_SENTINEL
     }
 }
-
-private val FAMILY_PRIORITY = listOf("Bright", "Warm", "Cool", "Earth", "Neutral")
-
-/**
- * The dominant color family of an item: the highest-priority family present
- * (Bright > Warm > Cool > Earth > Neutral), Neutral when none is tagged. Shared by the family
- * harmony rules and [PairScorer.hueTerm], so both sides judge the same color.
- */
-internal fun dominantFamilyOf(families: Set<String>): String =
-    FAMILY_PRIORITY.firstOrNull { it in families } ?: "Neutral"
 
 /** The combo's core: its Top + Bottom IDs, or its OnePiece ID. Two combos with the same core
  *  differ only in outerwear, footwear or accessories. */

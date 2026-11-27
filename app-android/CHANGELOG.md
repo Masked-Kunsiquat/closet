@@ -10,9 +10,13 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ### Added
 - **Re-detect colors**: re-measure an item's colours from its photo with a preview, or re-detect your whole wardrobe from Settings. Colours you set by hand, including clearing them, are never changed automatically.
+- **Two new learned taste signals** (intensity match, and light/dark contrast within a hue). They have no effect until they are learned, and stored learned weights retrain once.
+- **Chat colour search understands basic colour words**: "blue" covers navy, royal, sky, denim and teal, and "grey" covers charcoal. Item results now include each colour's share of the item.
 
 ### Changed
 - **Better automatic colour tags**: photos are analysed by how colours really look, with the background ignored, and each tag remembers its real shade and how much of the item it covers. Colours you set yourself are never overwritten.
+- **Clothing-realistic base colours**: ten base colour swatches were re-picked so they look like clothes (Brown is brown, Navy is navy), and Navy is no longer treated as a neutral.
+- **Outfit colour harmony uses each item's measured shade**: suggestions use the painter's colour wheel (complementary and analogous pairs get a small boost), neutrals sit out, and accent colours are weighted by their share of the item. Harmony is now a bonus only; there are no colour-clash penalties.
 
 ---
 

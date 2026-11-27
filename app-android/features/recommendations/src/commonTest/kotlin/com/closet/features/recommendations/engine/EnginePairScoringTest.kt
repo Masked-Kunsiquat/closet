@@ -2,6 +2,7 @@ package com.closet.features.recommendations.engine
 
 import com.closet.core.data.dao.ItemLastWorn
 import kotlinx.datetime.LocalDate
+import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -84,14 +85,16 @@ class EnginePairScoringTest {
     }
 
     @Test
-    fun `habit outvotes a clashing color rule`() {
+    fun `habit outvotes a penalising rule`() {
+        // Color harmony no longer goes below 1 (no clash band, #81), so the rule here is the
+        // formality gap.
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Bright")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Bright")),   // clashes: rules give 0_70
-            item(id = 3, role = "Bottom", colorFamilies = setOf("Neutral")),  // harmless, never worn
+            item(id = 1, role = "Top", formalityLevel = 5.0),
+            item(id = 2, role = "Bottom", formalityLevel = 1.0),  // a gap of 4: rules give 0_85
+            item(id = 3, role = "Bottom"),                        // harmless, never worn
         )
         val cold = engine.recommend(engineInput(candidates = items))
-        assertTrue(cold.rankOf(1, 3) < cold.rankOf(1, 2), "rules alone prefer the neutral bottom")
+        assertTrue(cold.rankOf(1, 3) < cold.rankOf(1, 2), "rules alone prefer the harmless bottom")
 
         val coWear = CoWearStats(
             pairCounts = mapOf((1L to 2L) to 20.0),
@@ -100,8 +103,8 @@ class EnginePairScoringTest {
         )
         val result = engine.recommend(engineInput(candidates = items, coWear = coWear))
         assertEquals(setOf(1L, 2L), result.first().key())
-        // W = 0_7, H = 1_3, R = 0_7 -> 0_91 + 0_21 = 1_12
-        assertEquals(1.12, result.scoreOf(1, 2), 1e-9)
+        // W = 0_7, H = 1_3, R = 0_85 -> 0_91 + 0_255 = 1_165
+        assertEquals(1.165, result.scoreOf(1, 2), 1e-9)
         assertEquals(1.0, result.scoreOf(1, 3), 1e-9)
     }
 
@@ -181,38 +184,51 @@ class EnginePairScoringTest {
     // =========================================================================
 
     @Test
-    fun `complementary hexes outrank clashing hexes`() {
+    fun `complementary hexes outrank an unrelated pair`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FF0000", "Warm"))),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Cool")).copy(colorHexes = listOf(ColorHex("#80FF00", "Cool"))),
-            item(id = 3, role = "Bottom", colorFamilies = setOf("Cool"), subcategoryId = 9)
-                .copy(colorHexes = listOf(ColorHex("#00FFFF", "Cool"))),
+            item(id = 1, role = "Top").inColors("Red"),
+            item(id = 2, role = "Bottom").inColors("Royal Blue"),
+            item(id = 3, role = "Bottom", subcategoryId = 9).inColors("Forest Green"),
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(setOf(1L, 3L), result.first().key())
-        assertEquals(1.05, result.scoreOf(1, 3), 1e-9)  // complementary, replaces Warm+Cool 0_85
-        assertEquals(0.90, result.scoreOf(1, 2), 1e-9)  // about 90 degrees: a clash
+        assertEquals(1.05, result.scoreOf(1, 3), 1e-9)  // about 168 degrees: complementary
+        assertEquals(1.0, result.scoreOf(1, 2), 1e-9)   // about 110 degrees: no effect, no clash
     }
 
     @Test
-    fun `a pair with one missing hex falls back to the family rule`() {
+    fun `an item with no hex sits out of harmony`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FF0000", "Warm"))),
+            item(id = 1, role = "Top").inColors("Red"),
             item(id = 2, role = "Bottom", colorFamilies = setOf("Cool")),
         )
         val result = engine.recommend(engineInput(candidates = items))
-        assertEquals(0.85, result.single().score, 1e-9)
+        assertEquals(1.0, result.single().score, 1e-9)
     }
 
     @Test
     fun `same-family pairs use max of family rule and hue term`() {
-        // Red (#FF0000, 0 deg) and Yellow (#FFFF00, 60 deg) are both Warm.
-        // Hue term alone gives 1.0 (60 deg is neutral), but Warm+Warm gives 1.10.
+        // Red and Yellow are both Warm, about 106 degrees apart on the painter's wheel.
+        // The hue term alone gives 1.0, but Warm + Warm gives 1.10.
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FF0000", "Warm"))),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Warm")).copy(colorHexes = listOf(ColorHex("#FFFF00", "Warm"))),
+            item(id = 1, role = "Top").inColors("Red"),
+            item(id = 2, role = "Bottom").inColors("Yellow"),
         )
         val result = engine.recommend(engineInput(candidates = items))
         assertEquals(1.10, result.single().score, 1e-9)
+    }
+
+    @Test
+    fun `measured shares weight the harmony`() {
+        // A grey tee with a 30 percent red print and forest green chinos: 1_05 ^ 0_3.
+        val tee = item(id = 1, role = "Top", colorFamilies = setOf("Neutral", "Warm")).copy(
+            colorHexes = listOf(
+                ColorHex("#808080", "Neutral", share = 0.7, wearsAsNeutral = true),
+                ColorHex("#C41E3A", "Warm", share = 0.3),
+            ),
+        )
+        val chinos = item(id = 2, role = "Bottom").inColors("Forest Green")
+        val result = engine.recommend(engineInput(candidates = listOf(tee, chinos)))
+        assertEquals(1.05.pow(0.3), result.single().score, 1e-9)
     }
 }

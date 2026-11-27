@@ -1,10 +1,13 @@
 package com.closet.features.recommendations.engine.learning
 
 import com.closet.features.recommendations.engine.CoWearStats
+import com.closet.features.recommendations.engine.ColorHarmony
 import com.closet.features.recommendations.engine.ColorHex
 import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
+import com.closet.features.recommendations.engine.PairScorer
 import com.closet.features.recommendations.engine.engineInput
+import com.closet.features.recommendations.engine.inColors
 import com.closet.features.recommendations.engine.item
 import com.closet.features.recommendations.engine.weather
 import kotlin.math.abs
@@ -39,8 +42,67 @@ class TasteWeightsScoringTest {
         assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize(null))
         assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize(""))
         assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3"))
-        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,NaN"))
-        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,Infinity"))
+        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,8,9,NaN"))
+        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1,2,3,4,5,6,7,8,9,Infinity"))
+    }
+
+    @Test
+    fun `default weights give the new features no effect`() {
+        val x = DoubleArray(TasteWeights.FEATURE_COUNT).apply { this[8] = 3.0; this[9] = 2.0 }
+        assertEquals(0.0, TasteWeights.DEFAULT.deltaDot(x), 0.0)
+        assertFalse(TasteWeights(chromaMatch = 1.5).isDefault)
+        assertTrue(TasteWeights(chromaMatch = 1.5).deltaDot(x) > 0.0)
+    }
+
+    @Test
+    fun `an 8-value stored string deserializes to DEFAULT`() {
+        assertEquals(TasteWeights.DEFAULT, TasteWeights.deserialize("1.5,1,1,1,1,1,1,1"))
+    }
+
+    @Test
+    fun `a 10-value string round-trips`() {
+        val w = TasteWeights(meanItem = 1.2, chromaMatch = 0.7, lightnessSpread = 1.9)
+        assertEquals(w, TasteWeights.deserialize(w.serialize()))
+        assertEquals(10, w.toDoubleArray().size)
+    }
+
+    @Test
+    fun `extract fills indices 8 and 9 scaled by the rule weight`() {
+        val a = item(1L, colorHexes = listOf(ColorHex("#000080", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val b = item(2L, colorHexes = listOf(ColorHex("#4169E1", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val items = listOf(a, b)
+        val x = OutfitFeatureExtractor.extract(
+            items = items,
+            itemScores = emptyMap(),
+            weather = null,
+            hasFootwearInPool = false,
+            coWear = CoWearStats.EMPTY,
+        )
+        assertEquals(10, x.size)
+        assertEquals(ColorHarmony.chromaMatchFeature(items), x[8], 1e-12)
+        assertEquals(ColorHarmony.lightnessSpreadFeature(items), x[9], 1e-12)
+        assertTrue(x[8] > 0.0 && x[9] > 0.0)
+    }
+
+    @Test
+    fun `extract scales indices 8 and 9 by one minus the history weight`() {
+        val a = item(1L, colorHexes = listOf(ColorHex("#000080", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val b = item(2L, colorHexes = listOf(ColorHex("#4169E1", "Cool", 1.0)), colorFamilies = setOf("Cool"))
+        val items = listOf(a, b)
+        // Worn together 3 times, each worn 3 of 10 times: direct evidence 3, so 0 < W < 1.
+        val coWear = CoWearStats(
+            pairCounts = mapOf((1L to 2L) to 3.0),
+            itemCounts = mapOf(1L to 3.0, 2L to 3.0),
+            total = 10.0,
+        )
+        val w = PairScorer.history(a, b, coWear).weight
+        assertTrue(w > 0.0 && w < 1.0, "W must be strictly between 0 and 1, was $w")
+
+        val none = OutfitFeatureExtractor.extract(items, emptyMap(), null, false, CoWearStats.EMPTY)
+        val x = OutfitFeatureExtractor.extract(items, emptyMap(), null, false, coWear)
+        assertTrue(none[8] > 0.0 && none[9] > 0.0)
+        assertEquals((1.0 - w) * none[8], x[8], 1e-12)
+        assertEquals((1.0 - w) * none[9], x[9], 1e-12)
     }
 
     @Test
@@ -57,12 +119,16 @@ class TasteWeightsScoringTest {
             colorFamilies = setOf("Cool"),
             colorHexes = listOf(ColorHex("#00FFFF", "Cool")), // complementary to red (180 deg -> 1.05)
         )
-        val warmNoHex = item(
+        val blueHex = item(
             id = 3L,
             role = "Footwear",
-            colorFamilies = setOf("Warm"),
+            colorFamilies = setOf("Cool"),
+            // Cool + Cool with cyan: the same-family +0.10 beats their analogous hue (1.05), so the
+            // family side of the split is exercised.
+            colorHexes = listOf(ColorHex("#4169E1", "Cool")),
         )
-        val items = listOf(redHex, cyanHex, warmNoHex)
+        val items = listOf(redHex, cyanHex, blueHex)
+        assertTrue(OutfitFeatureExtractor.colorHarmonyFactors(items).familyMultiplier > 1.0)
         val itemScores = items.associate { it.id to 1.0 }
 
         // With W = 0, exp(DEFAULT.dot(features)) must equal legacy scoreCombo exactly
@@ -73,7 +139,9 @@ class TasteWeightsScoringTest {
             hasFootwearInPool = true,
             coWear = CoWearStats.EMPTY,
         )
-        val logLinearScore = exp(TasteWeights.DEFAULT.dot(features))
+        // The learned-only features (8, 9) are outside the legacy blend; the offset in baselineOffset absorbs them.
+        val legacyFeatures = features.copyOf().also { it[TasteWeights.IDX_CHROMA_MATCH] = 0.0; it[TasteWeights.IDX_LIGHTNESS_SPREAD] = 0.0 }
+        val logLinearScore = exp(TasteWeights.DEFAULT.dot(legacyFeatures))
         val legacyScore = engine.scoreCombo(
             items = items,
             itemScores = itemScores,
@@ -167,27 +235,26 @@ class TasteWeightsScoringTest {
     }
 
     @Test
-    fun `negative familyHarmony weight flips ranking in favor of Bright+Bright clash`() {
-        val brightTop = item(1L, role = "Top", colorFamilies = setOf("Bright"))
-        val brightBottom = item(2L, role = "Bottom", colorFamilies = setOf("Bright"))
-        val earthTop = item(3L, role = "Top", colorFamilies = setOf("Earth"))
-        val earthBottom = item(4L, role = "Bottom", colorFamilies = setOf("Earth"))
+    fun `negative familyHarmony weight flips ranking against the same-family bonus`() {
+        val redTop = item(1L, role = "Top").inColors("Red")
+        val burgundyBottom = item(2L, role = "Bottom").inColors("Burgundy")
+        val oliveBottom = item(3L, role = "Bottom").inColors("Olive")
 
-        val candidates = listOf(brightTop, brightBottom, earthTop, earthBottom)
+        val candidates = listOf(redTop, burgundyBottom, oliveBottom)
 
-        // Default weights: Earth+Earth (1.10) beats Bright+Bright (0.70)
+        // Default weights: Red + Burgundy (Warm + Warm, 1.10) beats Red + Olive (hue only, 1.0)
         val defaultResults = engine.recommend(
             engineInput(candidates = candidates, tasteWeights = TasteWeights.DEFAULT),
             topN = 2,
         )
-        assertEquals(setOf(3L, 4L), defaultResults.first().items.map { it.id }.toSet())
+        assertEquals(setOf(1L, 2L), defaultResults.first().items.map { it.id }.toSet())
 
-        // Clash lover: negative familyHarmony weight makes Bright+Bright win
+        // Negative familyHarmony weight turns the same-family bonus into a penalty
         val clashWeights = TasteWeights(familyHarmony = -1.0)
         val clashResults = engine.recommend(
             engineInput(candidates = candidates, tasteWeights = clashWeights),
             topN = 2,
         )
-        assertEquals(setOf(1L, 2L), clashResults.first().items.map { it.id }.toSet())
+        assertEquals(setOf(1L, 3L), clashResults.first().items.map { it.id }.toSet())
     }
 }

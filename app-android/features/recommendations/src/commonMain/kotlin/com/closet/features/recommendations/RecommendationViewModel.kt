@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.closet.core.data.dao.CandidateItem
 import com.closet.core.data.dao.ItemColorFamily
+import com.closet.core.data.dao.ItemColorHex
 import com.closet.core.data.dao.ItemLastWorn
 import com.closet.core.data.dao.ItemPatternName
 import com.closet.core.data.dao.ItemRainSuitability
@@ -452,7 +453,7 @@ class RecommendationViewModel(
         val occasionNamesMap: Map<Long, List<String>> = occasionNamesDeferred.await()
             .groupBy({ it.clothingItemId }, { it.occasionName })
         val colorHexesMap: Map<Long, List<ColorHex>> = colorHexesDeferred.await()
-            .groupBy({ it.clothingItemId }, { ColorHex(it.hex, it.colorFamily) })
+            .groupBy({ it.clothingItemId }, { it.toColorHex() })
         val subcategoryNamesMap: Map<Long, String> = subcategoryNamesDeferred.await()
         val materialNamesMap: Map<Long, Set<String>> = materialNamesDeferred.await()
 
@@ -631,7 +632,7 @@ class RecommendationViewModel(
     /**
      * Resolves the user's personalized [TasteWeights] from [AiPreferencesRepository], retraining
      * on [computationDispatcher] when `totalLogCount >= 20` and the database log watermark
-     * (`"v1:$totalLogCount:$maxLogId"`) differs from the stored watermark.
+     * (`"$TASTE_WEIGHTS_SCHEMA_VERSION:$totalLogCount:$maxLogId"`) differs from the stored watermark.
      *
      * Any failure during training logs a warning and falls back to the stored or [TasteWeights.DEFAULT]
      * weights so recommendation generation is never blocked.
@@ -714,7 +715,7 @@ class RecommendationViewModel(
         val occasionNamesMap = occasionNamesDeferred.await()
             .groupBy({ it.clothingItemId }, { it.occasionName })
         val colorHexesMap = colorHexesDeferred.await()
-            .groupBy({ it.clothingItemId }, { ColorHex(it.hex, it.colorFamily) })
+            .groupBy({ it.clothingItemId }, { it.toColorHex() })
         val embeddingsMap = embeddingsDeferred.await()
         val subcategoryNamesMap = subcategoryNamesDeferred.await()
         val materialNamesMap = materialNamesDeferred.await()
@@ -786,7 +787,7 @@ class RecommendationViewModel(
     }
 
     companion object {
-        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v2"
+        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v3"
     }
 
     // -------------------------------------------------------------------------
@@ -847,3 +848,15 @@ sealed interface SaveResult {
 private fun <K> MutableMap<K, Double>.addTo(key: K, amount: Double) {
     this[key] = (this[key] ?: 0.0) + amount
 }
+
+/**
+ * The engine's view of one colour tag: the measured hex when there is one, else the name hex,
+ * which is also kept as the fallback for a measured hex that does not parse (color v2, #81).
+ */
+private fun ItemColorHex.toColorHex() = ColorHex(
+    hex = measuredHex ?: hex,
+    family = colorFamily,
+    share = share,
+    wearsAsNeutral = wearsAsNeutral,
+    fallbackHex = hex,
+)

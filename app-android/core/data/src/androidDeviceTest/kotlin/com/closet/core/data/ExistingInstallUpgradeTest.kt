@@ -67,7 +67,7 @@ class ExistingInstallUpgradeTest {
         val item = upgraded.clothingDao().getClothingItemEntityById(itemId)
         assertNotNull("item from the previous build should survive", item)
         assertEquals("Upgrade Shirt", item!!.name)
-        assertEquals(3, upgraded.databaseVersion())
+        assertEquals(4, upgraded.databaseVersion())
         assertEquals(10, count(upgraded, "categories"))
         // Subcategories have no stable ids, so a second seeding would double them.
         assertEquals(subcategoriesBefore, count(upgraded, "subcategories"))

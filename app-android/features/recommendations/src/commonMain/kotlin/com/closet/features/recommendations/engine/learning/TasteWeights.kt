@@ -3,7 +3,7 @@ package com.closet.features.recommendations.engine.learning
 import kotlin.math.abs
 
 /**
- * Learned per-user taste weights for the 8 candidate outfit log-features in
+ * Learned per-user taste weights for the 10 candidate outfit log-features in
  * [com.closet.features.recommendations.engine.OutfitRecommendationEngine].
  *
  * Fitted on-device from the user's wear logs via a regularized conditional logit
@@ -18,6 +18,8 @@ import kotlin.math.abs
  * - 5: [historyLift] — $W \ln(H)$ co-wear habit lift weighted by evidence confidence $W$.
  * - 6: [layering] — $\ln(\text{layeringMultiplier})$ weather layering fit.
  * - 7: [footwear] — $\ln(\text{footwearMultiplier})$ missing-footwear penalty.
+ * - 8: [chromaMatch] - mean chroma gap over harmony-color pairs, over 0.1 (times the rule weight).
+ * - 9: [lightnessSpread] - mean lightness gap of same-hue pairs, over 0.1 (times the rule weight).
  */
 data class TasteWeights(
     val meanItem: Double = 1.0,
@@ -28,6 +30,8 @@ data class TasteWeights(
     val historyLift: Double = 1.0,
     val layering: Double = 1.0,
     val footwear: Double = 1.0,
+    val chromaMatch: Double = 1.0,
+    val lightnessSpread: Double = 1.0,
 ) {
     /**
      * True when every weight is at its hand-tuned default (1.0 within floating-point tolerance).
@@ -41,9 +45,11 @@ data class TasteWeights(
             abs(formalityGap - 1.0) <= EPSILON &&
             abs(historyLift - 1.0) <= EPSILON &&
             abs(layering - 1.0) <= EPSILON &&
-            abs(footwear - 1.0) <= EPSILON
+            abs(footwear - 1.0) <= EPSILON &&
+            abs(chromaMatch - 1.0) <= EPSILON &&
+            abs(lightnessSpread - 1.0) <= EPSILON
 
-    /** Converts this weight vector to an 8-element [DoubleArray] in feature-index order. */
+    /** Converts this weight vector to a 10-element [DoubleArray] in feature-index order. */
     fun toDoubleArray(): DoubleArray = doubleArrayOf(
         meanItem,
         hueHarmony,
@@ -53,9 +59,11 @@ data class TasteWeights(
         historyLift,
         layering,
         footwear,
+        chromaMatch,
+        lightnessSpread,
     )
 
-    /** Computes the linear utility $u = \beta^\top x$ for an 8-element feature vector [features]. */
+    /** Computes the linear utility $u = \beta^\top x$ for a 10-element feature vector [features]. */
     fun dot(features: DoubleArray): Double {
         require(features.size == FEATURE_COUNT) {
             "Expected $FEATURE_COUNT features, got ${features.size}"
@@ -67,12 +75,14 @@ data class TasteWeights(
             formalityGap * features[IDX_FORMALITY_GAP] +
             historyLift * features[IDX_HISTORY_LIFT] +
             layering * features[IDX_LAYERING] +
-            footwear * features[IDX_FOOTWEAR]
+            footwear * features[IDX_FOOTWEAR] +
+            chromaMatch * features[IDX_CHROMA_MATCH] +
+            lightnessSpread * features[IDX_LIGHTNESS_SPREAD]
     }
 
     /**
      * Computes the learned log-utility deviation $(\beta - \beta_0)^\top x$ relative to [DEFAULT]
-     * ($\beta_0 = [1, 1, \dots, 1]^\top$) for an 8-element feature vector [features].
+     * ($\beta_0 = [1, 1, \dots, 1]^\top$) for a 10-element feature vector [features].
      */
     fun deltaDot(features: DoubleArray): Double {
         require(features.size == FEATURE_COUNT) {
@@ -85,14 +95,16 @@ data class TasteWeights(
             (formalityGap - 1.0) * features[IDX_FORMALITY_GAP] +
             (historyLift - 1.0) * features[IDX_HISTORY_LIFT] +
             (layering - 1.0) * features[IDX_LAYERING] +
-            (footwear - 1.0) * features[IDX_FOOTWEAR]
+            (footwear - 1.0) * features[IDX_FOOTWEAR] +
+            (chromaMatch - 1.0) * features[IDX_CHROMA_MATCH] +
+            (lightnessSpread - 1.0) * features[IDX_LIGHTNESS_SPREAD]
     }
 
     /** Serializes this weight vector as a compact comma-separated string for DataStore persistence. */
     fun serialize(): String = toDoubleArray().joinToString(separator = ",")
 
     companion object {
-        const val FEATURE_COUNT = 8
+        const val FEATURE_COUNT = 10
 
         const val IDX_MEAN_ITEM = 0
         const val IDX_HUE_HARMONY = 1
@@ -102,13 +114,15 @@ data class TasteWeights(
         const val IDX_HISTORY_LIFT = 5
         const val IDX_LAYERING = 6
         const val IDX_FOOTWEAR = 7
+        const val IDX_CHROMA_MATCH = 8
+        const val IDX_LIGHTNESS_SPREAD = 9
 
         private const val EPSILON = 1e-9
 
         /** Default prior center $\beta_0 = [1.0, \dots, 1.0]^\top$. */
         val DEFAULT = TasteWeights()
 
-        /** Constructs [TasteWeights] from an 8-element [DoubleArray]. */
+        /** Constructs [TasteWeights] from a 10-element [DoubleArray]. */
         fun fromDoubleArray(values: DoubleArray): TasteWeights {
             require(values.size == FEATURE_COUNT) {
                 "Expected $FEATURE_COUNT weights, got ${values.size}"
@@ -122,6 +136,8 @@ data class TasteWeights(
                 historyLift = values[IDX_HISTORY_LIFT],
                 layering = values[IDX_LAYERING],
                 footwear = values[IDX_FOOTWEAR],
+                chromaMatch = values[IDX_CHROMA_MATCH],
+                lightnessSpread = values[IDX_LIGHTNESS_SPREAD],
             )
         }
 

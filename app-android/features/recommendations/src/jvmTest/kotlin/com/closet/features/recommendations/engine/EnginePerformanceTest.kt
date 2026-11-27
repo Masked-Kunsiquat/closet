@@ -1,6 +1,7 @@
 package com.closet.features.recommendations.engine
 
 import com.closet.core.data.dao.ItemLastWorn
+import com.closet.features.recommendations.engine.learning.TasteWeights
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
@@ -19,6 +20,18 @@ class EnginePerformanceTest {
 
     @Test
     fun `500 items and 300 logs recommend in under a second`() {
+        assertRecommendsQuickly(wardrobeInput())
+    }
+
+    @Test
+    fun `500 items and 300 logs recommend in under a second with learned taste weights`() {
+        // Non-default weights take the feature-extraction path (chroma and lightness features).
+        assertRecommendsQuickly(
+            wardrobeInput(tasteWeights = TasteWeights(chromaMatch = 1.5, lightnessSpread = 0.5)),
+        )
+    }
+
+    private fun wardrobeInput(tasteWeights: TasteWeights = TasteWeights.DEFAULT): EngineInput {
         val random = Random(7)
         val roles = listOf("Top", "Bottom", "OnePiece", "Outerwear", "Footwear", "Accessory")
         val families = listOf("Neutral", "Earth", "Cool", "Warm", "Bright")
@@ -62,8 +75,12 @@ class EnginePerformanceTest {
             weather = weather(tempLow = 8.0, tempHigh = 16.0),
             today = LocalDate(2026, 6, 1),
             coWear = CoWearStats(pairs, counts, 300.0),
+            tasteWeights = tasteWeights,
         )
+        return input
+    }
 
+    private fun assertRecommendsQuickly(input: EngineInput) {
         val engine = OutfitRecommendationEngine()
         var (result, elapsed) = measureTimedValue {
             engine.recommend(input, topN = 25, jitter = Random(11))

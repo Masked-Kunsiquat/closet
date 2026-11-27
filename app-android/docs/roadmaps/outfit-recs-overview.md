@@ -164,6 +164,7 @@ Outerwear / Footwear / Accessory slots.
 Engine builds combinations satisfying completeness before scoring.
 
 ### 1e. Presentation-layer trimming (before AI payload)
+> Superseded by color v2 (#81): harmony now uses measured OKLCh hue; family clashes removed.
 - **Color harmony** — uses `colors.color_family` (Migration 2→3). Outfit-level adjustments:
   - Neutral + anything → compatible (no effect)
   - Same family + same family → compatible (+0.10 bonus)

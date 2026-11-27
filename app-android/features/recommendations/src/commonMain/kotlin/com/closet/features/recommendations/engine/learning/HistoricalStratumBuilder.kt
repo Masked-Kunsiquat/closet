@@ -10,6 +10,7 @@ import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.ItemNeighbor
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
+import com.closet.features.recommendations.engine.colorDedupKey
 import kotlinx.datetime.LocalDate
 
 /**
@@ -33,7 +34,7 @@ data class HistoricalWearLog(
  *
  * ### Core-Level IIA Mitigation
  * For a wear log on date $d$:
- * - **Case ($y = 1$):** The 8-dimensional feature vector of the actual worn outfit.
+ * - **Case ($y = 1$):** The 10-dimensional feature vector of the actual worn outfit.
  * - **Controls ($y = 0$):** Competing cores (Top × Bottom or OnePiece) available on date $d$,
  *   excluding the worn core and any other core worn in another log on the same date $d$.
  *   Each competing core is represented by its **single highest-default-scoring completion**
@@ -532,16 +533,13 @@ internal object HistoricalStratumBuilder {
         )
     }
 
+    /**
+     * Keeps the first item per [colorDedupKey] (colour names + subcategory), the same key serving
+     * uses, so training controls match what the engine would show.
+     */
     private fun List<EngineItem>.deduplicateByColorAndSubcategory(): List<EngineItem> {
         val seen = mutableSetOf<String>()
-        return filter { item ->
-            val key = if (item.colorFamilies.isEmpty()) {
-                "no-color-${item.id}"
-            } else {
-                "${item.colorFamilies.sorted().joinToString(",")}::${item.subcategoryId}"
-            }
-            seen.add(key)
-        }
+        return filter { item -> seen.add(item.colorDedupKey()) }
     }
 
     private fun tieBreakKey(items: List<EngineItem>, lastWornDates: Map<Long, ItemLastWorn>): String =

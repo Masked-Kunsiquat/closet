@@ -1,5 +1,6 @@
 package com.closet.features.recommendations.engine.learning
 
+import com.closet.features.recommendations.engine.inColors
 import com.closet.features.recommendations.engine.item
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -63,21 +64,22 @@ class TasteWeightTrainerTest {
 
     @Test
     fun `end-to-end trainFromHistory learns habit and pattern preferences across multi-day wardrobe logs`() {
-        // Build a synthetic wardrobe where the user always wears multi-patterned Bright+Bright cores
-        val brightTop1 = item(1L, role = "Top", colorFamilies = setOf("Bright"), isPatternSolid = false, subcategoryId = 10L)
-        val brightTop2 = item(2L, role = "Top", colorFamilies = setOf("Bright"), isPatternSolid = false, subcategoryId = 11L)
-        val coolTop1 = item(3L, role = "Top", colorFamilies = setOf("Cool"), isPatternSolid = true, subcategoryId = 12L)
-        val coolTop2 = item(4L, role = "Top", colorFamilies = setOf("Cool"), isPatternSolid = true, subcategoryId = 13L)
+        // Build a synthetic wardrobe where the user always wears multi-patterned Warm + Cool cores
+        // (no colour bonus, about 110 degrees apart) over solid Cool + Cool ones (same family, 1.10)
+        val warmTop1 = item(1L, role = "Top", isPatternSolid = false, subcategoryId = 10L).inColors("Red")
+        val warmTop2 = item(2L, role = "Top", isPatternSolid = false, subcategoryId = 11L).inColors("Burgundy")
+        val coolTop1 = item(3L, role = "Top", isPatternSolid = true, subcategoryId = 12L).inColors("Sky Blue")
+        val coolTop2 = item(4L, role = "Top", isPatternSolid = true, subcategoryId = 13L).inColors("Teal")
 
-        val brightBottom1 = item(5L, role = "Bottom", colorFamilies = setOf("Bright"), isPatternSolid = false, subcategoryId = 20L)
-        val brightBottom2 = item(6L, role = "Bottom", colorFamilies = setOf("Bright"), isPatternSolid = false, subcategoryId = 21L)
-        val coolBottom1 = item(7L, role = "Bottom", colorFamilies = setOf("Cool"), isPatternSolid = true, subcategoryId = 22L)
-        val coolBottom2 = item(8L, role = "Bottom", colorFamilies = setOf("Cool"), isPatternSolid = true, subcategoryId = 23L)
+        val patternedBottom1 = item(5L, role = "Bottom", isPatternSolid = false, subcategoryId = 20L).inColors("Royal Blue")
+        val patternedBottom2 = item(6L, role = "Bottom", isPatternSolid = false, subcategoryId = 21L).inColors("Navy")
+        val coolBottom1 = item(7L, role = "Bottom", isPatternSolid = true, subcategoryId = 22L).inColors("Mint")
+        val coolBottom2 = item(8L, role = "Bottom", isPatternSolid = true, subcategoryId = 23L).inColors("Purple")
 
         val shoe = item(9L, role = "Footwear", colorFamilies = setOf("Neutral"), isPatternSolid = true, subcategoryId = 30L)
         val items = listOf(
-            brightTop1, brightTop2, coolTop1, coolTop2,
-            brightBottom1, brightBottom2, coolBottom1, coolBottom2,
+            warmTop1, warmTop2, coolTop1, coolTop2,
+            patternedBottom1, patternedBottom2, coolBottom1, coolBottom2,
             shoe,
         )
 
@@ -95,7 +97,8 @@ class TasteWeightTrainerTest {
         val result = TasteWeightTrainer.trainFromHistory(items = items, logs = logs)
         assertEquals(36, result.strataCount)
         assertTrue(result.meanLogLikDelta > 0.0, "Expected positive CV delta, got ${result.meanLogLikDelta}")
-        // Both familyHarmony and patternMix penalized the user's chosen Bright+Bright patterned outfits under DEFAULT,
+        // Under DEFAULT, familyHarmony favoured the same-family alternatives and patternMix penalized the user's
+        // chosen multi-patterned outfits,
         // so the trainer must reduce those weights below 1.0!
         assertTrue(
             result.weights.familyHarmony < 1.0 && result.weights.patternMix < 1.0,

@@ -2,6 +2,7 @@ package com.closet.features.recommendations.engine
 
 import com.closet.core.data.dao.ItemLastWorn
 import kotlinx.datetime.LocalDate
+import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,27 +25,28 @@ class EngineRankingTest {
     @Test
     fun `three Warm items score the geometric mean 1_10 not the product 1_331`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Warm")),
-            item(id = 3, role = "Outerwear", colorFamilies = setOf("Warm"))
+            item(id = 1, role = "Top").inColors("Red"),
+            item(id = 2, role = "Bottom").inColors("Burgundy"),
+            item(id = 3, role = "Outerwear").inColors("Orange")
         )
         val result = engine.recommend(engineInput(candidates = items))
         val threeItem = assertNotNull(result.find { it.items.size == 3 })
-        // 3 pairs of 1.10 → (1.10^3)^(1/3) = 1.10
+        // 3 same-family pairs of 1.10 → (1.10^3)^(1/3) = 1.10
         assertEquals(1.10, threeItem.score, 0.001)
     }
 
     @Test
     fun `Warm Warm Cool scores the geometric mean of mixed pairs`() {
         val items = listOf(
-            item(id = 1, role = "Top", colorFamilies = setOf("Warm")),
-            item(id = 2, role = "Bottom", colorFamilies = setOf("Warm")),
-            item(id = 3, role = "Outerwear", colorFamilies = setOf("Cool"))
+            item(id = 1, role = "Top").inColors("Red"),
+            item(id = 2, role = "Bottom").inColors("Orange"),
+            item(id = 3, role = "Outerwear").inColors("Forest Green")
         )
         val result = engine.recommend(engineInput(candidates = items))
         val threeItem = assertNotNull(result.find { it.items.size == 3 })
-        // Pairs: Warm+Warm 1.10, Warm+Cool 0.85, Warm+Cool 0.85 → (1.10 × 0.85 × 0.85)^(1/3) ≈ 0.926
-        assertEquals(0.926, threeItem.score, 0.001)
+        // Pairs: Red + Orange (Warm + Warm) 1.10, Red + Forest Green (about 168 degrees) 1.05,
+        // Orange + Forest Green (about 140 degrees) 1.0 → (1.10 × 1.05 × 1.0)^(1/3) ≈ 1.049
+        assertEquals((1.10 * 1.05 * 1.0).pow(1.0 / 3.0), threeItem.score, 0.001)
     }
 
     // =========================================================================

@@ -161,7 +161,29 @@ class RecommendationDaoCoWearTest {
                 it.bindLong(1, a); it.bindLong(2, color)
             }
         }
-        assertEquals(listOf(ItemColorHex(a, "#112233", "Cool")), dao.getItemColorHexes(listOf(a)))
+        assertEquals(listOf(ItemColorHex(a, "#112233", null, null, "Cool", false)), dao.getItemColorHexes(listOf(a)))
+    }
+
+    @Test
+    fun `getItemColorHexes returns measured hex share and neutrality`() = runBlocking {
+        val a = insertItem("a")
+        val navyId = colorId("Navy")
+        val whiteId = colorId("White")
+        exec("INSERT INTO clothing_item_colors (clothing_item_id, color_id, hex, share, source) VALUES (?, ?, '#1F2B45', 0.7, 'auto')") {
+            it.bindLong(1, a); it.bindLong(2, navyId)
+        }
+        exec("INSERT INTO clothing_item_colors (clothing_item_id, color_id, source) VALUES (?, ?, 'user')") {
+            it.bindLong(1, a); it.bindLong(2, whiteId)
+        }
+        val rows = dao.getItemColorHexes(listOf(a)).associateBy { it.hex }
+        assertEquals(ItemColorHex(a, "#1F2A44", "#1F2B45", 0.7, "Cool", false), rows["#1F2A44"])
+        assertEquals(ItemColorHex(a, "#FFFFFF", null, null, "Neutral", true), rows["#FFFFFF"])
+    }
+
+    private fun colorId(name: String): Long = runBlocking {
+        db.useReaderConnection { c ->
+            c.usePrepared("SELECT id FROM colors WHERE name = ?") { s -> s.bindText(1, name); s.step(); s.getLong(0) }
+        }
     }
 
     @Test
@@ -178,8 +200,8 @@ class RecommendationDaoCoWearTest {
         }
         assertEquals(
             listOf(
-                ItemColorHex(a, "#000080", "Neutral"), ItemColorHex(a, "#FF0000", "Warm"),
-                ItemColorHex(b, "#000080", "Neutral"), ItemColorHex(b, "#FF0000", "Warm"),
+                ItemColorHex(a, "#000080", null, null, "Neutral", false), ItemColorHex(a, "#FF0000", null, null, "Warm", false),
+                ItemColorHex(b, "#000080", null, null, "Neutral", false), ItemColorHex(b, "#FF0000", null, null, "Warm", false),
             ),
             dao.getItemColorHexes(listOf(b, a)),
         )

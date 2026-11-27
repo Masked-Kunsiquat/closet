@@ -26,6 +26,8 @@ Migrations in this package:
   `MigrationTest`.
 - `MIGRATION_2_3` (`Migration2To3.kt`, re-detect colours, #128): `clothing_items.colors_curated`,
   backfilled to 1 for items with a `user` colour row. Tested by `MigrationTest`.
+- `MIGRATION_3_4` (`Migration3To4.kt`, colour v2 PR 2, D1): re-picks ten base `colors.hex` values and sets
+  Navy to `Cool`. Tested by `MigrationTest`.
 
 **Every schema change needs a real migration** — the reset was a one-off.
 

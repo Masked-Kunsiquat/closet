@@ -157,7 +157,12 @@ class RecommendationViewModelSessionTest {
                 ItemOccasionName(1, "My Gala"), ItemOccasionName(2, "My Gala"),
             )
         )
-        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(listOf(ItemColorHex(3, "#112233", "Cool")))
+        coEvery { repo.getItemColorHexes(any()) } returns DataResult.Success(
+            listOf(
+                ItemColorHex(3, "#112233", "#445566", 0.8, "Cool", true),
+                ItemColorHex(3, "#778899", null, null, "Warm", false),
+            )
+        )
         val v1 = floatArrayOf(1.0f, 0.0f, 0.0f)
         val v2 = floatArrayOf(0.9f, 0.43588989f, 0.0f)
         coEvery { repo.getItemEmbeddings(any()) } returns DataResult.Success(mapOf(1L to v1, 2L to v2))
@@ -186,7 +191,14 @@ class RecommendationViewModelSessionTest {
         val items = input.candidates.associateBy { it.id }
         assertEquals(3.5, items.getValue(1).formalityLevel)
         assertEquals(null, items.getValue(2).formalityLevel)
-        assertEquals(listOf(ColorHex("#112233", "Cool")), items.getValue(3).colorHexes)
+        // The measured hex leads, with the name hex kept as its fallback.
+        assertEquals(
+            listOf(
+                ColorHex("#445566", "Cool", share = 0.8, wearsAsNeutral = true, fallbackHex = "#112233"),
+                ColorHex("#778899", "Warm", share = null, wearsAsNeutral = false, fallbackHex = "#778899"),
+            ),
+            items.getValue(3).colorHexes,
+        )
         assertEquals(emptyList(), items.getValue(1).colorHexes)
         assertEquals("Sweater", items.getValue(1).subcategoryName)
         assertEquals(null, items.getValue(2).subcategoryName)
@@ -339,7 +351,7 @@ class RecommendationViewModelSessionTest {
                     every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
                     every { getOpenAiApiKey() } returns flowOf("test-key")
                     every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
-                    every { getTasteWeightsWatermark() } returns flowOf("v2:25:42")
+                    every { getTasteWeightsWatermark() } returns flowOf("v3:25:42")
                     every { getTasteWeightsRaw() } returns flowOf(customWeights.serialize())
                 },
                 computationDispatcher = UnconfinedTestDispatcher(),

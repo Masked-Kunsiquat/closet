@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A real v2 -> v3 upgrade through the production builder ([getDatabaseBuilder], so
+ * A real v2 -> v4 upgrade through the production builder ([getDatabaseBuilder], so
  * `configureClosetDatabase` supplies the migrations and the `onOpen` callback), on the JVM.
  * [MigrationTest] checks the migrations alone with [MigrationTestHelper]; this checks that the app's
  * own builder upgrades an existing v2 file, backfills `colors_curated` and recreates the partial index.
@@ -41,11 +41,12 @@ class ProductionUpgradeTest {
     }
 
     @Test
-    fun `the production builder upgrades a v2 file to v3`() {
+    fun `the production builder upgrades a v2 file to v4`() {
         val v2 = helper.createDatabase(2)
         v2.execSQL("DROP INDEX IF EXISTS one_ootd_per_day") // per migrations/AGENTS.md
         v2.execSQL("INSERT INTO colors (id, name, hex) VALUES (2, 'White', '#FFFFFF')")
-        v2.execSQL("INSERT INTO colors (id, name, hex) VALUES (5, 'Navy', '#1F2A44')")
+        v2.execSQL("INSERT INTO colors (id, name, hex) VALUES (5, 'Navy', '#000080')")
+        v2.execSQL("UPDATE colors SET color_family = 'Neutral' WHERE id = 5") // the pre-v4 Navy
         for (id in 1..2) {
             v2.execSQL(
                 "INSERT INTO clothing_items (id, name, is_favorite, created_at, updated_at) " +
@@ -60,11 +61,16 @@ class ProductionUpgradeTest {
 
         val upgraded = getDatabaseBuilder(file).build().also { db = it }
 
-        assertEquals(3, runBlocking { upgraded.databaseVersion() })
+        assertEquals(4, runBlocking { upgraded.databaseVersion() })
         val curated = upgraded.rows("SELECT id, colors_curated FROM clothing_items ORDER BY id") {
             it.getLong(0) to it.getLong(1)
         }
         assertEquals(listOf(1L to 1L, 2L to 0L), curated)
+        // MIGRATION_3_4 re-picks Navy's base hex and makes it Cool.
+        val navy = upgraded.rows("SELECT hex, color_family FROM colors WHERE name = 'Navy'") {
+            it.getText(0) to it.getText(1)
+        }
+        assertEquals(listOf("#1F2A44" to "Cool"), navy)
         val ootdIndex = upgraded.rows(
             "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'one_ootd_per_day'"
         ) { it.getText(0) }
