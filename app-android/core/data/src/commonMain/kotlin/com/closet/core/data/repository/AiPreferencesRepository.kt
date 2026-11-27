@@ -233,7 +233,8 @@ class AiPreferencesRepository(
     // ── Learned taste weights (Engine v2, #114) ──────────────────────────────
 
     /**
-     * Serialized learned taste weights string (`"w0,w1,...,w7"`), or `null` when not yet trained.
+     * Serialized learned taste weights string, the 10 weights comma-separated
+     * (`"w0,w1,...,w9"`), or `null` when not yet trained.
      * Catches DataStore I/O errors and emits `null` so callers fall back to default weights.
      */
     fun getTasteWeightsRaw(): Flow<String?> = aiDataStore.data
@@ -246,7 +247,9 @@ class AiPreferencesRepository(
 
     /**
      * Watermark of the wear log history on which [getTasteWeightsRaw] was last trained
-     * (format: `"v1:$totalLogCount:$maxLogId"`), or `null` when not yet trained.
+     * (format: `"$TASTE_WEIGHTS_SCHEMA_VERSION:$totalLogCount:$maxLogId"`, where the schema version
+     * is `RecommendationViewModel.TASTE_WEIGHTS_SCHEMA_VERSION`, currently `"v4"`), or `null` when
+     * not yet trained.
      */
     fun getTasteWeightsWatermark(): Flow<String?> = aiDataStore.data
         .map { prefs -> prefs[tasteWeightsWatermarkKey] }
