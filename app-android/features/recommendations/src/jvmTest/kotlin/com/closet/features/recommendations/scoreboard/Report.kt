@@ -5,8 +5,8 @@ import java.util.Locale
 
 /**
  * Renders [PersonaResult]s as Markdown: per persona (and in total when there are several), each
- * check's fail rate over its applicable outcomes, hit@10, the no-results rate, the evaluated days
- * and the saved share.
+ * check's fail rate over its applicable outcomes, hit@10, the no-results rate, the layered-core
+ * days (on which hit@10's subset rule is generous), the evaluated days and the saved share.
  */
 object Report {
     const val EMBEDDINGS_NOTE = "neighbour backoff off: no JVM embeddings"
@@ -43,6 +43,7 @@ object Report {
         appendLine("| Saved share | ${percent(r.savedShare)} |")
         appendLine("| Hit@10 | ${rate(r.hitsAt10, r.evaluatedDays)} |")
         appendLine("| No results | ${rate(r.noResultDays, r.evaluatedDays)} |")
+        appendLine("| Layered-core days | ${rate(r.layeredCoreDays, r.evaluatedDays)} |")
         for (id in CheckId.entries) {
             val check = r.checks.getValue(id)
             appendLine("| ${id.name} fails | ${rate(check.fails, check.applicable)} |")
@@ -56,6 +57,7 @@ object Report {
             evaluatedDays = results.sumOf { it.evaluatedDays },
             hitsAt10 = results.sumOf { it.hitsAt10 },
             noResultDays = results.sumOf { it.noResultDays },
+            layeredCoreDays = results.sumOf { it.layeredCoreDays },
             savedShare = meanSavedShare,
             checks = CheckId.entries.associateWith { id ->
                 CheckRate(

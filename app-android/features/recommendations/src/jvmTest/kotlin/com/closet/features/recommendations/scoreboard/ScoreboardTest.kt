@@ -81,6 +81,42 @@ class ScoreboardTest {
     }
 
     @Test
+    fun `a layered worn core is hit by a contained engine core and counts as layered`() = runTest(timeout = 5.minutes) {
+        val persona = MiniPersona.build()
+        ScoreboardDatabase().use { env ->
+            val fixture = FixtureWriter.write(env.db, persona)
+            val worn = listOf("white-oxford", "grey-sweater", "navy-chinos", "dress-shoes")
+            // Every other top and bottom is dirty, so each engine core is one of those tops plus the chinos.
+            val byKey = persona.items.associateBy { it.key }
+            val dirty = persona.items
+                .filter { it.category in setOf(Checks.TOPS, Checks.BOTTOMS) && it.key !in worn }
+                .map { it.key }.toSet()
+            val day = SimDay(
+                date = Scoreboard.DEFAULT_START.plusDays(30),
+                kind = DayKind.OFFICE,
+                occasion = "Work/Business",
+                weather = DayWeather(lowC = 0.0, highC = 6.0, raining = false, windy = false),
+                logged = true,
+                wornItemKeys = worn,
+                viaSavedOutfit = null,
+                dirtyAtMorning = dirty,
+                dirtyAtNight = dirty,
+            )
+            assertTrue(worn.count { byKey.getValue(it).category == Checks.TOPS } == 2)
+            val evaluation = Scoreboard.evaluateDay(
+                env.db, persona, fixture, day, requestedOccasion = null, yesterdayWornKeys = null,
+            )
+            assertFalse(evaluation.noResults)
+            assertTrue(evaluation.hitAt10, "a top-10 core of one worn top plus the chinos should be a hit")
+            assertTrue(evaluation.layeredCore)
+
+            val result = Scoreboard.tally(persona, listOf(evaluation))
+            assertEquals(1, result.hitsAt10)
+            assertEquals(1, result.layeredCoreDays)
+        }
+    }
+
+    @Test
     fun `report is written`() = runTest(timeout = 5.minutes) {
         val result = Scoreboard.run(MiniPersona.build())
         val file = Report.write(listOf(result))

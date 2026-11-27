@@ -21,6 +21,16 @@ data class CheckRate(val fails: Int, val applicable: Int)
 /**
  * One persona's scoreboard numbers.
  *
+ * A day's *core* is its items whose fixture category is in [Scoreboard.CORE_ROLES] (Tops, Bottoms,
+ * Dresses & Jumpsuits).
+ *
+ * @property hitsAt10 evaluation days on which some top-10 combo's core is a subset of the worn core.
+ *   Subset, not equality: the app's core is exactly one Top + one Bottom, or one OnePiece, so a
+ *   worn core of a shirt under a sweater plus chinos can never be an engine core, and the rule
+ *   counts the engine's shirt + chinos (or sweater + chinos) as a hit. [layeredCoreDays] shows how
+ *   often that generosity can apply.
+ * @property layeredCoreDays evaluation days whose worn core cannot be an engine core: more than one
+ *   Top, more than one Bottom, or a OnePiece together with a Top or a Bottom.
  * @property savedShare the share of the persona's catalogue outfits that are saved in the app.
  */
 data class PersonaResult(
@@ -28,6 +38,7 @@ data class PersonaResult(
     val evaluatedDays: Int,
     val hitsAt10: Int,
     val noResultDays: Int,
+    val layeredCoreDays: Int,
     val savedShare: Double,
     val checks: Map<CheckId, CheckRate>,
 )
@@ -36,6 +47,8 @@ data class PersonaResult(
 internal data class DayEvaluation(
     val noResults: Boolean,
     val hitAt10: Boolean,
+    /** The worn core cannot be an engine core (see [PersonaResult.layeredCoreDays]). */
+    val layeredCore: Boolean,
     val outcomes: Map<CheckId, List<Outcome>>,
 )
 
@@ -62,7 +75,8 @@ object Scoreboard {
     private const val PAGE_SIZE = 3
     private const val HIT_DEPTH = 10
     private const val UPDATED_AT = "2026-01-01T00:00:00Z"
-    private val CORE_CATEGORIES = setOf(Checks.TOPS, Checks.BOTTOMS, Checks.ONE_PIECE)
+    /** The fixture categories whose items form a core; they map to the app's Top, Bottom and OnePiece roles. */
+    internal val CORE_ROLES = setOf(Checks.TOPS, Checks.BOTTOMS, Checks.ONE_PIECE)
 
     suspend fun run(persona: Persona, start: LocalDate = DEFAULT_START, days: Int = DEFAULT_DAYS): PersonaResult =
         runObserved(persona, start, days) { _, _ -> }
@@ -105,9 +119,10 @@ object Scoreboard {
      * (`topN = 10`), each with a new `Random` seeded by the date. An empty page is a no-results day:
      * a miss, with every check N/A.
      *
-     * A hit means some top-10 combo's core (its Tops, Bottoms and Dresses & Jumpsuits items) is
-     * contained in the core the persona actually wore; containment, not equality, because the engine
-     * builds one Top per core while a persona may layer two (a shirt under a sweater).
+     * A hit means some top-10 combo's core (its [CORE_ROLES] items) is a non-empty subset of the core
+     * the persona actually wore. Subset, not equality, because the app's core is one Top + one
+     * Bottom, or one OnePiece, while a persona may layer two Tops (a shirt under a sweater). Such a
+     * day is also flagged [DayEvaluation.layeredCore], so the report shows how often this applies.
      */
     internal suspend fun evaluateDay(
         db: ClothingDatabase,
@@ -154,8 +169,12 @@ object Scoreboard {
         val top10 = pipeline.run(request(HIT_DEPTH)).map(::keys)
 
         val byKey = persona.items.associateBy { it.key }
-        fun core(keys: List<String>) = keys.filter { byKey.getValue(it).category in CORE_CATEGORIES }.toSet()
+        fun core(keys: List<String>) = keys.filter { byKey.getValue(it).category in CORE_ROLES }.toSet()
         val wornCore = core(day.wornItemKeys)
+        val wornCategories = wornCore.map { byKey.getValue(it).category }
+        val tops = wornCategories.count { it == Checks.TOPS }
+        val bottoms = wornCategories.count { it == Checks.BOTTOMS }
+        val layered = tops > 1 || bottoms > 1 || (Checks.ONE_PIECE in wornCategories && tops + bottoms > 0)
         val hit = top10.any { combo -> core(combo).let { it.isNotEmpty() && wornCore.containsAll(it) } }
 
         val ctx = CheckContext(persona, day, requestedOccasion, yesterdayWornKeys)
@@ -165,7 +184,7 @@ object Scoreboard {
         }
         outcomes.getOrPut(CheckId.THREE_DIFFER) { ArrayList() } += Checks.threeDiffer(page)
 
-        return DayEvaluation(noResults = page.isEmpty(), hitAt10 = hit, outcomes = outcomes)
+        return DayEvaluation(noResults = page.isEmpty(), hitAt10 = hit, layeredCore = layered, outcomes = outcomes)
     }
 
     /** Sums evaluation days into a [PersonaResult]; every [CheckId] is present. */
@@ -179,6 +198,7 @@ object Scoreboard {
             evaluatedDays = evaluations.size,
             hitsAt10 = evaluations.count { it.hitAt10 },
             noResultDays = evaluations.count { it.noResults },
+            layeredCoreDays = evaluations.count { it.layeredCore },
             savedShare = if (persona.outfits.isEmpty()) 0.0
             else persona.outfits.count { it.saved }.toDouble() / persona.outfits.size,
             checks = checks,
