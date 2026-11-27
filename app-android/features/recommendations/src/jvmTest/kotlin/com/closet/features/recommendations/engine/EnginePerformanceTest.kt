@@ -1,6 +1,8 @@
 package com.closet.features.recommendations.engine
 
 import com.closet.core.data.dao.ItemLastWorn
+import com.closet.features.recommendations.engine.learning.HistoricalWearLog
+import com.closet.features.recommendations.engine.learning.TasteWeightTrainer
 import com.closet.features.recommendations.engine.learning.TasteWeights
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -31,8 +33,23 @@ class EnginePerformanceTest {
         )
     }
 
-    private fun wardrobeInput(tasteWeights: TasteWeights = TasteWeights.DEFAULT): EngineInput {
+    @Test
+    fun `taste training on 500 items and 300 logs stays within its budget`() {
         val random = Random(7)
+        val items = wardrobeItems(random)
+        val logs = wearLogs(items, random).mapIndexed { i, (date, ids) ->
+            val w = if (i % 3 == 0) weather(tempLow = 2.0 + i % 20, tempHigh = 10.0 + i % 20) else null
+            HistoricalWearLog(logId = i + 1L, date = date, itemIds = ids, weather = w)
+        }
+        val engine = OutfitRecommendationEngine()
+        val (result, elapsed) = measureTimedValue {
+            TasteWeightTrainer.trainFromHistory(items = items, logs = logs, engine = engine)
+        }
+        assertTrue(result.strataCount > 0)
+        assertTrue(elapsed < TRAINING_BUDGET, "trainFromHistory took $elapsed, budget $TRAINING_BUDGET")
+    }
+
+    private fun wardrobeItems(random: Random): List<EngineItem> {
         val roles = listOf("Top", "Bottom", "OnePiece", "Outerwear", "Footwear", "Accessory")
         val families = listOf("Neutral", "Earth", "Cool", "Warm", "Bright")
         val items = (1L..500L).map { id ->
@@ -51,18 +68,31 @@ class EnginePerformanceTest {
                 formalityLevel = if (random.nextBoolean()) random.nextInt(1, 6).toDouble() else null,
             )
         }
+        return items
+    }
+
+    /** 300 days of wear: one top, bottom, shoes and outerwear each, two logs a day. */
+    private fun wearLogs(items: List<EngineItem>, random: Random): List<Pair<LocalDate, List<Long>>> {
         val byRole = items.groupBy { it.outfitRole }
-        val pairs = HashMap<Pair<Long, Long>, Double>()
-        val counts = HashMap<Long, Double>()
-        val lastWorn = HashMap<Long, ItemLastWorn>()
         val start = LocalDate(2026, 1, 1)
-        repeat(300) { day ->
+        return List(300) { day ->
             val ids = listOf("Top", "Bottom", "Footwear", "Outerwear")
                 .map { byRole.getValue(it).random(random).id }
                 .sorted()
+            start.plus(day / 2, DateTimeUnit.DAY) to ids
+        }
+    }
+
+    private fun wardrobeInput(tasteWeights: TasteWeights = TasteWeights.DEFAULT): EngineInput {
+        val random = Random(7)
+        val items = wardrobeItems(random)
+        val pairs = HashMap<Pair<Long, Long>, Double>()
+        val counts = HashMap<Long, Double>()
+        val lastWorn = HashMap<Long, ItemLastWorn>()
+        for ((date, ids) in wearLogs(items, random)) {
             for (id in ids) {
                 counts[id] = (counts[id] ?: 0.0) + 1.0
-                lastWorn[id] = ItemLastWorn(id, start.plus(day / 2, DateTimeUnit.DAY).toString())
+                lastWorn[id] = ItemLastWorn(id, date.toString())
             }
             for (i in ids.indices) for (j in i + 1 until ids.size) {
                 val key = ids[i] to ids[j]
@@ -98,5 +128,13 @@ class EnginePerformanceTest {
             elapsed = retry.duration
         }
         assertTrue(elapsed < 1.seconds, "recommend took $elapsed")
+    }
+
+    private companion object {
+        /**
+         * Generous smoke budget: about 3x the time measured on the dev machine (0.48 to 0.54 s),
+         * raised to the 5 s floor.
+         */
+        val TRAINING_BUDGET = 5.seconds
     }
 }
