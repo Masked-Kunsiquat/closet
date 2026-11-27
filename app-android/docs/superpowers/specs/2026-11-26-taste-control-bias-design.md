@@ -56,8 +56,21 @@ For a conditional logit fitted on a **sample** of alternatives, sampling the alt
   The unbounded fit needs `historyLift` around 31, which means "only re-suggest favourites". That runaway magnitude is exactly what the bound exists to stop.
 - **Why a bound at all:** it guards against model misspecification left over after D1–D2. It's not a fix for bias.
 
-### D3b. A stricter acceptance gate (controller ruling, kept by the owner)
-`TasteWeightTrainer` accepts learned weights only when the chosen λ's mean held-out Δℓ is greater than its standard error. Otherwise it returns `DEFAULT`, so a user whose logs carry no real taste gets the defaults more often. About 16% of pure-noise sets still pass the gate, which is expected for a one-SE gate.
+### D3b. A two-SE acceptance gate (owner decision, 2026-11-27)
+`TasteWeightTrainer` accepts learned weights only when the chosen λ's mean held-out Δℓ is greater than **twice** its standard error. Otherwise it returns `DEFAULT`. That is roughly a one-sided 97.7% bar.
+
+**Measured over 20 pure-noise histories:**
+
+| Gate | Fits accepted | Weight range of accepted fits |
+|---|---|---|
+| 1·SE (first version) | 3 of 20 | down to −2.0, up to 4.75 |
+| 2·SE | 0 of 20 | none accepted |
+
+Planted taste is unaffected (learned hit 0.20 vs 0.15 fixed). The colour-matching and shoe-less fixtures are still accepted.
+
+A no-flip floor (`β ≥ 0`) was measured and rejected. On its own, noise was still accepted and amplified upwards. Combined with the gate, it added nothing.
+
+**Cost:** a user with a faint but real taste needs more logs before learning switches on.
 
 ### D4. Retrain everyone
 - `TASTE_WEIGHTS_SCHEMA_VERSION` goes from `"v3"` to `"v4"`, so the inverted stored weights are discarded and retrained on next use.
