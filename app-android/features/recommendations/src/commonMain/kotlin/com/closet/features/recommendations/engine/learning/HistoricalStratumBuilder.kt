@@ -47,6 +47,14 @@ data class HistoricalWearLog(
  * (#135). Matching the optional slots holds the footwear feature, and the layering feature when
  * only outerwear carries the `Outer` warmth layer, constant within a stratum, so they are never
  * learned.
+ *
+ * Layering stays frozen only because the seeded categories map the `Outer` warmth layer one to
+ * one to the Outerwear role (`DatabaseSeeder.seedCategories` in `core/data`: only "Outerwear" is
+ * `Outer`, and it is the only `Outerwear`-role category). A category that broke that mapping would
+ * let layering vary between chosen and controls within a stratum, and it would be learned again.
+ *
+ * The chosen outfit is scored on its projection to the controls' structure (core plus optional
+ * roles; see [projectToControlStructure]), so both sides of a stratum have the same shape.
  */
 internal object HistoricalStratumBuilder {
 
@@ -56,13 +64,6 @@ internal object HistoricalStratumBuilder {
     /** Maximum number of recent choice strata constructed for training (older logs still feed causal history). */
     internal const val MAX_TRAINING_STRATA = 120
 
-    private const val MAX_CORE_ROLE_CANDIDATES = 20
-
-    private val CORE_ROLE_ORDER = listOf(
-        OutfitRecommendationEngine.ROLE_TOP,
-        OutfitRecommendationEngine.ROLE_BOTTOM,
-        OutfitRecommendationEngine.ROLE_ONEPIECE,
-    )
     private val OPTIONAL_ROLE_ORDER = listOf(
         OutfitRecommendationEngine.ROLE_OUTERWEAR,
         OutfitRecommendationEngine.ROLE_FOOTWEAR,
@@ -151,7 +152,7 @@ internal object HistoricalStratumBuilder {
                 val wornItems = distinctIds.mapNotNull { itemById[it] }
                 if (wornItems.size != distinctIds.size) return@mapNotNull null
                 val core = extractValidCore(wornItems) ?: return@mapNotNull null
-                Triple(log, wornItems, core)
+                Triple(log, projectToControlStructure(wornItems, core), core)
             }
 
             if (dayCores.isNotEmpty()) {
@@ -286,15 +287,27 @@ internal object HistoricalStratumBuilder {
     }
 
     /**
+     * Projects a worn outfit onto the structure every control has: its [core] plus the items in
+     * an optional role (Outerwear, Footwear, Accessory). A second top (a sweater over a shirt),
+     * a second bottom, and `Other`-role items (bags, socks, underwear) never appear in a control,
+     * and serving never suggests them either. Scoring them on the chosen side only would make
+     * chosen and controls differ in structure, the same class of bias as #135, so the chosen
+     * features, its baseline offset and the matched slot counts all come from this projection.
+     */
+    private fun projectToControlStructure(wornItems: List<EngineItem>, core: Set<Long>): List<EngineItem> =
+        wornItems.filter { it.id in core || it.outfitRole in OPTIONAL_ROLE_ORDER }
+
+    /**
      * Draws the control outfits for one stratum: uniform, seeded samples that are never ranked by
      * the rules being learned (McFadden's uniform-conditioning property; design D1 and D2, #135).
      *
      * In this order, from one `Random(logId)`:
-     * 1. Each core role (Top, Bottom, OnePiece) is capped at [MAX_CORE_ROLE_CANDIDATES] items,
-     *    drawn uniformly from the available pool.
-     * 2. Competing cores (Top × Bottom, then OnePiece) exclude [wornCore] and [sameDayWornCores].
-     * 3. At most [maxControls] of them are drawn uniformly without replacement.
-     * 4. Each sampled core, in sampled order, gets the worn outfit's item count for each optional
+     * 1. The competing cores are every Top × Bottom pair and every OnePiece (`T·B + O` of them,
+     *    each role sorted by id), excluding [wornCore] and [sameDayWornCores].
+     * 2. At most [maxControls] of them are drawn uniformly without replacement, by index over that
+     *    space, so every competing core is equally likely whatever the role sizes. The pairs are
+     *    never materialised: the draw costs O([maxControls]), not O(T·B).
+     * 3. Each sampled core, in sampled order, gets the worn outfit's item count for each optional
      *    role (Outerwear, Footwear, Accessory, in that order), drawn uniformly without replacement
      *    from that role's full available pool. So whether to wear shoes or a layer is matched,
      *    never learned.
@@ -318,26 +331,50 @@ internal object HistoricalStratumBuilder {
             .sortedBy { it.id }
             .groupBy { it.outfitRole }
 
-        val corePools = CORE_ROLE_ORDER.associateWith { role ->
-            poolByRole[role].orEmpty().shuffled(rnd).take(MAX_CORE_ROLE_CANDIDATES)
-        }
+        val tops = poolByRole[OutfitRecommendationEngine.ROLE_TOP].orEmpty()
+        val bottoms = poolByRole[OutfitRecommendationEngine.ROLE_BOTTOM].orEmpty()
+        val onePieces = poolByRole[OutfitRecommendationEngine.ROLE_ONEPIECE].orEmpty()
+        val pairCount = tops.size.toLong() * bottoms.size
+        val coreSpace = pairCount + onePieces.size
 
-        val competingCores = ArrayList<List<EngineItem>>()
-        for (top in corePools.getValue(OutfitRecommendationEngine.ROLE_TOP)) {
-            for (bottom in corePools.getValue(OutfitRecommendationEngine.ROLE_BOTTOM)) {
-                val coreIds = setOf(top.id, bottom.id)
-                if (coreIds == wornCore || coreIds in sameDayWornCores) continue
-                competingCores.add(listOf(top, bottom))
+        fun coreAt(index: Long): List<EngineItem> =
+            if (index < pairCount) {
+                listOf(tops[(index / bottoms.size).toInt()], bottoms[(index % bottoms.size).toInt()])
+            } else {
+                listOf(onePieces[(index - pairCount).toInt()])
             }
-        }
-        for (onePiece in corePools.getValue(OutfitRecommendationEngine.ROLE_ONEPIECE)) {
-            val coreIds = setOf(onePiece.id)
-            if (coreIds == wornCore || coreIds in sameDayWornCores) continue
-            competingCores.add(listOf(onePiece))
-        }
-        if (competingCores.isEmpty()) return emptyList()
 
-        val sampledCores = competingCores.shuffled(rnd).take(maxControls)
+        // The index of each excluded core that lies in the space (a core whose items are not all
+        // available, or not in a core role, is not in it).
+        val topIndex = tops.withIndex().associate { (i, item) -> item.id to i }
+        val bottomIndex = bottoms.withIndex().associate { (i, item) -> item.id to i }
+        val onePieceIndex = onePieces.withIndex().associate { (i, item) -> item.id to i }
+        fun indexOf(core: Set<Long>): Long? = when (core.size) {
+            1 -> onePieceIndex[core.first()]?.let { pairCount + it }
+            2 -> {
+                val (a, b) = core.toList()
+                val t = topIndex[a] ?: topIndex[b]
+                val bt = bottomIndex[a] ?: bottomIndex[b]
+                if (t != null && bt != null) t.toLong() * bottoms.size + bt else null
+            }
+            else -> null
+        }
+        val excluded: Set<Long> = (sameDayWornCores + setOf(wornCore)).mapNotNullTo(HashSet()) { indexOf(it) }
+
+        val validCount = coreSpace - excluded.size
+        if (validCount <= 0L) return emptyList()
+        val sampledIndices: List<Long> = if (validCount <= maxControls) {
+            (0L until coreSpace).filter { it !in excluded }.shuffled(rnd)
+        } else {
+            // Rejection sampling: at most a few excluded indices, so this stays O(maxControls).
+            val seen = LinkedHashSet<Long>()
+            while (seen.size < maxControls) {
+                val index = rnd.nextLong(coreSpace)
+                if (index !in excluded) seen.add(index)
+            }
+            seen.toList()
+        }
+        val sampledCores = sampledIndices.map(::coreAt)
 
         val wornCounts = OPTIONAL_ROLE_ORDER.associateWith { role -> wornItems.count { it.outfitRole == role } }
         return sampledCores.map { core ->

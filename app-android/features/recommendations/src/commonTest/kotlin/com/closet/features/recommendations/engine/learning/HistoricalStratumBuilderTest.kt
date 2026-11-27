@@ -394,6 +394,47 @@ class HistoricalStratumBuilderTest {
     }
 
     @Test
+    fun `cores are drawn uniformly over every top-bottom pair and one-piece`() {
+        // 30 x 30 = 900 top-bottom cores and 5 one-pieces, nothing excluded: a uniform draw gives
+        // one-pieces a share of 5 in 905. Capping each role before pairing would inflate it.
+        val items = richWardrobe(tops = 30, bottoms = 30, onePieces = 5)
+        var onePieceControls = 0
+        var totalControls = 0
+        for (logId in 1L..600L) {
+            val controls = HistoricalStratumBuilder.sampleControlOutfits(
+                logId = logId,
+                wornItems = emptyList(),
+                wornCore = emptySet(),
+                sameDayWornCores = emptySet(),
+                availableItems = items,
+                maxControls = HistoricalStratumBuilder.MAX_CONTROLS_PER_STRATUM,
+            )
+            assertEquals(HistoricalStratumBuilder.MAX_CONTROLS_PER_STRATUM, controls.size)
+            assertEquals(controls.size, controls.map { coreOf(it) }.distinct().size, "cores drawn without replacement")
+            onePieceControls += controls.count { c -> c.any { it.isRole("OnePiece") } }
+            totalControls += controls.size
+        }
+        val share = onePieceControls.toDouble() / totalControls
+        val expected = 5.0 / 905.0
+        assertTrue(abs(share - expected) < 0.0015, "one-piece share $share, expected about $expected")
+    }
+
+    @Test
+    fun `the chosen outfit is projected to the structure the controls share`() {
+        // Two tops, a bottom, shoes and a bag. Controls carry one core and the optional roles
+        // only, so the chosen outfit is scored as its core plus shoes.
+        val items = richWardrobe(tops = 4, bottoms = 4, shoes = 2, accessories = 1) + listOf(
+            item(700L, role = "Other", subcategoryId = 70L).inColors("Pink"),
+        )
+        val date = LocalDate(2026, 7, 1)
+        val full = HistoricalWearLog(77L, date, listOf(100L, 101L, 200L, 400L, 700L))
+        val projected = HistoricalWearLog(77L, date, listOf(100L, 200L, 400L))
+        val fromFull = HistoricalStratumBuilder.buildStrata(items, listOf(full)).single()
+        val fromProjected = HistoricalStratumBuilder.buildStrata(items, listOf(projected)).single()
+        assertSameStrata(listOf(fromProjected), listOf(fromFull))
+    }
+
+    @Test
     fun `strata are identical for shuffled item order`() {
         val items = richWardrobe(tops = 8, bottoms = 8, shoes = 3, outerwear = 2, accessories = 3)
         val logs = mixedLogs()
