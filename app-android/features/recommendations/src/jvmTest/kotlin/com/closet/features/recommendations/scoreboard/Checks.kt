@@ -159,17 +159,26 @@ object Checks {
      * FORMALITY: the occasion band applies to core items (tops, bottoms, one-pieces) only, and the
      * coherence rule (max minus min at most [MAX_FORMALITY_SPREAD]) to core items plus footwear only.
      * Outerwear and accessories are excluded: a rain jacket or a watch over office clothes is not a
-     * formality clash.
+     * formality clash. Coherence is judged only with two or more such items and the band only with a
+     * core item present; with neither part applicable the check is NOT_APPLICABLE, never a free pass.
      */
     private fun formality(items: List<FixtureItem>, occasion: String?): Outcome {
         val core = items.filter { it.category in CORE_CATEGORIES }
         val coherent = items.filter { it.category in CORE_CATEGORIES || it.category == FOOTWEAR }
-        if (coherent.isEmpty()) return Outcome.PASS
-        val levels = coherent.map { it.formality }
-        if (levels.max() - levels.min() > MAX_FORMALITY_SPREAD) return Outcome.FAIL
-        if (occasion == null) return Outcome.PASS
-        val band = OCCASION_BANDS[occasion] ?: error("Unknown occasion: $occasion")
-        return pass(core.all { it.formality in band })
+        val parts = ArrayList<Boolean>()
+        if (coherent.size >= 2) {
+            val levels = coherent.map { it.formality }
+            parts += levels.max() - levels.min() <= MAX_FORMALITY_SPREAD
+        }
+        if (occasion != null && core.isNotEmpty()) {
+            val band = OCCASION_BANDS[occasion] ?: error("Unknown occasion: $occasion")
+            parts += core.all { it.formality in band }
+        }
+        return when {
+            parts.isEmpty() -> Outcome.NOT_APPLICABLE
+            parts.all { it } -> Outcome.PASS
+            else -> Outcome.FAIL
+        }
     }
 
     private fun notOnRepeat(suggestion: List<String>, ctx: CheckContext): Outcome {

@@ -98,8 +98,10 @@ class ChecksTest {
 
     @Test
     fun `warm enough reads the day mean not the low`() {
-        // Low 0 high 20 has mean 10 and needs 2: basic (3) passes. Low -8 high 0 has mean -4 and needs 4.
+        // Low 0 high 20 has mean 10 and needs 2: basic (3) passes, though a low of 0 alone would need more.
         assertEquals(Outcome.PASS, run(basic, ctx(day(low = 0.0, high = 20.0)))[CheckId.WARM_ENOUGH])
+        // Low -8 high 0 has mean -4 and needs 4: basic (3) fails.
+        assertEquals(Outcome.FAIL, run(basic, ctx(day(low = -8.0, high = 0.0)))[CheckId.WARM_ENOUGH])
     }
 
     @Test
@@ -112,7 +114,7 @@ class ChecksTest {
     }
 
     @Test
-    fun `warmth needed grows as the low falls`() {
+    fun `warmth needed grows as the day mean falls`() {
         val needs = listOf(25.0, 15.0, 8.0, 2.0, -5.0).map { Checks.warmthNeeded(it) }
         assertEquals(needs.sorted(), needs)
         assertEquals(0, needs.first())
@@ -218,7 +220,6 @@ class ChecksTest {
     @Test
     fun `the work band only applies to core items`() {
         val c = ctx(occasion = "Work/Business")
-        // An informal sneaker-free outfit with a casual belt-like accessory and a rain jacket is fine:
         // gym-shorts (activewear) is outside the core, so only the oxford and chinos face the band.
         assertEquals(Outcome.PASS, run(listOf("white-oxford", "navy-chinos", "dress-shoes", "gym-shorts"), c)[CheckId.FORMALITY])
         // Business casual: a level 2 top is inside the widened 2..5 band.
@@ -227,6 +228,18 @@ class ChecksTest {
         assertEquals(Outcome.PASS, run(listOf("white-oxford", "navy-chinos", "dress-shoes", "light-jacket", "brown-belt"), c)[CheckId.FORMALITY])
         // Footwear counts for coherence though not for the band: oxford 4 with sneakers 1 is a spread of 3.
         assertEquals(Outcome.FAIL, run(listOf("white-oxford", "navy-chinos", "sneakers"), c)[CheckId.FORMALITY])
+    }
+
+    @Test
+    fun `formality is not applicable with nothing to judge`() {
+        val c = ctx(occasion = "Athletic")
+        assertEquals(Outcome.NOT_APPLICABLE, run(listOf("gym-shorts"), c)[CheckId.FORMALITY])
+    }
+
+    @Test
+    fun `dress shoes with gym kit fail formality`() {
+        val c = ctx(occasion = "Athletic")
+        assertEquals(Outcome.FAIL, run(listOf("gym-shorts", "blue-tee", "dress-shoes"), c)[CheckId.FORMALITY])
     }
 
     @Test
