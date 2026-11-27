@@ -1,6 +1,6 @@
 # Taste learning: unbiased control outfits (design)
 
-**Status:** approved 2026-11-26 (drift bound revised to [β₀−3, β₀+6]; stricter gate; replay tolerance). Issue: #135. Follow-up issue: #136 (recency weighting).
+**Status:** done in PR #143. Approved 2026-11-26; the drift bound was revised to [β₀−3, β₀+6], with a 2·SE gate and a replay tolerance. Issue: #135. Follow-ups: #136 (recency weighting), #142 (grouped CV).
 
 ## Problem
 Taste learning (#118) fits a conditional logit. Each logged outfit, the *chosen* one, is compared against *controls*: outfits the user could have worn that day instead. `HistoricalStratumBuilder` builds those controls by **maximising the same default rules whose weights are being learned**, at three levels:
