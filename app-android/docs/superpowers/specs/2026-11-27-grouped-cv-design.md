@@ -1,6 +1,6 @@
 # Taste learning: grouped cross-validation (design)
 
-**Status:** approved 2026-11-27 with `MIN_DISTINCT_CHOICES = 20`; D3 revised and D3c (a two-stage gate) added after implementation measurements (owner-approved A+B+C). Issue: #142. Builds on #135 (PR #143).
+**Status:** approved 2026-11-27 with `MIN_DISTINCT_CHOICES = 20`; D3 revised and D3c (a two-stage gate) added after implementation measurements (owner-approved A+B+C). After the device smoke test, D7 (core-only learned features) was tried and rejected, and **learned taste is paused (D8, owner decision 2026-11-27)**. Issue: #142. Builds on #135 (PR #143).
 
 ## Problem
 `TasteWeightTrainer` picks λ, and decides whether to keep learned weights at all, from **expanding time-ordered cross-validation**. It fits on earlier strata, scores later ones, and checks the mean held-out gain against twice its standard error. When outfits repeat, that check leaks in two ways:
@@ -78,6 +78,51 @@ Learning also requires at least **`MIN_DISTINCT_CHOICES = 20`** distinct choice 
 Also:
 - `ReplayCheckTest` floors hold, with before and after numbers reported. Its planted fixture repeats favourite triples, so this is the real check that genuine taste still passes.
 - **Device:** after the retrain, the stored weights are either DEFAULT (if the demo's 25 random outfits are noise) or within β₀ ± 1 on the rule features. Hue must not sit at the floor.
+
+### D7. Learned weights act on the core only (tried 2026-11-27, rejected)
+**Found on the test device.** After the v5 retrain the stored weights were `[1,1,1,1,1,7,1,1,1,1]`, as designed. But the top suggestion was a shirt and trousers with **no shoes**. On the default weights, all 10 of the top 10 suggestions have footwear; on the learned weights, only 2 do. The full numbers are in the investigation notes (`scratchpad/shoes-rootcause.md`, not committed).
+
+**Cause: training and serving use the learned features differently.**
+- **Training never weighs extras against no extras.** Controls are slot-matched (#135 D2), so the learned weights never compare "this core with shoes" against "this core without".
+- **Serving does weigh them.** It applies `exp((β − β₀)·x)` to features of the *whole* outfit, including the decision whether to fill each optional slot.
+- **The habit feature punishes extras.** `x5` is a mean of `ln lift` over item pairs, and adding shoes adds pairs with negative fallback evidence (subcategory and neighbour lifts of 0.72–0.91). With `historyLift` at 7, that swing (−1.02) is about 6 times the shoe-less penalty (`ln 0.85` = −0.16).
+
+**Decision: compute the learned features on the core only, in training and in serving.**
+- **Serving:** the score is `defaultScore(full outfit) · exp((β − β₀) · x(core items))`. Here `x(core)` is `OutfitFeatureExtractor.extract` on the outfit's core items only, meaning Top + Bottom, or the OnePiece. So adding or changing outerwear, footwear or accessories never changes the learned factor. The default rules decide the extras, at full strength.
+- **Training:** every stratum's chosen and control features are computed the same way, on core items only. The baseline offset still uses the full-outfit default score: `offset = ln(defaultScore(full)) − β₀·x(core)`. The utility identity is unchanged: `offset + β·x = ln(defaultScore) + (β − β₀)·x`.
+- **Footwear and layering:** on core-only features they become constant, so they stay frozen at 1.0, which is now true by construction everywhere.
+
+**Cost:** learned taste no longer picks *which* shoes or jacket, only which core. Extras follow the default rules: weather, formality, harmony and co-wear habit at their default strength.
+
+**Tests:**
+- **The learned factor ignores extras:** for any learned weights, `scoreCombo(core + any optional items) / scoreCombo(core)` equals the same ratio under DEFAULT, to within floating-point error.
+- **Device regression fixture:** a core never worn together, sneakers with negative subcategory and neighbour lift against the core's subcategories, and learned `historyLift = 7`. The top suggestion must include footwear when eligible footwear exists.
+- **Training consistency:** a stratum's features equal the core-only extraction, and its offset uses the full default score.
+- **Replay floors hold.** Report the numbers before and after.
+
+**Result: rejected, nothing committed.** The device regression fixture went from failing to passing, but two existing tests broke:
+- **Repeated favourites stop being learned:** stage NONE, gain 0.029 with SE 0.050 (it was HABIT, 0.186 with SE 0.086). Favourites always share the same shoes, so much of the habit evidence lives in the shoe pairs that core-only features drop.
+- **Repeated noise gets through again:** seed 8 was accepted at FULL, with `meanItem` and hue at −2.0. On core-only features, the re-wear signal leaks into item suitability.
+
+The attempt is kept outside the repo as a patch.
+
+### D8. Pause learned taste (owner decision 2026-11-27)
+**Why:** this was the sixth successive flaw found in learned taste:
+1. rigged controls (#135);
+2. noise accepted;
+3. leakage between CV folds;
+4. one real signal carrying noise through the gate;
+5. the train/serve mismatch on extras;
+6. D7's side effects.
+
+Each fix was real, but the design problems are coupled and patching them on a live feature isn't converging. The measured benefit exists only on synthetic histories (planted replay hit 0.20 vs 0.15). On the real device history, learned weights made suggestions worse twice, while DEFAULT was sane both times (10 of 10 top suggestions with footwear).
+
+**Decision:**
+- `RecommendationViewModel.LEARNED_TASTE_ENABLED = false`. `resolveTasteWeights` returns `TasteWeights.DEFAULT` without reading stored weights or training. DEFAULT already includes the co-wear habit blend, so favourites still count.
+- **D1–D6 stay.** Grouped CV, the cluster-robust SE, the two-stage gate, the distinct-choice minimum and their tests remain, so the trainer is still correct and tested for a redesign.
+- **Re-enabling** needs a redesign that is judged first on a realistic-history scoreboard (#133, realistic test histories and common-sense checks such as "top suggestions include shoes"). It is tracked in its own issue.
+
+**Tests:** with cached weights under a matching watermark, and with a stale watermark, the engine receives DEFAULT, and nothing is trained or persisted.
 
 ## Out of scope
 - recency weighting (#136), which will weight the strata, so the cluster means in D3 must take those weights when it lands;

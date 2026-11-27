@@ -10,7 +10,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ### Added
 - **Re-detect colors**: re-measure an item's colours from its photo with a preview, or re-detect your whole wardrobe from Settings. Colours you set by hand, including clearing them, are never changed automatically.
-- **Two new learned taste signals** (intensity match, and light/dark contrast within a hue). They have no effect until they are learned, and stored learned weights retrain once.
+- **Two new learned taste signals** (intensity match, and light/dark contrast within a hue). They have no effect until they are learned, and learned taste is currently paused (see Fixed).
 - **Chat colour search understands basic colour words**: "blue" covers navy, royal, sky, denim and teal, and "grey" covers charcoal. Item results now include each colour's share of the item.
 
 ### Changed
@@ -20,7 +20,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ### Fixed
 - Learned taste no longer inverts the rules (suggestions without shoes); weights retrain once.
-- Re-wearing the same outfits no longer counts as evidence of taste: learning is checked against outfits it hasn't seen, and needs at least 20 different outfits before it changes your suggestions. If you mostly re-wear the same outfits, only that habit may be learned, and the colour and style rules stay at their defaults. Weights retrain once.
+- **Learned taste is paused**: suggestions use the built-in rules, which still favour outfits you wear together. On real wear histories, learned weights could make suggestions worse (for example, dropping shoes). The learner's checks were hardened (it is tested on outfits it hasn't seen, repeats aren't counted as extra evidence, and it needs 20 different outfits), but it stays off until a redesign proves itself on realistic histories.
 
 ---
 

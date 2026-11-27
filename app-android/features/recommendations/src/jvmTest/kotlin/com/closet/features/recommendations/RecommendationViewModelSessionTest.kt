@@ -324,9 +324,23 @@ class RecommendationViewModelSessionTest {
         assertTrue(keys(second).none { it in keys(first) })
     }
 
-    @Test fun cachedTasteWeightsArePassedToEngineWhenWatermarkMatches() {
+    // Learned taste is paused (#142): stored weights are ignored and nothing is trained,
+    // whether the stored watermark matches or is stale.
+    @Test fun pausedLearnedTasteIgnoresCachedWeights() = assertPausedTaste(watermark = "v5:25:42")
+
+    @Test fun pausedLearnedTasteNeverTrainsOnAStaleWatermark() = assertPausedTaste(watermark = "v4:3:7")
+
+    private fun assertPausedTaste(watermark: String) {
         val repo = mockk<RecommendationRepository>()
         val customWeights = com.closet.features.recommendations.engine.learning.TasteWeights(historyLift = 1.8)
+        val prefs = mockk<com.closet.core.data.repository.AiPreferencesRepository>(relaxed = true) {
+            every { getAiEnabled() } returns flowOf(true)
+            every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
+            every { getOpenAiApiKey() } returns flowOf("test-key")
+            every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
+            every { getTasteWeightsWatermark() } returns flowOf(watermark)
+            every { getTasteWeightsRaw() } returns flowOf(customWeights.serialize())
+        }
         var capturedInput: EngineInput? = null
         val customScorer = mockk<OutfitCoherenceScorer> {
             coEvery { score(any(), any(), any(), any()) } answers {
@@ -346,19 +360,16 @@ class RecommendationViewModelSessionTest {
                 lookupRepository = mockk(relaxed = true),
                 imagePathResolver = ImagePathResolver { it },
                 clock = FixedAppClock(Instant.parse("2031-07-10T12:00:00Z")),
-                aiPrefsRepo = mockk(relaxed = true) {
-                    every { getAiEnabled() } returns flowOf(true)
-                    every { getSelectedProvider() } returns flowOf(AiProvider.OpenAi)
-                    every { getOpenAiApiKey() } returns flowOf("test-key")
-                    every { getStyleVibe() } returns flowOf(StyleVibe.SmartCasual)
-                    every { getTasteWeightsWatermark() } returns flowOf("v5:25:42")
-                    every { getTasteWeightsRaw() } returns flowOf(customWeights.serialize())
-                },
+                aiPrefsRepo = prefs,
                 computationDispatcher = UnconfinedTestDispatcher(),
             ).also { v -> collectorScope.launch { v.uiState.collect { } } }
         }
         vm.onWeatherConfirmed(weather)
-        assertEquals(customWeights, capturedInput?.tasteWeights)
+        assertEquals(
+            com.closet.features.recommendations.engine.learning.TasteWeights.DEFAULT,
+            capturedInput?.tasteWeights,
+        )
         coVerify(exactly = 0) { repo.getTrainingWearLogs() }
+        coVerify(exactly = 0) { prefs.setTasteWeights(any(), any()) }
     }
 }
