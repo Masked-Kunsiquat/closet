@@ -1,11 +1,9 @@
 package com.closet.features.recommendations.scoreboard
 
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
-import kotlin.time.Duration.Companion.minutes
 
 class BaselineTest {
 
@@ -59,10 +57,10 @@ class BaselineTest {
             checks = CheckId.entries.associateWith { CheckRate(fails = 9, applicable = 100) },
         )
         assertEquals(emptyList(), Baseline.regressions(better, baseline))
-        // Equal as fractions over different counts: 3/30 equals 10/100 and 61/122 equals 30/60.
-        val equalFractions = result(hits = 61, days = 122, noResults = 4)
-            .withCheck(CheckId.FORMALITY, CheckRate(fails = 3, applicable = 30))
+        // Equal as fractions over a different number of suggestions: 3/30 equals 10/100.
+        val equalFractions = baseline.withCheck(CheckId.FORMALITY, CheckRate(fails = 3, applicable = 30))
         assertEquals(emptyList(), Baseline.regressions(equalFractions, baseline))
+        assertEquals(emptyList(), Baseline.improvements(equalFractions, baseline))
         // A rate on 0 applicable is unchanged, on either side.
         val nothingApplicable = baseline.withCheck(CheckId.RAIN_READY, CheckRate(fails = 0, applicable = 0))
         assertEquals(emptyList(), Baseline.regressions(nothingApplicable, baseline))
@@ -70,16 +68,56 @@ class BaselineTest {
     }
 
     @Test
-    fun `no persona regresses against the baseline`() = runTest(timeout = 10.minutes) {
+    fun `a missing check is a regression on either side`() {
+        val full = result()
+        val partial = full.copy(checks = full.checks - CheckId.RAIN_READY)
+        assertEquals(listOf("synthetic: RAIN_READY missing from baseline"), Baseline.regressions(full, partial))
+        assertEquals(listOf("synthetic: RAIN_READY missing from result"), Baseline.regressions(partial, full))
+    }
+
+    @Test
+    fun `a change in evaluated days marks the baseline stale`() {
+        // 61 of 122 equals 30 of 60 as a rate, but a different number of days means the simulation changed.
+        val lines = Baseline.regressions(result(hits = 61, days = 122, noResults = 4), result())
+        assertEquals(listOf("synthetic: baseline stale, evaluated days 60 → 122, re-record"), lines)
+    }
+
+    @Test
+    fun `an improvement is listed and is not a regression`() {
+        val baseline = result()
+        val better = result(hits = 31, noResults = 1).withCheck(CheckId.WARM_ENOUGH, CheckRate(fails = 9, applicable = 100))
+        assertEquals(emptyList(), Baseline.regressions(better, baseline))
+        assertEquals(
+            listOf(
+                "synthetic: hit@10 improved from 30/60 to 31/60",
+                "synthetic: no results improved from 2/60 to 1/60",
+                "synthetic: WARM_ENOUGH fail rate improved from 10/100 to 9/100",
+            ),
+            Baseline.improvements(better, baseline),
+        )
+        // A mixed result lists each side once.
+        val mixed = better.copy(hitsAt10 = 29)
+        assertEquals(listOf("synthetic: hit@10 regressed from 30/60 to 29/60"), Baseline.regressions(mixed, baseline))
+        assertEquals(2, Baseline.improvements(mixed, baseline).size)
+        assertEquals(emptyList(), Baseline.improvements(baseline, baseline))
+    }
+
+    @Test
+    fun `no persona regresses against the baseline`() {
         val problems = ArrayList<String>()
+        val improvements = ArrayList<String>()
+        val results = CuratedRun.results.associateBy { it.persona }
         for (persona in AllPersonas.list) {
             val baseline = Baseline.byPersona[persona.name]
             if (baseline == null) {
                 problems += "no baseline recorded for ${persona.name}"
                 continue
             }
-            problems += Baseline.regressions(Scoreboard.run(persona), baseline)
+            val actual = results.getValue(persona.name)
+            problems += Baseline.regressions(actual, baseline)
+            improvements += Baseline.improvements(actual, baseline).map { "$it (consider re-recording)" }
         }
+        if (improvements.isNotEmpty()) println("Scoreboard improvements:\n" + improvements.joinToString("\n"))
         if (problems.isNotEmpty()) fail(problems.joinToString("\n"))
     }
 }

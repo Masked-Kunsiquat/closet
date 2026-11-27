@@ -7,7 +7,9 @@ package com.closet.features.recommendations.scoreboard
  * No persona may get worse than its baseline: a check's fail rate may not rise, hit@10 may not
  * fall and the no-results rate may not rise. Rates are compared as exact fractions (by
  * cross-multiplication, tolerance 0), since the scoreboard is deterministic; a rate over 0
- * applicable, on either side, counts as unchanged.
+ * applicable, on either side, counts as unchanged. A check missing from either side, or a change in
+ * the number of evaluated days (the simulation itself changed), is a regression too: re-record.
+ * [improvements] lists what got better, so a PR can see when to re-record.
  */
 object Baseline {
     /**
@@ -100,21 +102,38 @@ object Baseline {
 
     /** One line per metric of [actual] worse than [baseline], naming persona, metric, baseline and actual. */
     fun regressions(actual: PersonaResult, baseline: PersonaResult): List<String> = buildList {
-        fun line(metric: String, base: String, now: String) =
-            "${actual.persona}: $metric regressed from $base to $now"
+        if (actual.evaluatedDays != baseline.evaluatedDays) {
+            add("${actual.persona}: baseline stale, evaluated days ${baseline.evaluatedDays} → ${actual.evaluatedDays}, re-record")
+        }
+        for (id in CheckId.entries) {
+            if (id !in baseline.checks) add("${actual.persona}: ${id.name} missing from baseline")
+            if (id !in actual.checks) add("${actual.persona}: ${id.name} missing from result")
+        }
+        moves(actual, baseline).filter { it.better == false }
+            .forEach { add("${actual.persona}: ${it.metric} regressed from ${it.base} to ${it.now}") }
+    }
 
-        if (compare(actual.hitsAt10, actual.evaluatedDays, baseline.hitsAt10, baseline.evaluatedDays).let { it != null && it < 0 }) {
-            add(line("hit@10", "${baseline.hitsAt10}/${baseline.evaluatedDays}", "${actual.hitsAt10}/${actual.evaluatedDays}"))
+    /** One line per metric of [actual] better than [baseline]; never a regression, only a hint to re-record. */
+    fun improvements(actual: PersonaResult, baseline: PersonaResult): List<String> =
+        moves(actual, baseline).filter { it.better == true }
+            .map { "${actual.persona}: ${it.metric} improved from ${it.base} to ${it.now}" }
+
+    /** A metric's baseline and actual counts and whether it got better (true), worse (false) or neither (null). */
+    private class Move(val metric: String, val base: String, val now: String, val better: Boolean?)
+
+    /** Every rate metric present on both sides, compared exactly; hit@10 is higher-is-better, the rest lower-is-better. */
+    private fun moves(actual: PersonaResult, baseline: PersonaResult): List<Move> = buildList {
+        fun move(metric: String, now: Int, nowOf: Int, base: Int, baseOf: Int, higherIsBetter: Boolean) {
+            val sign = compare(now, nowOf, base, baseOf)
+            val better = if (sign == null || sign == 0) null else (sign > 0) == higherIsBetter
+            add(Move(metric, "$base/$baseOf", "$now/$nowOf", better))
         }
-        if (compare(actual.noResultDays, actual.evaluatedDays, baseline.noResultDays, baseline.evaluatedDays).let { it != null && it > 0 }) {
-            add(line("no results", "${baseline.noResultDays}/${baseline.evaluatedDays}", "${actual.noResultDays}/${actual.evaluatedDays}"))
-        }
+        move("hit@10", actual.hitsAt10, actual.evaluatedDays, baseline.hitsAt10, baseline.evaluatedDays, higherIsBetter = true)
+        move("no results", actual.noResultDays, actual.evaluatedDays, baseline.noResultDays, baseline.evaluatedDays, higherIsBetter = false)
         for (id in CheckId.entries) {
             val now = actual.checks[id] ?: continue
             val base = baseline.checks[id] ?: continue
-            if (compare(now.fails, now.applicable, base.fails, base.applicable).let { it != null && it > 0 }) {
-                add(line("${id.name} fail rate", "${base.fails}/${base.applicable}", "${now.fails}/${now.applicable}"))
-            }
+            move("${id.name} fail rate", now.fails, now.applicable, base.fails, base.applicable, higherIsBetter = false)
         }
     }
 
