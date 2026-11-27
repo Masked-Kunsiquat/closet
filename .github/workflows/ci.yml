@@ -30,7 +30,7 @@ jobs:
       matrix:
         include:
           - name: test
-            tasks: test :core:data:jvmTest
+            tasks: test :core:data:jvmTest :features:recommendations:scoreboard
             reports: app-android/**/build/reports/tests/
           - name: lint
             tasks: lint

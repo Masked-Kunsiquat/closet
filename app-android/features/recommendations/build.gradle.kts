@@ -114,6 +114,24 @@ dependencies {
     "androidRuntimeClasspath"(libs.androidx.ui.tooling)
 }
 
+// The recommendation scoreboard (a simulated year per persona, scored by common-sense checks) is
+// slow, so it runs as its own task, `scoreboard`, over jvmTest's compiled classes; jvmTest skips it.
+val scoreboardPackage = "com.closet.features.recommendations.scoreboard.*"
+val jvmTestTask = tasks.named<Test>("jvmTest") {
+    filter { excludeTestsMatching(scoreboardPackage) }
+}
+tasks.register<Test>("scoreboard") {
+    group = "verification"
+    description = "Runs the recommendation scoreboard."
+    testClassesDirs = jvmTestTask.get().testClassesDirs
+    classpath = jvmTestTask.get().classpath
+    filter { includeTestsMatching(scoreboardPackage) }
+    val reportDir = layout.buildDirectory.dir("reports/scoreboard")
+    systemProperty("scoreboard.reportDir", reportDir.get().asFile.absolutePath)
+    outputs.dir(reportDir)
+    testLogging { showStandardStreams = true }
+}
+
 // KMP creates no `test` task here, so the root `./gradlew test` would skip features/recommendations.
 // This lifecycle task runs the Android host tests and the JVM tests.
 tasks.register("test") {
