@@ -11,8 +11,6 @@ import com.closet.features.recommendations.engine.learning.LearningFixtures.shoe
 import com.closet.features.recommendations.engine.learning.LearningFixtures.tops
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.plus
-import kotlin.math.abs
-import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,8 +23,16 @@ class LearningOutcomeTest {
 
     private val engine = OutfitRecommendationEngine()
 
-    private fun train(logs: List<HistoricalWearLog>): TasteWeights =
-        TasteWeightTrainer.trainFromHistory(items = LearningFixtures.items, logs = logs, engine = engine).weights
+    private fun train(logs: List<HistoricalWearLog>): TasteTrainingResult =
+        TasteWeightTrainer.trainFromHistory(items = LearningFixtures.items, logs = logs, engine = engine)
+
+    /** Asserts the trainer accepted learned weights for [result] rather than falling back to DEFAULT. */
+    private fun assertAccepted(result: TasteTrainingResult, what: String) {
+        assertTrue(
+            result.selectedLambda != null && result.weights != TasteWeights.DEFAULT,
+            "Expected $what to be learned, got $result",
+        )
+    }
 
     @Test
     fun `shoe-less logs do not teach shoe-less outfits`() {
@@ -45,12 +51,9 @@ class LearningOutcomeTest {
         }
         assertEquals(24, logs.count { log -> log.itemIds.none { id -> shoes.any { it.id == id } } })
 
-        val result = TasteWeightTrainer.trainFromHistory(items = LearningFixtures.items, logs = logs, engine = engine)
+        val result = train(logs)
+        assertAccepted(result, "the planted habit")
         val weights = result.weights
-        assertTrue(
-            result.selectedLambda != null && weights != TasteWeights.DEFAULT,
-            "Expected the planted habit to be learned, got $result",
-        )
         assertEquals(1.0, weights.footwear, 0.0, "footwear must stay frozen at 1.0, weights = $weights")
         assertEquals(1.0, weights.layering, 0.0, "layering must stay frozen at 1.0, weights = $weights")
 
@@ -75,31 +78,31 @@ class LearningOutcomeTest {
             val ids = randomCoreWithShoes(rnd)
             if (rnd.nextBoolean()) ids + outerwear.random(rnd).id else ids
         }
-        val weights = train(logs)
-        for ((j, w) in weights.toDoubleArray().withIndex()) {
-            assertTrue(abs(w - 1.0) <= 1.0, "Weight $j = $w drifted beyond 1 +- 1, weights = $weights")
-        }
         // No held-out gain beats its standard error on random choices, so the trainer keeps the
-        // rules as they are.
-        assertEquals(TasteWeights.DEFAULT, weights)
+        // rules as they are (and so inverts nothing).
+        assertEquals(TasteWeights.DEFAULT, train(logs).weights)
     }
 
     @Test
     fun `a colour matching user learns a positive hue weight`() {
-        val weights = train(colourMatchingLogs())
-        assertTrue(weights.hueHarmony >= 1.0, "Expected hueHarmony >= 1.0, weights = $weights")
+        val result = train(colourMatchingLogs())
+        assertAccepted(result, "the colour rule")
+        assertTrue(result.weights.hueHarmony > 1.0, "Expected hueHarmony > 1.0, weights = ${result.weights}")
     }
 
     @Test
     fun `training is deterministic and clock free`() {
+        // Accepted first, so the comparisons are between learned weights, not DEFAULT == DEFAULT.
         val first = train(colourMatchingLogs())
+        assertAccepted(first, "the colour rule")
+        assertTrue(first.weights.hueHarmony > 1.0, "Expected hueHarmony > 1.0, weights = ${first.weights}")
         val second = train(colourMatchingLogs())
-        assertEquals(first, second)
+        assertEquals(first.weights, second.weights)
 
         // trainFromHistory reads no `today`: every date it sees comes from the logs, so shifting
         // every log by the same offset must not change the weights.
         val shifted = train(colourMatchingLogs(shiftDays = 400))
-        assertEquals(first, shifted)
+        assertEquals(first.weights, shifted.weights)
     }
 
     /** 120 logs where 80% of cores are analogous or complementary pairs, each with random shoes. */
