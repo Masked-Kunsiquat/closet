@@ -94,14 +94,20 @@ object Scoreboard {
     /** The fixture categories whose items form a core; they map to the app's Top, Bottom and OnePiece roles. */
     internal val CORE_ROLES = setOf(Checks.TOPS, Checks.BOTTOMS, Checks.ONE_PIECE)
 
-    suspend fun run(persona: Persona, start: LocalDate = DEFAULT_START, days: Int = DEFAULT_DAYS): PersonaResult =
-        runObserved(persona, start, days) { _, _ -> }
+    /** [engine] defaults to production's; the sensitivity check passes one with colour harmony off. */
+    suspend fun run(
+        persona: Persona,
+        start: LocalDate = DEFAULT_START,
+        days: Int = DEFAULT_DAYS,
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
+    ): PersonaResult = runObserved(persona, start, days, engine) { _, _ -> }
 
     /** [run], calling [beforeEvaluating] on each evaluation day after its wash states are set. */
     internal suspend fun runObserved(
         persona: Persona,
         start: LocalDate,
         days: Int,
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
         beforeEvaluating: suspend (ClothingDatabase, SimDay) -> Unit,
     ): PersonaResult = ScoreboardDatabase().use { env ->
         val db = env.db
@@ -119,7 +125,7 @@ object Scoreboard {
                 if (loggedAfterWarmUp % EVAL_EVERY == 0) {
                     val requested = if (occasionDraws.nextDouble() < OCCASION_REQUEST_CHANCE) day.occasion else null
                     val yesterday = plan.getOrNull(index - 1)?.takeIf { it.logged }?.wornItemKeys
-                    evaluations += evaluateDay(db, persona, fixture, day, requested, yesterday) {
+                    evaluations += evaluateDay(db, persona, fixture, day, requested, yesterday, engine) {
                         beforeEvaluating(db, day)
                     }
                 }
@@ -147,6 +153,7 @@ object Scoreboard {
         day: SimDay,
         requestedOccasion: String?,
         yesterdayWornKeys: List<String>?,
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
         beforeEvaluating: suspend () -> Unit = {},
     ): DayEvaluation {
         val clothing = db.clothingDao()
@@ -165,7 +172,7 @@ object Scoreboard {
         }
         val pipeline = RecommendationPipeline(
             recommendationRepository = RecommendationRepository(db.recommendationDao()),
-            engine = OutfitRecommendationEngine(),
+            engine = engine,
             computationDispatcher = Dispatchers.Unconfined,
             tasteWeights = { TasteWeights.DEFAULT },
         )
