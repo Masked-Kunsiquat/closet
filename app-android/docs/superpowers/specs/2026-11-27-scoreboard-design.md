@@ -108,7 +108,7 @@ The scoreboard calls the pipeline directly. That gives it production fidelity wi
     **Outfit role and warmth layer come from the category, not the item.** Activewear, Swimwear and Bags have role `Other`, so they never enter an outfit. Every category except Outerwear and Underwear has warmth layer `None`, so a sweater and a tee look the same to the engine.
   - **Items are filed the way a user would file them** (Claude's call). Gym shorts go under Activewear even though the engine then ignores them. The scoreboard should expose those gaps, as input for #147, not hide them by filing for the engine. The active student's numbers will likely be poor for this reason, and the report says why.
   - materials, seasons and occasions;
-  - colours (hex + share), measured with the app's `ColorExtractor` on the full-resolution photo;
+  - colours (hex + share), measured with the app's `ColorExtractor` on a garment crop of the photo, padded with white (see the calibration addendum);
   - **scoreboard-only tags:** `warmth` (0–3), `rainReady` and `formality` (1–5).
 - **An outfit catalogue** of 20–40 outfits. Each is a list of item references, tagged with the occasions and the temperature band it suits, whether it works in rain, and a favourite weight.
 
@@ -157,13 +157,13 @@ The simulation runs day by day, writing each day's log after that day is evaluat
 ### 6. The checks (defined from fixture tags, never engine constants)
 | # | Check | Pass when |
 |---|---|---|
-| 1 | Complete | has a core (Top+Bottom or OnePiece), and has footwear when the wardrobe has clean footwear suiting the day |
-| 2 | Warm enough | the summed item `warmth` meets the day's need: a plain temperature table in the scoreboard, from the day's low |
+| 1 | Complete | has a core (Top+Bottom or OnePiece), and has footwear when the wardrobe has clean footwear suiting the day; footwear not required on home days |
+| 2 | Warm enough | the summed item `warmth` meets the day's need from the day's **mean** temperature (table: ≥18 °C 0, ≥12 1, ≥6 2, ≥0 3, ≥−6 4, below 5); not applicable at home or the gym |
 | 3 | Not too warm | no `warmth` 3 item when the high is ≥ 24 °C |
-| 4 | Rain-ready | when it's raining and the wardrobe has a clean `rainReady` footwear or outerwear item, the outfit includes one |
-| 5 | Formality coherent | max − min item `formality` ≤ 2, and it fits the requested occasion's formality band |
+| 4 | Rain-ready | when it's raining and the wardrobe has a clean, in-season `rainReady` footwear or outerwear item, the outfit includes one; not applicable at home, at the gym, or when the day's mean is ≥ 20 °C (warm rain) |
+| 5 | Formality coherent | max − min `formality` ≤ 2 over core items and footwear, and core items fit the requested occasion's band (Work/Business 2–5); not applicable when there is nothing to judge |
 | 6 | Clean | no item that is dirty that morning |
-| 7 | No doubled slots | at most one footwear, one outerwear and one belt |
+| 7 | No doubled slots | at most one footwear and one belt (layering outerwear, such as a blazer under a coat, is allowed) |
 | 8 | The three differ | each pair of shown suggestions differs in at least two items |
 | 9 | Not on repeat | not the exact outfit worn yesterday, unless it's a catalogue favourite |
 
@@ -215,3 +215,40 @@ Check 6 (Clean) can't fail on today's pipeline, because the candidate query alre
 - The fixture file format (JSON or Kotlin data).
 - The exact temperature table for "warm enough", written down in the scoreboard.
 - Laundry parameters per persona.
+
+## Calibration addendum (2026-11-27, PR 2)
+The first run of the curated personas showed the checks failing the personas' **own** outfits far too often. For example, WARM_ENOUGH failed 60–90% of what they actually wore. A rubric that fails sensible people's choices would make the scoreboard misleading, which is this spec's main anti-goal. So the rubric was calibrated against a **self-check**: the checks applied to what each persona actually wore. Only the rubric and the simulator changed, never the engine.
+
+**Rule changes** (§4 and the §6 table above):
+1. **The simulator** suits temperature by the day's mean being inside the outfit's band.
+2. **WARM_ENOUGH** uses the day's mean with the table above, and is not applicable at home or the gym.
+3. **COMPLETE** doesn't require footwear on home days.
+4. **RAIN_READY** is not applicable at home, at the gym, or in warm rain (mean ≥ 20 °C).
+5. **FORMALITY** judges the occasion band on core items only (Work/Business 2–5), and coherence over core items plus footwear. It is not applicable when there is nothing to judge.
+6. **NO_DOUBLED_SLOTS** counts footwear and belts only.
+7. **Only washable categories go through the simulated laundry:** Tops, Bottoms, Dresses & Jumpsuits, Activewear, Underwear & Intimates and Swimwear.
+
+**Fixture choices that differ from §3:**
+- **Colours** were measured on garment crops of the reference photos, padded with white. Almost every photo was shot on a model, and a user photographs the item alone. A minor tan, beige or brown share (under 50%) on a model shot was dropped when the item's own label didn't explain it (21 corrections).
+- **Hand-described items:** the reference catalogue has no boots or coats and almost no rain gear, so those 13 gap items are hand-described, with no photo and a hand-set colour (owner decision).
+- **Outdoor outfits' minimum temperatures** were aligned with the warmth table: an outfit's minimum is never below the temperature its total warmth covers. The engine never sees the scoreboard's tags or bands, so this aligns persona truth with the rubric without being circular for the engine. Its cost is that WARM_ENOUGH and hit@10 now partly measure the same thing.
+- **Catalogue sizes:** the creature of habit has 11 outfits and three pairs of shoes, the active student 16 outfits with 4 saved, and the others 23–29.
+
+**The self-check after calibration** (persona's own fails / applicable; the report prints these next to the engine's rates):
+
+| Persona | WARM_ENOUGH | RAIN_READY | FORMALITY | COMPLETE |
+|---|---|---|---|---|
+| office commuter, menswear | 29/217 | 16/40 | 7/251 | 0/251 |
+| office commuter, womenswear | 25/213 | 8/40 | 2/251 | 0/251 |
+| creature of habit | 71/238 | 40/94 | 18/238 | 0/238 |
+| mix-and-matcher | 40/265 | 10/20 | 5/265 | 0/265 |
+| active student | 39/144 | 34/76 | 0/254 | 31/254 |
+
+The remaining self-fails come from forced fallbacks: when laundry leaves no suitable clean outfit, a persona wears what's left (the creature of habit owns two work shirts). The student's COMPLETE fails are gym tees with athletic shorts. The app files those shorts as Activewear, which it never suggests, and that is a finding for #147. Read an engine fail rate against the persona's own rate, not against zero.
+
+**Known leniencies and blind spots:**
+- **CLEAN** can't catch dirty outerwear, footwear or accessories, because they never go into the simulated wash.
+- **Accessories** are outside the formality checks, so a tie with gym kit can't fail.
+- **Warmth and rain** are not judged at home or the gym.
+- **Small denominators:** some baseline rates rest on a handful of days (the mix-and-matcher's RAIN_READY 1/3, the creature's NOT_TOO_WARM 5/18), so one flipped suggestion trips tolerance 0.
+- **The colour-harmony sensitivity is weak but non-zero.** Turning harmony off moves hit@10 by one day for three of the five personas, consistent with #144. The harmony switch doesn't reach learned colour features, which matters for #145.
