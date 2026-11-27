@@ -96,6 +96,7 @@ class Simulator(private val persona: Persona) {
             }
 
             for (key in worn) {
+                if (itemsByKey.getValue(key).category !in WASHABLE_CATEGORIES) continue
                 val count = (wears[key] ?: 0) + 1
                 wears[key] = count
                 if (count >= persona.wearsBeforeWash) dirty.add(key)
@@ -170,6 +171,14 @@ class Simulator(private val persona: Persona) {
     private companion object {
         const val LOG_CHANCE = 0.70
         const val FOOTWEAR = "Footwear"
+        /**
+         * The only categories that accumulate wears and become dirty. Outerwear, footwear, accessories
+         * and bags are never put through the wash cycle, so they never count wears and stay clean.
+         * Names exactly as `DatabaseSeeder` spells them.
+         */
+        val WASHABLE_CATEGORIES = setOf(
+            "Tops", "Bottoms", "Dresses & Jumpsuits", "Activewear", "Underwear & Intimates", "Swimwear",
+        )
         const val UPDATED_AT = "2026-01-01T00:00:00Z"
 
         /** Seeded occasion names, exactly as `DatabaseSeeder` spells them. */

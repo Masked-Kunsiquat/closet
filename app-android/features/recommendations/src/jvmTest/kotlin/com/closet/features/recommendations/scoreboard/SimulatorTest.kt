@@ -126,6 +126,29 @@ class SimulatorTest {
     }
 
     @Test
+    fun `outerwear footwear and accessories never go into the wash`() {
+        val persona = MiniPersona.build()
+        val byKey = persona.items.associateBy { it.key }
+        val unwashed = setOf("Outerwear", "Footwear", "Accessories", "Bags")
+        val plan = year(persona)
+        assertTrue(plan.any { it.logged })
+        for (day in plan) for (key in day.dirtyAtMorning + day.dirtyAtNight) {
+            assertTrue(byKey.getValue(key).category !in unwashed, "$key dirty on ${day.date}")
+        }
+    }
+
+    @Test
+    fun `washable items still go into the wash`() {
+        val persona = MiniPersona.build()
+        val byKey = persona.items.associateBy { it.key }
+        val plan = year(persona)
+        val dirtyTops = plan.flatMap { it.dirtyAtNight }.filter { byKey.getValue(it).category == "Tops" }
+        assertTrue(dirtyTops.isNotEmpty(), "no top ever became dirty")
+        // Laundry day empties the basket.
+        assertTrue(plan.filter { it.date.dayOfWeek == persona.laundryDay }.all { it.dirtyAtNight.isEmpty() })
+    }
+
+    @Test
     fun `home days sometimes drop footwear`() {
         val footwear = MiniPersona.build().items.filter { it.category == "Footwear" }.map { it.key }.toSet()
         fun shoeless(persona: Persona) = year(persona)
