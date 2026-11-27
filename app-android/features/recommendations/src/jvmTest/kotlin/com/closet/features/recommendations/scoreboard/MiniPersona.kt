@@ -2,7 +2,7 @@ package com.closet.features.recommendations.scoreboard
 
 import java.time.DayOfWeek
 
-/** A small hand-written menswear persona (14 items, 8 outfits, 3 saved) for harness tests. */
+/** A small hand-written menswear persona (18 items, 12 outfits, 3 saved) for harness tests. */
 object MiniPersona {
     private val work = setOf("Work/Business")
     private val casual = setOf("Casual")
@@ -35,6 +35,10 @@ object MiniPersona {
             item("gym-shorts", "Black athletic shorts", "Activewear", "Athletic Shorts", "#1A1A1A", "Polyester", setOf("Summer"), setOf("Athletic"), 0, false, 1),
             item("white-polo", "White polo", "Tops", "Polo", "#FFFFFF", "Cotton", warm, work + casual, 0, false, 3),
             item("khaki-shorts", "Beige shorts", "Bottoms", "Shorts", "#E8DCC4", "Cotton", setOf("Summer"), casual, 0, false, 2),
+            item("blue-oxford", "Light blue oxford shirt", "Tops", "Shirt", "#9DB7D5", "Cotton", allSeasons, work, 1, false, 4),
+            item("khaki-chinos", "Khaki chinos", "Bottoms", "Chinos", "#C3B091", "Cotton", allSeasons, work + casual, 1, false, 3),
+            item("brown-dress-shoes", "Brown dress shoes", "Footwear", "Dress Shoes", "#5C4033", "Leather", allSeasons, work, 1, false, 4),
+            item("black-belt", "Black leather belt", "Accessories", "Belt", "#111111", "Leather", allSeasons, work + casual, 0, false, 3),
             item("sneakers", "White sneakers", "Footwear", "Sneakers", "#FFFFFF", "Leather", allSeasons, casual, 1, false, 1),
         )
         fun outfit(key: String, keys: List<String>, occ: Set<String>, lo: Double, hi: Double, rain: Boolean, saved: Boolean) =
@@ -43,6 +47,10 @@ object MiniPersona {
             outfit("office-winter", listOf("white-oxford", "grey-sweater", "navy-chinos", "dress-shoes", "brown-belt", "wool-coat"), work, -10.0, 5.0, true, true),
             outfit("office-mild", listOf("white-oxford", "navy-chinos", "dress-shoes", "brown-belt", "light-jacket"), work, 8.0, 18.0, false, true),
             outfit("office-warm", listOf("white-polo", "navy-chinos", "dress-shoes", "brown-belt"), work, 18.0, 32.0, false, true),
+            outfit("office-winter-b", listOf("blue-oxford", "grey-sweater", "khaki-chinos", "brown-dress-shoes", "black-belt", "wool-coat"), work, -10.0, 5.0, true, false),
+            outfit("office-mild-b", listOf("blue-oxford", "khaki-chinos", "brown-dress-shoes", "black-belt", "light-jacket"), work, 8.0, 18.0, false, false),
+            outfit("office-warm-b", listOf("white-polo", "khaki-chinos", "brown-dress-shoes", "black-belt"), work, 18.0, 32.0, false, false),
+            outfit("lounge", listOf("grey-sweater", "dark-jeans", "sneakers"), setOf("Loungewear"), -10.0, 30.0, true, false),
             outfit("weekend-cold", listOf("grey-sweater", "dark-jeans", "rain-boots", "wool-coat"), casual, -5.0, 8.0, true, false),
             outfit("weekend-mild", listOf("blue-tee", "dark-jeans", "sneakers", "light-jacket"), casual, 8.0, 20.0, false, false),
             outfit("weekend-warm", listOf("blue-tee", "khaki-shorts", "sneakers"), casual, 20.0, 35.0, false, false),
