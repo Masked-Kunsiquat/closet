@@ -103,6 +103,15 @@ class ChecksTest {
     }
 
     @Test
+    fun `warmth is not judged at home or the gym`() {
+        val freezing = day(low = -8.0, high = 0.0)
+        for (kind in listOf(DayKind.HOME, DayKind.GYM)) {
+            assertEquals(Outcome.NOT_APPLICABLE, run(basic, ctx(freezing.copy(kind = kind)))[CheckId.WARM_ENOUGH], "$kind")
+        }
+        assertEquals(Outcome.FAIL, run(basic, ctx(freezing.copy(kind = DayKind.ERRANDS)))[CheckId.WARM_ENOUGH])
+    }
+
+    @Test
     fun `warmth needed grows as the low falls`() {
         val needs = listOf(25.0, 15.0, 8.0, 2.0, -5.0).map { Checks.warmthNeeded(it) }
         assertEquals(needs.sorted(), needs)
@@ -174,6 +183,12 @@ class ChecksTest {
             assertEquals(Outcome.NOT_APPLICABLE, run(basic, ctx(day(raining = true, kind = kind)))[CheckId.RAIN_READY], "$kind")
         }
         assertEquals(Outcome.FAIL, run(basic, ctx(day(raining = true, kind = DayKind.ERRANDS)))[CheckId.RAIN_READY])
+    }
+
+    @Test
+    fun `rain ready is not applicable in warm rain`() {
+        assertEquals(Outcome.NOT_APPLICABLE, run(basic, ctx(day(low = 15.0, high = 25.0, raining = true)))[CheckId.RAIN_READY])
+        assertEquals(Outcome.FAIL, run(basic, ctx(day(low = 14.9, high = 24.9, raining = true)))[CheckId.RAIN_READY])
     }
 
     // FORMALITY

@@ -33,13 +33,15 @@ object Checks {
     /** A hot day: from this high up the NOT_TOO_WARM check applies. */
     private const val HOT_HIGH_C = 24.0
     private const val MAX_FORMALITY_SPREAD = 2
+    private const val WARM_RAIN_MEAN_C = 20.0
     private val CORE_CATEGORIES = setOf(TOPS, BOTTOMS, ONE_PIECE)
 
     /**
      * Total item warmth (each item 0..3) an outfit needs for a day whose mean temperature
      * (`(low + high) / 2`) is [meanC]: 18 and above 0, 12 up to 18 needs 1, 6 up to 12 needs 2,
      * 0 up to 6 needs 3, -6 up to 0 needs 4, below -6 needs 5. The mean, not the low, because people
-     * dress for the day and the personas' own choices follow it.
+     * dress for the day and the personas' own choices follow it. WARM_ENOUGH is not applicable on
+     * [DayKind.HOME] and [DayKind.GYM] days (indoors).
      */
     fun warmthNeeded(meanC: Double): Int = when {
         meanC >= 18.0 -> 0
@@ -76,7 +78,9 @@ object Checks {
 
         return mapOf(
             CheckId.COMPLETE to complete(items, ctx),
-            CheckId.WARM_ENOUGH to pass(items.sumOf { it.warmth } >= warmthNeeded((day.weather.lowC + day.weather.highC) / 2)),
+            // Indoors (home, gym) the weather does not decide what to wear, so warmth is not judged.
+            CheckId.WARM_ENOUGH to if (indoors(day)) Outcome.NOT_APPLICABLE
+            else pass(items.sumOf { it.warmth } >= warmthNeeded(meanC(day))),
             CheckId.NOT_TOO_WARM to if (day.weather.highC < HOT_HIGH_C) Outcome.NOT_APPLICABLE
             else pass(items.none { it.warmth == 3 }),
             CheckId.RAIN_READY to rainReady(items, ctx),
@@ -102,6 +106,11 @@ object Checks {
         }
         return Outcome.PASS
     }
+
+    private fun meanC(day: SimDay) = (day.weather.lowC + day.weather.highC) / 2
+
+    /** Home and gym days are spent indoors. */
+    private fun indoors(day: SimDay) = day.kind == DayKind.HOME || day.kind == DayKind.GYM
 
     private fun pass(ok: Boolean) = if (ok) Outcome.PASS else Outcome.FAIL
 
@@ -130,11 +139,14 @@ object Checks {
      * RAIN_READY: on a rainy day, when the persona owns clean rain-ready footwear or outerwear whose
      * seasons include the day's calendar season (or "All Season"), the outfit includes one. A failure
      * can come from the pipeline's candidate filter (the requested occasion removed the rain gear),
-     * not only from ranking. Not applicable on [DayKind.HOME] and [DayKind.GYM] days: they are indoors.
+     * not only from ranking. Not applicable on [DayKind.HOME] and [DayKind.GYM] days (indoors), nor when
+     * the day's mean temperature is [WARM_RAIN_MEAN_C] or more: in warm rain people carry an umbrella
+     * rather than wear rain gear.
      */
     private fun rainReady(items: List<FixtureItem>, ctx: CheckContext): Outcome {
         if (!ctx.day.weather.raining) return Outcome.NOT_APPLICABLE
-        if (ctx.day.kind == DayKind.HOME || ctx.day.kind == DayKind.GYM) return Outcome.NOT_APPLICABLE
+        if (indoors(ctx.day)) return Outcome.NOT_APPLICABLE
+        if (meanC(ctx.day) >= WARM_RAIN_MEAN_C) return Outcome.NOT_APPLICABLE
         val gearExists = ctx.persona.items.any {
             it.rainReady && (it.category == FOOTWEAR || it.category == OUTERWEAR) &&
                 it.key !in ctx.day.dirtyAtMorning && suitsSeason(it, ctx)
