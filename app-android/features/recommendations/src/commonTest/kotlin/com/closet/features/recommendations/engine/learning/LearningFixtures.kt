@@ -83,4 +83,43 @@ internal object LearningFixtures {
     /** A uniformly random core plus a uniformly random pair of shoes. */
     fun randomCoreWithShoes(rnd: Random): List<Long> =
         listOf(tops.random(rnd).id, bottoms.random(rnd).id, shoes.random(rnd).id)
+
+    /**
+     * [outfitCount] distinct outfits (a random core and random shoes each), drawn once from
+     * `Random(seed)` and then logged uniformly at random with replacement on [count] consecutive
+     * days: the structure of the demo history, 120 logs over 25 outfits (#142). No colour or rule
+     * preference, so a fit that passes the gate on this is passing on repeats alone.
+     */
+    fun repeatedOutfitLogs(seed: Int, outfitCount: Int = 25, count: Int = 120): List<HistoricalWearLog> {
+        val rnd = Random(seed)
+        val outfits = allCores.shuffled(rnd).take(outfitCount).map { (top, bottom) ->
+            listOf(top.id, bottom.id, shoes.random(rnd).id)
+        }
+        return List(count) { i ->
+            HistoricalWearLog(
+                logId = (i + 1).toLong(),
+                date = START.plus(i, DateTimeUnit.DAY),
+                itemIds = outfits.random(rnd),
+            )
+        }
+    }
+
+    /**
+     * A planted habit: [favouriteCount] favourite outfits (a random core with fixed random shoes)
+     * worn in 70% of [count] logs, the rest a uniformly random core with random shoes. Mirrors the
+     * replay fixture's re-worn favourite triples.
+     */
+    fun reWornFavouriteLogs(seed: Int, favouriteCount: Int = 6, count: Int = 120): List<HistoricalWearLog> {
+        val rnd = Random(seed)
+        val favourites = allCores.shuffled(rnd).take(favouriteCount).map { (top, bottom) ->
+            listOf(top.id, bottom.id, shoes.random(rnd).id)
+        }
+        return List(count) { i ->
+            HistoricalWearLog(
+                logId = (i + 1).toLong(),
+                date = START.plus(i, DateTimeUnit.DAY),
+                itemIds = if (rnd.nextDouble() < 0.7) favourites.random(rnd) else randomCoreWithShoes(rnd),
+            )
+        }
+    }
 }

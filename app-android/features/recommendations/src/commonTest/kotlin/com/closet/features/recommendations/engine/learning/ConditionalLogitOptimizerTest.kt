@@ -45,6 +45,7 @@ class ConditionalLogitOptimizerTest {
                 controlFeatures = listOf(
                     doubleArrayOf(0.0, 0.05, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0),
                 ),
+                choiceKey = setOf(it.toLong()),
             )
         }
         val fitted = ConditionalLogitOptimizer.fit(strata, lambda = 1.0)
@@ -68,7 +69,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_LAYERING] = dayConstant
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
 
         val fitted = ConditionalLogitOptimizer.fit(strata, lambda = 1.0)
@@ -103,7 +104,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(it.toLong()))
         }
 
         val fitted = ConditionalLogitOptimizer.fit(strata, lambda = 1.0)
@@ -129,7 +130,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_FORMALITY_GAP] = -0.01 * k
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
 
         val fittedThin = ConditionalLogitOptimizer.fit(strata25, lambda = 0.1)
@@ -162,7 +163,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_PATTERN_MIX] = ln(1.10) * (k % 2)
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
         val lower = 1.0 - ConditionalLogitOptimizer.MAX_DRIFT_DOWN
         val upper = 1.0 + ConditionalLogitOptimizer.MAX_DRIFT_UP
@@ -187,7 +188,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_FORMALITY_GAP] = -0.01 * k
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
         val fallback = ConditionalLogitOptimizer.fit(overflowing, lambda = 1.0)
         assertEquals(1.0, fallback.historyLift, 0.0)
@@ -204,6 +205,7 @@ class ConditionalLogitOptimizerTest {
             ChoiceStratum(
                 chosenFeatures = randomVec(),
                 controlFeatures = List(6) { randomVec() },
+                choiceKey = setOf(it.toLong()),
             )
         }
 

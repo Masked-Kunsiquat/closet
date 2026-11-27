@@ -443,4 +443,25 @@ class HistoricalStratumBuilderTest {
             HistoricalStratumBuilder.buildStrata(items.shuffled(Random(11)), logs),
         )
     }
+
+    @Test
+    fun `choice keys distinguish one-piece and top-bottom cores`() {
+        // The one-piece log also wears top1 and bottom1, so both cores are built from overlapping
+        // items. The key is the worn core only: optional items (shoes, outerwear) never enter it.
+        val dress = item(9L, role = "OnePiece", colorFamilies = setOf("Cool"), subcategoryId = 50L)
+        val coat = item(10L, role = "Outerwear", warmthLayer = "Outer", subcategoryId = 60L)
+        val logs = listOf(
+            HistoricalWearLog(1L, LocalDate(2026, 5, 1), listOf(1L, 3L, 5L)),
+            HistoricalWearLog(2L, LocalDate(2026, 5, 2), listOf(9L, 1L, 3L, 5L)),
+            HistoricalWearLog(3L, LocalDate(2026, 5, 3), listOf(1L, 3L, 10L)),
+            HistoricalWearLog(4L, LocalDate(2026, 5, 4), listOf(9L, 10L)),
+            HistoricalWearLog(5L, LocalDate(2026, 5, 5), listOf(2L, 4L, 5L)),
+        )
+        val strata = HistoricalStratumBuilder.buildStrata(wardrobe + listOf(dress, coat), logs)
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), strata.map { it.logId })
+        assertEquals(
+            listOf(setOf(1L, 3L), setOf(9L), setOf(1L, 3L), setOf(9L), setOf(2L, 4L)),
+            strata.map { it.choiceKey },
+        )
+    }
 }

@@ -11,6 +11,8 @@ import kotlin.math.sqrt
  *
  * - [chosenFeatures]: feature vector $x_{\text{worn}, d} \in \mathbb{R}^{10}$ of the case ($y = 1$).
  * - [controlFeatures]: feature vectors $x_{d, k} \in \mathbb{R}^{10}$ of competing control candidates ($y = 0$).
+ * - [choiceKey]: the item ids of the worn core (Top + Bottom, or the OnePiece), never the optional
+ *   items. Two logs of the same core share a key, so cross-validation groups repeats (#142).
  *
  * The full candidate set $C_d$ is $\{x_{\text{worn}, d}\} \cup \text{controlFeatures}$.
  */
@@ -20,6 +22,7 @@ internal class ChoiceStratum(
     val logId: Long = 0L,
     val chosenBaselineOffset: Double = 0.0,
     val controlBaselineOffsets: DoubleArray = DoubleArray(controlFeatures.size),
+    val choiceKey: Set<Long>,
 ) {
     /** All candidates in stratum $d$, with index 0 always being the worn case ($y = 1$). */
     val allCandidates: List<DoubleArray> = buildList(1 + controlFeatures.size) {
@@ -85,6 +88,10 @@ internal object ConditionalLogitOptimizer {
      * @param enforceMinStrata When true (default), returns [prior] immediately if valid strata $< 20$.
      *                         Cross-validation folds with smaller training windows can pass `false`
      *                         when the overall dataset satisfies $N \ge 20$.
+     * @param freeFeatures     Which weights may move (indexed like [TasteWeights.toDoubleArray]);
+     *                         `null` frees them all. A weight that isn't free stays exactly at
+     *                         [prior]'s value, like a zero-variance feature, but its prior
+     *                         contribution to each candidate's utility is kept (#142, D3c).
      */
     fun fit(
         strata: List<ChoiceStratum>,
@@ -92,6 +99,7 @@ internal object ConditionalLogitOptimizer {
         prior: TasteWeights = TasteWeights.DEFAULT,
         initialGuess: TasteWeights? = null,
         enforceMinStrata: Boolean = true,
+        freeFeatures: BooleanArray? = null,
     ): TasteWeights {
         val validStrata = strata.filter { it.controlFeatures.isNotEmpty() }
         if (validStrata.isEmpty()) return prior
@@ -105,17 +113,20 @@ internal object ConditionalLogitOptimizer {
         //    Because per-stratum constants cancel out in conditional logit, within-stratum
         //    spread accurately captures whether a feature varies across a day's candidates.
         val sigma = computeWithinStratumSpread(validStrata, p)
-        val active = BooleanArray(p) { j -> sigma[j] >= ZERO_VARIANCE_EPS }
+        val varying = BooleanArray(p) { j -> sigma[j] >= ZERO_VARIANCE_EPS }
+        // A varying feature that isn't free keeps its standardized values and is held at its
+        // prior weight, so its prior contribution to the utilities stays; only active ones move.
+        val active = BooleanArray(p) { j -> varying[j] && (freeFeatures == null || freeFeatures[j]) }
 
-        // If no features vary at all, return prior
+        // If no free feature varies at all, return prior
         if (active.none { it }) return prior
 
-        // 2. Standardize candidate features: \tilde{x}_j = x_j / sigma_j (or 0 if inactive)
+        // 2. Standardize candidate features: \tilde{x}_j = x_j / sigma_j (or 0 if zero-variance)
         val stdStrata = Array(validStrata.size) { d ->
             val candidates = validStrata[d].allCandidates
             Array(candidates.size) { k ->
                 val raw = candidates[k]
-                DoubleArray(p) { j -> if (active[j]) raw[j] / sigma[j] else 0.0 }
+                DoubleArray(p) { j -> if (varying[j]) raw[j] / sigma[j] else 0.0 }
             }
         }
         val baselineOffsets = Array(validStrata.size) { d ->
@@ -123,7 +134,7 @@ internal object ConditionalLogitOptimizer {
         }
 
         // Standardized prior center: \tilde{\beta}_{0, j} = \beta_{0, j} * sigma_j
-        val tildeBeta0 = DoubleArray(p) { j -> if (active[j]) beta0[j] * sigma[j] else beta0[j] }
+        val tildeBeta0 = DoubleArray(p) { j -> if (varying[j]) beta0[j] * sigma[j] else beta0[j] }
 
         // Initialize \tilde{\beta} from warm start or prior center
         val startUnstd = initialGuess?.toDoubleArray() ?: beta0

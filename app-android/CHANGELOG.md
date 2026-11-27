@@ -20,6 +20,7 @@ Versions correspond to `versionName` in `app/build.gradle.kts`.
 
 ### Fixed
 - Learned taste no longer inverts the rules (suggestions without shoes); weights retrain once.
+- Re-wearing the same outfits no longer counts as evidence of taste: learning is checked against outfits it hasn't seen, and needs at least 20 different outfits before it changes your suggestions. Weights retrain once.
 
 ---
 

@@ -1,5 +1,6 @@
 package com.closet.features.recommendations.engine.learning
 
+import com.closet.features.recommendations.engine.EngineItem
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.engineInput
 import com.closet.features.recommendations.engine.learning.LearningFixtures.bottoms
@@ -37,23 +38,21 @@ class LearningOutcomeTest {
 
     @Test
     fun `shoe-less logs do not teach shoe-less outfits`() {
-        // A real taste so the trainer accepts learned weights: 70% of logs wear one of three
+        // A real taste so the trainer accepts learned weights: 70% of logs wear one of six
         // favourite cores, the rest a uniformly random one. Every fifth log (20%) has no shoes;
-        // the others have uniformly random shoes.
-        val favourites = listOf(tops[0] to bottoms[1], tops[3] to bottoms[5], tops[6] to bottoms[2])
-        val logs = LearningFixtures.logs(seed = 135) { rnd, i ->
-            val (top, bottom) = if (rnd.nextDouble() < 0.7) {
-                favourites.random(rnd)
-            } else {
-                tops.random(rnd) to bottoms.random(rnd)
-            }
-            val core = listOf(top.id, bottom.id)
-            if (i % 5 == 0) core else core + shoes.random(rnd).id
-        }
+        // the others have uniformly random shoes. Six favourites, not three: grouped CV (#142)
+        // drops a validation block's own outfits from training, and three favourites land in
+        // nearly every block, so no fold could learn a three-favourite habit.
+        val favourites = listOf(
+            tops[0] to bottoms[1], tops[3] to bottoms[5], tops[6] to bottoms[2],
+            tops[2] to bottoms[7], tops[5] to bottoms[0], tops[7] to bottoms[3],
+        )
+        val logs = shoeLessLogs(favourites)
         assertEquals(24, logs.count { log -> log.itemIds.none { id -> shoes.any { it.id == id } } })
 
         val result = train(logs)
         assertAccepted(result, "the planted habit")
+        assertTrue(result.acceptedStage != TasteTrainingStage.NONE, "Expected an accepted stage, got $result")
         val weights = result.weights
         assertEquals(1.0, weights.footwear, 0.0, "footwear must stay frozen at 1.0, weights = $weights")
         assertEquals(1.0, weights.layering, 0.0, "layering must stay frozen at 1.0, weights = $weights")
@@ -113,31 +112,96 @@ class LearningOutcomeTest {
     }
 
     @Test
-    fun `a colour matching user learns a positive hue weight`() {
-        val result = train(colourMatchingLogs())
-        assertAccepted(result, "the colour rule")
-        assertTrue(result.weights.hueHarmony > 1.0, "Expected hueHarmony > 1.0, weights = ${result.weights}")
+    fun `a colour matching preference is not yet detectable without leakage`() {
+        // 80% of cores are analogous or complementary pairs (the rest are random non-harmonious
+        // ones). Before grouped CV (#142) this passed partly because repeated outfits leaked across
+        // folds. Without leakage the gain is about 1.35 standard errors at 120 logs, so the rule
+        // stage is not accepted and hue stays at the default. Measured on the same generator at
+        // 200, 300, 400 and 500 logs, the rule stage is never accepted either (training builds at
+        // most 120 strata, and at 500 logs only the habit stage passes). The colour features'
+        // small range is the likely cause, tracked in #144.
+        for (count in listOf(120, 500)) {
+            val result = train(colourMatchingLogs(count = count))
+            assertTrue(result.acceptedStage != TasteTrainingStage.FULL, "$count logs: expected no rule stage, got $result")
+            assertEquals(1.0, result.weights.hueHarmony, 0.0, "$count logs: hue must stay at the default, got $result")
+        }
     }
 
     @Test
     fun `training is deterministic and clock free`() {
         // Accepted first, so the comparisons are between learned weights, not DEFAULT == DEFAULT.
-        val first = train(colourMatchingLogs())
-        assertAccepted(first, "the colour rule")
-        assertTrue(first.weights.hueHarmony > 1.0, "Expected hueHarmony > 1.0, weights = ${first.weights}")
-        val second = train(colourMatchingLogs())
+        val first = train(LearningFixtures.reWornFavouriteLogs(seed = 142))
+        assertAccepted(first, "the re-worn favourites")
+        val second = train(LearningFixtures.reWornFavouriteLogs(seed = 142))
         assertEquals(first.weights, second.weights)
+        assertEquals(first.acceptedStage, second.acceptedStage)
 
         // trainFromHistory reads no `today`: every date it sees comes from the logs, so shifting
         // every log by the same offset must not change the weights.
-        val shifted = train(colourMatchingLogs(shiftDays = 400))
+        val original = LearningFixtures.reWornFavouriteLogs(seed = 142)
+        val shifted = train(original.map { it.copy(date = it.date.plus(400, DateTimeUnit.DAY)) })
         assertEquals(first.weights, shifted.weights)
     }
 
-    /** 120 logs where 80% of cores are analogous or complementary pairs, each with random shoes. */
-    private fun colourMatchingLogs(shiftDays: Int = 0): List<HistoricalWearLog> =
-        LearningFixtures.logs(seed = 81, shiftDays = shiftDays) { rnd, _ ->
+    /** [count] logs where 80% of cores are analogous or complementary pairs, each with random shoes. */
+    private fun colourMatchingLogs(count: Int = 120): List<HistoricalWearLog> =
+        LearningFixtures.logs(count = count, seed = 81) { rnd, _ ->
             val (top, bottom) = if (rnd.nextDouble() < 0.8) harmoniousCores.random(rnd) else otherCores.random(rnd)
             listOf(top.id, bottom.id, shoes.random(rnd).id)
         }
+
+    /** 120 logs: 70% one of [favourites], the rest a random core; every fifth log has no shoes. */
+    private fun shoeLessLogs(favourites: List<Pair<EngineItem, EngineItem>>): List<HistoricalWearLog> =
+        LearningFixtures.logs(seed = 135) { rnd, i ->
+            val (top, bottom) = if (rnd.nextDouble() < 0.7) {
+                favourites.random(rnd)
+            } else {
+                tops.random(rnd) to bottoms.random(rnd)
+            }
+            val core = listOf(top.id, bottom.id)
+            if (i % 5 == 0) core else core + shoes.random(rnd).id
+        }
+
+    @Test
+    fun `repeated random outfits invert nothing whenever the gate admits a fit`() {
+        // The demo history's structure (#142): 25 random outfits, each worn about 5 times across
+        // 120 logs, over 20 seeds. The re-wear habit is real and may be learned, but the rules
+        // carry no preference: the rule stage is accepted on at most one seed, a fit that stops at
+        // the habit stage keeps every other weight exactly at the default, and an accepted rule
+        // fit moves no weight more than 1 from the default (design D3c and D6).
+        val beta0 = TasteWeights.DEFAULT.toDoubleArray()
+        val fullAccepted = ArrayList<Pair<Int, TasteWeights>>()
+        for (seed in 1..20) {
+            val result = train(LearningFixtures.repeatedOutfitLogs(seed = seed))
+            val w = result.weights.toDoubleArray()
+            when (result.acceptedStage) {
+                TasteTrainingStage.FULL -> fullAccepted += seed to result.weights
+                else -> for (j in w.indices) {
+                    if (j == TasteWeights.IDX_HISTORY_LIFT) continue
+                    assertEquals(beta0[j], w[j], 0.0, "seed $seed (${result.acceptedStage}) weight $j moved: ${result.weights}")
+                }
+            }
+        }
+        assertTrue(fullAccepted.size <= 1, "Rule stage accepted on ${fullAccepted.size} of 20 repeated-noise seeds: $fullAccepted")
+        for ((seed, weights) in fullAccepted) {
+            val w = weights.toDoubleArray()
+            for (j in w.indices) {
+                if (j == TasteWeights.IDX_HISTORY_LIFT) continue
+                assertTrue(
+                    abs(w[j] - beta0[j]) <= 1.0,
+                    "seed $seed weight $j = ${w[j]} is outside ${beta0[j]} plus or minus 1, weights = $weights",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `re-worn favourites are still learned`() {
+        // Six favourite outfits worn in 70% of logs: grouping drops a validation block's own
+        // favourites from training, but the habit is still learned from the other favourites.
+        val result = train(LearningFixtures.reWornFavouriteLogs(seed = 142))
+        assertAccepted(result, "the re-worn favourites")
+        assertTrue(result.acceptedStage != TasteTrainingStage.NONE, "Expected an accepted stage, got $result")
+        assertTrue(result.weights.historyLift > 1.0, "Expected historyLift > 1.0, weights = ${result.weights}")
+    }
 }
