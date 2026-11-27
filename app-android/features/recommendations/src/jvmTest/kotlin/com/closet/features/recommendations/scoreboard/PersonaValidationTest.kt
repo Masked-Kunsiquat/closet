@@ -46,6 +46,15 @@ class PersonaValidationTest {
         assertRejected(base.copy(outfits = base.outfits + base.outfits.first()), "duplicate outfit key")
 
     @Test
+    fun `a colour share outside zero to one is rejected`() {
+        val item = base.items.first()
+        val zero = item.copy(colors = listOf(item.colors.first().first to 0.0))
+        assertRejected(base.copy(items = listOf(zero) + base.items.drop(1)), "share")
+        val over = item.copy(colors = listOf(item.colors.first().first to 1.5))
+        assertRejected(base.copy(items = listOf(over) + base.items.drop(1)), "share")
+    }
+
+    @Test
     fun `an outfit with no items is rejected`() =
         assertRejected(base.copy(outfits = base.outfits + base.outfits.first().copy(key = "empty", itemKeys = emptyList())), "has no items")
 

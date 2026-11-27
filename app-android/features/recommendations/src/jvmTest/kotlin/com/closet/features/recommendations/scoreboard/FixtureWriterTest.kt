@@ -88,6 +88,18 @@ class FixtureWriterTest {
         }
     }
 
+    @Test
+    fun `a zero share colour fails loudly instead of dividing by zero`() = runTest {
+        ScoreboardDatabase().use { env ->
+            val base = MiniPersona.build()
+            val item = base.items.first().copy(colors = listOf("#1F2A44" to 0.0))
+            val error = assertFailsWith<IllegalArgumentException> {
+                FixtureWriter.write(env.db, base.copy(items = listOf(item) + base.items.drop(1)))
+            }
+            assertTrue("share" in error.message.orEmpty(), error.message)
+        }
+    }
+
     // Two swatches the app names the same colour become one tag, as ColorExtractor does: shares
     // add, and the hex is the share-weighted mean in linear RGB.
     @Test

@@ -120,6 +120,7 @@ object FixtureWriter {
         class Acc(var share: Double = 0.0, val linear: DoubleArray = DoubleArray(3))
         val byColor = LinkedHashMap<Long, Acc>()
         for ((hex, share) in swatches) {
+            require(share > 0.0) { "Colour $hex share must be greater than 0, is $share" }
             val acc = byColor.getOrPut(colorFor(hex)) { Acc() }
             val rgb = Oklab.linearRgb(hex.removePrefix("#").toInt(16))
             acc.share += share

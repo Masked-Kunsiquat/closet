@@ -80,6 +80,11 @@ data class Persona(
             val duplicates = keys.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
             require(duplicates.isEmpty()) { "Persona $name: duplicate $kind key(s) $duplicates" }
         }
+        // The app never stores a zero-share colour (extraction drops shares below its minimum),
+        // and FixtureWriter's merge divides by the summed share.
+        for (item in items) for ((hex, share) in item.colors) {
+            require(share > 0.0 && share <= 1.0) { "Persona $name: item ${item.key} colour $hex share must be in (0, 1], is $share" }
+        }
         requireUnique("item", items.map { it.key })
         requireUnique("outfit", outfits.map { it.key })
         val keys = items.map { it.key }.toSet()
