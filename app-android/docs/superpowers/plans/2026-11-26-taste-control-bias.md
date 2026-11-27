@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** taste learning stops inverting the rules. Its controls become uniform seeded samples, with completions that use the same slots as the chosen outfit. Learned weights are bounded at `[β₀−3, β₀+6]` (that is, [−2, 7]), the acceptance gate is stricter, and everyone retrains.
+**Goal:** taste learning stops inverting the rules. Its controls become uniform seeded samples, with completions that use the same slots as the chosen outfit. Learned weights are bounded at `[β₀−3, β₀+6]` (that is, [−2, 7]), the acceptance gate is stricter (2·SE gate), and everyone retrains.
 
 **Architecture:**
 - Only `HistoricalStratumBuilder` changes how it constructs controls. The scoring and features of each control are unchanged (`OutfitFeatureExtractor`, `scoreCombo` for the baseline offset).
@@ -72,7 +72,7 @@
 **Files:**
 - Modify:
   - `.../engine/learning/ConditionalLogitOptimizer.kt`: add `MAX_DRIFT_DOWN = 3.0` and `MAX_DRIFT_UP = 6.0` and apply them in the unstandardize step. Keep the non-finite fallback first, then clamp: ±0.5 below 30 strata, otherwise `[β₀−3, β₀+6]`.
-  - `.../engine/learning/TasteWeightTrainer.kt`: the stricter acceptance gate (D3b). Learned weights are accepted only when the chosen λ's mean held-out Δℓ is greater than its standard error; otherwise `DEFAULT`.
+  - `.../engine/learning/TasteWeightTrainer.kt`: the stricter acceptance gate (D3b), a 2·SE gate. Learned weights are accepted only when the chosen λ's mean held-out Δℓ is greater than 2 × its standard error (`GATE_SE_MULTIPLIER = 2.0`); otherwise `DEFAULT`. The owner chose 2·SE over 1·SE after the final review: at 1·SE, 3 of 20 pure-noise seeds were accepted and inverted rules.
   - `.../RecommendationViewModel.kt`: `TASTE_WEIGHTS_SCHEMA_VERSION = "v4"`.
   - `RecommendationViewModelSessionTest`: update the watermark literal.
   - `CHANGELOG.md` `[Unreleased]`, under Fixed: "Learned taste no longer inverts the rules (suggestions without shoes); weights retrain once."
@@ -81,12 +81,13 @@
 
 **Interfaces:**
 - Consumes: Task 1's builder, and `TasteWeightTrainer.trainFromHistory(...)` (read its signature).
-- Produces: `ConditionalLogitOptimizer.MAX_DRIFT_DOWN = 3.0` and `MAX_DRIFT_UP = 6.0`, and the stricter gate.
+- Produces: `ConditionalLogitOptimizer.MAX_DRIFT_DOWN = 3.0` and `MAX_DRIFT_UP = 6.0`, and the 2·SE gate (`TasteWeightTrainer.GATE_SE_MULTIPLIER = 2.0`).
 
 - [ ] **Step 1: Write the failing tests.**
   - **`drift bound clamps every data size and keeps the non-finite fallback`:** with ≥ 30 strata, a separable synthetic set has every weight in `[1 − 3, 1 + 6]` = [−2, 7]. A NaN path still gives β₀.
   - **`shoe-less logs do not teach shoe-less outfits`:** 120 logs, 20% without shoes and otherwise random choices. The trained footwear and layering weights are exactly 1.0, and after training the engine's top suggestion contains footwear.
   - **`random choices invert nothing`:** 120 uniformly random logs. Every weight is within `1 ± 1.0`.
+  - **`random choices invert nothing whenever the gate admits a fit`:** the same fixture over 20 seeds. The 2·SE gate accepts at most 1 of them, and every accepted fit is within `1 ± 1.0`.
   - **`a colour matching user learns a positive hue weight`:** 120 logs where 80% of cores are complementary or analogous pairs (use seeded hexes). The hue harmony weight is ≥ 1.0.
   - **`training is deterministic and clock free`:** identical weights twice, and identical weights when every log date is shifted by the same offset. (If the trainer reads `today`, pass a different one.)
 - [ ] **Step 2: Run** `./gradlew :features:recommendations:jvmTest --console=plain -q`. **Expected:** the drift-bound test fails before the bound exists. Record whether each outcome test passes or fails at the Task 1 commit. Any outcome test that already passes at Task 1 is a regression guard: say so.

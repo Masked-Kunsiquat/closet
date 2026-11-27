@@ -11,6 +11,7 @@ import com.closet.features.recommendations.engine.learning.LearningFixtures.shoe
 import com.closet.features.recommendations.engine.learning.LearningFixtures.tops
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.plus
+import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -81,6 +82,34 @@ class LearningOutcomeTest {
         // No held-out gain beats its standard error on random choices, so the trainer keeps the
         // rules as they are (and so inverts nothing).
         assertEquals(TasteWeights.DEFAULT, train(logs).weights)
+    }
+
+    @Test
+    fun `random choices invert nothing whenever the gate admits a fit`() {
+        // The same random-choice fixture over 20 seeds. The gate must rarely accept a fit, and
+        // where it does, no weight may move more than 1 from the default (design D5, the No
+        // inversion row).
+        val beta0 = TasteWeights.DEFAULT.toDoubleArray()
+        val accepted = ArrayList<Pair<Int, TasteWeights>>()
+        for (seed in 1..20) {
+            val logs = LearningFixtures.logs(seed = seed) { rnd, _ ->
+                val ids = randomCoreWithShoes(rnd)
+                if (rnd.nextBoolean()) ids + outerwear.random(rnd).id else ids
+            }
+            val result = train(logs)
+            if (result.selectedLambda != null) accepted += seed to result.weights
+        }
+        // The two-SE gate admits a noise fit rarely (about 2% of seeds), so at most one of 20.
+        assertTrue(accepted.size <= 1, "Accepted ${accepted.size} of 20 noise seeds: ${accepted.map { it.first }}")
+        for ((seed, weights) in accepted) {
+            val w = weights.toDoubleArray()
+            for (j in w.indices) {
+                assertTrue(
+                    abs(w[j] - beta0[j]) <= 1.0,
+                    "seed $seed weight $j = ${w[j]} is outside ${beta0[j]} plus or minus 1, weights = $weights",
+                )
+            }
+        }
     }
 
     @Test

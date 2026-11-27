@@ -64,10 +64,11 @@ class TasteWeightTrainerTest {
     }
 
     @Test
-    fun `a held-out gain below its standard error falls back to DEFAULT and a clear gain is kept`() {
-        // Seed 5 of this noise generator: its chosen lambda gains a tiny positive mean held-out
-        // log-likelihood (about 3e-4 per stratum) that is far below its standard error (about 0.015).
-        val rnd = Random(5)
+    fun `a held-out gain below two standard errors falls back to DEFAULT and a clear gain is kept`() {
+        // Seed 20 of this noise generator: its chosen lambda gains a positive mean held-out
+        // log-likelihood of about 1.4 standard errors (0.027 against 0.020). A one-SE gate would
+        // accept it; the two-SE gate rejects it.
+        val rnd = Random(20)
         val noise = List(40) {
             fun noisyVec() = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
                 this[TasteWeights.IDX_FAMILY_HARMONY] = rnd.nextDouble(-0.2, 0.2)
@@ -76,15 +77,17 @@ class TasteWeightTrainerTest {
             ChoiceStratum(noisyVec(), List(5) { noisyVec() })
         }
         val noiseResult = TasteWeightTrainer.trainOnStrata(noise)
+        val noiseSe = noiseResult.meanLogLikDeltaStandardError
         assertTrue(
             noiseResult.meanLogLikDelta > 0.0 &&
-                noiseResult.meanLogLikDelta < noiseResult.meanLogLikDeltaStandardError,
-            "Fixture precondition: 0 < mean (${noiseResult.meanLogLikDelta}) < SE (${noiseResult.meanLogLikDeltaStandardError})",
+                noiseResult.meanLogLikDelta > noiseSe &&
+                noiseResult.meanLogLikDelta < 2.0 * noiseSe,
+            "Fixture precondition: SE < mean (${noiseResult.meanLogLikDelta}) < 2 SE (SE = $noiseSe)",
         )
         assertEquals(TasteWeights.DEFAULT, noiseResult.weights)
         assertNull(noiseResult.selectedLambda)
 
-        // The consistent clash preference: its gain is several standard errors, so it is kept.
+        // The consistent clash preference: its gain is well over two standard errors, so it is kept.
         val prefRnd = Random(42)
         val preference = List(40) {
             val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
@@ -101,8 +104,9 @@ class TasteWeightTrainerTest {
         }
         val prefResult = TasteWeightTrainer.trainOnStrata(preference)
         assertTrue(
-            prefResult.meanLogLikDelta > prefResult.meanLogLikDeltaStandardError,
-            "Expected mean (${prefResult.meanLogLikDelta}) > SE (${prefResult.meanLogLikDeltaStandardError})",
+            prefResult.meanLogLikDelta >
+                2.0 * prefResult.meanLogLikDeltaStandardError,
+            "Expected mean (${prefResult.meanLogLikDelta}) > 2 SE (SE = ${prefResult.meanLogLikDeltaStandardError})",
         )
         assertNotNull(prefResult.selectedLambda)
         assertTrue(prefResult.weights != TasteWeights.DEFAULT, "Expected learned weights, got DEFAULT")
