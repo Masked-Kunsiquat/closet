@@ -321,4 +321,69 @@ class TasteWeightTrainerTest {
         assertEquals(TasteTrainingStage.FULL, result.acceptedStage)
         assertTrue(result.weights.familyHarmony < 1.0, "weights = ${result.weights}")
     }
+
+    // -------------------------------------------------------------------------
+    // Two-stage gate (#142, D3c)
+    // -------------------------------------------------------------------------
+
+    /**
+     * One stratum with a habit signal (the worn outfit's co-wear history is well above its
+     * controls') and, when [clash] is set, the consistent clash preference of [clashStratum];
+     * otherwise the family and pattern features are symmetric noise on both sides.
+     */
+    private fun habitStratum(rnd: Random, key: Long, clash: Boolean): ChoiceStratum {
+        val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+            this[TasteWeights.IDX_HISTORY_LIFT] = 0.3 + rnd.nextDouble(-0.05, 0.05)
+            if (clash) {
+                this[TasteWeights.IDX_FAMILY_HARMONY] = ln(0.70) + rnd.nextDouble(-0.01, 0.01)
+                this[TasteWeights.IDX_PATTERN_MIX] = ln(0.75) + rnd.nextDouble(-0.01, 0.01)
+            } else {
+                this[TasteWeights.IDX_FAMILY_HARMONY] = rnd.nextDouble(-0.2, 0.2)
+                this[TasteWeights.IDX_PATTERN_MIX] = rnd.nextDouble(-0.2, 0.2)
+            }
+        }
+        val controls = List(5) { k ->
+            DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                this[TasteWeights.IDX_HISTORY_LIFT] = rnd.nextDouble(0.0, 0.05)
+                if (clash) {
+                    this[TasteWeights.IDX_FAMILY_HARMONY] = if (k % 2 == 0) ln(1.10) else 0.0
+                    this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
+                } else {
+                    this[TasteWeights.IDX_FAMILY_HARMONY] = rnd.nextDouble(-0.2, 0.2)
+                    this[TasteWeights.IDX_PATTERN_MIX] = rnd.nextDouble(-0.2, 0.2)
+                }
+            }
+        }
+        return ChoiceStratum(chosen, controls, choiceKey = setOf(key))
+    }
+
+    @Test
+    fun `a habit alone stops at the habit stage with every rule at the default`() {
+        // The habit passes stage 1; the rule features are noise, so the full fit adds nothing over
+        // the habit model and stage 2 is rejected. Against DEFAULT instead of the habit model, the
+        // full fit would pass on the habit's gain alone.
+        val rnd = Random(144)
+        val result = TasteWeightTrainer.trainOnStrata(List(60) { habitStratum(rnd, it.toLong(), clash = false) })
+        assertEquals(TasteTrainingStage.HABIT, result.acceptedStage, "got $result")
+        assertTrue(result.weights.historyLift > 1.0, "weights = ${result.weights}")
+        val w = result.weights.toDoubleArray()
+        for (j in w.indices) {
+            if (j != TasteWeights.IDX_HISTORY_LIFT) assertEquals(1.0, w[j], 0.0, "weight $j moved: ${result.weights}")
+        }
+    }
+
+    @Test
+    fun `rules that add to an accepted habit win the full stage`() {
+        // Stage 1 passes on the habit; the clash preference then beats the habit model, so the
+        // full fit wins with both the habit and the rule learned.
+        val rnd = Random(145)
+        val strata = List(60) { habitStratum(rnd, it.toLong(), clash = true) }
+        val result = TasteWeightTrainer.trainOnStrata(strata)
+        assertEquals(TasteTrainingStage.FULL, result.acceptedStage, "got $result")
+        assertNotNull(result.selectedLambda)
+        assertTrue(result.weights.historyLift > 1.0, "weights = ${result.weights}")
+        assertTrue(result.weights.familyHarmony < 1.0, "weights = ${result.weights}")
+        // Deterministic: the whole result, including lambda, mean and SE, repeats exactly.
+        assertEquals(result, TasteWeightTrainer.trainOnStrata(strata))
+    }
 }

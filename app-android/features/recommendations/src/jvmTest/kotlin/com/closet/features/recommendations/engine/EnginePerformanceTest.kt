@@ -132,8 +132,9 @@ class EnginePerformanceTest {
 
     private companion object {
         /**
-         * Generous smoke budget: about 3x the time measured on the dev machine (0.48 to 0.54 s),
-         * raised to the 5 s floor.
+         * Generous smoke budget: about 10x the time measured on the dev machine with both gate
+         * stages (#142, D3c): 0.55 s on the first, cold run and 0.21 to 0.29 s warm. Raised to the
+         * 5 s floor.
          */
         val TRAINING_BUDGET = 5.seconds
     }

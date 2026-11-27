@@ -213,4 +213,44 @@ class ConditionalLogitOptimizerTest {
         val second = ConditionalLogitOptimizer.fit(strata, lambda = 3.0)
         assertEquals(first, second)
     }
+
+    @Test
+    fun `a feature that is not free stays at its prior and keeps its prior contribution`() {
+        // Family varies within every stratum and the worn outfit's is shifted up; pattern tracks
+        // family on every candidate. With only family free, pattern must stay exactly at its prior
+        // weight while family moves, and pattern's prior contribution (1.0 times its values) must
+        // still shape the fit: it already explains part of the choice, so family needs less
+        // weight than when pattern's column is zeroed.
+        fun strata(zeroPattern: Boolean): List<ChoiceStratum> {
+            val rnd = Random(31)
+            return List(60) { d ->
+                fun candidate(shift: Double) = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                    // Both draws always happen, so the two fixtures share their family values.
+                    val family = rnd.nextDouble(-0.3, 0.3) + shift
+                    val pattern = family + rnd.nextDouble(-0.02, 0.02)
+                    this[TasteWeights.IDX_FAMILY_HARMONY] = family
+                    this[TasteWeights.IDX_PATTERN_MIX] = if (zeroPattern) 0.0 else pattern
+                }
+                ChoiceStratum(candidate(0.15), List(4) { candidate(0.0) }, choiceKey = setOf(d.toLong()))
+            }
+        }
+        val familyOnly = BooleanArray(TasteWeights.FEATURE_COUNT) { it == TasteWeights.IDX_FAMILY_HARMONY }
+
+        val masked = ConditionalLogitOptimizer.fit(strata(zeroPattern = false), lambda = 1.0, freeFeatures = familyOnly)
+        assertEquals(1.0, masked.patternMix, 0.0, "masked pattern weight moved: $masked")
+        assertTrue(masked.familyHarmony != 1.0, "free family weight should move: $masked")
+        for ((j, w) in masked.toDoubleArray().withIndex()) {
+            if (j != TasteWeights.IDX_FAMILY_HARMONY) assertEquals(1.0, w, 0.0, "weight $j moved: $masked")
+        }
+
+        val zeroed = ConditionalLogitOptimizer.fit(strata(zeroPattern = true), lambda = 1.0, freeFeatures = familyOnly)
+        assertTrue(
+            zeroed.familyHarmony - masked.familyHarmony > 0.5,
+            "the masked feature's prior contribution must lower the family weight: masked ${masked.familyHarmony}, zeroed ${zeroed.familyHarmony}",
+        )
+
+        // Unmasked, pattern moves too, so the mask is what held it.
+        val unmasked = ConditionalLogitOptimizer.fit(strata(zeroPattern = false), lambda = 1.0)
+        assertTrue(unmasked.patternMix != 1.0, "Fixture precondition: pattern is learnable when free, got $unmasked")
+    }
 }

@@ -43,6 +43,11 @@ class LearningOutcomeTest {
         // the others have uniformly random shoes. Six favourites, not three: grouped CV (#142)
         // drops a validation block's own outfits from training, and three favourites land in
         // nearly every block, so no fold could learn a three-favourite habit.
+        //
+        // The gate stops this history at the habit stage, whose mask holds footwear and layering
+        // at 1.0 anyway. So the freezing check (#135: the controls match the worn outfit's
+        // optional slots, so both features are constant within every stratum) runs on a fit with
+        // every feature free, at the weakest regularization.
         val favourites = listOf(
             tops[0] to bottoms[1], tops[3] to bottoms[5], tops[6] to bottoms[2],
             tops[2] to bottoms[7], tops[5] to bottoms[0], tops[7] to bottoms[3],
@@ -50,12 +55,18 @@ class LearningOutcomeTest {
         val logs = shoeLessLogs(favourites)
         assertEquals(24, logs.count { log -> log.itemIds.none { id -> shoes.any { it.id == id } } })
 
+        val strata = HistoricalStratumBuilder.buildStrata(items = LearningFixtures.items, logs = logs, engine = engine)
+        val free = ConditionalLogitOptimizer.fit(strata = strata, lambda = TasteWeightTrainer.LAMBDA_PATH.last())
+        assertTrue(free != TasteWeights.DEFAULT, "Fixture precondition: the free fit moves some weight, got $free")
+        assertEquals(1.0, free.footwear, 0.0, "footwear must stay frozen at 1.0 in a free fit, weights = $free")
+        assertEquals(1.0, free.layering, 0.0, "layering must stay frozen at 1.0 in a free fit, weights = $free")
+
         val result = train(logs)
         assertAccepted(result, "the planted habit")
         assertTrue(result.acceptedStage != TasteTrainingStage.NONE, "Expected an accepted stage, got $result")
         val weights = result.weights
-        assertEquals(1.0, weights.footwear, 0.0, "footwear must stay frozen at 1.0, weights = $weights")
-        assertEquals(1.0, weights.layering, 0.0, "layering must stay frozen at 1.0, weights = $weights")
+        assertEquals(1.0, weights.footwear, 0.0, "footwear must stay at 1.0, weights = $weights")
+        assertEquals(1.0, weights.layering, 0.0, "layering must stay at 1.0, weights = $weights")
 
         val top = engine.recommend(
             input = engineInput(
@@ -132,15 +143,15 @@ class LearningOutcomeTest {
         // Accepted first, so the comparisons are between learned weights, not DEFAULT == DEFAULT.
         val first = train(LearningFixtures.reWornFavouriteLogs(seed = 142))
         assertAccepted(first, "the re-worn favourites")
+        // The whole result must match: weights, stage, selected lambda, and the gate's mean and SE.
         val second = train(LearningFixtures.reWornFavouriteLogs(seed = 142))
-        assertEquals(first.weights, second.weights)
-        assertEquals(first.acceptedStage, second.acceptedStage)
+        assertEquals(first, second)
 
         // trainFromHistory reads no `today`: every date it sees comes from the logs, so shifting
-        // every log by the same offset must not change the weights.
+        // every log by the same offset must not change the result.
         val original = LearningFixtures.reWornFavouriteLogs(seed = 142)
         val shifted = train(original.map { it.copy(date = it.date.plus(400, DateTimeUnit.DAY)) })
-        assertEquals(first.weights, shifted.weights)
+        assertEquals(first, shifted)
     }
 
     /** [count] logs where 80% of cores are analogous or complementary pairs, each with random shoes. */
