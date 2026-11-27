@@ -31,7 +31,7 @@ class TasteWeightTrainerTest {
                     this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(it.toLong()))
         }
 
         val result = TasteWeightTrainer.trainOnStrata(strata)
@@ -54,6 +54,7 @@ class TasteWeightTrainerTest {
             ChoiceStratum(
                 chosenFeatures = noisyVec(),
                 controlFeatures = List(5) { noisyVec() },
+                choiceKey = setOf(it.toLong()),
             )
         }
 
@@ -74,7 +75,7 @@ class TasteWeightTrainerTest {
                 this[TasteWeights.IDX_FAMILY_HARMONY] = rnd.nextDouble(-0.2, 0.2)
                 this[TasteWeights.IDX_PATTERN_MIX] = rnd.nextDouble(-0.2, 0.2)
             }
-            ChoiceStratum(noisyVec(), List(5) { noisyVec() })
+            ChoiceStratum(noisyVec(), List(5) { noisyVec() }, choiceKey = setOf(it.toLong()))
         }
         val noiseResult = TasteWeightTrainer.trainOnStrata(noise)
         val noiseSe = noiseResult.meanLogLikDeltaStandardError
@@ -86,6 +87,7 @@ class TasteWeightTrainerTest {
         )
         assertEquals(TasteWeights.DEFAULT, noiseResult.weights)
         assertNull(noiseResult.selectedLambda)
+        assertEquals(TasteTrainingStage.NONE, noiseResult.acceptedStage)
 
         // The consistent clash preference: its gain is well over two standard errors, so it is kept.
         val prefRnd = Random(42)
@@ -100,7 +102,7 @@ class TasteWeightTrainerTest {
                     this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(it.toLong()))
         }
         val prefResult = TasteWeightTrainer.trainOnStrata(preference)
         assertTrue(
@@ -109,50 +111,279 @@ class TasteWeightTrainerTest {
             "Expected mean (${prefResult.meanLogLikDelta}) > 2 SE (SE = ${prefResult.meanLogLikDeltaStandardError})",
         )
         assertNotNull(prefResult.selectedLambda)
+        // No habit signal here (historyLift is 0 everywhere), so the rules win against DEFAULT.
+        assertEquals(TasteTrainingStage.FULL, prefResult.acceptedStage)
         assertTrue(prefResult.weights != TasteWeights.DEFAULT, "Expected learned weights, got DEFAULT")
     }
 
     @Test
     fun `end-to-end trainFromHistory learns habit and pattern preferences across multi-day wardrobe logs`() {
-        // Build a synthetic wardrobe where the user always wears multi-patterned Warm + Cool cores
-        // (no colour bonus, about 110 degrees apart) over solid Cool + Cool ones (same family, 1.10)
-        val warmTop1 = item(1L, role = "Top", isPatternSolid = false, subcategoryId = 10L).inColors("Red")
-        val warmTop2 = item(2L, role = "Top", isPatternSolid = false, subcategoryId = 11L).inColors("Burgundy")
-        val coolTop1 = item(3L, role = "Top", isPatternSolid = true, subcategoryId = 12L).inColors("Sky Blue")
-        val coolTop2 = item(4L, role = "Top", isPatternSolid = true, subcategoryId = 13L).inColors("Teal")
-
-        val patternedBottom1 = item(5L, role = "Bottom", isPatternSolid = false, subcategoryId = 20L).inColors("Royal Blue")
-        val patternedBottom2 = item(6L, role = "Bottom", isPatternSolid = false, subcategoryId = 21L).inColors("Navy")
-        val coolBottom1 = item(7L, role = "Bottom", isPatternSolid = true, subcategoryId = 22L).inColors("Mint")
-        val coolBottom2 = item(8L, role = "Bottom", isPatternSolid = true, subcategoryId = 23L).inColors("Purple")
-
-        val shoe = item(9L, role = "Footwear", colorFamilies = setOf("Neutral"), isPatternSolid = true, subcategoryId = 30L)
-        val items = listOf(
-            warmTop1, warmTop2, coolTop1, coolTop2,
-            patternedBottom1, patternedBottom2, coolBottom1, coolBottom2,
-            shoe,
-        )
+        // The user always wears multi-patterned Warm + Cool cores over solid Cool + Cool ones (same
+        // family, 1.10): 5 patterned warm tops by 4 patterned cool bottoms give 20 clash outfits,
+        // enough distinct choices to learn from (#142, D4), each worn three times in rotation.
+        val warmTops = listOf("Red", "Burgundy", "Orange", "Pink", "Yellow").mapIndexed { i, color ->
+            item(1L + i, role = "Top", isPatternSolid = false, subcategoryId = 10L + i).inColors(color)
+        }
+        val coolTops = listOf("Sky Blue", "Teal").mapIndexed { i, color ->
+            item(11L + i, role = "Top", isPatternSolid = true, subcategoryId = 20L + i).inColors(color)
+        }
+        val patternedBottoms = listOf("Royal Blue", "Navy", "Forest Green", "Olive").mapIndexed { i, color ->
+            item(21L + i, role = "Bottom", isPatternSolid = false, subcategoryId = 30L + i).inColors(color)
+        }
+        val coolBottoms = listOf("Mint", "Purple").mapIndexed { i, color ->
+            item(31L + i, role = "Bottom", isPatternSolid = true, subcategoryId = 40L + i).inColors(color)
+        }
+        val shoe = item(41L, role = "Footwear", colorFamilies = setOf("Neutral"), isPatternSolid = true, subcategoryId = 50L)
+        val items = warmTops + coolTops + patternedBottoms + coolBottoms + shoe
 
         val start = LocalDate(2026, 1, 1)
-        val clashCores = listOf(1L to 5L, 1L to 6L, 2L to 5L, 2L to 6L)
-        val logs = List(36) { i ->
+        val clashCores = warmTops.flatMap { t -> patternedBottoms.map { b -> t.id to b.id } }
+        assertEquals(TasteWeightTrainer.MIN_DISTINCT_CHOICES, clashCores.size)
+        val logs = List(60) { i ->
             val (topId, bottomId) = clashCores[i % clashCores.size]
             HistoricalWearLog(
                 logId = (i + 1).toLong(),
                 date = start.plus(i, DateTimeUnit.DAY),
-                itemIds = listOf(topId, bottomId, 9L),
+                itemIds = listOf(topId, bottomId, shoe.id),
             )
         }
 
         val result = TasteWeightTrainer.trainFromHistory(items = items, logs = logs)
-        assertEquals(36, result.strataCount)
+        assertEquals(60, result.strataCount)
+        assertEquals(TasteTrainingStage.FULL, result.acceptedStage, "Expected the rules to be learned, got $result")
         assertTrue(result.meanLogLikDelta > 0.0, "Expected positive CV delta, got ${result.meanLogLikDelta}")
         // Under DEFAULT, familyHarmony favoured the same-family alternatives and patternMix penalized the user's
-        // chosen multi-patterned outfits,
-        // so the trainer must reduce those weights below 1.0!
+        // chosen multi-patterned outfits, so the trainer must reduce those weights below 1.0.
         assertTrue(
             result.weights.familyHarmony < 1.0 && result.weights.patternMix < 1.0,
             "Expected familyHarmony (${result.weights.familyHarmony}) and patternMix (${result.weights.patternMix}) < 1.0",
         )
+
+        // The original four clash outfits, worn 36 times, are below the distinct-outfit minimum:
+        // DEFAULT, with no cross-validation run.
+        val fourCores = listOf(1L to 21L, 1L to 22L, 2L to 21L, 2L to 22L)
+        val fewResult = TasteWeightTrainer.trainFromHistory(
+            items = items,
+            logs = List(36) { i ->
+                val (topId, bottomId) = fourCores[i % fourCores.size]
+                HistoricalWearLog((i + 1).toLong(), start.plus(i, DateTimeUnit.DAY), listOf(topId, bottomId, shoe.id))
+            },
+        )
+        assertEquals(36, fewResult.strataCount)
+        assertEquals(TasteWeights.DEFAULT, fewResult.weights)
+        assertNull(fewResult.selectedLambda)
+        assertEquals(TasteTrainingStage.NONE, fewResult.acceptedStage)
+        assertEquals(0.0, fewResult.meanLogLikDeltaStandardError, "the minimum returns before cross-validation")
+    }
+
+    // -------------------------------------------------------------------------
+    // Grouped cross-validation (#142)
+    // -------------------------------------------------------------------------
+
+    /** The consistent clash preference of the first test, as one stratum with [key] as its worn core. */
+    private fun clashStratum(rnd: Random, key: Set<Long>): ChoiceStratum {
+        val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+            this[TasteWeights.IDX_FAMILY_HARMONY] = ln(0.70) + rnd.nextDouble(-0.01, 0.01)
+            this[TasteWeights.IDX_PATTERN_MIX] = ln(0.75) + rnd.nextDouble(-0.01, 0.01)
+        }
+        val controls = List(5) { k ->
+            DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                this[TasteWeights.IDX_FAMILY_HARMONY] = if (k % 2 == 0) ln(1.10) else 0.0
+                this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
+            }
+        }
+        return ChoiceStratum(chosen, controls, choiceKey = key)
+    }
+
+    private fun assertDefault(result: TasteTrainingResult) {
+        assertEquals(TasteWeights.DEFAULT, result.weights, "Expected DEFAULT, got $result")
+        assertNull(result.selectedLambda, "Expected no lambda, got $result")
+        assertEquals(TasteTrainingStage.NONE, result.acceptedStage)
+    }
+
+    @Test
+    fun `no validation choice appears in its training fold`() {
+        val rnd = Random(142)
+        val keys = List(100) { setOf(rnd.nextLong(30)) }
+        val strata = keys.map { clashStratum(rnd, it) }
+        val folds = TasteWeightTrainer.groupedFolds(strata)
+        assertEquals(5, folds.size)
+        assertEquals(50, folds.first().validation.first)
+        assertEquals(99, folds.last().validation.last)
+        for ((f, fold) in folds.withIndex()) {
+            val validationKeys = fold.validation.mapTo(HashSet()) { keys[it] }
+            val expectedTrain = (0 until fold.validation.first).filter { keys[it] !in validationKeys }
+            assertEquals(expectedTrain, fold.trainIndices, "fold $f training indices")
+            assertTrue(fold.trainIndices.none { keys[it] in validationKeys }, "fold $f trains on a validation choice")
+            if (f > 0) assertEquals(folds[f - 1].validation.last + 1, fold.validation.first, "fold $f is not contiguous")
+        }
+    }
+
+    @Test
+    fun `a fold trimmed below ten strata is skipped`() {
+        // 40 strata: the first 20 train fold one, which validates on 20 to 23. Strata 0 to 10 share
+        // the first validation block's 4 keys, so fold one trains on only 9 strata.
+        val rnd = Random(5)
+        val keys = List(40) { i ->
+            when {
+                i <= 10 -> setOf(1000L + i % 4)
+                i in 20..23 -> setOf(1000L + (i - 20))
+                else -> setOf(i.toLong())
+            }
+        }
+        val folds = TasteWeightTrainer.groupedFolds(keys.map { clashStratum(rnd, it) })
+        assertEquals(20, folds.first().validation.first)
+        assertEquals(9, folds.first().trainIndices.size)
+        assertTrue(folds.first().isSkipped)
+        assertTrue(folds.drop(1).none { it.isSkipped }, "only fold one is trimmed below the minimum")
+    }
+
+    @Test
+    fun `every fold trimmed below the minimum falls back to default`() {
+        // 120 strata and 21 distinct choices: 9 one-off outfits, then 12 outfits rotated. Every
+        // validation block of 12 holds all 12 rotated outfits, so every fold trains on 9 strata.
+        val rnd = Random(77)
+        val strata = List(120) { i ->
+            clashStratum(rnd, if (i < 9) setOf(500L + i) else setOf(((i - 9) % 12).toLong()))
+        }
+        val folds = TasteWeightTrainer.groupedFolds(strata)
+        assertTrue(folds.isNotEmpty() && folds.all { it.isSkipped }, "Fixture precondition: every fold skipped")
+        assertDefault(TasteWeightTrainer.trainOnStrata(strata))
+    }
+
+    @Test
+    fun `a single validation choice cannot pass on zero standard error`() {
+        // 20 one-off outfits, then one outfit worn 20 times: every scored validation stratum is
+        // the same choice, so there is one observation and no standard error to beat.
+        val rnd = Random(3)
+        val strata = List(40) { i -> clashStratum(rnd, if (i < 20) setOf(i.toLong()) else setOf(999L)) }
+        val folds = TasteWeightTrainer.groupedFolds(strata)
+        assertTrue(
+            folds.filterNot { it.isSkipped }.flatMap { it.validation }.map { strata[it].choiceKey }.toSet() == setOf(setOf(999L)),
+            "Fixture precondition: only one choice is scored",
+        )
+        assertDefault(TasteWeightTrainer.trainOnStrata(strata))
+    }
+
+    /** The naive per-stratum standard error, treating every stratum as independent. */
+    private fun naiveStandardError(deltas: DoubleArray): Double {
+        val mean = deltas.average()
+        val sumSq = deltas.sumOf { (it - mean) * (it - mean) }
+        return kotlin.math.sqrt(sumSq / (deltas.size - 1)) / kotlin.math.sqrt(deltas.size.toDouble())
+    }
+
+    @Test
+    fun `duplicate validation choices do not shrink the standard error`() {
+        // With no repeats the cluster-robust SE is the usual sample SE.
+        val once = doubleArrayOf(0.1, 0.3, 0.2, 0.5)
+        val onceKeys = listOf(setOf(1L), setOf(2L), setOf(3L), setOf(4L))
+        val (onceMean, onceSe) = TasteWeightTrainer.clusterMeanAndStandardError(once, onceKeys)
+        assertEquals(once.average(), onceMean, 1e-12)
+        assertEquals(naiveStandardError(once), onceSe, 1e-12)
+
+        // Choice 2 worn four times, with the same delta each time. The mean stays weighted by
+        // wears, but the repeats are one cluster: the SE does not shrink the way four
+        // independent strata would make it.
+        val repeated = doubleArrayOf(0.1, 0.3, 0.3, 0.2, 0.3, 0.5, 0.3)
+        val repeatedKeys = listOf(setOf(1L), setOf(2L), setOf(2L), setOf(3L), setOf(2L), setOf(4L), setOf(2L))
+        val (repMean, repSe) = TasteWeightTrainer.clusterMeanAndStandardError(repeated, repeatedKeys)
+        assertEquals(repeated.average(), repMean, 1e-12)
+        val naiveRepSe = naiveStandardError(repeated)
+        assertTrue(naiveRepSe < onceSe, "Fixture precondition: naive SE shrinks with repeats ($naiveRepSe vs $onceSe)")
+        assertTrue(repSe > naiveRepSe, "Cluster SE $repSe must exceed the naive SE $naiveRepSe")
+
+        // Worked example: deltas 1, 1, 3 with the first two one choice. Mean 5/3, cluster
+        // residual sums -4/3 and 4/3, so SE = sqrt(2 * 32/9) / 3 = 8/9.
+        val (m, se) = TasteWeightTrainer.clusterMeanAndStandardError(
+            doubleArrayOf(1.0, 1.0, 3.0),
+            listOf(setOf(1L), setOf(1L), setOf(2L)),
+        )
+        assertEquals(5.0 / 3.0, m, 1e-12)
+        assertEquals(8.0 / 9.0, se, 1e-12)
+    }
+
+    @Test
+    fun `fewer than twenty distinct choices fall back to default`() {
+        assertEquals(20, TasteWeightTrainer.MIN_DISTINCT_CHOICES)
+        val rnd = Random(19)
+        val strata = List(80) { i -> clashStratum(rnd, setOf((i % 19).toLong())) }
+        val result = TasteWeightTrainer.trainOnStrata(strata)
+        assertDefault(result)
+        assertEquals(80, result.strataCount)
+    }
+
+    @Test
+    fun `twenty distinct choices are enough to learn`() {
+        val rnd = Random(20)
+        val strata = List(80) { i -> clashStratum(rnd, setOf((i % 20).toLong())) }
+        val result = TasteWeightTrainer.trainOnStrata(strata)
+        assertNotNull(result.selectedLambda, "Expected the clash preference to be learned, got $result")
+        assertEquals(TasteTrainingStage.FULL, result.acceptedStage)
+        assertTrue(result.weights.familyHarmony < 1.0, "weights = ${result.weights}")
+    }
+
+    // -------------------------------------------------------------------------
+    // Two-stage gate (#142, D3c)
+    // -------------------------------------------------------------------------
+
+    /**
+     * One stratum with a habit signal (the worn outfit's co-wear history is well above its
+     * controls') and, when [clash] is set, the consistent clash preference of [clashStratum];
+     * otherwise the family and pattern features are symmetric noise on both sides.
+     */
+    private fun habitStratum(rnd: Random, key: Long, clash: Boolean): ChoiceStratum {
+        val chosen = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+            this[TasteWeights.IDX_HISTORY_LIFT] = 0.3 + rnd.nextDouble(-0.05, 0.05)
+            if (clash) {
+                this[TasteWeights.IDX_FAMILY_HARMONY] = ln(0.70) + rnd.nextDouble(-0.01, 0.01)
+                this[TasteWeights.IDX_PATTERN_MIX] = ln(0.75) + rnd.nextDouble(-0.01, 0.01)
+            } else {
+                this[TasteWeights.IDX_FAMILY_HARMONY] = rnd.nextDouble(-0.2, 0.2)
+                this[TasteWeights.IDX_PATTERN_MIX] = rnd.nextDouble(-0.2, 0.2)
+            }
+        }
+        val controls = List(5) { k ->
+            DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                this[TasteWeights.IDX_HISTORY_LIFT] = rnd.nextDouble(0.0, 0.05)
+                if (clash) {
+                    this[TasteWeights.IDX_FAMILY_HARMONY] = if (k % 2 == 0) ln(1.10) else 0.0
+                    this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
+                } else {
+                    this[TasteWeights.IDX_FAMILY_HARMONY] = rnd.nextDouble(-0.2, 0.2)
+                    this[TasteWeights.IDX_PATTERN_MIX] = rnd.nextDouble(-0.2, 0.2)
+                }
+            }
+        }
+        return ChoiceStratum(chosen, controls, choiceKey = setOf(key))
+    }
+
+    @Test
+    fun `a habit alone stops at the habit stage with every rule at the default`() {
+        // The habit passes stage 1; the rule features are noise, so the full fit adds nothing over
+        // the habit model and stage 2 is rejected. Against DEFAULT instead of the habit model, the
+        // full fit would pass on the habit's gain alone.
+        val rnd = Random(144)
+        val result = TasteWeightTrainer.trainOnStrata(List(60) { habitStratum(rnd, it.toLong(), clash = false) })
+        assertEquals(TasteTrainingStage.HABIT, result.acceptedStage, "got $result")
+        assertTrue(result.weights.historyLift > 1.0, "weights = ${result.weights}")
+        val w = result.weights.toDoubleArray()
+        for (j in w.indices) {
+            if (j != TasteWeights.IDX_HISTORY_LIFT) assertEquals(1.0, w[j], 0.0, "weight $j moved: ${result.weights}")
+        }
+    }
+
+    @Test
+    fun `rules that add to an accepted habit win the full stage`() {
+        // Stage 1 passes on the habit; the clash preference then beats the habit model, so the
+        // full fit wins with both the habit and the rule learned.
+        val rnd = Random(145)
+        val strata = List(60) { habitStratum(rnd, it.toLong(), clash = true) }
+        val result = TasteWeightTrainer.trainOnStrata(strata)
+        assertEquals(TasteTrainingStage.FULL, result.acceptedStage, "got $result")
+        assertNotNull(result.selectedLambda)
+        assertTrue(result.weights.historyLift > 1.0, "weights = ${result.weights}")
+        assertTrue(result.weights.familyHarmony < 1.0, "weights = ${result.weights}")
+        // Deterministic: the whole result, including lambda, mean and SE, repeats exactly.
+        assertEquals(result, TasteWeightTrainer.trainOnStrata(strata))
     }
 }

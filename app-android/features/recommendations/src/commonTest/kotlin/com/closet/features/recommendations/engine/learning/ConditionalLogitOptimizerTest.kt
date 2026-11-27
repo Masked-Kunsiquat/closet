@@ -45,6 +45,7 @@ class ConditionalLogitOptimizerTest {
                 controlFeatures = listOf(
                     doubleArrayOf(0.0, 0.05, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0),
                 ),
+                choiceKey = setOf(it.toLong()),
             )
         }
         val fitted = ConditionalLogitOptimizer.fit(strata, lambda = 1.0)
@@ -68,7 +69,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_LAYERING] = dayConstant
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
 
         val fitted = ConditionalLogitOptimizer.fit(strata, lambda = 1.0)
@@ -103,7 +104,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_PATTERN_MIX] = if (k % 2 == 0) ln(1.10) else 0.0
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(it.toLong()))
         }
 
         val fitted = ConditionalLogitOptimizer.fit(strata, lambda = 1.0)
@@ -129,7 +130,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_FORMALITY_GAP] = -0.01 * k
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
 
         val fittedThin = ConditionalLogitOptimizer.fit(strata25, lambda = 0.1)
@@ -162,7 +163,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_PATTERN_MIX] = ln(1.10) * (k % 2)
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
         val lower = 1.0 - ConditionalLogitOptimizer.MAX_DRIFT_DOWN
         val upper = 1.0 + ConditionalLogitOptimizer.MAX_DRIFT_UP
@@ -187,7 +188,7 @@ class ConditionalLogitOptimizerTest {
                     this[TasteWeights.IDX_FORMALITY_GAP] = -0.01 * k
                 }
             }
-            ChoiceStratum(chosen, controls)
+            ChoiceStratum(chosen, controls, choiceKey = setOf(d.toLong()))
         }
         val fallback = ConditionalLogitOptimizer.fit(overflowing, lambda = 1.0)
         assertEquals(1.0, fallback.historyLift, 0.0)
@@ -204,11 +205,52 @@ class ConditionalLogitOptimizerTest {
             ChoiceStratum(
                 chosenFeatures = randomVec(),
                 controlFeatures = List(6) { randomVec() },
+                choiceKey = setOf(it.toLong()),
             )
         }
 
         val first = ConditionalLogitOptimizer.fit(strata, lambda = 3.0)
         val second = ConditionalLogitOptimizer.fit(strata, lambda = 3.0)
         assertEquals(first, second)
+    }
+
+    @Test
+    fun `a feature that is not free stays at its prior and keeps its prior contribution`() {
+        // Family varies within every stratum and the worn outfit's is shifted up; pattern tracks
+        // family on every candidate. With only family free, pattern must stay exactly at its prior
+        // weight while family moves, and pattern's prior contribution (1.0 times its values) must
+        // still shape the fit: it already explains part of the choice, so family needs less
+        // weight than when pattern's column is zeroed.
+        fun strata(zeroPattern: Boolean): List<ChoiceStratum> {
+            val rnd = Random(31)
+            return List(60) { d ->
+                fun candidate(shift: Double) = DoubleArray(TasteWeights.FEATURE_COUNT).apply {
+                    // Both draws always happen, so the two fixtures share their family values.
+                    val family = rnd.nextDouble(-0.3, 0.3) + shift
+                    val pattern = family + rnd.nextDouble(-0.02, 0.02)
+                    this[TasteWeights.IDX_FAMILY_HARMONY] = family
+                    this[TasteWeights.IDX_PATTERN_MIX] = if (zeroPattern) 0.0 else pattern
+                }
+                ChoiceStratum(candidate(0.15), List(4) { candidate(0.0) }, choiceKey = setOf(d.toLong()))
+            }
+        }
+        val familyOnly = BooleanArray(TasteWeights.FEATURE_COUNT) { it == TasteWeights.IDX_FAMILY_HARMONY }
+
+        val masked = ConditionalLogitOptimizer.fit(strata(zeroPattern = false), lambda = 1.0, freeFeatures = familyOnly)
+        assertEquals(1.0, masked.patternMix, 0.0, "masked pattern weight moved: $masked")
+        assertTrue(masked.familyHarmony != 1.0, "free family weight should move: $masked")
+        for ((j, w) in masked.toDoubleArray().withIndex()) {
+            if (j != TasteWeights.IDX_FAMILY_HARMONY) assertEquals(1.0, w, 0.0, "weight $j moved: $masked")
+        }
+
+        val zeroed = ConditionalLogitOptimizer.fit(strata(zeroPattern = true), lambda = 1.0, freeFeatures = familyOnly)
+        assertTrue(
+            zeroed.familyHarmony - masked.familyHarmony > 0.5,
+            "the masked feature's prior contribution must lower the family weight: masked ${masked.familyHarmony}, zeroed ${zeroed.familyHarmony}",
+        )
+
+        // Unmasked, pattern moves too, so the mask is what held it.
+        val unmasked = ConditionalLogitOptimizer.fit(strata(zeroPattern = false), lambda = 1.0)
+        assertTrue(unmasked.patternMix != 1.0, "Fixture precondition: pattern is learnable when free, got $unmasked")
     }
 }

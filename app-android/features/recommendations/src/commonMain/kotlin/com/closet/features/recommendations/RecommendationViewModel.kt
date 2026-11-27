@@ -531,8 +531,9 @@ class RecommendationViewModel(
             )
         }
 
-        // 5. Resolve personalized taste weights (cold start < 20 logs uses DEFAULT;
-        //    retrains lazily on computationDispatcher when the log watermark changes).
+        // 5. Resolve taste weights: DEFAULT while learned taste is paused (LEARNED_TASTE_ENABLED);
+        //    otherwise cold start < 20 logs uses DEFAULT and it retrains lazily on
+        //    computationDispatcher when the log watermark changes.
         val tasteWeights = resolveTasteWeights(totalLogCount)
 
         // 6. Build EngineInput
@@ -636,9 +637,12 @@ class RecommendationViewModel(
      *
      * Any failure during training logs a warning and falls back to the stored or [TasteWeights.DEFAULT]
      * weights so recommendation generation is never blocked.
+     *
+     * While [LEARNED_TASTE_ENABLED] is false, this always returns [TasteWeights.DEFAULT] and never
+     * trains or reads stored weights.
      */
     private suspend fun resolveTasteWeights(totalLogCount: Int): TasteWeights {
-        if (totalLogCount < ConditionalLogitOptimizer.MIN_STRATA_FOR_TRAINING) {
+        if (!LEARNED_TASTE_ENABLED || totalLogCount < ConditionalLogitOptimizer.MIN_STRATA_FOR_TRAINING) {
             return TasteWeights.DEFAULT
         }
         return try {
@@ -787,7 +791,17 @@ class RecommendationViewModel(
     }
 
     companion object {
-        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v4"
+        internal const val TASTE_WEIGHTS_SCHEMA_VERSION = "v5"
+
+        /**
+         * Learned taste is paused (#142): suggestions use [TasteWeights.DEFAULT], which already
+         * includes the co-wear habit at default strength. On real histories, learned weights made
+         * suggestions worse (dropped shoes) because training compares cores with fixed extras
+         * while serving also uses the weights to choose extras. The trainer stays built and
+         * tested; turn this back on only after a redesign passes the realistic-history
+         * scoreboard.
+         */
+        internal const val LEARNED_TASTE_ENABLED = false
     }
 
     // -------------------------------------------------------------------------

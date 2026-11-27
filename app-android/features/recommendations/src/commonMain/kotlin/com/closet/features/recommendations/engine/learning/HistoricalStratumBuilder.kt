@@ -283,6 +283,7 @@ internal object HistoricalStratumBuilder {
             logId = logId,
             chosenBaselineOffset = chosenBaselineOffset,
             controlBaselineOffsets = controlBaselineOffsets,
+            choiceKey = wornCore,
         )
     }
 
