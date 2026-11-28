@@ -78,6 +78,15 @@ class EffectiveWeatherTest {
     }
 
     @Test
+    fun `an outerwear role item with an unknown subcategory derives light`() {
+        fun effective(role: String) = item(id = 1, role = role, subcategoryName = "Poncho")
+            .withEffectiveWeather(warmthOverride = null, rainReadyOverride = null, temps = null, rain = null)
+            .warmthLevel
+        assertEquals(WarmthLevel.LIGHT, effective("Outerwear"))
+        assertEquals(WarmthLevel.NONE, effective("Top"))
+    }
+
+    @Test
     fun `a rain unfriendly item resists becoming rain ready`() {
         // Sandals carry a 0.05 prior: blended = two thirds of 0.8 plus one third of 0.05 = 0.55.
         val sandals = item(id = 1, role = "Footwear", subcategoryName = "Sandals")

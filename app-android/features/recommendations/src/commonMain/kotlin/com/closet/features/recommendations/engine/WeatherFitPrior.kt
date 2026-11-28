@@ -145,9 +145,7 @@ internal object WeatherFitPrior {
         "Chiffon" to 6.0,
     )
 
-    private val RAIN_UNFRIENDLY_MATERIALS: Set<String> = setOf(
-        "Suede", "Silk", "Cashmere", "Velvet", "Chiffon", "Linen",
-    )
+    private val RAIN_UNFRIENDLY_MATERIALS: Set<String> = ItemWarmth.RAIN_UNFRIENDLY_MATERIALS
     private val RAIN_READY_OUTER_MATERIALS: Set<String> = ItemWarmth.RAIN_PROTECTIVE_MATERIALS
     private val RAIN_UNFRIENDLY_SUBCATEGORIES: Set<String> = setOf(
         "Sandals", "Slippers",

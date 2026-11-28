@@ -33,8 +33,9 @@ enum class WarmthLevel { NONE, LIGHT, MEDIUM, WARM, HEAVY }
  * are present they cancel. The result is clamped to NONE..HEAVY.
  *
  * ## Rain-readiness
- * Raincoat and Boots always; Jacket and Coat only when a material is in
- * [RAIN_PROTECTIVE_MATERIALS]; everything else false.
+ * Raincoat always. Otherwise any material in [RAIN_UNFRIENDLY_MATERIALS] vetoes it (suede boots
+ * are not rain-ready), matching `WeatherFitPrior`'s precedence. Then Boots; Jacket and Coat only
+ * when a material is in [RAIN_PROTECTIVE_MATERIALS]; everything else false.
  */
 object ItemWarmth {
 
@@ -69,6 +70,14 @@ object ItemWarmth {
     val RAIN_PROTECTIVE_MATERIALS: Set<String> =
         setOf(MAT_NYLON, MAT_POLYESTER, MAT_LEATHER, MAT_FAUX_LEATHER)
 
+    /**
+     * Materials that rain damages or soaks through, moved from `WeatherFitPrior` with the same
+     * contents. Any of them vetoes derived rain-readiness, except on a Raincoat.
+     */
+    val RAIN_UNFRIENDLY_MATERIALS: Set<String> = setOf(
+        "Suede", "Silk", "Cashmere", "Velvet", "Chiffon", MAT_LINEN,
+    )
+
     /** Subcategories that protect from rain regardless of material. */
     private val ALWAYS_RAIN_READY: Set<String> = setOf(SUB_RAINCOAT, SUB_BOOTS)
 
@@ -102,6 +111,8 @@ object ItemWarmth {
 
     fun derivedRainReady(categoryName: String?, subcategoryName: String?, materials: Set<String>): Boolean {
         if (subcategoryName == null || subcategoryName !in RAIN_PROTECTIVE_SUBCATEGORIES) return false
+        if (subcategoryName == SUB_RAINCOAT) return true
+        if (materials.any { it in RAIN_UNFRIENDLY_MATERIALS }) return false
         if (subcategoryName in ALWAYS_RAIN_READY) return true
         return materials.any { it in RAIN_PROTECTIVE_MATERIALS }
     }

@@ -66,4 +66,40 @@ class ItemWarmthTest {
     fun `wool does not warm an item that starts at none`() {
         assertEquals(WarmthLevel.NONE, warmth("Tops", "T-Shirt", "Wool"))
     }
+
+    @Test
+    fun `suede boots are not rain ready`() {
+        assertFalse(rain("Footwear", "Boots", "Suede"))
+    }
+
+    @Test
+    fun `a nylon jacket with cashmere is not rain ready`() {
+        assertFalse(rain("Outerwear", "Jacket", "Nylon", "Cashmere"))
+    }
+
+    @Test
+    fun `a raincoat stays rain ready whatever the material`() {
+        assertTrue(rain("Outerwear", "Raincoat", "Silk", "Linen"))
+    }
+
+    @Test
+    fun `an outerwear item without a known subcategory derives light`() {
+        assertEquals(WarmthLevel.LIGHT, warmth("Outerwear", "Poncho"))
+        assertEquals(WarmthLevel.LIGHT, warmth("Outerwear", null))
+    }
+
+    @Test
+    fun `several warming materials raise warmth only once`() {
+        assertEquals(WarmthLevel.WARM, warmth("Outerwear", "Jacket", "Wool", "Cashmere"))
+    }
+
+    @Test
+    fun `wool and linen cancel out`() {
+        assertEquals(WarmthLevel.MEDIUM, warmth("Outerwear", "Jacket", "Wool", "Linen"))
+    }
+
+    @Test
+    fun `warmth levels keep their stored order`() {
+        assertEquals(listOf("NONE", "LIGHT", "MEDIUM", "WARM", "HEAVY"), WarmthLevel.entries.map { it.name })
+    }
 }

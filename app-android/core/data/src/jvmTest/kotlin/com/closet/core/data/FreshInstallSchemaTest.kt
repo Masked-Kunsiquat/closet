@@ -123,7 +123,7 @@ class FreshInstallSchemaTest {
 
     private companion object {
         /** The newest schema version; its export is `<LATEST_VERSION>.json`. */
-        const val LATEST_VERSION = 5
+        const val LATEST_VERSION = ClothingDatabase.VERSION
     }
 
     private fun count(table: String): Int =

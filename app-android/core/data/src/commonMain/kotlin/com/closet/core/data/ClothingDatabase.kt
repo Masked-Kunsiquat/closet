@@ -56,7 +56,7 @@ import com.closet.core.data.model.*
     // Version 4 (MIGRATION_3_4) re-picks ten base colour hexes and makes Navy Cool.
     // Version 5 (MIGRATION_4_5) adds the item warmth and rain-ready overrides.
     // Every schema change needs a real migration.
-    version = 5,
+    version = ClothingDatabase.VERSION,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -101,7 +101,10 @@ abstract class ClothingDatabase : RoomDatabase() {
         }
 
     /** Anchor for the platform entry points, e.g. `ClothingDatabase.getDatabase(context)` on Android. */
-    companion object
+    companion object {
+        /** The current schema version (`@Database.version`); tests and tools assert against it. */
+        const val VERSION = 5
+    }
 }
 
 /** Room's generated constructor for [ClothingDatabase]; KSP writes the `actual` for each target. */

@@ -61,7 +61,7 @@ class ProductionUpgradeTest {
 
         val upgraded = getDatabaseBuilder(file).build().also { db = it }
 
-        assertEquals(5, runBlocking { upgraded.databaseVersion() })
+        assertEquals(ClothingDatabase.VERSION, runBlocking { upgraded.databaseVersion() })
         val curated = upgraded.rows("SELECT id, colors_curated FROM clothing_items ORDER BY id") {
             it.getLong(0) to it.getLong(1)
         }
