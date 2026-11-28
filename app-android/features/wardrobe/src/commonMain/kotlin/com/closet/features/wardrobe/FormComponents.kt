@@ -14,6 +14,18 @@ import com.closet.features.wardrobe.resources.wardrobe_field_brand
 import com.closet.features.wardrobe.resources.wardrobe_field_none
 import com.closet.features.wardrobe.resources.wardrobe_field_purchase_date
 import com.closet.features.wardrobe.resources.wardrobe_field_size_system
+import com.closet.features.wardrobe.resources.wardrobe_field_rain_ready
+import com.closet.features.wardrobe.resources.wardrobe_field_warmth
+import com.closet.features.wardrobe.resources.wardrobe_override_auto
+import com.closet.features.wardrobe.resources.wardrobe_rain_ready_no
+import com.closet.features.wardrobe.resources.wardrobe_rain_ready_yes
+import com.closet.features.wardrobe.resources.wardrobe_warmth_heavy
+import com.closet.features.wardrobe.resources.wardrobe_warmth_light
+import com.closet.features.wardrobe.resources.wardrobe_warmth_medium
+import com.closet.features.wardrobe.resources.wardrobe_warmth_none
+import com.closet.features.wardrobe.resources.wardrobe_warmth_warm
+import com.closet.core.data.weather.WarmthLevel
+import org.jetbrains.compose.resources.StringResource
 import com.closet.core.ui.format.parseHexColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -142,6 +154,116 @@ internal fun <T> DropdownSelector(
         }
     }
 }
+
+// ─── Warmth and rain-ready overrides ─────────────────────────────────────────
+
+/**
+ * Read-only dropdown for an item override whose null value means Auto. The first row is
+ * "Auto (<derived>)", which selects null; the rest are [options].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun <T : Any> OverrideSelector(
+    label: String,
+    selected: T?,
+    derived: T,
+    options: List<T>,
+    optionLabel: @Composable (T) -> String,
+    onSelect: (T?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val autoLabel = stringResource(Res.string.wardrobe_override_auto, optionLabel(derived).lowercase())
+
+    Box(modifier = modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = selected?.let { optionLabel(it) } ?: autoLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable { expanded = true }
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.9f)
+        ) {
+            DropdownMenuItem(
+                text = { Text(autoLabel) },
+                onClick = {
+                    onSelect(null)
+                    expanded = false
+                }
+            )
+            options.forEach { option ->
+                val text = optionLabel(option)
+                DropdownMenuItem(
+                    text = { Text(text) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+/** Warmth override dropdown: Auto (<derived>) / None / Light / Medium / Warm / Heavy. */
+@Composable
+internal fun WarmthOverrideSelector(
+    selected: WarmthLevel?,
+    derived: WarmthLevel,
+    onSelect: (WarmthLevel?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OverrideSelector(
+        label = stringResource(Res.string.wardrobe_field_warmth),
+        selected = selected,
+        derived = derived,
+        options = WarmthLevel.entries,
+        optionLabel = { stringResource(it.labelRes) },
+        onSelect = onSelect,
+        modifier = modifier,
+    )
+}
+
+/** Rain-ready override dropdown: Auto (<yes|no>) / Yes / No. */
+@Composable
+internal fun RainReadyOverrideSelector(
+    selected: Boolean?,
+    derived: Boolean,
+    onSelect: (Boolean?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OverrideSelector(
+        label = stringResource(Res.string.wardrobe_field_rain_ready),
+        selected = selected,
+        derived = derived,
+        options = listOf(true, false),
+        optionLabel = {
+            stringResource(if (it) Res.string.wardrobe_rain_ready_yes else Res.string.wardrobe_rain_ready_no)
+        },
+        onSelect = onSelect,
+        modifier = modifier,
+    )
+}
+
+private val WarmthLevel.labelRes: StringResource
+    get() = when (this) {
+        WarmthLevel.NONE -> Res.string.wardrobe_warmth_none
+        WarmthLevel.LIGHT -> Res.string.wardrobe_warmth_light
+        WarmthLevel.MEDIUM -> Res.string.wardrobe_warmth_medium
+        WarmthLevel.WARM -> Res.string.wardrobe_warmth_warm
+        WarmthLevel.HEAVY -> Res.string.wardrobe_warmth_heavy
+    }
 
 // ─── ColorSelectionGrid ───────────────────────────────────────────────────────
 

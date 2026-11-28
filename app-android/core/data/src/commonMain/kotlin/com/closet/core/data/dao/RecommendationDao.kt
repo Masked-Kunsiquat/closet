@@ -22,6 +22,8 @@ import androidx.room.Query
  *   Null when the item has no category assigned.
  * @property warmthLayer Value of categories.warmth_layer (None/Base/Mid/Outer).
  *   Null when the item has no category assigned.
+ * @property warmthOverride The user's warmth level for the item (0..4), or null to use the derived level.
+ * @property rainReadyOverride The user's rain-ready flag for the item, or null to use the derived flag.
  */
 data class CandidateItem(
     val id: Long,
@@ -30,7 +32,9 @@ data class CandidateItem(
     @ColumnInfo(name = "category_id") val categoryId: Long?,
     @ColumnInfo(name = "subcategory_id") val subcategoryId: Long?,
     @ColumnInfo(name = "outfit_role") val outfitRole: String?,
-    @ColumnInfo(name = "warmth_layer") val warmthLayer: String?
+    @ColumnInfo(name = "warmth_layer") val warmthLayer: String?,
+    @ColumnInfo(name = "warmth_override") val warmthOverride: Int? = null,
+    @ColumnInfo(name = "rain_ready_override") val rainReadyOverride: Boolean? = null,
 )
 
 /**
@@ -242,6 +246,8 @@ data class TrainingItemRow(
     @ColumnInfo(name = "outfit_role") val outfitRole: String?,
     @ColumnInfo(name = "warmth_layer") val warmthLayer: String?,
     @ColumnInfo(name = "created_at") val createdAtEpochMillis: Long?,
+    @ColumnInfo(name = "warmth_override") val warmthOverride: Int? = null,
+    @ColumnInfo(name = "rain_ready_override") val rainReadyOverride: Boolean? = null,
 )
 
 /**
@@ -312,7 +318,9 @@ interface RecommendationDao {
             ci.category_id,
             ci.subcategory_id,
             cat.outfit_role,
-            cat.warmth_layer
+            cat.warmth_layer,
+            ci.warmth_override,
+            ci.rain_ready_override
         FROM clothing_items ci
         LEFT JOIN categories cat ON ci.category_id = cat.id
         WHERE ci.status     = 'Active'
@@ -662,6 +670,8 @@ interface RecommendationDao {
             ci.subcategory_id,
             cat.outfit_role,
             cat.warmth_layer,
+            ci.warmth_override,
+            ci.rain_ready_override,
             ci.created_at
         FROM clothing_items ci
         LEFT JOIN categories cat ON ci.category_id = cat.id

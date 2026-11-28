@@ -1,8 +1,10 @@
 package com.closet.features.recommendations
 
 import com.closet.core.data.dao.CandidateItem
+import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.repository.RecommendationRepository
 import com.closet.core.data.util.DataResult
+import com.closet.core.data.weather.WarmthLevel
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.learning.TasteWeights
 import com.closet.features.recommendations.model.WeatherConditions
@@ -16,6 +18,7 @@ import kotlinx.datetime.LocalDate
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -79,6 +82,40 @@ class RecommendationPipelineTest {
 
         assertTrue(first.isNotEmpty())
         assertEquals(first, second)
+    }
+
+    @Test fun `engine items carry effective warmth and rain readiness`() = runTest {
+        val wardrobe = listOf(
+            // Nylon Jacket: derived MEDIUM and rain ready; the override says HEAVY.
+            candidate(1, "Outerwear").copy(warmthOverride = WarmthLevel.HEAVY.ordinal),
+            // Sweater: derived MEDIUM, worn on cold days, so history raises it to WARM.
+            candidate(2, "Top"),
+            // T-Shirt: derived NONE and not rain ready; the override marks it rain ready.
+            candidate(3, "Top").copy(rainReadyOverride = true),
+            // Jeans with no history: derived NONE and not rain ready.
+            candidate(4, "Bottom"),
+        )
+        val repo = repo(wardrobe)
+        coEvery { repo.getItemSubcategoryNames(any()) } returns DataResult.Success(
+            mapOf(1L to "Jacket", 2L to "Sweater", 3L to "T-Shirt", 4L to "Jeans"),
+        )
+        coEvery { repo.getItemMaterialNames(any()) } returns DataResult.Success(
+            mapOf(1L to setOf("Nylon"), 4L to setOf("Denim")),
+        )
+        coEvery { repo.getTempPercentiles(any()) } returns DataResult.Success(
+            listOf(ItemTempPercentiles(clothingItemId = 2, p10TempLow = -10.0, p90TempHigh = 5.0, logCount = 6)),
+        )
+
+        val items = pipeline(repo).engineInput(request(seed = 42))!!.candidates.associateBy { it.id }
+
+        assertEquals(WarmthLevel.HEAVY, items.getValue(1).warmthLevel)
+        assertTrue(items.getValue(1).rainReady)
+        assertEquals(WarmthLevel.WARM, items.getValue(2).warmthLevel)
+        assertFalse(items.getValue(2).rainReady)
+        assertEquals(WarmthLevel.NONE, items.getValue(3).warmthLevel)
+        assertTrue(items.getValue(3).rainReady)
+        assertEquals(WarmthLevel.NONE, items.getValue(4).warmthLevel)
+        assertFalse(items.getValue(4).rainReady)
     }
 
     @Test fun `no candidates gives an empty list without further queries`() = runTest {

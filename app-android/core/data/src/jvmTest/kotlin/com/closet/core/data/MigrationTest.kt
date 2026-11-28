@@ -9,6 +9,7 @@ import androidx.sqlite.execSQL
 import com.closet.core.data.migrations.MIGRATION_1_2
 import com.closet.core.data.migrations.MIGRATION_2_3
 import com.closet.core.data.migrations.MIGRATION_3_4
+import com.closet.core.data.migrations.MIGRATION_4_5
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.io.path.Path
@@ -149,6 +150,26 @@ class MigrationTest {
     }
 
     @Test
+    fun `migration four to five adds nullable override columns`() {
+        createV1().close()
+        val v4 = helper.runMigrationsAndValidate(4, listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4))
+            .also { connections += it }
+        v4.execSQL("DROP INDEX IF EXISTS one_ootd_per_day")
+        v4.execSQL(
+            "INSERT INTO clothing_items (id, name, is_favorite, created_at, updated_at) " +
+                "VALUES (1, 'Wool coat', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        )
+        v4.close()
+
+        val v5 = helper.runMigrationsAndValidate(5, listOf(MIGRATION_4_5)).also { connections += it }
+        val overrides = v5.rows(
+            "SELECT warmth_override IS NULL, rain_ready_override IS NULL FROM clothing_items WHERE id = 1"
+        ) { it.getLong(0) to it.getLong(1) }
+        assertEquals(listOf(1L to 1L), overrides, "both overrides are null after the upgrade")
+        assertEquals(1L, v5.single("SELECT COUNT(*) FROM clothing_items"), "the item survives")
+    }
+
+    @Test
     fun `migrated and fresh databases have identical colours`() {
         createV1().close()
         val migrated = migrate()
@@ -186,7 +207,7 @@ class MigrationTest {
     }
 
     private fun migrate(): SQLiteConnection =
-        helper.runMigrationsAndValidate(4, listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4))
+        helper.runMigrationsAndValidate(5, listOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5))
             .also { connections += it }
 
     private fun <T> SQLiteConnection.rows(sql: String, map: (SQLiteStatement) -> T): List<T> =

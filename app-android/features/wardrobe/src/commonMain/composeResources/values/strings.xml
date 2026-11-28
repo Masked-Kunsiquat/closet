@@ -79,6 +79,18 @@
     <string name="wardrobe_field_none">None</string>
     <string name="wardrobe_field_size_system">Size System</string>
     <string name="wardrobe_field_status">Status</string>
+    <!-- Item warmth and rain-ready overrides (#147). Auto stores nothing and follows the derived value. -->
+    <string name="wardrobe_field_warmth">Warmth</string>
+    <string name="wardrobe_field_rain_ready">Rain-ready</string>
+    <!-- Auto option of an override dropdown. %1$s is the derived value, e.g. "medium" or "no". -->
+    <string name="wardrobe_override_auto">Auto (%1$s)</string>
+    <string name="wardrobe_warmth_none">None</string>
+    <string name="wardrobe_warmth_light">Light</string>
+    <string name="wardrobe_warmth_medium">Medium</string>
+    <string name="wardrobe_warmth_warm">Warm</string>
+    <string name="wardrobe_warmth_heavy">Heavy</string>
+    <string name="wardrobe_rain_ready_yes">Yes</string>
+    <string name="wardrobe_rain_ready_no">No</string>
     <string name="wardrobe_change_status">Change Status</string>
     <string name="wardrobe_section_colors">Colors</string>
     <string name="wardrobe_discard_title">Discard Changes?</string>

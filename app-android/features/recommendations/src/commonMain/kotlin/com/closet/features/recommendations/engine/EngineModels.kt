@@ -4,6 +4,7 @@ import com.closet.core.data.dao.ItemLastWorn
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
+import com.closet.core.data.weather.WarmthLevel
 import kotlinx.datetime.LocalDate
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,10 @@ import kotlinx.datetime.LocalDate
  * @property formalityLevel Median formality (1 to 5) of the item's occasions, or null if unknown.
  * @property subcategoryName Human-readable subcategory name (e.g. "Sweater", "Shorts"), or null if none.
  * @property materials      Set of tagged material names (e.g. "Wool", "Linen"). Empty when none tagged.
+ * @property warmthLevel    Effective warmth: the user's override, else the derived level refined by wear
+ *                          history ([EffectiveWeather.warmth]). Not read by the engine yet (PR 2 of #147).
+ * @property rainReady      Effective rain-readiness: the user's override, else the derived flag refined
+ *                          by wear history ([EffectiveWeather.rainReady]). Not read by the engine yet.
  */
 data class EngineItem(
     val id: Long,
@@ -51,6 +56,8 @@ data class EngineItem(
     val formalityLevel: Double? = null,
     val subcategoryName: String? = null,
     val materials: Set<String> = emptySet(),
+    val warmthLevel: WarmthLevel = WarmthLevel.NONE,
+    val rainReady: Boolean = false,
 ) {
     /**
      * This item's [ColorHarmony.harmonyColor], computed once. It lives in the body so it stays out

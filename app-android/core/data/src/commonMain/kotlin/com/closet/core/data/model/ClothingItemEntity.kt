@@ -93,6 +93,14 @@ data class ClothingItemEntity(
     /** True once the user chose this item's colours; automatic re-detection must not override them. */
     @ColumnInfo(name = "colors_curated", defaultValue = "0")
     val colorsCurated: Boolean = false,
+
+    /** The user's warmth level for this item (0..4), or null to use the derived level. */
+    @ColumnInfo(name = "warmth_override")
+    val warmthOverride: Int? = null,
+
+    /** The user's rain-ready flag for this item (stored 0/1), or null to use the derived flag. */
+    @ColumnInfo(name = "rain_ready_override")
+    val rainReadyOverride: Boolean? = null,
     
     @ColumnInfo(name = "semantic_description")
     val semanticDescription: String? = null,

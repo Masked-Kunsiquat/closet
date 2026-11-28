@@ -108,9 +108,22 @@ class FreshInstallSchemaTest {
         }
     }
 
+    @Test
+    fun `fresh install has override columns`() {
+        val columns = query("PRAGMA table_info(clothing_items)") { c ->
+            val names = c.getColumnNames()
+            val name = names.indexOf("name")
+            val type = names.indexOf("type")
+            val notNull = names.indexOf("notnull")
+            buildMap { while (c.step()) put(c.getText(name), c.getText(type) to c.getInt(notNull)) }
+        }
+        assertEquals("INTEGER" to 0, columns["warmth_override"], "warmth_override is a nullable INTEGER")
+        assertEquals("INTEGER" to 0, columns["rain_ready_override"], "rain_ready_override is a nullable INTEGER")
+    }
+
     private companion object {
         /** The newest schema version; its export is `<LATEST_VERSION>.json`. */
-        const val LATEST_VERSION = 4
+        const val LATEST_VERSION = ClothingDatabase.VERSION
     }
 
     private fun count(table: String): Int =
