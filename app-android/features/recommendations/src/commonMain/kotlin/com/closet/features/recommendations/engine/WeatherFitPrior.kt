@@ -3,6 +3,7 @@ package com.closet.features.recommendations.engine
 import com.closet.core.data.dao.ItemRainSuitability
 import com.closet.core.data.dao.ItemTempPercentiles
 import com.closet.core.data.dao.ItemWindSuitability
+import com.closet.core.data.weather.ItemWarmth
 
 /**
  * Cold-start weather-fit prior derived from an item's known attributes (`subcategoryName`,
@@ -146,15 +147,11 @@ internal object WeatherFitPrior {
     private val RAIN_UNFRIENDLY_MATERIALS: Set<String> = setOf(
         "Suede", "Silk", "Cashmere", "Velvet", "Chiffon", "Linen",
     )
-    private val RAIN_READY_OUTER_MATERIALS: Set<String> = setOf(
-        "Nylon", "Polyester", "Leather", "Faux Leather",
-    )
+    private val RAIN_READY_OUTER_MATERIALS: Set<String> = ItemWarmth.RAIN_PROTECTIVE_MATERIALS
     private val RAIN_UNFRIENDLY_SUBCATEGORIES: Set<String> = setOf(
         "Sandals", "Slippers",
     )
-    private val RAIN_READY_SUBCATEGORIES: Set<String> = setOf(
-        "Raincoat", "Boots", "Jacket", "Coat",
-    )
+    private val RAIN_READY_SUBCATEGORIES: Set<String> = ItemWarmth.RAIN_PROTECTIVE_SUBCATEGORIES
 
     private val WIND_UNFRIENDLY_MATERIALS: Set<String> = setOf(
         "Chiffon", "Silk", "Linen",
