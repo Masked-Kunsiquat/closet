@@ -19,6 +19,7 @@ import com.closet.features.recommendations.engine.EngineWeather
 import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.buildItemNeighbors
 import com.closet.features.recommendations.engine.formalityLevel
+import com.closet.features.recommendations.engine.withEffectiveWeather
 import com.closet.features.recommendations.engine.key
 import com.closet.features.recommendations.engine.learning.ConditionalLogitOptimizer
 import com.closet.features.recommendations.engine.learning.HistoricalWearLog
@@ -529,6 +530,12 @@ class RecommendationViewModel(
         val materialNamesDeferred = async {
             recommendationRepository.getItemMaterialNames(allItemIds).unwrapOrThrow("getItemMaterialNames")
         }
+        val tempPercentilesDeferred = async {
+            recommendationRepository.getTempPercentiles(allItemIds).unwrapOrThrow("getTempPercentiles")
+        }
+        val rainDeferred = async {
+            recommendationRepository.getRainSuitability(allItemIds).unwrapOrThrow("getRainSuitability")
+        }
 
         val colorFamilyMap = colorFamiliesDeferred.await()
             .groupBy { it.clothingItemId }
@@ -543,6 +550,8 @@ class RecommendationViewModel(
         val embeddingsMap = embeddingsDeferred.await()
         val subcategoryNamesMap = subcategoryNamesDeferred.await()
         val materialNamesMap = materialNamesDeferred.await()
+        val tempMap = tempPercentilesDeferred.await().associateBy { it.clothingItemId }
+        val rainMap = rainDeferred.await().associateBy { it.clothingItemId }
 
         withContext(computationDispatcher) {
             val createdDates = HashMap<Long, LocalDate>(trainingItems.size)
@@ -569,6 +578,11 @@ class RecommendationViewModel(
                     formalityLevel = formalityLevel(occasionNamesMap[row.id] ?: emptyList()),
                     subcategoryName = subcategoryNamesMap[row.id],
                     materials = materialNamesMap[row.id] ?: emptySet(),
+                ).withEffectiveWeather(
+                    warmthOverride = row.warmthOverride,
+                    rainReadyOverride = row.rainReadyOverride,
+                    temps = tempMap[row.id],
+                    rain = rainMap[row.id],
                 )
             }
 

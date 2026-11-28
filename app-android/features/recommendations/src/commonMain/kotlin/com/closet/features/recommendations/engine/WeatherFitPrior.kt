@@ -49,7 +49,8 @@ internal object WeatherFitPrior {
     private const val SUITABILITY_THRESHOLD = 0.20
     private const val DEFAULT_TEMP_LOW_C = 8.0
     private const val DEFAULT_TEMP_HIGH_C = 26.0
-    private const val NEUTRAL_SUITABILITY_PCT = 0.50
+    /** Rain/wind suitability prior for an item with no informative attribute either way. */
+    const val NEUTRAL_SUITABILITY_PCT = 0.50
     private const val UNSUITABLE_PCT = 0.05
     private const val SUITABLE_PCT = 0.75
 
@@ -162,6 +163,16 @@ internal object WeatherFitPrior {
     private val WIND_READY_SUBCATEGORIES: Set<String> = setOf(
         "Coat", "Jacket", "Raincoat", "Boots",
     )
+
+    /**
+     * Bühlmann credibility blend of an [observed] rate over [n] logs with its [prior]:
+     * $w \cdot \hat{p} + (1 - w) \cdot \pi_0$ with $w = \frac{n}{n + K}$ ([PRIOR_WEIGHT_K]).
+     * Shared with [EffectiveWeather.rainReady] so both read history the same way.
+     */
+    fun credibilityBlend(n: Int, observed: Double, prior: Double): Double {
+        val w = n.toDouble() / (n.toDouble() + PRIOR_WEIGHT_K)
+        return w * observed + (1.0 - w) * prior
+    }
 
     /**
      * Derives an [ItemWeatherPrior] from [item]'s subcategory, warmth layer, and materials,
@@ -281,7 +292,7 @@ internal object WeatherFitPrior {
         if (n <= 0 || rain == null) return mPrior
 
         val w = n.toDouble() / (n.toDouble() + PRIOR_WEIGHT_K)
-        val effRainPct = w * rain.rainPct + (1.0 - w) * prior.rainSuitabilityPct
+        val effRainPct = credibilityBlend(n, rain.rainPct, prior.rainSuitabilityPct)
         val mPost = if (effRainPct < SUITABILITY_THRESHOLD) penalty else 1.0
 
         return w * mPost + (1.0 - w) * mPrior
@@ -309,7 +320,7 @@ internal object WeatherFitPrior {
         if (n <= 0 || wind == null) return mPrior
 
         val w = n.toDouble() / (n.toDouble() + PRIOR_WEIGHT_K)
-        val effWindPct = w * wind.windPct + (1.0 - w) * prior.windSuitabilityPct
+        val effWindPct = credibilityBlend(n, wind.windPct, prior.windSuitabilityPct)
         val mPost = if (effWindPct < SUITABILITY_THRESHOLD) penalty else 1.0
 
         return w * mPost + (1.0 - w) * mPrior

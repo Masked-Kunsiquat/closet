@@ -18,6 +18,7 @@ import com.closet.features.recommendations.engine.OutfitCombo
 import com.closet.features.recommendations.engine.OutfitRecommendationEngine
 import com.closet.features.recommendations.engine.buildItemNeighbors
 import com.closet.features.recommendations.engine.formalityLevel
+import com.closet.features.recommendations.engine.withEffectiveWeather
 import com.closet.features.recommendations.engine.learning.TasteWeights
 import com.closet.features.recommendations.model.WeatherConditions
 import kotlinx.coroutines.CoroutineDispatcher
@@ -233,6 +234,11 @@ internal class RecommendationPipeline(
                 formalityLevel = formalityLevel(occasionNamesMap[item.id] ?: emptyList()),
                 subcategoryName = subcategoryNamesMap[item.id],
                 materials = materialNamesMap[item.id] ?: emptySet(),
+            ).withEffectiveWeather(
+                warmthOverride = item.warmthOverride,
+                rainReadyOverride = item.rainReadyOverride,
+                temps = tempMap[item.id],
+                rain = rainMap[item.id],
             )
         }
 
