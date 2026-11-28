@@ -71,7 +71,7 @@ class SimulatorTest {
             val worn = day.wornItemKeys.toSet()
             val eligible = persona.outfits.filter { o ->
                 day.occasion in o.occasions &&
-                    o.minTempC <= day.weather.highC && day.weather.lowC <= o.maxTempC &&
+                    (day.weather.lowC + day.weather.highC) / 2 in o.minTempC..o.maxTempC &&
                     o.itemKeys.none { it in day.dirtyAtMorning }
             }
             val rainOk = eligible.filter { it.rainOk }
@@ -103,6 +103,49 @@ class SimulatorTest {
         val wrong = officeMild.copy(occasions = setOf("Athletic"))
         val occPlan = year(single(wrong, rainChance = 1.0))
         assertNeverDirty(single(wrong, 1.0), wrong, occPlan)
+    }
+
+    @Test
+    fun `an outfit suits the day when the mean is inside its band`() {
+        // Day low 8 high 18: mean 13, inside 12..20 and outside 14..30 (though the range overlaps both).
+        val inside = officeMild.copy(key = "inside", minTempC = 12.0, maxTempC = 20.0)
+        val outside = officeMild.copy(
+            key = "outside", itemKeys = listOf("blue-oxford", "khaki-chinos", "brown-dress-shoes"),
+            minTempC = 14.0, maxTempC = 30.0,
+        )
+        val persona = single(inside, 0.0).copy(
+            outfits = listOf(outside, inside),
+            climate = Climate(List(12) { 18.0 }, List(12) { 8.0 }, List(12) { 0.0 }, 0.0),
+            wearsBeforeWash = 1000,
+        )
+        // Weather noise moves the mean around 13, so judge each day by its own mean: from 12 up to 14
+        // only the first outfit suits, although the day's range always overlaps both bands.
+        val logged = year(persona).filter { it.logged && (it.weather.lowC + it.weather.highC) / 2 in 12.0..<14.0 }
+        assertTrue(logged.isNotEmpty(), "no day had a mean in 12 up to 14")
+        for (day in logged) assertEquals(inside.itemKeys.toSet(), day.wornItemKeys.toSet(), "${day.date}")
+    }
+
+    @Test
+    fun `outerwear footwear and accessories never go into the wash`() {
+        val persona = MiniPersona.build()
+        val byKey = persona.items.associateBy { it.key }
+        val unwashed = setOf("Outerwear", "Footwear", "Accessories", "Bags")
+        val plan = year(persona)
+        assertTrue(plan.any { it.logged })
+        for (day in plan) for (key in day.dirtyAtMorning + day.dirtyAtNight) {
+            assertTrue(byKey.getValue(key).category !in unwashed, "$key dirty on ${day.date}")
+        }
+    }
+
+    @Test
+    fun `washable items still go into the wash`() {
+        val persona = MiniPersona.build()
+        val byKey = persona.items.associateBy { it.key }
+        val plan = year(persona)
+        val dirtyTops = plan.flatMap { it.dirtyAtNight }.filter { byKey.getValue(it).category == "Tops" }
+        assertTrue(dirtyTops.isNotEmpty(), "no top ever became dirty")
+        // Laundry day empties the basket.
+        assertTrue(plan.filter { it.date.dayOfWeek == persona.laundryDay }.all { it.dirtyAtNight.isEmpty() })
     }
 
     @Test

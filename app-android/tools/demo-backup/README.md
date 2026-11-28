@@ -59,6 +59,12 @@ The other ~35% stay bare, so the add/edit form still has empty fields to fill in
 Copy the `.hangr` to the device, then open Settings, Backup & Restore, Restore, and pick the file.
 Restore replaces the current wardrobe, so use a test install or take a backup first.
 
+## Measure colours
+
+`./gradlew :tools:demo-backup:run --args="measure-colors <imagesDir> <idsFile> <outJson>"` measures
+`<imagesDir>/<id>.jpg` for each id (one per line) with the app's colour extractor and writes
+hexes, shares and colour names as JSON.
+
 ## Tests
 
 `./gradlew :tools:demo-backup:test` (also part of `./gradlew test`). The tests use a tiny

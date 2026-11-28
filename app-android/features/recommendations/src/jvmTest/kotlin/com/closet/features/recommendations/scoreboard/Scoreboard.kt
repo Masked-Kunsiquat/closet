@@ -35,6 +35,10 @@ data class CheckRate(val fails: Int, val applicable: Int)
  * @property unreachableCoreDays evaluation days whose worn core can never be a hit: it has no Top +
  *   Bottom pair and no OnePiece (for example a tee with Activewear shorts, or an empty core).
  * @property savedShare the share of the persona's catalogue outfits that are saved in the app.
+ * @property personaChecks the same per-suggestion checks applied to what the persona actually wore
+ *   on each evaluation day (one outcome per day; THREE_DIFFER is never applicable). Informational
+ *   only: it shows how strict a check is against the persona's own choices, and is never asserted
+ *   on or compared with [Baseline].
  */
 data class PersonaResult(
     val persona: String,
@@ -45,6 +49,7 @@ data class PersonaResult(
     val unreachableCoreDays: Int,
     val savedShare: Double,
     val checks: Map<CheckId, CheckRate>,
+    val personaChecks: Map<CheckId, CheckRate> = emptyMap(),
 )
 
 /** One evaluation day's outcome: per check, one [Outcome] per shown suggestion (one for THREE_DIFFER). */
@@ -56,6 +61,8 @@ internal data class DayEvaluation(
     /** The worn core can never be a hit (see [PersonaResult.unreachableCoreDays]). */
     val unreachableCore: Boolean,
     val outcomes: Map<CheckId, List<Outcome>>,
+    /** [Checks.perSuggestion] on the outfit the persona actually wore that day (see [PersonaResult.personaChecks]). */
+    val personaOutcomes: Map<CheckId, Outcome> = emptyMap(),
 )
 
 /**
@@ -94,14 +101,20 @@ object Scoreboard {
     /** The fixture categories whose items form a core; they map to the app's Top, Bottom and OnePiece roles. */
     internal val CORE_ROLES = setOf(Checks.TOPS, Checks.BOTTOMS, Checks.ONE_PIECE)
 
-    suspend fun run(persona: Persona, start: LocalDate = DEFAULT_START, days: Int = DEFAULT_DAYS): PersonaResult =
-        runObserved(persona, start, days) { _, _ -> }
+    /** [engine] defaults to production's; the sensitivity check passes one with colour harmony off. */
+    suspend fun run(
+        persona: Persona,
+        start: LocalDate = DEFAULT_START,
+        days: Int = DEFAULT_DAYS,
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
+    ): PersonaResult = runObserved(persona, start, days, engine) { _, _ -> }
 
     /** [run], calling [beforeEvaluating] on each evaluation day after its wash states are set. */
     internal suspend fun runObserved(
         persona: Persona,
         start: LocalDate,
         days: Int,
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
         beforeEvaluating: suspend (ClothingDatabase, SimDay) -> Unit,
     ): PersonaResult = ScoreboardDatabase().use { env ->
         val db = env.db
@@ -119,7 +132,7 @@ object Scoreboard {
                 if (loggedAfterWarmUp % EVAL_EVERY == 0) {
                     val requested = if (occasionDraws.nextDouble() < OCCASION_REQUEST_CHANCE) day.occasion else null
                     val yesterday = plan.getOrNull(index - 1)?.takeIf { it.logged }?.wornItemKeys
-                    evaluations += evaluateDay(db, persona, fixture, day, requested, yesterday) {
+                    evaluations += evaluateDay(db, persona, fixture, day, requested, yesterday, engine) {
                         beforeEvaluating(db, day)
                     }
                 }
@@ -147,6 +160,7 @@ object Scoreboard {
         day: SimDay,
         requestedOccasion: String?,
         yesterdayWornKeys: List<String>?,
+        engine: OutfitRecommendationEngine = OutfitRecommendationEngine(),
         beforeEvaluating: suspend () -> Unit = {},
     ): DayEvaluation {
         val clothing = db.clothingDao()
@@ -165,7 +179,7 @@ object Scoreboard {
         }
         val pipeline = RecommendationPipeline(
             recommendationRepository = RecommendationRepository(db.recommendationDao()),
-            engine = OutfitRecommendationEngine(),
+            engine = engine,
             computationDispatcher = Dispatchers.Unconfined,
             tasteWeights = { TasteWeights.DEFAULT },
         )
@@ -207,15 +221,16 @@ object Scoreboard {
 
         return DayEvaluation(noResults = page.isEmpty(), hitAt10 = hit, layeredCore = layered,
             unreachableCore = unreachable, outcomes = outcomes,
+            personaOutcomes = Checks.perSuggestion(day.wornItemKeys, ctx),
         )
     }
 
     /** Sums evaluation days into a [PersonaResult]; every [CheckId] is present. */
     internal fun tally(persona: Persona, evaluations: List<DayEvaluation>): PersonaResult {
-        val checks = CheckId.entries.associateWith { id ->
-            val all = evaluations.flatMap { it.outcomes[id].orEmpty() }
+        fun rate(all: List<Outcome>) =
             CheckRate(fails = all.count { it == Outcome.FAIL }, applicable = all.count { it != Outcome.NOT_APPLICABLE })
-        }
+        val checks = CheckId.entries.associateWith { id -> rate(evaluations.flatMap { it.outcomes[id].orEmpty() }) }
+        val personaChecks = CheckId.entries.associateWith { id -> rate(evaluations.mapNotNull { it.personaOutcomes[id] }) }
         return PersonaResult(
             persona = persona.name,
             evaluatedDays = evaluations.size,
@@ -226,6 +241,7 @@ object Scoreboard {
             savedShare = if (persona.outfits.isEmpty()) 0.0
             else persona.outfits.count { it.saved }.toDouble() / persona.outfits.size,
             checks = checks,
+            personaChecks = personaChecks,
         )
     }
 }

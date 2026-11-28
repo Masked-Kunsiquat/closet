@@ -69,11 +69,11 @@ class ColorCheckReport(
  */
 object ColorCheck {
 
-    private val seeds = DatabaseSeeder.SEEDED_COLORS
+    internal val seeds = DatabaseSeeder.SEEDED_COLORS
     private val termByName = seeds.associate { it.name to it.basicTerm }
 
     /** Seed ids are 1..22 in list order. */
-    private val shades: List<ReferenceShade> = seeds.flatMapIndexed { index, c ->
+    internal val shades: List<ReferenceShade> = seeds.flatMapIndexed { index, c ->
         c.shades.map { ReferenceShade(colorId = index + 1L, hex = it) }
     }
 

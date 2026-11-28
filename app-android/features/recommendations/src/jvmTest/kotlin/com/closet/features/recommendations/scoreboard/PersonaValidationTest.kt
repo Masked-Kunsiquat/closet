@@ -2,6 +2,7 @@ package com.closet.features.recommendations.scoreboard
 
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -16,6 +17,13 @@ class PersonaValidationTest {
     @Test
     fun `the mini persona is valid`() {
         Simulator(base)
+    }
+
+    @Test
+    fun `every curated persona is valid`() {
+        assertEquals(5, AllPersonas.list.size)
+        assertEquals(AllPersonas.list.size, AllPersonas.list.map { it.name }.toSet().size, "persona names must be unique")
+        for (persona in AllPersonas.list) Simulator(persona)
     }
 
     @Test

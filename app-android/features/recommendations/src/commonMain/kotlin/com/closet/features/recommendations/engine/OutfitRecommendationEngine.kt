@@ -76,9 +76,23 @@ import kotlin.random.Random
  * proportion to `score^(1/T)`, so runner-ups get a chance and weak outfits almost never do.
  * [OutfitCombo.score] is always the un-noised outfit score.
  */
-class OutfitRecommendationEngine {
+class OutfitRecommendationEngine private constructor(
+    /** False only in the scoreboard's sensitivity check (#148): colour harmony is then × 1.0. */
+    private val colorHarmonyEnabled: Boolean,
+) {
+
+    /** The production engine; colour harmony is always on. */
+    constructor() : this(colorHarmonyEnabled = true)
 
     companion object {
+        /**
+         * Tests only: an engine with colour harmony on (exactly the production engine) or off (× 1.0).
+         * A factory rather than a second visible constructor, so `singleOf(::OutfitRecommendationEngine)`
+         * keeps one constructor to resolve.
+         */
+        internal fun withColorHarmony(enabled: Boolean): OutfitRecommendationEngine =
+            OutfitRecommendationEngine(colorHarmonyEnabled = enabled)
+
         // --- Temperatures ---
         internal const val COLD_THRESHOLD_C = 5.0
         internal const val WARM_THRESHOLD_C = 20.0
@@ -588,7 +602,7 @@ class OutfitRecommendationEngine {
      * +0.10. Items with no harmony color (all neutral, untagged or unparseable) sit out.
      */
     private fun colorHarmonyMultiplier(items: List<EngineItem>): Double =
-        ColorHarmony.factors(items).combined
+        if (colorHarmonyEnabled) ColorHarmony.factors(items).combined else 1.0
 
     // -------------------------------------------------------------------------
     // Pattern mixing scoring

@@ -20,6 +20,11 @@ private const val COLOR_CHECK_USAGE = """Usage: color-check <datasetDir> [--limi
   legacy HSL matcher as a baseline. --merge and --min-share override the extractor constants
   (for calibration only)."""
 
+private const val MEASURE_COLORS_USAGE = """Usage: measure-colors <imagesDir> <idsFile> <outJson>
+
+  Measures each <imagesDir>/<id>.jpg (ids one per line in <idsFile>) with the app's colour
+  extractor and writes names, hexes and shares as JSON."""
+
 private class UsageError(message: String) : Exception(message)
 
 private fun parseArgs(args: Array<String>): Triple<File, File, BackupOptions> {
@@ -76,6 +81,17 @@ fun main(args: Array<String>) {
             colorCheck(args.drop(1))
         } catch (e: UsageError) {
             System.err.println("${e.message}\n\n$COLOR_CHECK_USAGE")
+            exitProcess(2)
+        }
+        exitProcess(0)
+    }
+    if (args.firstOrNull() == "measure-colors") {
+        try {
+            val rest = args.drop(1)
+            if (rest.size != 3) throw UsageError("measure-colors takes exactly three arguments")
+            MeasureColors.run(File(rest[0]), File(rest[1]), File(rest[2]))
+        } catch (e: UsageError) {
+            System.err.println("${e.message}\n\n$MEASURE_COLORS_USAGE")
             exitProcess(2)
         }
         exitProcess(0)
