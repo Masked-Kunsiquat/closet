@@ -98,8 +98,8 @@ class ChecksTest {
 
     @Test
     fun `warm enough reads the day mean not the low`() {
-        // Low 0 high 20 has mean 10 and needs 2: basic (3) passes, though a low of 0 alone would need more.
-        assertEquals(Outcome.PASS, run(basic, ctx(day(low = 0.0, high = 20.0)))[CheckId.WARM_ENOUGH])
+        // Low -4 high 24 has mean 10 and needs 2: basic (3) passes. Reading the low (-4) would need 4 and fail.
+        assertEquals(Outcome.PASS, run(basic, ctx(day(low = -4.0, high = 24.0)))[CheckId.WARM_ENOUGH])
         // Low -8 high 0 has mean -4 and needs 4: basic (3) fails.
         assertEquals(Outcome.FAIL, run(basic, ctx(day(low = -8.0, high = 0.0)))[CheckId.WARM_ENOUGH])
     }
