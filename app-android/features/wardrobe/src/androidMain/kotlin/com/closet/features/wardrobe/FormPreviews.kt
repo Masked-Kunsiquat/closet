@@ -112,6 +112,8 @@ private fun ClothingFormContentEmptyPreview() {
                 onOccasionToggle = {},
                 onMaterialToggle = {},
                 onPatternToggle = {},
+                onWarmthOverrideSelected = {},
+                onRainReadyOverrideSelected = {},
             )
         }
     }
@@ -161,6 +163,8 @@ private fun ClothingFormContentFilledPreview() {
                 onOccasionToggle = {},
                 onMaterialToggle = {},
                 onPatternToggle = {},
+                onWarmthOverrideSelected = {},
+                onRainReadyOverrideSelected = {},
             )
         }
     }

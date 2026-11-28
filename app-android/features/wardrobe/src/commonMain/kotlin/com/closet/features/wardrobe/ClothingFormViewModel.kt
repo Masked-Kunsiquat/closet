@@ -35,6 +35,8 @@ import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.time.AppClock
 import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.DataResult
+import com.closet.core.data.weather.ItemWarmth
+import com.closet.core.data.weather.WarmthLevel
 import com.closet.features.wardrobe.photo.ItemPhotoProcessor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +98,14 @@ data class ClothingFormUiState(
     val allOccasions: List<OccasionEntity> = emptyList(),
     val allMaterials: List<MaterialEntity> = emptyList(),
     val allPatterns: List<PatternEntity> = emptyList(),
+    /** The user's warmth level for the item, or null for Auto ([derivedWarmth]). */
+    val warmthOverride: WarmthLevel? = null,
+    /** The user's rain-ready flag for the item, or null for Auto ([derivedRainReady]). */
+    val rainReadyOverride: Boolean? = null,
+    /** The warmth Auto stands for, from the form's current category, subcategory and materials. */
+    val derivedWarmth: WarmthLevel = WarmthLevel.NONE,
+    /** The rain-readiness Auto stands for, from the form's current category, subcategory and materials. */
+    val derivedRainReady: Boolean = false,
 )
 
 private data class FormState(
@@ -148,6 +158,8 @@ private data class FormState(
     val selectedOccasionIds: Set<Long> = emptySet(),
     val selectedMaterialIds: Set<Long> = emptySet(),
     val selectedPatternIds: Set<Long> = emptySet(),
+    val warmthOverride: WarmthLevel? = null,
+    val rainReadyOverride: Boolean? = null,
 ) {
     /**
      * True when the selection holds a user's choice: a manual toggle, a stored user row, a selected
@@ -284,6 +296,9 @@ class ClothingFormViewModel(
         val occasions = args[8] as List<OccasionEntity>
         val materials = args[9] as List<MaterialEntity>
         val patterns = args[10] as List<PatternEntity>
+        val categoryName = form.category?.name
+        val subcategoryName = form.subcategory?.name
+        val materialNames = materials.filter { it.id in form.selectedMaterialIds }.mapTo(mutableSetOf()) { it.name }
 
         ClothingFormUiState(
             isEditMode = isEditMode,
@@ -331,6 +346,10 @@ class ClothingFormViewModel(
             allOccasions = occasions,
             allMaterials = materials,
             allPatterns = patterns,
+            warmthOverride = form.warmthOverride,
+            rainReadyOverride = form.rainReadyOverride,
+            derivedWarmth = ItemWarmth.derivedWarmth(categoryName, subcategoryName, materialNames),
+            derivedRainReady = ItemWarmth.derivedRainReady(categoryName, subcategoryName, materialNames),
         )
     }.stateIn(
         scope = viewModelScope,
@@ -355,7 +374,8 @@ class ClothingFormViewModel(
                 form.category != null || form.price.isNotBlank() || form.purchaseDate != null ||
                 form.purchaseLocation.isNotBlank() || form.notes.isNotBlank() ||
                 form.imagePath != null || form.selectedColors.isNotEmpty() ||
-                form.selectedSizeValueId != null
+                form.selectedSizeValueId != null ||
+                form.warmthOverride != null || form.rainReadyOverride != null
 
         val colorsChanged = form.selectedColors.size != originalColors.size ||
                 !form.selectedColors.containsAll(originalColors)
@@ -377,7 +397,9 @@ class ClothingFormViewModel(
                 form.selectedSeasonIds != originalSeasonIds ||
                 form.selectedOccasionIds != originalOccasionIds ||
                 form.selectedMaterialIds != originalMaterialIds ||
-                form.selectedPatternIds != originalPatternIds
+                form.selectedPatternIds != originalPatternIds ||
+                form.warmthOverride?.ordinal != original.warmthOverride ||
+                form.rainReadyOverride != original.rainReadyOverride
     }
 
     private fun loadItemForEditing(id: Long) {
@@ -477,6 +499,8 @@ class ClothingFormViewModel(
                         selectedOccasionIds = originalOccasionIds,
                         selectedMaterialIds = originalMaterialIds,
                         selectedPatternIds = originalPatternIds,
+                        warmthOverride = entity.warmthOverride?.let { level -> WarmthLevel.entries.getOrNull(level) },
+                        rainReadyOverride = entity.rainReadyOverride,
                         isLoading = false
                     ) }
                 }
@@ -841,6 +865,16 @@ class ClothingFormViewModel(
 
     private fun Set<Long>.toggle(id: Long): Set<Long> = if (id in this) this - id else this + id
 
+    /** Sets the item's warmth override; null is Auto. */
+    fun onWarmthOverrideSelected(level: WarmthLevel?) {
+        _form.update { it.copy(warmthOverride = level) }
+    }
+
+    /** Sets the item's rain-ready override; null is Auto. */
+    fun onRainReadyOverrideSelected(rainReady: Boolean?) {
+        _form.update { it.copy(rainReadyOverride = rainReady) }
+    }
+
     fun onStatusSelected(status: ClothingStatus) {
         _form.update { it.copy(status = status) }
     }
@@ -888,6 +922,10 @@ class ClothingFormViewModel(
                     imageCaption = state.imageCaption
                         ?: if (state.imagePath == originalEntity?.imagePath) originalEntity?.imageCaption else null,
                     colorsCurated = colorsCuratedToSave(state),
+                    // Written from the form on insert and update alike, so an edit keeps (or changes)
+                    // the stored override; Auto is null. The level is stored as its 0..4 ordinal.
+                    warmthOverride = state.warmthOverride?.ordinal,
+                    rainReadyOverride = state.rainReadyOverride,
                     createdAt = originalEntity?.createdAt ?: clock.now(),
                     updatedAt = clock.now()
                 )

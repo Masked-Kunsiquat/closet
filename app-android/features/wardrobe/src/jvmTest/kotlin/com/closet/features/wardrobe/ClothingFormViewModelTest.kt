@@ -10,6 +10,7 @@ import com.closet.core.data.model.ClothingItemDetail
 import com.closet.core.data.model.ClothingItemEntity
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.ColorSource
+import com.closet.core.data.model.MaterialEntity
 import com.closet.core.data.model.TaggedColor
 import com.closet.core.data.model.SizeSystemEntity
 import com.closet.core.data.model.SubcategoryEntity
@@ -20,6 +21,7 @@ import com.closet.core.data.repository.LookupRepository
 import com.closet.core.data.time.FixedAppClock
 import com.closet.core.data.shortcuts.ShortcutUsageReporter
 import com.closet.core.data.util.DataResult
+import com.closet.core.data.weather.WarmthLevel
 import com.closet.core.ui.resources.error_database_query
 import com.closet.core.ui.resources.Res as CoreRes
 import com.closet.features.wardrobe.resources.Res
@@ -530,8 +532,17 @@ class ClothingFormViewModelTest {
     }
 
     /** Stubs edit-mode item 7 with [rows] (and their colours as the detail's colours). */
-    private fun stubEditItem(rows: List<ClothingItemColorEntity>, imagePath: String? = null, curated: Boolean = false) {
-        val entity = ClothingItemEntity(id = 7, name = "Shirt", imagePath = imagePath, colorsCurated = curated)
+    private fun stubEditItem(
+        rows: List<ClothingItemColorEntity>,
+        imagePath: String? = null,
+        curated: Boolean = false,
+        warmthOverride: Int? = null,
+        rainReadyOverride: Boolean? = null,
+    ) {
+        val entity = ClothingItemEntity(
+            id = 7, name = "Shirt", imagePath = imagePath, colorsCurated = curated,
+            warmthOverride = warmthOverride, rainReadyOverride = rainReadyOverride,
+        )
         val byId = listOf(red, blue).associateBy { it.id }
         coEvery { clothingRepository.getItemEntityById(7) } returns DataResult.Success(entity)
         coEvery { clothingRepository.getItemDetailOnce(7) } returns DataResult.Success(
@@ -1058,5 +1069,99 @@ class ClothingFormViewModelTest {
         advanceUntilIdle()
 
         verify(exactly = 0) { shortcutUsageReporter.reportUsed(any()) }
+    }
+
+    // ─── Warmth and rain-ready overrides (#147) ───────────────────────────────
+
+    private val outerwear = CategoryEntity(id = 4, name = "Outerwear", sortOrder = 4)
+    private val coat = SubcategoryEntity(id = 40, categoryId = 4, name = "Coat", sortOrder = 1)
+    private val raincoat = SubcategoryEntity(id = 41, categoryId = 4, name = "Raincoat", sortOrder = 2)
+    private val wool = MaterialEntity(id = 3, name = "Wool")
+
+    @Test
+    fun `auto label follows the derived value`() = runTest {
+        every { lookupRepository.getMaterials() } returns flowOf(listOf(wool))
+        val viewModel = subscribed(buildViewModel())
+        assertEquals(WarmthLevel.NONE, viewModel.uiState.value.derivedWarmth)
+        assertFalse(viewModel.uiState.value.derivedRainReady)
+
+        viewModel.onCategorySelected(outerwear)
+        viewModel.onSubcategorySelected(coat)
+        assertEquals(WarmthLevel.WARM, viewModel.uiState.value.derivedWarmth)
+        assertFalse(viewModel.uiState.value.derivedRainReady)
+
+        viewModel.onSubcategorySelected(raincoat)
+        assertEquals(WarmthLevel.LIGHT, viewModel.uiState.value.derivedWarmth)
+        assertTrue(viewModel.uiState.value.derivedRainReady)
+
+        viewModel.onMaterialToggle(wool.id)
+        assertEquals(WarmthLevel.MEDIUM, viewModel.uiState.value.derivedWarmth)
+
+        viewModel.onSubcategorySelected(coat)
+        assertEquals(WarmthLevel.HEAVY, viewModel.uiState.value.derivedWarmth)
+    }
+
+    @Test
+    fun `saving with auto keeps overrides null`() = runTest {
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onCategorySelected(outerwear)
+        viewModel.onSubcategorySelected(coat)
+        assertNull(viewModel.uiState.value.warmthOverride)
+        assertNull(viewModel.uiState.value.rainReadyOverride)
+
+        val item = savedInsertEntity(viewModel)
+
+        assertNull(item.warmthOverride)
+        assertNull(item.rainReadyOverride)
+    }
+
+    @Test
+    fun `saving an explicit override stores it`() = runTest {
+        val viewModel = subscribed(buildViewModel())
+        viewModel.onWarmthOverrideSelected(WarmthLevel.HEAVY)
+        viewModel.onRainReadyOverrideSelected(false)
+        assertEquals(WarmthLevel.HEAVY, viewModel.uiState.value.warmthOverride)
+        assertEquals(false, viewModel.uiState.value.rainReadyOverride)
+
+        val item = savedInsertEntity(viewModel)
+
+        assertEquals(4, item.warmthOverride)
+        assertEquals(false, item.rainReadyOverride)
+    }
+
+    @Test
+    fun `editing an item shows its saved override`() = runTest {
+        stubEditItem(rows = emptyList(), warmthOverride = 3, rainReadyOverride = true)
+        val viewModel = editViewModel()
+
+        assertEquals(WarmthLevel.WARM, viewModel.uiState.value.warmthOverride)
+        assertEquals(true, viewModel.uiState.value.rainReadyOverride)
+        assertFalse(viewModel.uiState.value.isDirty)
+    }
+
+    @Test
+    fun `editing and saving keeps an existing override`() = runTest {
+        stubEditItem(rows = emptyList(), warmthOverride = 3, rainReadyOverride = true)
+        val viewModel = editViewModel()
+
+        viewModel.onNameChange("Renamed shirt")
+        val (item, _) = savedUpdate(viewModel)
+
+        assertEquals(3, item.warmthOverride)
+        assertEquals(true, item.rainReadyOverride)
+    }
+
+    @Test
+    fun `choosing auto on edit clears the override`() = runTest {
+        stubEditItem(rows = emptyList(), warmthOverride = 3, rainReadyOverride = true)
+        val viewModel = editViewModel()
+
+        viewModel.onWarmthOverrideSelected(null)
+        viewModel.onRainReadyOverrideSelected(null)
+        assertTrue(viewModel.uiState.value.isDirty)
+        val (item, _) = savedUpdate(viewModel)
+
+        assertNull(item.warmthOverride)
+        assertNull(item.rainReadyOverride)
     }
 }

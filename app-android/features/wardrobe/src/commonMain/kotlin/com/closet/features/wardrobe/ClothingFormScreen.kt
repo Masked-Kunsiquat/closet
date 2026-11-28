@@ -85,6 +85,7 @@ import com.closet.core.ui.components.ResErrorSnackbarEffect
 import com.closet.core.data.model.BrandEntity
 import com.closet.core.data.model.CategoryEntity
 import com.closet.core.data.model.ClothingStatus
+import com.closet.core.data.weather.WarmthLevel
 import com.closet.core.data.model.ColorEntity
 import com.closet.core.data.model.SubcategoryEntity
 import org.koin.compose.viewmodel.koinViewModel
@@ -191,6 +192,8 @@ fun ClothingFormScreen(
                 onOccasionToggle = viewModel::onOccasionToggle,
                 onMaterialToggle = viewModel::onMaterialToggle,
                 onPatternToggle = viewModel::onPatternToggle,
+                onWarmthOverrideSelected = viewModel::onWarmthOverrideSelected,
+                onRainReadyOverrideSelected = viewModel::onRainReadyOverrideSelected,
                 onImageClick = launchPhotoPicker,
                 onRemoveBackground = viewModel::removeBackground,
                 onRevertSegmentation = viewModel::revertSegmentation,
@@ -259,6 +262,8 @@ internal fun ClothingFormContent(
     onOccasionToggle: (Long) -> Unit,
     onMaterialToggle: (Long) -> Unit,
     onPatternToggle: (Long) -> Unit,
+    onWarmthOverrideSelected: (WarmthLevel?) -> Unit,
+    onRainReadyOverrideSelected: (Boolean?) -> Unit,
     onImageClick: () -> Unit,
     onRemoveBackground: () -> Unit,
     onRevertSegmentation: () -> Unit,
@@ -471,6 +476,23 @@ internal fun ClothingFormContent(
                 items = uiState.allPatterns.map { it.id to it.name },
                 selectedIds = uiState.selectedPatternIds,
                 onToggle = onPatternToggle,
+            )
+        }
+
+        // Auto shows the value derived from the category, subcategory and materials above.
+        item {
+            WarmthOverrideSelector(
+                selected = uiState.warmthOverride,
+                derived = uiState.derivedWarmth,
+                onSelect = onWarmthOverrideSelected,
+            )
+        }
+
+        item {
+            RainReadyOverrideSelector(
+                selected = uiState.rainReadyOverride,
+                derived = uiState.derivedRainReady,
+                onSelect = onRainReadyOverrideSelected,
             )
         }
 
