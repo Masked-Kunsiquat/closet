@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A real v2 -> v4 upgrade through the production builder ([getDatabaseBuilder], so
+ * A real v2 -> v5 upgrade through the production builder ([getDatabaseBuilder], so
  * `configureClosetDatabase` supplies the migrations and the `onOpen` callback), on the JVM.
  * [MigrationTest] checks the migrations alone with [MigrationTestHelper]; this checks that the app's
  * own builder upgrades an existing v2 file, backfills `colors_curated` and recreates the partial index.
@@ -41,7 +41,7 @@ class ProductionUpgradeTest {
     }
 
     @Test
-    fun `the production builder upgrades a v2 file to v4`() {
+    fun `the production builder upgrades a v2 file to v5`() {
         val v2 = helper.createDatabase(2)
         v2.execSQL("DROP INDEX IF EXISTS one_ootd_per_day") // per migrations/AGENTS.md
         v2.execSQL("INSERT INTO colors (id, name, hex) VALUES (2, 'White', '#FFFFFF')")
@@ -61,7 +61,7 @@ class ProductionUpgradeTest {
 
         val upgraded = getDatabaseBuilder(file).build().also { db = it }
 
-        assertEquals(4, runBlocking { upgraded.databaseVersion() })
+        assertEquals(5, runBlocking { upgraded.databaseVersion() })
         val curated = upgraded.rows("SELECT id, colors_curated FROM clothing_items ORDER BY id") {
             it.getLong(0) to it.getLong(1)
         }

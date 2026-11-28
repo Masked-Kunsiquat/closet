@@ -15,7 +15,7 @@ package (`commonMain`).
 
 ## Where things stand
 
-**The database is at version 3.** Version 1 is a squashed baseline: the old 1→6 migration chain
+**The database is at version 5.** Version 1 is a squashed baseline: the old 1→6 migration chain
 was reset on 2026-11-15 (KMP Phase 3), when hangr had no users, and version 1 is the v6 shape
 exactly. The schema exports are `core/data/schemas/com.closet.core.data.ClothingDatabase/<N>.json`.
 
@@ -28,6 +28,9 @@ Migrations in this package:
   backfilled to 1 for items with a `user` colour row. Tested by `MigrationTest`.
 - `MIGRATION_3_4` (`Migration3To4.kt`, colour v2 PR 2, D1): re-picks ten base `colors.hex` values and sets
   Navy to `Cool`. Tested by `MigrationTest`.
+- `MIGRATION_4_5` (`Migration4To5.kt`, two-stage engine, #147): nullable `clothing_items.warmth_override`
+  (0..4) and `rain_ready_override` (0/1), the user's overrides of the derived item warmth and
+  rain-ready flag. Tested by `MigrationTest`.
 
 **Every schema change needs a real migration** — the reset was a one-off.
 
