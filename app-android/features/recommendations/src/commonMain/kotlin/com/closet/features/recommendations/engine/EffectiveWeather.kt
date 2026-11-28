@@ -11,29 +11,37 @@ import com.closet.core.data.weather.WarmthLevel
  * Pure; the pipeline computes these before the engine runs.
  *
  * ## Typical lower comfort bound per level
- * The coldest daily low (°C) an item of each level is typically worn at. The scale follows the
- * ASHRAE garment insulation (clo) ordering that [ItemWarmth] uses: each level adds roughly one
+ * The coldest daily low (°C) an item of each level from LIGHT up is typically worn at. The scale
+ * follows the ASHRAE garment insulation (clo) ordering that [ItemWarmth] uses: each level adds roughly one
  * layer's worth of clo, and each added layer extends comfort to colder air. The values are taken
  * from the low ends of [WeatherFitPrior]'s subcategory temperature bands, so the two models agree:
  *
  * | Level  | Bound  | Matching WeatherFitPrior band low                       |
  * |--------|--------|---------------------------------------------------------|
- * | NONE   | 14 °C  | T-Shirt, Polo (14)                                      |
  * | LIGHT  | 6 °C   | Blazer (6); between Track Jacket (4) and Shirt (8)      |
  * | MEDIUM | -3 °C  | Jacket (-3); between Cardigan (-2) and Sweater (-5)     |
  * | WARM   | -10 °C | Coat (-10)                                              |
  * | HEAVY  | none   | the top of the scale: there is no warmer level to reach |
  *
+ * NONE has no row: history never promotes a base layer (see below).
+ *
  * ## History refinement
- * With at least [OutfitRecommendationEngine.MIN_LOGS_FOR_SIGNAL] logs, an item whose
+ * With at least [OutfitRecommendationEngine.MIN_LOGS_FOR_SIGNAL] logs, a LIGHT-or-warmer item whose
  * 10th-percentile worn low is more than [WARMTH_MARGIN_C] below its level's bound is evidently
  * warmer than its type suggests (a fleece-lined jacket the user wears in deep cold), so its level
  * rises by exactly one. History never lowers a level: wearing a coat on mild days says nothing
- * about how warm it is.
+ * about how warm it is. A NONE item (a T-shirt, jeans, shoes) is never promoted: wearing it on
+ * cold days reflects the layers over it, not its own insulation, just as [ItemWarmth] keeps a
+ * wool tee at NONE. An override still sets any level.
  *
- * A not-rain-ready item becomes rain-ready when its rain suitability, credibility-blended with a
- * neutral prior by [WeatherFitPrior.credibilityBlend] (K = 5), reaches [RAIN_READY_BLENDED_PCT]:
- * the user keeps choosing it on rainy days. History never turns rain-readiness off.
+ * A not-rain-ready item becomes rain-ready when its rain suitability, credibility-blended with the
+ * item's own [WeatherFitPrior] rain prior by [WeatherFitPrior.credibilityBlend] (K = 5), reaches
+ * [RAIN_READY_BLENDED_PCT]: the user keeps choosing it on rainy days. A rain-unfriendly item
+ * (sandals, suede, prior 0.05) therefore needs more rainy wear than a protective type (a cotton
+ * Jacket, prior 0.75). History never turns rain-readiness off.
+ *
+ * Note: [ItemRainSuitability.rainLogCount] counts every log of the item, so logs without
+ * weather count as dry (existing DAO behaviour).
  */
 internal object EffectiveWeather {
 
@@ -43,9 +51,8 @@ internal object EffectiveWeather {
     /** Blended rain suitability at which history marks an item rain-ready. */
     const val RAIN_READY_BLENDED_PCT = 0.6
 
-    /** Typical lower comfort bound (°C) per level; see the class KDoc. HEAVY has none. */
+    /** Typical lower comfort bound (°C) per level; see the class KDoc. NONE and HEAVY have none. */
     private val LOWER_BOUND_C: Map<WarmthLevel, Double> = mapOf(
-        WarmthLevel.NONE to 14.0,
         WarmthLevel.LIGHT to 6.0,
         WarmthLevel.MEDIUM to -3.0,
         WarmthLevel.WARM to -10.0,
@@ -53,7 +60,7 @@ internal object EffectiveWeather {
 
     /**
      * The effective level: [override] (a stored [WarmthLevel.ordinal]; out of range means no
-     * override), else [derived] raised by at most one level by [temps].
+     * override), else [derived] raised by at most one level by [temps]. NONE is never raised by history.
      */
     fun warmth(derived: WarmthLevel, override: Int?, temps: ItemTempPercentiles?): WarmthLevel {
         override?.let { WarmthLevel.entries.getOrNull(it) }?.let { return it }
@@ -63,15 +70,19 @@ internal object EffectiveWeather {
         return WarmthLevel.entries.getOrElse(derived.ordinal + 1) { derived }
     }
 
-    /** The effective flag: [override], else [derived], else true when [rain] history shows rain-ready wear. */
-    fun rainReady(derived: Boolean, override: Boolean?, rain: ItemRainSuitability?): Boolean {
+    /**
+     * The effective flag: [override], else [derived], else true when [rain] history, blended with
+     * the item's rain suitability [prior] (`WeatherFitPrior.forItem(item)?.rainSuitabilityPct`),
+     * shows rain-ready wear.
+     */
+    fun rainReady(derived: Boolean, override: Boolean?, rain: ItemRainSuitability?, prior: Double): Boolean {
         if (override != null) return override
         if (derived) return true
         if (rain == null || rain.rainLogCount < OutfitRecommendationEngine.MIN_LOGS_FOR_SIGNAL) return false
         val blended = WeatherFitPrior.credibilityBlend(
             n = rain.rainLogCount,
             observed = rain.rainPct,
-            prior = WeatherFitPrior.NEUTRAL_SUITABILITY_PCT,
+            prior = prior,
         )
         return blended >= RAIN_READY_BLENDED_PCT
     }
@@ -105,6 +116,7 @@ internal fun EngineItem.withEffectiveWeather(
             derived = ItemWarmth.derivedRainReady(categoryName, subcategoryName, materials),
             override = rainReadyOverride,
             rain = rain,
+            prior = WeatherFitPrior.forItem(this)?.rainSuitabilityPct ?: WeatherFitPrior.NEUTRAL_SUITABILITY_PCT,
         ),
     )
 }
